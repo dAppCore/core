@@ -89,14 +89,9 @@ func (p *PIDFile) Acquire() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	absPath, err := filepath.Abs(p.path)
-	if err != nil {
-		return fmt.Errorf("failed to resolve PID file path: %w", err)
-	}
-
 	// Check if PID file exists
-	if content, err := io.Local.Read(absPath); err == nil {
-		pid, err := strconv.Atoi(content)
+	if data, err := io.Local.Read(p.path); err == nil {
+		pid, err := strconv.Atoi(data)
 		if err == nil && pid > 0 {
 			// Check if process is still running
 			if process, err := os.FindProcess(pid); err == nil {
@@ -106,12 +101,19 @@ func (p *PIDFile) Acquire() error {
 			}
 		}
 		// Stale PID file, remove it
-		_ = io.Local.Delete(absPath)
+		_ = io.Local.Delete(p.path)
 	}
 
-	// Write current PID (io.Local.Write creates parent directories automatically)
+	// Ensure directory exists
+	if dir := filepath.Dir(p.path); dir != "." {
+		if err := io.Local.EnsureDir(dir); err != nil {
+			return fmt.Errorf("failed to create PID directory: %w", err)
+		}
+	}
+
+	// Write current PID
 	pid := os.Getpid()
-	if err := io.Local.Write(absPath, strconv.Itoa(pid)); err != nil {
+	if err := io.Local.Write(p.path, strconv.Itoa(pid)); err != nil {
 		return fmt.Errorf("failed to write PID file: %w", err)
 	}
 
@@ -122,11 +124,7 @@ func (p *PIDFile) Acquire() error {
 func (p *PIDFile) Release() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	absPath, err := filepath.Abs(p.path)
-	if err != nil {
-		return err
-	}
-	return io.Local.Delete(absPath)
+	return io.Local.Delete(p.path)
 }
 
 // Path returns the PID file path.
