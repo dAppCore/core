@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/errors"
+	"github.com/host-uk/core/pkg/log"
 	"github.com/host-uk/core/pkg/git"
 	"github.com/host-uk/core/pkg/i18n"
 	"github.com/host-uk/core/pkg/repos"
@@ -59,13 +59,13 @@ func runFileSync(source string) error {
 
 	// Security: Reject path traversal attempts
 	if strings.Contains(source, "..") {
-		return errors.E("dev.sync", "path traversal not allowed", nil)
+		return log.E("dev.sync", "path traversal not allowed", nil)
 	}
 
 	// Validate source exists
 	sourceInfo, err := os.Stat(source)
 	if err != nil {
-		return errors.E("dev.sync", i18n.T("cmd.dev.file_sync.error.source_not_found", map[string]interface{}{"Path": source}), err)
+		return log.E("dev.sync", i18n.T("cmd.dev.file_sync.error.source_not_found", map[string]interface{}{"Path": source}), err)
 	}
 
 	// Find target repos
@@ -186,12 +186,12 @@ func resolveTargetRepos(pattern string) ([]*repos.Repo, error) {
 	// Load registry
 	registryPath, err := repos.FindRegistry()
 	if err != nil {
-		return nil, errors.E("dev.sync", "failed to find registry", err)
+		return nil, log.E("dev.sync", "failed to find registry", err)
 	}
 
 	registry, err := repos.LoadRegistry(registryPath)
 	if err != nil {
-		return nil, errors.E("dev.sync", "failed to load registry", err)
+		return nil, log.E("dev.sync", "failed to load registry", err)
 	}
 
 	// Match pattern against repo names
