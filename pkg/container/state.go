@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/host-uk/core/pkg/io"
 )
 
 // State manages persistent container state.
@@ -56,7 +58,7 @@ func NewState(filePath string) *State {
 func LoadState(filePath string) (*State, error) {
 	state := NewState(filePath)
 
-	data, err := os.ReadFile(filePath)
+	dataStr, err := io.Local.Read(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return state, nil
@@ -64,7 +66,7 @@ func LoadState(filePath string) (*State, error) {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(data, state); err != nil {
+	if err := json.Unmarshal([]byte(dataStr), state); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +80,7 @@ func (s *State) SaveState() error {
 
 	// Ensure the directory exists
 	dir := filepath.Dir(s.filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := io.Local.EnsureDir(dir); err != nil {
 		return err
 	}
 
@@ -87,7 +89,7 @@ func (s *State) SaveState() error {
 		return err
 	}
 
-	return os.WriteFile(s.filePath, data, 0644)
+	return io.Local.Write(s.filePath, string(data))
 }
 
 // Add adds a container to the state and persists it.
@@ -166,5 +168,5 @@ func EnsureLogsDir() error {
 	if err != nil {
 		return err
 	}
-	return os.MkdirAll(logsDir, 0755)
+	return io.Local.EnsureDir(logsDir)
 }
