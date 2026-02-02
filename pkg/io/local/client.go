@@ -167,3 +167,34 @@ func (m *Medium) FileGet(relativePath string) (string, error) {
 func (m *Medium) FileSet(relativePath, content string) error {
 	return m.Write(relativePath, content)
 }
+
+// Delete removes a file or empty directory.
+func (m *Medium) Delete(relativePath string) error {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return err
+	}
+	return os.Remove(fullPath)
+}
+
+// Rename moves or renames a file.
+func (m *Medium) Rename(oldPath, newPath string) error {
+	fullOld, err := m.path(oldPath)
+	if err != nil {
+		return err
+	}
+	fullNew, err := m.path(newPath)
+	if err != nil {
+		return err
+	}
+	return os.Rename(fullOld, fullNew)
+}
+
+// List returns a list of directory entries.
+func (m *Medium) List(relativePath string) ([]os.DirEntry, error) {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadDir(fullPath)
+}
