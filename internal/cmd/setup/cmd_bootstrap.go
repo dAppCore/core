@@ -15,7 +15,7 @@ import (
 
 	"github.com/host-uk/core/internal/cmd/workspace"
 	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	coreio "github.com/host-uk/core/pkg/io"
 	"github.com/host-uk/core/pkg/repos"
 )
 
@@ -97,7 +97,7 @@ func runBootstrap(ctx context.Context, only string, dryRun, all bool, projectNam
 		fmt.Printf("%s %s: %s\n", dimStyle.Render(">>"), i18n.T("cmd.setup.creating_project_dir"), projectName)
 
 		if !dryRun {
-			if err := io.Local.EnsureDir(targetDir); err != nil {
+			if err := coreio.Local.EnsureDir(targetDir); err != nil {
 				return fmt.Errorf("failed to create directory: %w", err)
 			}
 		}
@@ -105,7 +105,7 @@ func runBootstrap(ctx context.Context, only string, dryRun, all bool, projectNam
 
 	// Clone core-devops first
 	devopsPath := filepath.Join(targetDir, devopsRepo)
-	if !io.Local.IsDir(filepath.Join(devopsPath, ".git")) {
+	if _, err := coreio.Local.List(filepath.Join(devopsPath, ".git")); err != nil {
 		fmt.Printf("%s %s %s...\n", dimStyle.Render(">>"), i18n.T("common.status.cloning"), devopsRepo)
 
 		if !dryRun {
@@ -149,12 +149,13 @@ func runBootstrap(ctx context.Context, only string, dryRun, all bool, projectNam
 
 // isGitRepoRoot returns true if the directory is a git repository root.
 func isGitRepoRoot(path string) bool {
-	return io.Local.Exists(filepath.Join(path, ".git"))
+	_, err := coreio.Local.List(filepath.Join(path, ".git"))
+	return err == nil
 }
 
 // isDirEmpty returns true if the directory is empty or contains only hidden files.
 func isDirEmpty(path string) (bool, error) {
-	entries, err := io.Local.List(path)
+	entries, err := coreio.Local.List(path)
 	if err != nil {
 		return false, err
 	}

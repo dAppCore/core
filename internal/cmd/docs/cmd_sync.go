@@ -127,7 +127,7 @@ func runDocsSync(registryPath string, outputDir string, dryRun bool) error {
 		repoOutDir := filepath.Join(outputDir, outName)
 
 		// Clear existing directory
-		_ = io.Local.DeleteAll(repoOutDir)
+		io.Local.Delete(repoOutDir) // Recursive delete
 
 		if err := io.Local.EnsureDir(repoOutDir); err != nil {
 			cli.Print("  %s %s: %s\n", errorStyle.Render("✗"), info.Name, err)
@@ -139,8 +139,10 @@ func runDocsSync(registryPath string, outputDir string, dryRun bool) error {
 		for _, f := range info.DocsFiles {
 			src := filepath.Join(docsDir, f)
 			dst := filepath.Join(repoOutDir, f)
-			_ = io.Local.EnsureDir(filepath.Dir(dst))
-			if err := copyFile(src, dst); err != nil {
+			// Ensure parent dir
+			io.Local.EnsureDir(filepath.Dir(dst))
+
+			if err := io.Copy(io.Local, src, io.Local, dst); err != nil {
 				cli.Print("  %s %s: %s\n", errorStyle.Render("✗"), f, err)
 			}
 		}

@@ -298,7 +298,7 @@ func findTemplateWorkflow(registryDir, workflowFile string) string {
 	}
 
 	for _, candidate := range candidates {
-		if io.Local.Exists(candidate) {
+		if io.Local.IsFile(candidate) {
 			return candidate
 		}
 	}

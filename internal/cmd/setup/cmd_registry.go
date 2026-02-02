@@ -16,7 +16,7 @@ import (
 	"github.com/host-uk/core/internal/cmd/workspace"
 	"github.com/host-uk/core/pkg/cli"
 	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	coreio "github.com/host-uk/core/pkg/io"
 	"github.com/host-uk/core/pkg/repos"
 )
 
@@ -81,7 +81,7 @@ func runRegistrySetupWithReg(ctx context.Context, reg *repos.Registry, registryP
 
 	// Ensure base path exists
 	if !dryRun {
-		if err := io.Local.EnsureDir(basePath); err != nil {
+		if err := coreio.Local.EnsureDir(basePath); err != nil {
 			return fmt.Errorf("failed to create packages directory: %w", err)
 		}
 	}
@@ -117,7 +117,8 @@ func runRegistrySetupWithReg(ctx context.Context, reg *repos.Registry, registryP
 
 			// Check if already exists
 			repoPath := filepath.Join(basePath, repo.Name)
-			if io.Local.Exists(filepath.Join(repoPath, ".git")) {
+			// Check .git dir existence via List
+			if _, err := coreio.Local.List(filepath.Join(repoPath, ".git")); err == nil {
 				exists++
 				continue
 			}
@@ -146,7 +147,7 @@ func runRegistrySetupWithReg(ctx context.Context, reg *repos.Registry, registryP
 
 			// Check if already exists
 			repoPath := filepath.Join(basePath, repo.Name)
-			if io.Local.Exists(filepath.Join(repoPath, ".git")) {
+			if _, err := coreio.Local.List(filepath.Join(repoPath, ".git")); err == nil {
 				exists++
 				continue
 			}

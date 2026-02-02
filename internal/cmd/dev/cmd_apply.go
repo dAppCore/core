@@ -77,8 +77,8 @@ func runApply() error {
 
 	// Validate script exists
 	if applyScript != "" {
-		if !io.Local.Exists(applyScript) {
-			return errors.E("dev.apply", "script not found: "+applyScript, nil)
+		if !io.Local.IsFile(applyScript) {
+			return errors.E("dev.apply", "script not found: "+applyScript, nil) // Error mismatch? IsFile returns bool
 		}
 	}
 

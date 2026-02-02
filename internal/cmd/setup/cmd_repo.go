@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	coreio "github.com/host-uk/core/pkg/io"
 )
 
 // runRepoSetup sets up the current repository with .core/ configuration.
@@ -27,7 +27,7 @@ func runRepoSetup(repoPath string, dryRun bool) error {
 	// Create .core directory
 	coreDir := filepath.Join(repoPath, ".core")
 	if !dryRun {
-		if err := io.Local.EnsureDir(coreDir); err != nil {
+		if err := coreio.Local.EnsureDir(coreDir); err != nil {
 			return fmt.Errorf("failed to create .core directory: %w", err)
 		}
 	}
@@ -54,7 +54,7 @@ func runRepoSetup(repoPath string, dryRun bool) error {
 
 	for filename, content := range configs {
 		configPath := filepath.Join(coreDir, filename)
-		if err := io.Local.Write(configPath, content); err != nil {
+		if err := coreio.Local.Write(configPath, content); err != nil {
 			return fmt.Errorf("failed to write %s: %w", filename, err)
 		}
 		fmt.Printf("%s %s %s\n", successStyle.Render(">>"), i18n.T("cmd.setup.repo.created"), configPath)
@@ -66,16 +66,16 @@ func runRepoSetup(repoPath string, dryRun bool) error {
 // detectProjectType identifies the project type from files present.
 func detectProjectType(path string) string {
 	// Check in priority order
-	if io.Local.IsFile(filepath.Join(path, "wails.json")) {
+	if coreio.Local.IsFile(filepath.Join(path, "wails.json")) {
 		return "wails"
 	}
-	if io.Local.IsFile(filepath.Join(path, "go.mod")) {
+	if coreio.Local.IsFile(filepath.Join(path, "go.mod")) {
 		return "go"
 	}
-	if io.Local.IsFile(filepath.Join(path, "composer.json")) {
+	if coreio.Local.IsFile(filepath.Join(path, "composer.json")) {
 		return "php"
 	}
-	if io.Local.IsFile(filepath.Join(path, "package.json")) {
+	if coreio.Local.IsFile(filepath.Join(path, "package.json")) {
 		return "node"
 	}
 	return "unknown"
