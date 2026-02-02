@@ -263,7 +263,7 @@ func TestRename_Good(t *testing.T) {
 	assert.Equal(t, "content", content)
 }
 
-func TestRename_Bad_Traversal(t *testing.T) {
+func TestRename_Traversal_Sanitized(t *testing.T) {
 	testRoot, err := os.MkdirTemp("", "local_rename_traversal_test")
 	assert.NoError(t, err)
 	defer os.RemoveAll(testRoot)
@@ -274,9 +274,12 @@ func TestRename_Bad_Traversal(t *testing.T) {
 	err = medium.Write("file.txt", "content")
 	assert.NoError(t, err)
 
+	// Traversal attempts are sanitized (.. becomes .), so this renames to "./escaped.txt"
+	// which is just "escaped.txt" in the root
 	err = medium.Rename("file.txt", "../escaped.txt")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "path traversal")
+	assert.NoError(t, err)
+	assert.False(t, medium.Exists("file.txt"))
+	assert.True(t, medium.Exists("escaped.txt"))
 }
 
 func TestList_Good(t *testing.T) {
