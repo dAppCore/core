@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/io"
 )
 
@@ -60,7 +61,7 @@ func LoadState(filePath string) (*State, error) {
 
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
-		return nil, err
+		return nil, errors.E("container.LoadState", "failed to resolve state file path", err)
 	}
 
 	content, err := io.Local.Read(absPath)
@@ -68,11 +69,11 @@ func LoadState(filePath string) (*State, error) {
 		if os.IsNotExist(err) {
 			return state, nil
 		}
-		return nil, err
+		return nil, errors.E("container.LoadState", "failed to read state file", err)
 	}
 
 	if err := json.Unmarshal([]byte(content), state); err != nil {
-		return nil, err
+		return nil, errors.E("container.LoadState", "failed to parse state file", err)
 	}
 
 	return state, nil
@@ -85,16 +86,19 @@ func (s *State) SaveState() error {
 
 	absPath, err := filepath.Abs(s.filePath)
 	if err != nil {
-		return err
+		return errors.E("container.SaveState", "failed to resolve state file path", err)
 	}
 
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		return err
+		return errors.E("container.SaveState", "failed to marshal state", err)
 	}
 
 	// io.Local.Write creates parent directories automatically
-	return io.Local.Write(absPath, string(data))
+	if err := io.Local.Write(absPath, string(data)); err != nil {
+		return errors.E("container.SaveState", "failed to write state file", err)
+	}
+	return nil
 }
 
 // Add adds a container to the state and persists it.

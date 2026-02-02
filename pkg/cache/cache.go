@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/io"
 )
 
@@ -33,7 +34,7 @@ func New(baseDir string, ttl time.Duration) (*Cache, error) {
 		// Use .core/cache in current working directory
 		cwd, err := os.Getwd()
 		if err != nil {
-			return nil, err
+			return nil, errors.E("cache.New", "failed to get working directory", err)
 		}
 		baseDir = filepath.Join(cwd, ".core", "cache")
 	}
@@ -45,12 +46,12 @@ func New(baseDir string, ttl time.Duration) (*Cache, error) {
 	// Convert to absolute path for io.Local
 	absBaseDir, err := filepath.Abs(baseDir)
 	if err != nil {
-		return nil, err
+		return nil, errors.E("cache.New", "failed to resolve absolute path", err)
 	}
 
 	// Ensure cache directory exists
 	if err := io.Local.EnsureDir(absBaseDir); err != nil {
-		return nil, err
+		return nil, errors.E("cache.New", "failed to create cache directory", err)
 	}
 
 	baseDir = absBaseDir
@@ -75,7 +76,7 @@ func (c *Cache) Get(key string, dest interface{}) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, err
+		return false, errors.E("cache.Get", "failed to read cache file", err)
 	}
 	data := []byte(content)
 
@@ -92,7 +93,7 @@ func (c *Cache) Get(key string, dest interface{}) (bool, error) {
 
 	// Unmarshal the actual data
 	if err := json.Unmarshal(entry.Data, dest); err != nil {
-		return false, err
+		return false, errors.E("cache.Get", "failed to unmarshal cache data", err)
 	}
 
 	return true, nil
@@ -105,7 +106,7 @@ func (c *Cache) Set(key string, data interface{}) error {
 	// Marshal the data
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		return err
+		return errors.E("cache.Set", "failed to marshal data", err)
 	}
 
 	entry := Entry{
@@ -116,26 +117,35 @@ func (c *Cache) Set(key string, data interface{}) error {
 
 	entryBytes, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
-		return err
+		return errors.E("cache.Set", "failed to marshal cache entry", err)
 	}
 
 	// io.Local.Write creates parent directories automatically
-	return io.Local.Write(path, string(entryBytes))
+	if err := io.Local.Write(path, string(entryBytes)); err != nil {
+		return errors.E("cache.Set", "failed to write cache file", err)
+	}
+	return nil
 }
 
 // Delete removes an item from the cache.
 func (c *Cache) Delete(key string) error {
 	path := c.Path(key)
 	err := io.Local.Delete(path)
-	if os.IsNotExist(err) {
-		return nil
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return errors.E("cache.Delete", "failed to delete cache file", err)
 	}
-	return err
+	return nil
 }
 
 // Clear removes all cached items.
 func (c *Cache) Clear() error {
-	return io.Local.DeleteAll(c.baseDir)
+	if err := io.Local.DeleteAll(c.baseDir); err != nil {
+		return errors.E("cache.Clear", "failed to clear cache directory", err)
+	}
+	return nil
 }
 
 // Age returns how old a cached item is, or -1 if not cached.

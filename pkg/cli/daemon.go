@@ -124,9 +124,12 @@ func (p *PIDFile) Release() error {
 	defer p.mu.Unlock()
 	absPath, err := filepath.Abs(p.path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to resolve PID file path: %w", err)
 	}
-	return io.Local.Delete(absPath)
+	if err := io.Local.Delete(absPath); err != nil {
+		return fmt.Errorf("failed to delete PID file: %w", err)
+	}
+	return nil
 }
 
 // Path returns the PID file path.
