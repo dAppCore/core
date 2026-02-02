@@ -1,9 +1,10 @@
 package build
 
 import (
-	"os"
 	"path/filepath"
 	"slices"
+
+	"github.com/host-uk/core/pkg/io"
 )
 
 // Marker files for project type detection.
@@ -84,9 +85,9 @@ func IsPHPProject(dir string) bool {
 
 // fileExists checks if a file exists and is not a directory.
 func fileExists(path string) bool {
-	info, err := os.Stat(path)
+	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return false
 	}
-	return !info.IsDir()
+	return io.Local.IsFile(absPath)
 }

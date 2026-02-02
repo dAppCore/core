@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/host-uk/core/pkg/build/signing"
+	"github.com/host-uk/core/pkg/io"
 	"gopkg.in/yaml.v3"
 )
 
@@ -71,7 +72,13 @@ type TargetConfig struct {
 func LoadConfig(dir string) (*BuildConfig, error) {
 	configPath := filepath.Join(dir, ConfigDir, ConfigFileName)
 
-	data, err := os.ReadFile(configPath)
+	// Convert to absolute path for io.Local
+	absPath, err := filepath.Abs(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("build.LoadConfig: failed to resolve path: %w", err)
+	}
+
+	content, err := io.Local.Read(absPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return DefaultConfig(), nil
@@ -80,7 +87,7 @@ func LoadConfig(dir string) (*BuildConfig, error) {
 	}
 
 	var cfg BuildConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal([]byte(content), &cfg); err != nil {
 		return nil, fmt.Errorf("build.LoadConfig: failed to parse config file: %w", err)
 	}
 

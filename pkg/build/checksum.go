@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	coreio "github.com/host-uk/core/pkg/io"
 )
 
 // Checksum computes SHA256 for an artifact and returns the artifact with the Checksum field filled.
@@ -89,12 +91,12 @@ func WriteChecksumFile(artifacts []Artifact, path string) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := coreio.Local.EnsureDir(dir); err != nil {
 		return fmt.Errorf("build.WriteChecksumFile: failed to create directory: %w", err)
 	}
 
 	// Write the file
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := coreio.Local.Write(path, content); err != nil {
 		return fmt.Errorf("build.WriteChecksumFile: failed to write file: %w", err)
 	}
 
