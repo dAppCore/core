@@ -29,6 +29,20 @@ func TestErr_Error_Good(t *testing.T) {
 	assert.Equal(t, "cache.Get: miss", err.Error())
 }
 
+func TestErr_Error_EmptyOp_Good(t *testing.T) {
+	// No Op - should not have leading colon
+	err := &Err{Msg: "just a message"}
+	assert.Equal(t, "just a message", err.Error())
+
+	// No Op with code
+	err = &Err{Msg: "error with code", Code: "ERR_CODE"}
+	assert.Equal(t, "error with code [ERR_CODE]", err.Error())
+
+	// No Op with underlying error
+	err = &Err{Msg: "wrapped", Err: errors.New("underlying")}
+	assert.Equal(t, "wrapped: underlying", err.Error())
+}
+
 func TestErr_Unwrap_Good(t *testing.T) {
 	underlying := errors.New("underlying error")
 	err := &Err{Op: "test", Msg: "wrapped", Err: underlying}
@@ -51,7 +65,7 @@ func TestE_Good(t *testing.T) {
 	assert.Equal(t, underlying, logErr.Err)
 }
 
-func TestE_Good_NilError(t *testing.T) {
+func TestE_NilError_Good(t *testing.T) {
 	// Should return nil when wrapping nil
 	err := E("op.Name", "message", nil)
 	assert.Nil(t, err)
@@ -67,6 +81,23 @@ func TestWrap_Good(t *testing.T) {
 	assert.True(t, errors.Is(err, underlying))
 }
 
+func TestWrap_PreservesCode_Good(t *testing.T) {
+	// Create an error with a code
+	inner := WrapCode(errors.New("base"), "VALIDATION_ERROR", "inner.Op", "validation failed")
+
+	// Wrap it - should preserve the code
+	outer := Wrap(inner, "outer.Op", "outer context")
+
+	assert.NotNil(t, outer)
+	assert.Equal(t, "VALIDATION_ERROR", ErrCode(outer))
+	assert.Contains(t, outer.Error(), "[VALIDATION_ERROR]")
+}
+
+func TestWrap_NilError_Good(t *testing.T) {
+	err := Wrap(nil, "op", "msg")
+	assert.Nil(t, err)
+}
+
 func TestWrapCode_Good(t *testing.T) {
 	underlying := errors.New("validation failed")
 	err := WrapCode(underlying, "INVALID_INPUT", "api.Validate", "bad request")
@@ -79,7 +110,7 @@ func TestWrapCode_Good(t *testing.T) {
 	assert.Contains(t, err.Error(), "[INVALID_INPUT]")
 }
 
-func TestWrapCode_Good_NilError(t *testing.T) {
+func TestWrapCode_NilError_Good(t *testing.T) {
 	err := WrapCode(nil, "CODE", "op", "msg")
 	assert.Nil(t, err)
 }
@@ -134,7 +165,7 @@ func TestOp_Good(t *testing.T) {
 	assert.Equal(t, "mypackage.MyFunc", Op(err))
 }
 
-func TestOp_Good_NotLogError(t *testing.T) {
+func TestOp_PlainError_Good(t *testing.T) {
 	err := errors.New("plain error")
 	assert.Equal(t, "", Op(err))
 }
@@ -144,7 +175,7 @@ func TestErrCode_Good(t *testing.T) {
 	assert.Equal(t, "ERR_CODE", ErrCode(err))
 }
 
-func TestErrCode_Good_NoCode(t *testing.T) {
+func TestErrCode_NoCode_Good(t *testing.T) {
 	err := E("op", "msg", errors.New("base"))
 	assert.Equal(t, "", ErrCode(err))
 }
@@ -154,12 +185,12 @@ func TestMessage_Good(t *testing.T) {
 	assert.Equal(t, "the message", Message(err))
 }
 
-func TestMessage_Good_PlainError(t *testing.T) {
+func TestMessage_PlainError_Good(t *testing.T) {
 	err := errors.New("plain message")
 	assert.Equal(t, "plain message", Message(err))
 }
 
-func TestMessage_Good_Nil(t *testing.T) {
+func TestMessage_Nil_Good(t *testing.T) {
 	assert.Equal(t, "", Message(nil))
 }
 
@@ -171,12 +202,12 @@ func TestRoot_Good(t *testing.T) {
 	assert.Equal(t, root, Root(level2))
 }
 
-func TestRoot_Good_SingleError(t *testing.T) {
+func TestRoot_SingleError_Good(t *testing.T) {
 	err := errors.New("single")
 	assert.Equal(t, err, Root(err))
 }
 
-func TestRoot_Good_Nil(t *testing.T) {
+func TestRoot_Nil_Good(t *testing.T) {
 	assert.Nil(t, Root(nil))
 }
 
@@ -205,7 +236,7 @@ func TestLogError_Good(t *testing.T) {
 	assert.Contains(t, output, "op=db.Connect")
 }
 
-func TestLogError_Good_NilError(t *testing.T) {
+func TestLogError_NilError_Good(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(Options{Level: LevelDebug, Output: &buf})
 	SetDefault(logger)
@@ -233,7 +264,7 @@ func TestLogWarn_Good(t *testing.T) {
 	assert.Contains(t, output, "falling back to db")
 }
 
-func TestLogWarn_Good_NilError(t *testing.T) {
+func TestLogWarn_NilError_Good(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(Options{Level: LevelDebug, Output: &buf})
 	SetDefault(logger)
@@ -244,7 +275,7 @@ func TestLogWarn_Good_NilError(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
-func TestMust_Good_NoError(t *testing.T) {
+func TestMust_NoError_Good(t *testing.T) {
 	// Should not panic when error is nil
 	assert.NotPanics(t, func() {
 		Must(nil, "test", "should not panic")
