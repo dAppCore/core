@@ -129,46 +129,7 @@ func TestMedium_Good_IsFile(t *testing.T) {
 	}
 }
 
-func TestResolvePath_Good(t *testing.T) {
-	tmpDir := t.TempDir()
-	s, err := New(WithWorkspaceRoot(tmpDir))
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-
-	// Write a test file so resolve can work
-	_ = s.medium.Write("test.txt", "content")
-
-	// Relative path should resolve to workspace
-	resolved, err := s.resolvePath("test.txt")
-	if err != nil {
-		t.Fatalf("Failed to resolve path: %v", err)
-	}
-	// The resolved path may be the symlink-resolved version
-	if !filepath.IsAbs(resolved) {
-		t.Errorf("Expected absolute path, got %s", resolved)
-	}
-}
-
-func TestResolvePath_Good_NoWorkspace(t *testing.T) {
-	s, err := New(WithWorkspaceRoot(""))
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-
-	// With no workspace, relative paths resolve to cwd
-	cwd, _ := os.Getwd()
-	resolved, err := s.resolvePath("test.txt")
-	if err != nil {
-		t.Fatalf("Failed to resolve path: %v", err)
-	}
-	expected := filepath.Join(cwd, "test.txt")
-	if resolved != expected {
-		t.Errorf("Expected %s, got %s", expected, resolved)
-	}
-}
-
-func TestResolvePath_Bad_Traversal(t *testing.T) {
+func TestSandboxing_Bad_Traversal(t *testing.T) {
 	tmpDir := t.TempDir()
 	s, err := New(WithWorkspaceRoot(tmpDir))
 	if err != nil {
@@ -176,19 +137,25 @@ func TestResolvePath_Bad_Traversal(t *testing.T) {
 	}
 
 	// Path traversal should fail
-	_, err = s.resolvePath("../secret.txt")
+	_, err = s.medium.Read("../secret.txt")
 	if err == nil {
 		t.Error("Expected error for path traversal")
 	}
 
 	// Absolute path outside workspace should fail
-	_, err = s.resolvePath("/etc/passwd")
+	// Note: local.Medium rejects all absolute paths if they are not inside root.
+	// But Read takes relative path usually. If absolute, it cleans it.
+	// If we pass "/etc/passwd", local.Medium path clean might reject it or treat it relative?
+	// local.Medium.path() implementation:
+	// if filepath.IsAbs(cleanPath) { return "", errors.New("path traversal attempt detected") }
+	// So yes, it rejects absolute paths passed to Read.
+	_, err = s.medium.Read("/etc/passwd")
 	if err == nil {
-		t.Error("Expected error for absolute path outside workspace")
+		t.Error("Expected error for absolute path")
 	}
 }
 
-func TestResolvePath_Bad_SymlinkTraversal(t *testing.T) {
+func TestSandboxing_Bad_SymlinkTraversal(t *testing.T) {
 	tmpDir := t.TempDir()
 	outsideDir := t.TempDir()
 
@@ -210,7 +177,7 @@ func TestResolvePath_Bad_SymlinkTraversal(t *testing.T) {
 	}
 
 	// Symlink traversal should be blocked
-	_, err = s.resolvePath("evil-link")
+	_, err = s.medium.Read("evil-link")
 	if err == nil {
 		t.Error("Expected error for symlink pointing outside workspace")
 	}
