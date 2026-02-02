@@ -276,21 +276,31 @@ func (m *MockMedium) Rename(oldPath, newPath string) error {
 			newPrefix += "/"
 		}
 
-		// Move files under this directory
+		// Collect files to move first (don't mutate during iteration)
+		filesToMove := make(map[string]string)
 		for f, content := range m.Files {
 			if strings.HasPrefix(f, oldPrefix) {
 				newF := newPrefix + strings.TrimPrefix(f, oldPrefix)
-				m.Files[newF] = content
-				delete(m.Files, f)
+				filesToMove[f] = newF
+				_ = content // content will be copied in next loop
 			}
 		}
-		// Move subdirectories
+		for oldF, newF := range filesToMove {
+			m.Files[newF] = m.Files[oldF]
+			delete(m.Files, oldF)
+		}
+
+		// Collect directories to move first
+		dirsToMove := make(map[string]string)
 		for d := range m.Dirs {
 			if strings.HasPrefix(d, oldPrefix) {
 				newD := newPrefix + strings.TrimPrefix(d, oldPrefix)
-				m.Dirs[newD] = true
-				delete(m.Dirs, d)
+				dirsToMove[d] = newD
 			}
+		}
+		for oldD, newD := range dirsToMove {
+			m.Dirs[newD] = true
+			delete(m.Dirs, oldD)
 		}
 		return nil
 	}
