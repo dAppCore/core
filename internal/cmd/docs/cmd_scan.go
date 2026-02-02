@@ -94,28 +94,29 @@ func scanRepoDocs(repo *repos.Repo) RepoDocInfo {
 
 	// Check for README.md
 	readme := filepath.Join(repo.Path, "README.md")
-	if io.Local.Exists(readme) {
+	if io.Local.IsFile(readme) {
 		info.Readme = readme
 		info.HasDocs = true
 	}
 
 	// Check for CLAUDE.md
 	claudeMd := filepath.Join(repo.Path, "CLAUDE.md")
-	if io.Local.Exists(claudeMd) {
+	if io.Local.IsFile(claudeMd) {
 		info.ClaudeMd = claudeMd
 		info.HasDocs = true
 	}
 
 	// Check for CHANGELOG.md
 	changelog := filepath.Join(repo.Path, "CHANGELOG.md")
-	if io.Local.Exists(changelog) {
+	if io.Local.IsFile(changelog) {
 		info.Changelog = changelog
 		info.HasDocs = true
 	}
 
 	// Recursively scan docs/ directory for .md files
 	docsDir := filepath.Join(repo.Path, "docs")
-	if io.Local.IsDir(docsDir) {
+	// Check if directory exists by listing it
+	if _, err := io.Local.List(docsDir); err == nil {
 		filepath.WalkDir(docsDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return nil
@@ -137,8 +138,4 @@ func scanRepoDocs(repo *repos.Repo) RepoDocInfo {
 	}
 
 	return info
-}
-
-func copyFile(src, dst string) error {
-	return io.Copy(io.Local, src, io.Local, dst)
 }
