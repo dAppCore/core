@@ -52,9 +52,10 @@ func TestE_Good(t *testing.T) {
 }
 
 func TestE_Good_NilError(t *testing.T) {
-	// Should return nil when wrapping nil
+	// E creates an error even with nil underlying - useful for errors without causes
 	err := E("op.Name", "message", nil)
-	assert.Nil(t, err)
+	assert.NotNil(t, err)
+	assert.Equal(t, "op.Name: message", err.Error())
 }
 
 func TestWrap_Good(t *testing.T) {
@@ -80,7 +81,13 @@ func TestWrapCode_Good(t *testing.T) {
 }
 
 func TestWrapCode_Good_NilError(t *testing.T) {
+	// WrapCode with nil error but with code still creates an error
 	err := WrapCode(nil, "CODE", "op", "msg")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "[CODE]")
+
+	// Only returns nil when both error and code are empty
+	err = WrapCode(nil, "", "op", "msg")
 	assert.Nil(t, err)
 }
 

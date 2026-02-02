@@ -41,36 +41,38 @@ func (e *Err) Unwrap() error {
 // --- Error Creation Functions ---
 
 // E creates a new Err with operation context.
-// If err is nil, returns nil to support conditional wrapping.
+// The underlying error can be nil for creating errors without a cause.
 //
 // Example:
 //
 //	return log.E("user.Save", "failed to save user", err)
+//	return log.E("api.Call", "rate limited", nil)  // No underlying cause
 func E(op, msg string, err error) error {
-	if err == nil {
-		return nil
-	}
 	return &Err{Op: op, Msg: msg, Err: err}
 }
 
 // Wrap wraps an error with operation context.
-// Alias for E() for semantic clarity when wrapping existing errors.
+// Returns nil if err is nil, to support conditional wrapping.
 //
 // Example:
 //
 //	return log.Wrap(err, "db.Query", "database query failed")
 func Wrap(err error, op, msg string) error {
+	if err == nil {
+		return nil
+	}
 	return E(op, msg, err)
 }
 
 // WrapCode wraps an error with operation context and error code.
+// Returns nil only if both err is nil AND code is empty.
 // Useful for API errors that need machine-readable codes.
 //
 // Example:
 //
 //	return log.WrapCode(err, "VALIDATION_ERROR", "user.Validate", "invalid email")
 func WrapCode(err error, code, op, msg string) error {
-	if err == nil {
+	if err == nil && code == "" {
 		return nil
 	}
 	return &Err{Op: op, Msg: msg, Err: err, Code: code}
