@@ -41,5 +41,6 @@ import (
 	_ "github.com/host-uk/core/internal/cmd/updater"
 	_ "github.com/host-uk/core/internal/cmd/vm"
 	_ "github.com/host-uk/core/internal/cmd/workspace"
+	_ "github.com/host-uk/core/internal/cmd/help"
 	_ "github.com/host-uk/core/pkg/build/buildcmd"
 )
