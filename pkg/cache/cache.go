@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/host-uk/core/pkg/io"
 )
 
 // DefaultTTL is the default cache expiry time.
@@ -41,7 +43,7 @@ func New(baseDir string, ttl time.Duration) (*Cache, error) {
 	}
 
 	// Ensure cache directory exists
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := io.Local.EnsureDir(baseDir); err != nil {
 		return nil, err
 	}
 
@@ -60,7 +62,7 @@ func (c *Cache) Path(key string) string {
 func (c *Cache) Get(key string, dest interface{}) (bool, error) {
 	path := c.Path(key)
 
-	data, err := os.ReadFile(path)
+	dataStr, err := io.Local.Read(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -69,7 +71,7 @@ func (c *Cache) Get(key string, dest interface{}) (bool, error) {
 	}
 
 	var entry Entry
-	if err := json.Unmarshal(data, &entry); err != nil {
+	if err := json.Unmarshal([]byte(dataStr), &entry); err != nil {
 		// Invalid cache file, treat as miss
 		return false, nil
 	}
@@ -92,7 +94,7 @@ func (c *Cache) Set(key string, data interface{}) error {
 	path := c.Path(key)
 
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := io.Local.EnsureDir(filepath.Dir(path)); err != nil {
 		return err
 	}
 
@@ -113,13 +115,13 @@ func (c *Cache) Set(key string, data interface{}) error {
 		return err
 	}
 
-	return os.WriteFile(path, entryBytes, 0644)
+	return io.Local.Write(path, string(entryBytes))
 }
 
 // Delete removes an item from the cache.
 func (c *Cache) Delete(key string) error {
 	path := c.Path(key)
-	err := os.Remove(path)
+	err := io.Local.Delete(path)
 	if os.IsNotExist(err) {
 		return nil
 	}
@@ -128,20 +130,20 @@ func (c *Cache) Delete(key string) error {
 
 // Clear removes all cached items.
 func (c *Cache) Clear() error {
-	return os.RemoveAll(c.baseDir)
+	return io.Local.DeleteAll(c.baseDir)
 }
 
 // Age returns how old a cached item is, or -1 if not cached.
 func (c *Cache) Age(key string) time.Duration {
 	path := c.Path(key)
 
-	data, err := os.ReadFile(path)
+	dataStr, err := io.Local.Read(path)
 	if err != nil {
 		return -1
 	}
 
 	var entry Entry
-	if err := json.Unmarshal(data, &entry); err != nil {
+	if err := json.Unmarshal([]byte(dataStr), &entry); err != nil {
 		return -1
 	}
 
