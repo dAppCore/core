@@ -3,6 +3,7 @@ package local
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,4 +167,76 @@ func (m *Medium) FileGet(relativePath string) (string, error) {
 // FileSet is a convenience function that writes a file to the medium.
 func (m *Medium) FileSet(relativePath, content string) error {
 	return m.Write(relativePath, content)
+}
+
+// Delete removes a file or empty directory.
+func (m *Medium) Delete(relativePath string) error {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return err
+	}
+	return os.Remove(fullPath)
+}
+
+// DeleteAll removes a file or directory and all its contents recursively.
+func (m *Medium) DeleteAll(relativePath string) error {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(fullPath)
+}
+
+// Rename moves a file or directory from oldPath to newPath.
+func (m *Medium) Rename(oldPath, newPath string) error {
+	fullOldPath, err := m.path(oldPath)
+	if err != nil {
+		return err
+	}
+	fullNewPath, err := m.path(newPath)
+	if err != nil {
+		return err
+	}
+	return os.Rename(fullOldPath, fullNewPath)
+}
+
+// List returns the directory entries for the given path.
+func (m *Medium) List(relativePath string) ([]fs.DirEntry, error) {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadDir(fullPath)
+}
+
+// Stat returns file information for the given path.
+func (m *Medium) Stat(relativePath string) (fs.FileInfo, error) {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return nil, err
+	}
+	return os.Stat(fullPath)
+}
+
+// Exists checks if a path exists (file or directory).
+func (m *Medium) Exists(relativePath string) bool {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(fullPath)
+	return err == nil
+}
+
+// IsDir checks if a path exists and is a directory.
+func (m *Medium) IsDir(relativePath string) bool {
+	fullPath, err := m.path(relativePath)
+	if err != nil {
+		return false
+	}
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
 }
