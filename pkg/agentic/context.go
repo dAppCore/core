@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/host-uk/core/pkg/errors"
+	"github.com/host-uk/core/pkg/io"
 )
 
 // FileContent represents the content of a file for AI context.
@@ -95,8 +96,12 @@ func GatherRelatedFiles(task *Task, dir string) ([]FileContent, error) {
 	// Read files explicitly mentioned in the task
 	for _, relPath := range task.Files {
 		fullPath := filepath.Join(dir, relPath)
+		absPath, err := filepath.Abs(fullPath)
+		if err != nil {
+			continue
+		}
 
-		content, err := os.ReadFile(fullPath)
+		content, err := io.Local.Read(absPath)
 		if err != nil {
 			// Skip files that don't exist
 			continue
@@ -104,7 +109,7 @@ func GatherRelatedFiles(task *Task, dir string) ([]FileContent, error) {
 
 		files = append(files, FileContent{
 			Path:     relPath,
-			Content:  string(content),
+			Content:  content,
 			Language: detectLanguage(relPath),
 		})
 	}
@@ -154,13 +159,16 @@ func findRelatedCode(task *Task, dir string) ([]FileContent, error) {
 			}
 
 			fullPath := filepath.Join(dir, line)
-			content, err := os.ReadFile(fullPath)
+			absPath, err := filepath.Abs(fullPath)
+			if err != nil {
+				continue
+			}
+			contentStr, err := io.Local.Read(absPath)
 			if err != nil {
 				continue
 			}
 
 			// Truncate large files
-			contentStr := string(content)
 			if len(contentStr) > 5000 {
 				contentStr = contentStr[:5000] + "\n... (truncated)"
 			}

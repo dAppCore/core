@@ -1,12 +1,12 @@
 package agentic
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/host-uk/core/pkg/errors"
+	"github.com/host-uk/core/pkg/io"
 	"gopkg.in/yaml.v3"
 )
 
@@ -95,15 +95,19 @@ func LoadConfig(dir string) (*Config, error) {
 
 // loadEnvFile reads a .env file and extracts agentic configuration.
 func loadEnvFile(path string, cfg *Config) error {
-	file, err := os.Open(path)
+	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	content, err := io.Local.Read(absPath)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
 
 		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -134,17 +138,22 @@ func loadEnvFile(path string, cfg *Config) error {
 		}
 	}
 
-	return scanner.Err()
+	return nil
 }
 
 // loadYAMLConfig reads configuration from a YAML file.
 func loadYAMLConfig(path string, cfg *Config) error {
-	data, err := os.ReadFile(path)
+	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
 
-	return yaml.Unmarshal(data, cfg)
+	content, err := io.Local.Read(absPath)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal([]byte(content), cfg)
 }
 
 // applyEnvOverrides applies environment variable overrides to the config.
@@ -170,19 +179,15 @@ func SaveConfig(cfg *Config) error {
 		return errors.E("agentic.SaveConfig", "failed to get home directory", err)
 	}
 
-	configDir := filepath.Join(homeDir, ".core")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return errors.E("agentic.SaveConfig", "failed to create config directory", err)
-	}
-
-	configPath := filepath.Join(configDir, configFileName)
+	configPath := filepath.Join(homeDir, ".core", configFileName)
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return errors.E("agentic.SaveConfig", "failed to marshal config", err)
 	}
 
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
+	// io.Local.Write creates parent directories automatically
+	if err := io.Local.Write(configPath, string(data)); err != nil {
 		return errors.E("agentic.SaveConfig", "failed to write config file", err)
 	}
 
