@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/host-uk/core/pkg/io"
 	"golang.org/x/term"
 )
 
@@ -88,9 +89,14 @@ func (p *PIDFile) Acquire() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	absPath, err := filepath.Abs(p.path)
+	if err != nil {
+		return fmt.Errorf("failed to resolve PID file path: %w", err)
+	}
+
 	// Check if PID file exists
-	if data, err := os.ReadFile(p.path); err == nil {
-		pid, err := strconv.Atoi(string(data))
+	if content, err := io.Local.Read(absPath); err == nil {
+		pid, err := strconv.Atoi(content)
 		if err == nil && pid > 0 {
 			// Check if process is still running
 			if process, err := os.FindProcess(pid); err == nil {
@@ -100,19 +106,12 @@ func (p *PIDFile) Acquire() error {
 			}
 		}
 		// Stale PID file, remove it
-		_ = os.Remove(p.path)
+		_ = io.Local.Delete(absPath)
 	}
 
-	// Ensure directory exists
-	if dir := filepath.Dir(p.path); dir != "." {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create PID directory: %w", err)
-		}
-	}
-
-	// Write current PID
+	// Write current PID (io.Local.Write creates parent directories automatically)
 	pid := os.Getpid()
-	if err := os.WriteFile(p.path, []byte(strconv.Itoa(pid)), 0644); err != nil {
+	if err := io.Local.Write(absPath, strconv.Itoa(pid)); err != nil {
 		return fmt.Errorf("failed to write PID file: %w", err)
 	}
 
@@ -123,7 +122,11 @@ func (p *PIDFile) Acquire() error {
 func (p *PIDFile) Release() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return os.Remove(p.path)
+	absPath, err := filepath.Abs(p.path)
+	if err != nil {
+		return err
+	}
+	return io.Local.Delete(absPath)
 }
 
 // Path returns the PID file path.
