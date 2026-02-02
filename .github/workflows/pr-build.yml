@@ -27,7 +27,7 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux/amd64
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, Linux]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -44,7 +44,7 @@ jobs:
 
   draft-release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux]
     env:
       # Safe: PR number is numeric, not user-controlled string
       PR_NUM: ${{ github.event.pull_request.number || inputs.pr_number }}
