@@ -64,7 +64,7 @@ func runFileSync(source string) error {
 	// Convert to absolute path for io.Local
 	absSource, err := filepath.Abs(source)
 	if err != nil {
-		return errors.E("dev.sync", "failed to resolve source path", err)
+		return log.E("dev.sync", "failed to resolve source path", err)
 	}
 
 	// Validate source exists using io.Local.Stat
