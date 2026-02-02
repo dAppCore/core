@@ -43,12 +43,20 @@ func (m *Medium) path(relativePath string) (string, error) {
 		return "", errors.New("path traversal attempt detected")
 	}
 
-	// Reject absolute paths - they bypass the sandbox
-	if filepath.IsAbs(cleanPath) {
+	// When root is "/" (full filesystem access), allow absolute paths
+	isRootFS := m.root == "/" || m.root == string(filepath.Separator)
+
+	// Reject absolute paths unless we're the root filesystem
+	if filepath.IsAbs(cleanPath) && !isRootFS {
 		return "", errors.New("path traversal attempt detected")
 	}
 
-	fullPath := filepath.Join(m.root, cleanPath)
+	var fullPath string
+	if filepath.IsAbs(cleanPath) {
+		fullPath = cleanPath
+	} else {
+		fullPath = filepath.Join(m.root, cleanPath)
+	}
 
 	// Verify the resulting path is still within root (boundary-aware check)
 	// Must use separator to prevent /tmp/root matching /tmp/root2
