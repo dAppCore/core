@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/io"
 	"gopkg.in/yaml.v3"
 )
@@ -76,12 +75,12 @@ func LoadConfig() (*Config, error) {
 		if os.IsNotExist(err) {
 			return DefaultConfig(), nil
 		}
-		return nil, errors.E("devops.LoadConfig", "failed to read config", err)
+		return nil, err
 	}
 
 	cfg := DefaultConfig()
 	if err := yaml.Unmarshal([]byte(content), cfg); err != nil {
-		return nil, errors.E("devops.LoadConfig", "failed to parse config", err)
+		return nil, err
 	}
 
 	return cfg, nil

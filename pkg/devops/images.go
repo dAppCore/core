@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/host-uk/core/pkg/devops/sources"
-	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/io"
 )
 
@@ -43,7 +42,7 @@ func NewImageManager(cfg *Config) (*ImageManager, error) {
 
 	// Ensure images directory exists
 	if err := io.Local.EnsureDir(imagesDir); err != nil {
-		return nil, errors.E("devops.NewImageManager", "failed to create images directory", err)
+		return nil, err
 	}
 
 	// Load or create manifest
@@ -173,11 +172,11 @@ func loadManifest(path string) (*Manifest, error) {
 		if os.IsNotExist(err) {
 			return m, nil
 		}
-		return nil, errors.E("devops.loadManifest", "failed to read manifest", err)
+		return nil, err
 	}
 
 	if err := json.Unmarshal([]byte(content), m); err != nil {
-		return nil, errors.E("devops.loadManifest", "failed to parse manifest", err)
+		return nil, err
 	}
 	m.path = path
 
@@ -188,10 +187,7 @@ func loadManifest(path string) (*Manifest, error) {
 func (m *Manifest) Save() error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return errors.E("devops.Manifest.Save", "failed to marshal manifest", err)
+		return err
 	}
-	if err := io.Local.Write(m.path, string(data)); err != nil {
-		return errors.E("devops.Manifest.Save", "failed to write manifest", err)
-	}
-	return nil
+	return io.Local.Write(m.path, string(data))
 }

@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/io"
 )
 
@@ -64,7 +63,7 @@ func GetTemplate(name string) (string, error) {
 		if t.Name == name {
 			content, err := embeddedTemplates.ReadFile(t.Path)
 			if err != nil {
-				return "", errors.E("container.GetTemplate", "failed to read embedded template", err)
+				return "", fmt.Errorf("failed to read embedded template %s: %w", name, err)
 			}
 			return string(content), nil
 		}
@@ -77,13 +76,13 @@ func GetTemplate(name string) (string, error) {
 		if io.Local.IsFile(templatePath) {
 			content, err := io.Local.Read(templatePath)
 			if err != nil {
-				return "", errors.E("container.GetTemplate", "failed to read user template", err)
+				return "", fmt.Errorf("failed to read user template %s: %w", name, err)
 			}
 			return content, nil
 		}
 	}
 
-	return "", errors.E("container.GetTemplate", "template not found: "+name, nil)
+	return "", fmt.Errorf("template not found: %s", name)
 }
 
 // ApplyTemplate applies variable substitution to a template.

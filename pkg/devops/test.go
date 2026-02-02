@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/io"
 	"gopkg.in/yaml.v3"
 )
@@ -117,17 +116,17 @@ func LoadTestConfig(projectDir string) (*TestConfig, error) {
 	path := filepath.Join(projectDir, ".core", "test.yaml")
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, errors.E("devops.LoadTestConfig", "failed to resolve path", err)
+		return nil, err
 	}
 
 	content, err := io.Local.Read(absPath)
 	if err != nil {
-		return nil, errors.E("devops.LoadTestConfig", "failed to read test config", err)
+		return nil, err
 	}
 
 	var cfg TestConfig
 	if err := yaml.Unmarshal([]byte(content), &cfg); err != nil {
-		return nil, errors.E("devops.LoadTestConfig", "failed to parse test config", err)
+		return nil, err
 	}
 
 	return &cfg, nil
