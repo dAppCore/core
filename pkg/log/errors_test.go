@@ -3,7 +3,6 @@ package log
 import (
 	"bytes"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -270,5 +269,5 @@ func TestMust_Ugly_Panics(t *testing.T) {
 
 	// Verify error was logged before panic
 	output := buf.String()
-	assert.True(t, strings.Contains(output, "[ERR]") || len(output) > 0)
+	assert.Contains(t, output, "[ERR]", "Should log error before panic")
 }

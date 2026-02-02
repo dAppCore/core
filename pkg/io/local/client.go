@@ -25,14 +25,20 @@ func New(root string) (*Medium, error) {
 
 // path sanitizes and returns the full path.
 // Replaces .. with . to prevent traversal, then joins with root.
+// Absolute paths are only allowed when root is "/", otherwise they are
+// treated as relative to the sandbox root.
 func (m *Medium) path(p string) string {
 	if p == "" {
 		return m.root
 	}
 	clean := strings.ReplaceAll(p, "..", ".")
-	if filepath.IsAbs(clean) {
+	// Only allow absolute paths to pass through if root is "/"
+	// Otherwise, strip leading "/" to constrain to sandbox
+	if filepath.IsAbs(clean) && m.root == "/" {
 		return filepath.Clean(clean)
 	}
+	// Strip leading "/" for sandboxed mediums
+	clean = strings.TrimPrefix(clean, "/")
 	return filepath.Join(m.root, clean)
 }
 
