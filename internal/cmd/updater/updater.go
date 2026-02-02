@@ -11,9 +11,6 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// PkgVersion is set via ldflags
-var PkgVersion = "dev"
-
 // Version holds the current version of the application.
 // It is set at build time via ldflags or fallback to the version in package.json.
 var Version = PkgVersion
