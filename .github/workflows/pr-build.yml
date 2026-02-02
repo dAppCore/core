@@ -34,7 +34,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Build
-        uses: host-uk/build@dev
+        uses: host-uk/build@v3
         with:
           build-name: core
           build-platform: ${{ matrix.platform }}
@@ -68,10 +68,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Build metadata uses + which is valid semver but GitHub tags encode it
-          VERSION="v${{ env.NEXT_VERSION }}+pr.${PR_NUM}.bid.${{ github.run_id }}"
-          # GitHub tags can't have + so we use a different format for the tag
-          TAG="v${{ env.NEXT_VERSION }}-pr.${PR_NUM}.bid.${{ github.run_id }}"
+          # Use dots for build metadata (semver v1 compatible)
+          TAG="v${{ env.NEXT_VERSION }}.pr.${PR_NUM}.bid.${{ github.run_id }}"
 
           # Delete existing draft for this PR if it exists
           gh release delete "$TAG" -y 2>/dev/null || true
@@ -81,8 +79,7 @@ jobs:
             --title "Draft: PR #${PR_NUM}" \
             --notes "Draft build for PR #${PR_NUM}.
 
-          **Version:** $VERSION
-          **Tag:** $TAG
+          **Version:** $TAG
           **PR:** #${PR_NUM}
           **Commit:** ${PR_SHA}
           **Built:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
