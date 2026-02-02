@@ -82,61 +82,61 @@ func New(opts ...Option) (*Service, error) {
 		}
 	}
 
-	s.registerTools()
+	s.registerTools(s.server)
 	return s, nil
 }
 
 // registerTools adds file operation tools to the MCP server.
-func (s *Service) registerTools() {
+func (s *Service) registerTools(server *mcp.Server) {
 	// File operations
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "file_read",
 		Description: "Read the contents of a file",
 	}, s.readFile)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "file_write",
 		Description: "Write content to a file",
 	}, s.writeFile)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "file_delete",
 		Description: "Delete a file or empty directory",
 	}, s.deleteFile)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "file_rename",
 		Description: "Rename or move a file",
 	}, s.renameFile)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "file_exists",
 		Description: "Check if a file or directory exists",
 	}, s.fileExists)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "file_edit",
 		Description: "Edit a file by replacing old_string with new_string. Use replace_all=true to replace all occurrences.",
 	}, s.editDiff)
 
 	// Directory operations
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "dir_list",
 		Description: "List contents of a directory",
 	}, s.listDirectory)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "dir_create",
 		Description: "Create a new directory",
 	}, s.createDirectory)
 
 	// Language detection
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "lang_detect",
 		Description: "Detect the programming language of a file",
 	}, s.detectLanguage)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "lang_list",
 		Description: "Get list of supported programming languages",
 	}, s.getSupportedLanguages)
@@ -566,8 +566,14 @@ func detectLanguageFromPath(path string) string {
 	}
 }
 
-// Run starts the MCP server on stdio.
+// Run starts the MCP server.
+// If MCP_ADDR is set, it starts a TCP server.
+// Otherwise, it starts a Stdio server.
 func (s *Service) Run(ctx context.Context) error {
+	addr := os.Getenv("MCP_ADDR")
+	if addr != "" {
+		return s.ServeTCP(ctx, addr)
+	}
 	return s.server.Run(ctx, &mcp.StdioTransport{})
 }
 
