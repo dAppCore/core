@@ -1,37 +1,31 @@
-name: PR Build
+# https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request
+name: "PR Build: Pull Request"
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number to build'
-        required: true
-        type: number
 
 permissions:
   contents: write
   pull-requests: read
 
 env:
-  # Next version - update when releasing
   NEXT_VERSION: "0.0.4"
 
 jobs:
   build:
-    # Only build if PR is from the same repo (not forks) or manually triggered
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
+    # Only build if PR is from the same repo (not forks)
+    if: github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             platform: linux/amd64
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Build
         uses: host-uk/build@v3
@@ -46,9 +40,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     env:
-      # Safe: PR number is numeric, not user-controlled string
-      PR_NUM: ${{ github.event.pull_request.number || inputs.pr_number }}
-      PR_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PR_NUM: ${{ github.event.pull_request.number }}
+      PR_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v6
 
@@ -68,7 +61,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use dots for build metadata (semver v1 compatible)
           TAG="v${{ env.NEXT_VERSION }}.pr.${PR_NUM}.bid.${{ github.run_id }}"
 
           # Delete existing draft for this PR if it exists
