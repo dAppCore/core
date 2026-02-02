@@ -15,10 +15,10 @@ import (
 	"strings"
 
 	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/git"
 	"github.com/host-uk/core/pkg/i18n"
 	coreio "github.com/host-uk/core/pkg/io"
+	"github.com/host-uk/core/pkg/log"
 	"github.com/host-uk/core/pkg/repos"
 )
 
@@ -59,7 +59,7 @@ func runFileSync(source string) error {
 
 	// Security: Reject path traversal attempts
 	if strings.Contains(source, "..") {
-		return errors.E("dev.sync", "path traversal not allowed", nil)
+		return log.E("dev.sync", "path traversal not allowed", nil)
 	}
 
 	// Validate source exists
@@ -82,7 +82,7 @@ func runFileSync(source string) error {
 	// Let's stick to os.Stat for source properties finding as typically allowed for CLI args.
 
 	if err != nil {
-		return errors.E("dev.sync", i18n.T("cmd.dev.file_sync.error.source_not_found", map[string]interface{}{"Path": source}), err)
+		return log.E("dev.sync", i18n.T("cmd.dev.file_sync.error.source_not_found", map[string]interface{}{"Path": source}), err)
 	}
 
 	// Find target repos
@@ -131,7 +131,11 @@ func runFileSync(source string) error {
 			}
 		} else {
 			// Ensure dir exists
-			coreio.Local.EnsureDir(filepath.Dir(destPath))
+			if err := coreio.Local.EnsureDir(filepath.Dir(destPath)); err != nil {
+				cli.Print("  %s %s: copy failed: %s\n", errorStyle.Render("x"), repoName, err)
+				failed++
+				continue
+			}
 			if err := coreio.Copy(coreio.Local, source, coreio.Local, destPath); err != nil {
 				cli.Print("  %s %s: copy failed: %s\n", errorStyle.Render("x"), repoName, err)
 				failed++
@@ -205,12 +209,12 @@ func resolveTargetRepos(pattern string) ([]*repos.Repo, error) {
 	// Load registry
 	registryPath, err := repos.FindRegistry()
 	if err != nil {
-		return nil, errors.E("dev.sync", "failed to find registry", err)
+		return nil, log.E("dev.sync", "failed to find registry", err)
 	}
 
 	registry, err := repos.LoadRegistry(registryPath)
 	if err != nil {
-		return nil, errors.E("dev.sync", "failed to load registry", err)
+		return nil, log.E("dev.sync", "failed to load registry", err)
 	}
 
 	// Match pattern against repo names

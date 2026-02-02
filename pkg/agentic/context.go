@@ -9,8 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/host-uk/core/pkg/errors"
-	"github.com/host-uk/core/pkg/io"
+	"github.com/host-uk/core/pkg/log"
 )
 
 // FileContent represents the content of a file for AI context.
@@ -42,13 +41,13 @@ func BuildTaskContext(task *Task, dir string) (*TaskContext, error) {
 	const op = "agentic.BuildTaskContext"
 
 	if task == nil {
-		return nil, errors.E(op, "task is required", nil)
+		return nil, log.E(op, "task is required", nil)
 	}
 
 	if dir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return nil, errors.E(op, "failed to get working directory", err)
+			return nil, log.E(op, "failed to get working directory", err)
 		}
 		dir = cwd
 	}
@@ -88,7 +87,7 @@ func GatherRelatedFiles(task *Task, dir string) ([]FileContent, error) {
 	const op = "agentic.GatherRelatedFiles"
 
 	if task == nil {
-		return nil, errors.E(op, "task is required", nil)
+		return nil, log.E(op, "task is required", nil)
 	}
 
 	var files []FileContent
@@ -96,12 +95,8 @@ func GatherRelatedFiles(task *Task, dir string) ([]FileContent, error) {
 	// Read files explicitly mentioned in the task
 	for _, relPath := range task.Files {
 		fullPath := filepath.Join(dir, relPath)
-		absPath, err := filepath.Abs(fullPath)
-		if err != nil {
-			continue
-		}
 
-		content, err := io.Local.Read(absPath)
+		content, err := os.ReadFile(fullPath)
 		if err != nil {
 			// Skip files that don't exist
 			continue
@@ -109,7 +104,7 @@ func GatherRelatedFiles(task *Task, dir string) ([]FileContent, error) {
 
 		files = append(files, FileContent{
 			Path:     relPath,
-			Content:  content,
+			Content:  string(content),
 			Language: detectLanguage(relPath),
 		})
 	}
@@ -122,7 +117,7 @@ func findRelatedCode(task *Task, dir string) ([]FileContent, error) {
 	const op = "agentic.findRelatedCode"
 
 	if task == nil {
-		return nil, errors.E(op, "task is required", nil)
+		return nil, log.E(op, "task is required", nil)
 	}
 
 	// Extract keywords from title and description
@@ -159,16 +154,13 @@ func findRelatedCode(task *Task, dir string) ([]FileContent, error) {
 			}
 
 			fullPath := filepath.Join(dir, line)
-			absPath, err := filepath.Abs(fullPath)
-			if err != nil {
-				continue
-			}
-			contentStr, err := io.Local.Read(absPath)
+			content, err := os.ReadFile(fullPath)
 			if err != nil {
 				continue
 			}
 
 			// Truncate large files
+			contentStr := string(content)
 			if len(contentStr) > 5000 {
 				contentStr = contentStr[:5000] + "\n... (truncated)"
 			}
