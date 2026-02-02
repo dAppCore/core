@@ -168,13 +168,13 @@ func (m *Medium) FileSet(relativePath, content string) error {
 	return m.Write(relativePath, content)
 }
 
-// Delete removes a file or empty directory.
+// Delete removes a file or directory recursively.
 func (m *Medium) Delete(relativePath string) error {
 	fullPath, err := m.path(relativePath)
 	if err != nil {
 		return err
 	}
-	return os.Remove(fullPath)
+	return os.RemoveAll(fullPath)
 }
 
 // Rename moves or renames a file.

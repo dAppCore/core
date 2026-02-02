@@ -2,6 +2,7 @@ package io
 
 import (
 	"os"
+	"strings"
 
 	coreerr "github.com/host-uk/core/pkg/framework/core"
 	"github.com/host-uk/core/pkg/io/local"
@@ -146,10 +147,24 @@ func (m *MockMedium) FileSet(path, content string) error {
 	return m.Write(path, content)
 }
 
-// Delete removes a file or empty directory from the mock filesystem.
+// Delete removes a file or directory recursively from the mock filesystem.
 func (m *MockMedium) Delete(path string) error {
+	// Delete exact match
 	delete(m.Files, path)
 	delete(m.Dirs, path)
+
+	// Delete all children (naive string prefix check)
+	prefix := path + "/"
+	for k := range m.Files {
+		if strings.HasPrefix(k, prefix) {
+			delete(m.Files, k)
+		}
+	}
+	for k := range m.Dirs {
+		if strings.HasPrefix(k, prefix) {
+			delete(m.Dirs, k)
+		}
+	}
 	return nil
 }
 
