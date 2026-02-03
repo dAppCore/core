@@ -139,5 +139,6 @@ func initBuildFlags() {
 // AddBuildCommands registers the 'build' command and all subcommands.
 func AddBuildCommands(root *cobra.Command) {
 	initBuildFlags()
+	AddReleaseCommand(buildCmd)
 	root.AddCommand(buildCmd)
 }

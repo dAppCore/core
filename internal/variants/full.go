@@ -19,6 +19,7 @@
 //   - doctor: Environment health checks
 //   - test: Test runner with coverage
 //   - qa: Quality assurance workflows
+//   - monitor: Security monitoring aggregation
 
 package variants
 
@@ -32,6 +33,7 @@ import (
 	_ "github.com/host-uk/core/internal/cmd/gitcmd"
 	_ "github.com/host-uk/core/internal/cmd/go"
 	_ "github.com/host-uk/core/internal/cmd/help"
+	_ "github.com/host-uk/core/internal/cmd/monitor"
 	_ "github.com/host-uk/core/internal/cmd/php"
 	_ "github.com/host-uk/core/internal/cmd/pkgcmd"
 	_ "github.com/host-uk/core/internal/cmd/qa"

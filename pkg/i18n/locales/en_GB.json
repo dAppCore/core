@@ -226,7 +226,21 @@
 			"sdk.languages_label": "Languages:",
 			"sdk.would_generate": "Would generate SDK",
 			"sdk.generated_label": "Generated:",
-			"sdk.complete": "SDK generation complete"
+			"sdk.complete": "SDK generation complete",
+			"release.short": "Build, archive, and publish a release",
+			"release.long": "Build all targets, create archives, generate checksums, and publish to configured destinations. Requires .core/release.yaml configuration.",
+			"release.flag.dry_run": "Show what would be done without publishing",
+			"release.flag.version": "Version to release (overrides config)",
+			"release.flag.draft": "Create as draft release",
+			"release.flag.prerelease": "Mark as pre-release",
+			"release.label.release": "Release",
+			"release.building_and_publishing": "Building and publishing release",
+			"release.dry_run_hint": "(dry-run) no artifacts will be published",
+			"release.completed": "Release completed",
+			"release.label.artifacts": "Artifacts:",
+			"release.label.published": "Published to:",
+			"release.error.no_config": "No .core/release.yaml found",
+			"release.hint.create_config": "Create .core/release.yaml to configure release settings"
 		},
 		"ci": {
 			"short": "Publish releases (dry-run by default)",
