@@ -608,6 +608,33 @@
 			"no_findings": "No security findings",
 			"error.no_repos": "No repositories to scan. Use --repo, --all, or run from a git repo",
 			"error.not_git_repo": "Not in a git repository. Use --repo to specify one"
+		},
+		"rag": {
+			"short": "RAG (Retrieval Augmented Generation) tools",
+			"long": "RAG tools for storing documentation in Qdrant vector database and querying with semantic search. Eliminates need to repeatedly remind Claude about project specifics.",
+			"flag.qdrant_host": "Qdrant server hostname",
+			"flag.qdrant_port": "Qdrant gRPC port",
+			"flag.ollama_host": "Ollama server hostname",
+			"flag.ollama_port": "Ollama server port",
+			"flag.model": "Embedding model name",
+			"ingest.short": "Ingest markdown files into Qdrant",
+			"ingest.long": "Ingest markdown files from a directory into Qdrant vector database. Chunks files, generates embeddings via Ollama, and stores for semantic search.",
+			"ingest.flag.collection": "Qdrant collection name",
+			"ingest.flag.recreate": "Delete and recreate collection",
+			"ingest.flag.chunk_size": "Characters per chunk",
+			"ingest.flag.chunk_overlap": "Overlap between chunks",
+			"query.short": "Query the vector database",
+			"query.long": "Search for similar documents using semantic similarity. Returns relevant chunks ranked by score.",
+			"query.flag.collection": "Qdrant collection name",
+			"query.flag.top": "Number of results to return",
+			"query.flag.threshold": "Minimum similarity score (0-1)",
+			"query.flag.category": "Filter by category",
+			"query.flag.format": "Output format (text, json, context)",
+			"collections.short": "List and manage collections",
+			"collections.long": "List available collections, show statistics, or delete collections from Qdrant.",
+			"collections.flag.list": "List all collections",
+			"collections.flag.stats": "Show collection statistics",
+			"collections.flag.delete": "Delete a collection"
 		}
 	},
 	"common": {

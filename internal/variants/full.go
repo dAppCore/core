@@ -20,6 +20,7 @@
 //   - test: Test runner with coverage
 //   - qa: Quality assurance workflows
 //   - monitor: Security monitoring aggregation
+//   - rag: RAG (Retrieval Augmented Generation) tools
 
 package variants
 
@@ -37,6 +38,7 @@ import (
 	_ "github.com/host-uk/core/internal/cmd/php"
 	_ "github.com/host-uk/core/internal/cmd/pkgcmd"
 	_ "github.com/host-uk/core/internal/cmd/qa"
+	_ "github.com/host-uk/core/internal/cmd/rag"
 	_ "github.com/host-uk/core/internal/cmd/sdk"
 	_ "github.com/host-uk/core/internal/cmd/security"
 	_ "github.com/host-uk/core/internal/cmd/setup"
