@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // SSHClient handles SSH connections to remote hosts.
@@ -127,10 +128,21 @@ func (c *SSHClient) Connect(ctx context.Context) error {
 		return fmt.Errorf("no authentication method available")
 	}
 
+	// Use known_hosts file for host key verification, fall back to accepting any key
+	// if known_hosts doesn't exist (common in containerized/ephemeral environments)
+	hostKeyCallback := ssh.InsecureIgnoreHostKey()
+	home, _ := os.UserHomeDir()
+	knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
+	if _, err := os.Stat(knownHostsPath); err == nil {
+		if cb, err := knownhosts.New(knownHostsPath); err == nil {
+			hostKeyCallback = cb
+		}
+	}
+
 	config := &ssh.ClientConfig{
 		User:            c.user,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: proper host key checking
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         30 * time.Second,
 	}
 
