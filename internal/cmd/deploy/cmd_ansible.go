@@ -291,8 +291,8 @@ func runAnsibleTest(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Disk: %s\n", strings.TrimSpace(stdout))
 
 	// Docker
-	stdout, _, rc, _ := client.Run(ctx, "docker --version 2>/dev/null")
-	if rc == 0 {
+	stdout, _, _, err = client.Run(ctx, "docker --version 2>/dev/null")
+	if err == nil {
 		fmt.Printf("  Docker: %s\n", cli.SuccessStyle.Render(strings.TrimSpace(stdout)))
 	} else {
 		fmt.Printf("  Docker: %s\n", cli.DimStyle.Render("not installed"))

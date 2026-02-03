@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/host-uk/core/pkg/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
@@ -28,6 +29,8 @@ type SSHClient struct {
 	become     bool
 	becomeUser string
 	becomePass string
+	timeout    time.Duration
+	insecure   bool
 }
 
 // SSHConfig holds SSH connection configuration.
@@ -41,6 +44,7 @@ type SSHConfig struct {
 	BecomeUser string
 	BecomePass string
 	Timeout    time.Duration
+	Insecure   bool
 }
 
 // NewSSHClient creates a new SSH client.
@@ -64,6 +68,8 @@ func NewSSHClient(cfg SSHConfig) (*SSHClient, error) {
 		become:     cfg.Become,
 		becomeUser: cfg.BecomeUser,
 		becomePass: cfg.BecomePass,
+		timeout:    cfg.Timeout,
+		insecure:   cfg.Insecure,
 	}
 
 	return client, nil
@@ -125,25 +131,33 @@ func (c *SSHClient) Connect(ctx context.Context) error {
 	}
 
 	if len(authMethods) == 0 {
-		return fmt.Errorf("no authentication method available")
+		return log.E("ssh.Connect", "no authentication method available", nil)
 	}
 
-	// Use known_hosts file for host key verification, fall back to accepting any key
-	// if known_hosts doesn't exist (common in containerized/ephemeral environments)
-	hostKeyCallback := ssh.InsecureIgnoreHostKey()
-	home, _ := os.UserHomeDir()
-	knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
-	if _, err := os.Stat(knownHostsPath); err == nil {
-		if cb, err := knownhosts.New(knownHostsPath); err == nil {
-			hostKeyCallback = cb
+	// Host key verification
+	var hostKeyCallback ssh.HostKeyCallback
+
+	if c.insecure {
+		hostKeyCallback = ssh.InsecureIgnoreHostKey()
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return log.E("ssh.Connect", "failed to get user home dir", err)
 		}
+		knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
+
+		cb, err := knownhosts.New(knownHostsPath)
+		if err != nil {
+			return log.E("ssh.Connect", "failed to load known_hosts (use Insecure=true to bypass)", err)
+		}
+		hostKeyCallback = cb
 	}
 
 	config := &ssh.ClientConfig{
 		User:            c.user,
 		Auth:            authMethods,
 		HostKeyCallback: hostKeyCallback,
-		Timeout:         30 * time.Second,
+		Timeout:         c.timeout,
 	}
 
 	addr := fmt.Sprintf("%s:%d", c.host, c.port)
@@ -152,14 +166,15 @@ func (c *SSHClient) Connect(ctx context.Context) error {
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return fmt.Errorf("dial %s: %w", addr, err)
+		return log.E("ssh.Connect", fmt.Sprintf("dial %s", addr), err)
 	}
 
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
 	if err != nil {
-		_ = conn.Close()
-		return fmt.Errorf("ssh connect %s: %w", addr, err)
+		// conn is closed by NewClientConn on error
+		return log.E("ssh.Connect", fmt.Sprintf("ssh connect %s", addr), err)
 	}
+
 
 	c.client = ssh.NewClient(sshConn, chans, reqs)
 	return nil
@@ -186,7 +201,7 @@ func (c *SSHClient) Run(ctx context.Context, cmd string) (stdout, stderr string,
 
 	session, err := c.client.NewSession()
 	if err != nil {
-		return "", "", -1, fmt.Errorf("new session: %w", err)
+		return "", "", -1, log.E("ssh.Run", "new session", err)
 	}
 	defer func() { _ = session.Close() }()
 
@@ -204,10 +219,27 @@ func (c *SSHClient) Run(ctx context.Context, cmd string) (stdout, stderr string,
 		escapedCmd := strings.ReplaceAll(cmd, "'", "'\\''")
 		if c.becomePass != "" {
 			// Use sudo with password via stdin (-S flag)
-			cmd = fmt.Sprintf("echo '%s' | sudo -S -u %s bash -c '%s'", c.becomePass, becomeUser, escapedCmd)
+			// We launch a goroutine to write the password to stdin
+			cmd = fmt.Sprintf("sudo -S -u %s bash -c '%s'", becomeUser, escapedCmd)
+			stdin, err := session.StdinPipe()
+			if err != nil {
+				return "", "", -1, log.E("ssh.Run", "stdin pipe", err)
+			}
+			go func() {
+				defer stdin.Close()
+				_, _ = io.WriteString(stdin, c.becomePass+"\n")
+			}()
 		} else if c.password != "" {
 			// Try using connection password for sudo
-			cmd = fmt.Sprintf("echo '%s' | sudo -S -u %s bash -c '%s'", c.password, becomeUser, escapedCmd)
+			cmd = fmt.Sprintf("sudo -S -u %s bash -c '%s'", becomeUser, escapedCmd)
+			stdin, err := session.StdinPipe()
+			if err != nil {
+				return "", "", -1, log.E("ssh.Run", "stdin pipe", err)
+			}
+			go func() {
+				defer stdin.Close()
+				_, _ = io.WriteString(stdin, c.password+"\n")
+			}()
 		} else {
 			// Try passwordless sudo
 			cmd = fmt.Sprintf("sudo -n -u %s bash -c '%s'", becomeUser, escapedCmd)
@@ -250,16 +282,10 @@ func (c *SSHClient) Upload(ctx context.Context, local io.Reader, remote string, 
 		return err
 	}
 
-	session, err := c.client.NewSession()
-	if err != nil {
-		return fmt.Errorf("new session: %w", err)
-	}
-	defer func() { _ = session.Close() }()
-
 	// Read content
 	content, err := io.ReadAll(local)
 	if err != nil {
-		return fmt.Errorf("read content: %w", err)
+		return log.E("ssh.Upload", "read content", err)
 	}
 
 	// Create parent directory
@@ -269,40 +295,76 @@ func (c *SSHClient) Upload(ctx context.Context, local io.Reader, remote string, 
 		dirCmd = fmt.Sprintf("sudo mkdir -p %q", dir)
 	}
 	if _, _, _, err := c.Run(ctx, dirCmd); err != nil {
-		return fmt.Errorf("create parent dir: %w", err)
+		return log.E("ssh.Upload", "create parent dir", err)
 	}
 
 	// Use cat to write the file (simpler than SCP)
 	writeCmd := fmt.Sprintf("cat > %q && chmod %o %q", remote, mode, remote)
-	if c.become {
-		writeCmd = fmt.Sprintf("sudo bash -c 'cat > %q && chmod %o %q'", remote, mode, remote)
-	}
-
+	
+	// If become is needed, we construct a command that reads password then content from stdin
+	// But we need to be careful with handling stdin for sudo + cat.
+	// We'll use a session with piped stdin.
+	
 	session2, err := c.client.NewSession()
 	if err != nil {
-		return fmt.Errorf("new session for write: %w", err)
+		return log.E("ssh.Upload", "new session for write", err)
 	}
 	defer func() { _ = session2.Close() }()
 
 	stdin, err := session2.StdinPipe()
 	if err != nil {
-		return fmt.Errorf("stdin pipe: %w", err)
+		return log.E("ssh.Upload", "stdin pipe", err)
 	}
 
 	var stderrBuf bytes.Buffer
 	session2.Stderr = &stderrBuf
 
-	if err := session2.Start(writeCmd); err != nil {
-		return fmt.Errorf("start write: %w", err)
-	}
+	if c.become {
+		becomeUser := c.becomeUser
+		if becomeUser == "" {
+			becomeUser = "root"
+		}
 
-	if _, err := stdin.Write(content); err != nil {
-		return fmt.Errorf("write content: %w", err)
+		pass := c.becomePass
+		if pass == "" {
+			pass = c.password
+		}
+
+		if pass != "" {
+			// Use sudo -S with password from stdin
+			writeCmd = fmt.Sprintf("sudo -S -u %s bash -c 'cat > %q && chmod %o %q'",
+				becomeUser, remote, mode, remote)
+		} else {
+			// Use passwordless sudo (sudo -n) to avoid consuming file content as password
+			writeCmd = fmt.Sprintf("sudo -n -u %s bash -c 'cat > %q && chmod %o %q'",
+				becomeUser, remote, mode, remote)
+		}
+
+		if err := session2.Start(writeCmd); err != nil {
+			return log.E("ssh.Upload", "start write", err)
+		}
+
+		go func() {
+			defer stdin.Close()
+			if pass != "" {
+				_, _ = io.WriteString(stdin, pass+"\n")
+			}
+			_, _ = stdin.Write(content)
+		}()
+	} else {
+		// Normal write
+		if err := session2.Start(writeCmd); err != nil {
+			return log.E("ssh.Upload", "start write", err)
+		}
+
+		go func() {
+			defer stdin.Close()
+			_, _ = stdin.Write(content)
+		}()
 	}
-	_ = stdin.Close()
 
 	if err := session2.Wait(); err != nil {
-		return fmt.Errorf("write failed: %w (stderr: %s)", err, stderrBuf.String())
+		return log.E("ssh.Upload", fmt.Sprintf("write failed (stderr: %s)", stderrBuf.String()), err)
 	}
 
 	return nil
@@ -315,16 +377,13 @@ func (c *SSHClient) Download(ctx context.Context, remote string) ([]byte, error)
 	}
 
 	cmd := fmt.Sprintf("cat %q", remote)
-	if c.become {
-		cmd = fmt.Sprintf("sudo cat %q", remote)
-	}
 
 	stdout, stderr, exitCode, err := c.Run(ctx, cmd)
 	if err != nil {
 		return nil, err
 	}
 	if exitCode != 0 {
-		return nil, fmt.Errorf("cat failed: %s", stderr)
+		return nil, log.E("ssh.Download", fmt.Sprintf("cat failed: %s", stderr), nil)
 	}
 
 	return []byte(stdout), nil

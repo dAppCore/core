@@ -70,7 +70,10 @@ func (c *Client) Call(ctx context.Context, operationID string, params map[string
 	}
 
 	// Generate and run Python script
-	script := python.CoolifyScript(c.baseURL, c.apiToken, operationID, params)
+	script, err := python.CoolifyScript(c.baseURL, c.apiToken, operationID, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate script: %w", err)
+	}
 	output, err := python.RunScript(ctx, script)
 	if err != nil {
 		return nil, fmt.Errorf("API call %s failed: %w", operationID, err)

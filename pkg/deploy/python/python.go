@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 
+	"github.com/host-uk/core/pkg/framework/core"
 	"github.com/kluctl/go-embed-python/python"
 )
 
@@ -39,13 +41,13 @@ func RunScript(ctx context.Context, code string, args ...string) (string, error)
 	// Write code to temp file
 	tmpFile, err := os.CreateTemp("", "core-*.py")
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
+		return "", core.E("python", "create temp file", err)
 	}
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.WriteString(code); err != nil {
 		_ = tmpFile.Close()
-		return "", fmt.Errorf("failed to write script: %w", err)
+		return "", core.E("python", "write script", err)
 	}
 	_ = tmpFile.Close()
 
@@ -55,17 +57,17 @@ func RunScript(ctx context.Context, code string, args ...string) (string, error)
 	// Get the command
 	cmd, err := ep.PythonCmd(cmdArgs...)
 	if err != nil {
-		return "", fmt.Errorf("failed to create Python command: %w", err)
+		return "", core.E("python", "create command", err)
 	}
 
 	// Run with context
 	output, err := cmd.Output()
 	if err != nil {
 		// Try to get stderr for better error message
-		if exitErr, ok := err.(*os.PathError); ok {
-			return "", fmt.Errorf("script failed: %v", exitErr)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", core.E("python", "run script", fmt.Errorf("%w: %s", err, string(exitErr.Stderr)))
 		}
-		return "", fmt.Errorf("script failed: %w", err)
+		return "", core.E("python", "run script", err)
 	}
 
 	return string(output), nil
@@ -80,34 +82,49 @@ func RunModule(ctx context.Context, module string, args ...string) (string, erro
 	cmdArgs := append([]string{"-m", module}, args...)
 	cmd, err := ep.PythonCmd(cmdArgs...)
 	if err != nil {
-		return "", fmt.Errorf("failed to create Python command: %w", err)
+		return "", core.E("python", "create command", err)
 	}
 
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("module %s failed: %w", module, err)
+		return "", core.E("python", fmt.Sprintf("run module %s", module), err)
 	}
 
 	return string(output), nil
 }
 
 // DevOpsPath returns the path to the DevOps repo.
-func DevOpsPath() string {
+func DevOpsPath() (string, error) {
 	if path := os.Getenv("DEVOPS_PATH"); path != "" {
-		return path
+		return path, nil
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Code", "DevOps")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", core.E("python", "get user home", err)
+	}
+	return filepath.Join(home, "Code", "DevOps"), nil
 }
 
 // CoolifyModulePath returns the path to the Coolify module_utils.
-func CoolifyModulePath() string {
-	return filepath.Join(DevOpsPath(), "playbooks", "roles", "coolify", "module_utils")
+func CoolifyModulePath() (string, error) {
+	path, err := DevOpsPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(path, "playbooks", "roles", "coolify", "module_utils"), nil
 }
 
 // CoolifyScript generates Python code to call the Coolify API.
-func CoolifyScript(baseURL, apiToken, operation string, params map[string]any) string {
-	paramsJSON, _ := json.Marshal(params)
+func CoolifyScript(baseURL, apiToken, operation string, params map[string]any) (string, error) {
+	paramsJSON, err := json.Marshal(params)
+	if err != nil {
+		return "", core.E("python", "marshal params", err)
+	}
+
+	modulePath, err := CoolifyModulePath()
+	if err != nil {
+		return "", err
+	}
 
 	return fmt.Sprintf(`
 import sys
@@ -126,5 +143,5 @@ client = CoolifyClient(
 params = json.loads(%q)
 result = client._call(%q, params, check_response=False)
 print(json.dumps(result))
-`, CoolifyModulePath(), baseURL, apiToken, string(paramsJSON), operation)
+`, modulePath, baseURL, apiToken, string(paramsJSON), operation), nil
 }

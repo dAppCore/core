@@ -32,6 +32,13 @@ type Chunk struct {
 // ChunkMarkdown splits markdown text into chunks by sections and paragraphs.
 // Preserves context with configurable overlap.
 func ChunkMarkdown(text string, cfg ChunkConfig) []Chunk {
+	if cfg.Size <= 0 {
+		cfg.Size = 500
+	}
+	if cfg.Overlap < 0 || cfg.Overlap >= cfg.Size {
+		cfg.Overlap = 0
+	}
+
 	var chunks []Chunk
 
 	// Split by ## headers

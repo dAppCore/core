@@ -51,6 +51,9 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	}
 
 	// Configure query
+	if limit < 0 {
+		limit = 0
+	}
 	cfg := rag.QueryConfig{
 		Collection: queryCollection,
 		Limit:      uint64(limit),

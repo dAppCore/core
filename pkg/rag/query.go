@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"html"
 	"strings"
+
+	"github.com/host-uk/core/pkg/log"
 )
 
 // QueryConfig holds query configuration.
@@ -39,7 +41,7 @@ func Query(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, quer
 	// Generate embedding for query
 	embedding, err := ollama.Embed(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("error generating query embedding: %w", err)
+		return nil, log.E("rag.Query", "error generating query embedding", err)
 	}
 
 	// Build filter
@@ -51,7 +53,7 @@ func Query(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, quer
 	// Search Qdrant
 	results, err := qdrant.Search(ctx, cfg.Collection, embedding, cfg.Limit, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error searching: %w", err)
+		return nil, log.E("rag.Query", "error searching", err)
 	}
 
 	// Convert and filter by threshold

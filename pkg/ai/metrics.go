@@ -36,7 +36,7 @@ func metricsFilePath(dir string, t time.Time) string {
 
 // Record appends an event to the daily JSONL file at
 // ~/.core/ai/metrics/YYYY-MM-DD.jsonl.
-func Record(event Event) error {
+func Record(event Event) (err error) {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now()
 	}
@@ -56,7 +56,11 @@ func Record(event Event) error {
 	if err != nil {
 		return fmt.Errorf("open metrics file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("close metrics file: %w", cerr)
+		}
+	}()
 
 	data, err := json.Marshal(event)
 	if err != nil {

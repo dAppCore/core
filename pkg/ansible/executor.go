@@ -9,6 +9,8 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	"github.com/host-uk/core/pkg/log"
 )
 
 // Executor runs Ansible playbooks.
@@ -176,7 +178,7 @@ func (e *Executor) runRole(ctx context.Context, hosts []string, roleRef *RoleRef
 	// Parse role tasks
 	tasks, err := e.parser.ParseRole(roleRef.Role, roleRef.TasksFrom)
 	if err != nil {
-		return fmt.Errorf("parse role %s: %w", roleRef.Role, err)
+		return log.E("executor.runRole", fmt.Sprintf("parse role %s", roleRef.Role), err)
 	}
 
 	// Merge role vars
@@ -308,12 +310,25 @@ func (e *Executor) runLoop(ctx context.Context, host string, client *SSHClient, 
 		loopVar = task.LoopControl.LoopVar
 	}
 
+	// Save loop state to restore after loop
+	savedVars := make(map[string]any)
+	if v, ok := e.vars[loopVar]; ok {
+		savedVars[loopVar] = v
+	}
+	indexVar := ""
+	if task.LoopControl != nil && task.LoopControl.IndexVar != "" {
+		indexVar = task.LoopControl.IndexVar
+		if v, ok := e.vars[indexVar]; ok {
+			savedVars[indexVar] = v
+		}
+	}
+
 	var results []TaskResult
 	for i, item := range items {
 		// Set loop variables
 		e.vars[loopVar] = item
-		if task.LoopControl != nil && task.LoopControl.IndexVar != "" {
-			e.vars[task.LoopControl.IndexVar] = i
+		if indexVar != "" {
+			e.vars[indexVar] = i
 		}
 
 		result, err := e.executeModule(ctx, host, client, task, play)
@@ -324,6 +339,20 @@ func (e *Executor) runLoop(ctx context.Context, host string, client *SSHClient, 
 
 		if result.Failed && !task.IgnoreErrors {
 			break
+		}
+	}
+
+	// Restore loop variables
+	if v, ok := savedVars[loopVar]; ok {
+		e.vars[loopVar] = v
+	} else {
+		delete(e.vars, loopVar)
+	}
+	if indexVar != "" {
+		if v, ok := savedVars[indexVar]; ok {
+			e.vars[indexVar] = v
+		} else {
+			delete(e.vars, indexVar)
 		}
 	}
 
@@ -371,7 +400,11 @@ func (e *Executor) runBlock(ctx context.Context, hosts []string, task *Task, pla
 
 	// Always run always block
 	for _, t := range task.Always {
-		e.runTaskOnHosts(ctx, hosts, &t, play) //nolint:errcheck
+		if err := e.runTaskOnHosts(ctx, hosts, &t, play); err != nil {
+			if blockErr == nil {
+				blockErr = err
+			}
+		}
 	}
 
 	if blockErr != nil && len(task.Rescue) == 0 {
@@ -578,14 +611,6 @@ func (e *Executor) gatherFacts(ctx context.Context, host string, play *Play) err
 	e.facts[host] = facts
 	e.mu.Unlock()
 
-	// Also set as vars
-	e.SetVar("ansible_hostname", facts.Hostname)
-	e.SetVar("ansible_fqdn", facts.FQDN)
-	e.SetVar("ansible_distribution", facts.Distribution)
-	e.SetVar("ansible_distribution_version", facts.Version)
-	e.SetVar("ansible_architecture", facts.Architecture)
-	e.SetVar("ansible_kernel", facts.Kernel)
-
 	return nil
 }
 
@@ -788,6 +813,12 @@ func (e *Executor) resolveExpr(expr string, host string, task *Task) string {
 			return facts.FQDN
 		case "ansible_distribution":
 			return facts.Distribution
+		case "ansible_distribution_version":
+			return facts.Version
+		case "ansible_architecture":
+			return facts.Architecture
+		case "ansible_kernel":
+			return facts.Kernel
 		}
 	}
 
@@ -959,8 +990,30 @@ func (e *Executor) TemplateFile(src, host string, task *Task) (string, error) {
 		return e.templateString(string(content), host, task), nil
 	}
 
+	// Build context map
+	context := make(map[string]any)
+	for k, v := range e.vars {
+		context[k] = v
+	}
+	// Add host vars
+	if e.inventory != nil {
+		hostVars := GetHostVars(e.inventory, host)
+		for k, v := range hostVars {
+			context[k] = v
+		}
+	}
+	// Add facts
+	if facts, ok := e.facts[host]; ok {
+		context["ansible_hostname"] = facts.Hostname
+		context["ansible_fqdn"] = facts.FQDN
+		context["ansible_distribution"] = facts.Distribution
+		context["ansible_distribution_version"] = facts.Version
+		context["ansible_architecture"] = facts.Architecture
+		context["ansible_kernel"] = facts.Kernel
+	}
+
 	var buf strings.Builder
-	if err := tmpl.Execute(&buf, e.vars); err != nil {
+	if err := tmpl.Execute(&buf, context); err != nil {
 		return e.templateString(string(content), host, task), nil
 	}
 

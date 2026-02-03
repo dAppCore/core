@@ -14,6 +14,7 @@ Requirements:
 """
 
 import argparse
+import html
 import json
 import os
 import sys
@@ -29,7 +30,7 @@ except ImportError:
 
 
 # Configuration
-QDRANT_HOST = os.getenv("QDRANT_HOST", "linux.snider.dev")
+QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 
@@ -120,17 +121,16 @@ def format_for_context(results: list[dict], query: str) -> str:
         return ""
 
     output = []
-    output.append(f"<retrieved_context query=\"{query}\">")
+    output.append(f'<retrieved_context query="{html.escape(query)}">')
 
     for r in results:
-        output.append(f"\n<document source=\"{r['source']}\" category=\"{r['category']}\">")
-        output.append(r['text'])
+        output.append(f'\n<document source="{html.escape(r["source"])}" category="{html.escape(r["category"])}">')
+        output.append(html.escape(r['text']))
         output.append("</document>")
 
     output.append("\n</retrieved_context>")
 
     return "\n".join(output)
-
 
 def main():
     parser = argparse.ArgumentParser(description="Query RAG documentation")

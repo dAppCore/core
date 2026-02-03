@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/host-uk/core/pkg/log"
 	"github.com/qdrant/go-client/qdrant"
 )
 
@@ -44,7 +45,7 @@ func NewQdrantClient(cfg QdrantConfig) (*QdrantClient, error) {
 		UseTLS: cfg.UseTLS,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Qdrant at %s: %w", addr, err)
+		return nil, log.E("rag.Qdrant", fmt.Sprintf("failed to connect to Qdrant at %s", addr), err)
 	}
 
 	return &QdrantClient{

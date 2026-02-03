@@ -158,7 +158,7 @@ The ingestion automatically categorizes files:
 
 ## Vector Math (For Understanding)
 
-```
+```text
 "How do I make a Flux button?"
     ↓ Embedding
 [0.12, -0.45, 0.78, ...768 floats...]

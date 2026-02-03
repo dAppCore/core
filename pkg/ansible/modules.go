@@ -16,7 +16,14 @@ func (e *Executor) executeModule(ctx context.Context, host string, client *SSHCl
 
 	// Apply task-level become
 	if task.Become != nil && *task.Become {
+		// Save old state to restore
+		oldBecome := client.become
+		oldUser := client.becomeUser
+		oldPass := client.becomePass
+
 		client.SetBecome(true, task.BecomeUser, "")
+		
+		defer client.SetBecome(oldBecome, oldUser, oldPass)
 	}
 
 	// Template the args
@@ -770,8 +777,14 @@ func (e *Executor) moduleUser(ctx context.Context, client *SSHClient, args map[s
 	}
 
 	// Try usermod first, then useradd
-	cmd := fmt.Sprintf("id %s >/dev/null 2>&1 && usermod %s %s || useradd %s %s",
-		name, strings.Join(opts, " "), name, strings.Join(opts, " "), name)
+	optsStr := strings.Join(opts, " ")
+	var cmd string
+	if optsStr == "" {
+		cmd = fmt.Sprintf("id %s >/dev/null 2>&1 || useradd %s", name, name)
+	} else {
+		cmd = fmt.Sprintf("id %s >/dev/null 2>&1 && usermod %s %s || useradd %s %s",
+			name, optsStr, name, optsStr, name)
+	}
 
 	stdout, stderr, rc, err := client.Run(ctx, cmd)
 	if err != nil || rc != 0 {
@@ -1008,10 +1021,10 @@ func (e *Executor) moduleGit(ctx context.Context, client *SSHClient, args map[st
 
 	var cmd string
 	if exists {
-		cmd = fmt.Sprintf("cd %q && git fetch --all && git checkout %s && git pull origin %s 2>/dev/null || true",
-			dest, version, version)
+		// Fetch and checkout (force to ensure clean state)
+		cmd = fmt.Sprintf("cd %q && git fetch --all && git checkout --force %q", dest, version)
 	} else {
-		cmd = fmt.Sprintf("git clone %q %q && cd %q && git checkout %s",
+		cmd = fmt.Sprintf("git clone %q %q && cd %q && git checkout %q",
 			repo, dest, dest, version)
 	}
 
@@ -1414,5 +1427,11 @@ func (e *Executor) moduleDockerCompose(ctx context.Context, client *SSHClient, a
 		return &TaskResult{Failed: true, Msg: stderr, Stdout: stdout, RC: rc}, nil
 	}
 
-	return &TaskResult{Changed: true, Stdout: stdout}, nil
+	// Heuristic for changed
+	changed := true
+	if strings.Contains(stdout, "Up to date") || strings.Contains(stderr, "Up to date") {
+		changed = false
+	}
+
+	return &TaskResult{Changed: changed, Stdout: stdout}, nil
 }

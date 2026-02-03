@@ -31,7 +31,7 @@ except ImportError:
 
 
 # Configuration
-QDRANT_HOST = os.getenv("QDRANT_HOST", "linux.snider.dev")
+QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))  # chars
@@ -117,7 +117,7 @@ def get_file_category(path: str) -> str:
         return "documentation"
 
 
-def ingest_directory(do we
+def ingest_directory(
     directory: Path,
     client: QdrantClient,
     collection: str,

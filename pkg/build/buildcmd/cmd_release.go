@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/framework/core"
 	"github.com/host-uk/core/pkg/i18n"
 	"github.com/host-uk/core/pkg/release"
 )
@@ -24,7 +25,7 @@ var releaseCmd = &cli.Command{
 	Short: i18n.T("cmd.build.release.short"),
 	Long:  i18n.T("cmd.build.release.long"),
 	RunE: func(cmd *cli.Command, args []string) error {
-		return runRelease(releaseDryRun, releaseVersion, releaseDraft, releasePrerelease)
+		return runRelease(cmd.Context(), releaseDryRun, releaseVersion, releaseDraft, releasePrerelease)
 	},
 }
 
@@ -41,13 +42,11 @@ func AddReleaseCommand(buildCmd *cli.Command) {
 }
 
 // runRelease executes the full release workflow: build + archive + checksum + publish.
-func runRelease(dryRun bool, version string, draft, prerelease bool) error {
-	ctx := context.Background()
-
+func runRelease(ctx context.Context, dryRun bool, version string, draft, prerelease bool) error {
 	// Get current directory
 	projectDir, err := os.Getwd()
 	if err != nil {
-		return cli.WrapVerb(err, "get", "working directory")
+		return core.E("release", "get working directory", err)
 	}
 
 	// Check for release config
@@ -57,13 +56,13 @@ func runRelease(dryRun bool, version string, draft, prerelease bool) error {
 			i18n.T("cmd.build.release.error.no_config"),
 		)
 		cli.Print("  %s\n", buildDimStyle.Render(i18n.T("cmd.build.release.hint.create_config")))
-		return cli.Err("release config not found")
+		return core.E("release", "config not found", nil)
 	}
 
 	// Load configuration
 	cfg, err := release.LoadConfig(projectDir)
 	if err != nil {
-		return cli.WrapVerb(err, "load", "config")
+		return core.E("release", "load config", err)
 	}
 
 	// Apply CLI overrides

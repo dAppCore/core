@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/host-uk/core/pkg/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -112,7 +113,7 @@ func (p *Parser) ParseRole(name string, tasksFrom string) ([]Task, error) {
 	}
 
 	if tasksPath == "" {
-		return nil, fmt.Errorf("role %s not found in search paths: %v", name, searchPaths)
+		return nil, log.E("parser.ParseRole", fmt.Sprintf("role %s not found in search paths: %v", name, searchPaths), nil)
 	}
 
 	// Load role defaults

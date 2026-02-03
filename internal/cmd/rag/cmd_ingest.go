@@ -3,7 +3,6 @@ package rag
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/host-uk/core/pkg/cli"
 	"github.com/host-uk/core/pkg/i18n"
@@ -66,6 +65,13 @@ func runIngest(cmd *cobra.Command, args []string) error {
 	}
 
 	// Configure ingestion
+	if chunkSize <= 0 {
+		return fmt.Errorf("chunk-size must be > 0")
+	}
+	if chunkOverlap < 0 || chunkOverlap >= chunkSize {
+		return fmt.Errorf("chunk-overlap must be >= 0 and < chunk-size")
+	}
+
 	cfg := rag.IngestConfig{
 		Directory:  directory,
 		Collection: collection,
@@ -164,15 +170,4 @@ func IngestFile(ctx context.Context, filePath, collectionName string) (int, erro
 	return rag.IngestFile(ctx, qdrantClient, ollamaClient, collectionName, filePath, rag.DefaultChunkConfig())
 }
 
-func init() {
-	// Check for environment variable overrides
-	if host := os.Getenv("QDRANT_HOST"); host != "" {
-		qdrantHost = host
-	}
-	if host := os.Getenv("OLLAMA_HOST"); host != "" {
-		ollamaHost = host
-	}
-	if m := os.Getenv("EMBEDDING_MODEL"); m != "" {
-		model = m
-	}
-}
+

@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/host-uk/core/pkg/log"
 )
 
 // IngestConfig holds ingestion configuration.
@@ -50,26 +52,26 @@ func Ingest(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, cfg
 	// Resolve directory
 	absDir, err := filepath.Abs(cfg.Directory)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving directory: %w", err)
+		return nil, log.E("rag.Ingest", "error resolving directory", err)
 	}
 
 	info, err := os.Stat(absDir)
 	if err != nil {
-		return nil, fmt.Errorf("error accessing directory: %w", err)
+		return nil, log.E("rag.Ingest", "error accessing directory", err)
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("not a directory: %s", absDir)
+		return nil, log.E("rag.Ingest", fmt.Sprintf("not a directory: %s", absDir), nil)
 	}
 
 	// Check/create collection
 	exists, err := qdrant.CollectionExists(ctx, cfg.Collection)
 	if err != nil {
-		return nil, fmt.Errorf("error checking collection: %w", err)
+		return nil, log.E("rag.Ingest", "error checking collection", err)
 	}
 
 	if cfg.Recreate && exists {
 		if err := qdrant.DeleteCollection(ctx, cfg.Collection); err != nil {
-			return nil, fmt.Errorf("error deleting collection: %w", err)
+			return nil, log.E("rag.Ingest", "error deleting collection", err)
 		}
 		exists = false
 	}
@@ -77,7 +79,7 @@ func Ingest(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, cfg
 	if !exists {
 		vectorDim := ollama.EmbedDimension()
 		if err := qdrant.CreateCollection(ctx, cfg.Collection, vectorDim); err != nil {
-			return nil, fmt.Errorf("error creating collection: %w", err)
+			return nil, log.E("rag.Ingest", "error creating collection", err)
 		}
 	}
 
@@ -93,11 +95,11 @@ func Ingest(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, cfg
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error walking directory: %w", err)
+		return nil, log.E("rag.Ingest", "error walking directory", err)
 	}
 
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no markdown files found in %s", absDir)
+		return nil, log.E("rag.Ingest", fmt.Sprintf("no markdown files found in %s", absDir), nil)
 	}
 
 	// Process files
@@ -164,7 +166,7 @@ func Ingest(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, cfg
 			}
 			batch := points[i:end]
 			if err := qdrant.UpsertPoints(ctx, cfg.Collection, batch); err != nil {
-				return stats, fmt.Errorf("error upserting batch %d: %w", i/cfg.BatchSize+1, err)
+				return stats, log.E("rag.Ingest", fmt.Sprintf("error upserting batch %d", i/cfg.BatchSize+1), err)
 			}
 		}
 	}
@@ -176,7 +178,7 @@ func Ingest(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, cfg
 func IngestFile(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient, collection string, filePath string, chunkCfg ChunkConfig) (int, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return 0, fmt.Errorf("error reading file: %w", err)
+		return 0, log.E("rag.IngestFile", "error reading file", err)
 	}
 
 	if len(strings.TrimSpace(string(content))) == 0 {
@@ -190,7 +192,7 @@ func IngestFile(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient,
 	for _, chunk := range chunks {
 		embedding, err := ollama.Embed(ctx, chunk.Text)
 		if err != nil {
-			return 0, fmt.Errorf("error embedding chunk %d: %w", chunk.Index, err)
+			return 0, log.E("rag.IngestFile", fmt.Sprintf("error embedding chunk %d", chunk.Index), err)
 		}
 
 		points = append(points, Point{
@@ -207,7 +209,7 @@ func IngestFile(ctx context.Context, qdrant *QdrantClient, ollama *OllamaClient,
 	}
 
 	if err := qdrant.UpsertPoints(ctx, collection, points); err != nil {
-		return 0, fmt.Errorf("error upserting points: %w", err)
+		return 0, log.E("rag.IngestFile", "error upserting points", err)
 	}
 
 	return len(points), nil

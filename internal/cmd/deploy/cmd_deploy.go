@@ -260,7 +260,7 @@ func runTeam(cmd *cobra.Command, args []string) error {
 func runCall(cmd *cobra.Command, args []string) error {
 	client, err := getClient()
 	if err != nil {
-		return err
+		return cli.WrapVerb(err, "initialize", "client")
 	}
 
 	operation := args[0]

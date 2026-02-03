@@ -171,7 +171,7 @@ install_ci() {
     sudo mv "$WORK_DIR/${BINARY}" /usr/local/bin/
   fi
 
-  ${BINARY} --version
+  /usr/local/bin/${BINARY} --version
 }
 
 install_dev() {

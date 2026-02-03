@@ -1,6 +1,9 @@
 package rag
 
 import (
+	"os"
+	"strconv"
+
 	"github.com/host-uk/core/pkg/i18n"
 	"github.com/spf13/cobra"
 )
@@ -23,13 +26,40 @@ var ragCmd = &cobra.Command{
 
 func initFlags() {
 	// Qdrant connection flags (persistent) - defaults to localhost for local development
-	ragCmd.PersistentFlags().StringVar(&qdrantHost, "qdrant-host", "localhost", i18n.T("cmd.rag.flag.qdrant_host"))
-	ragCmd.PersistentFlags().IntVar(&qdrantPort, "qdrant-port", 6334, i18n.T("cmd.rag.flag.qdrant_port"))
+	qHost := "localhost"
+	if v := os.Getenv("QDRANT_HOST"); v != "" {
+		qHost = v
+	}
+	ragCmd.PersistentFlags().StringVar(&qdrantHost, "qdrant-host", qHost, i18n.T("cmd.rag.flag.qdrant_host"))
+
+	qPort := 6334
+	if v := os.Getenv("QDRANT_PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			qPort = p
+		}
+	}
+	ragCmd.PersistentFlags().IntVar(&qdrantPort, "qdrant-port", qPort, i18n.T("cmd.rag.flag.qdrant_port"))
 
 	// Ollama connection flags (persistent) - defaults to localhost for local development
-	ragCmd.PersistentFlags().StringVar(&ollamaHost, "ollama-host", "localhost", i18n.T("cmd.rag.flag.ollama_host"))
-	ragCmd.PersistentFlags().IntVar(&ollamaPort, "ollama-port", 11434, i18n.T("cmd.rag.flag.ollama_port"))
-	ragCmd.PersistentFlags().StringVar(&model, "model", "nomic-embed-text", i18n.T("cmd.rag.flag.model"))
+	oHost := "localhost"
+	if v := os.Getenv("OLLAMA_HOST"); v != "" {
+		oHost = v
+	}
+	ragCmd.PersistentFlags().StringVar(&ollamaHost, "ollama-host", oHost, i18n.T("cmd.rag.flag.ollama_host"))
+
+	oPort := 11434
+	if v := os.Getenv("OLLAMA_PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			oPort = p
+		}
+	}
+	ragCmd.PersistentFlags().IntVar(&ollamaPort, "ollama-port", oPort, i18n.T("cmd.rag.flag.ollama_port"))
+
+	m := "nomic-embed-text"
+	if v := os.Getenv("EMBEDDING_MODEL"); v != "" {
+		m = v
+	}
+	ragCmd.PersistentFlags().StringVar(&model, "model", m, i18n.T("cmd.rag.flag.model"))
 
 	// Verbose flag (persistent)
 	ragCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, i18n.T("common.flag.verbose"))
