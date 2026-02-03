@@ -61,42 +61,23 @@ goto :install_setup
 :install_setup
 echo Installing %BINARY% !VERSION! for Windows...
 call :find_archive "" ARCHIVE
+if errorlevel 1 exit /b 1
 call :download_and_extract
+if errorlevel 1 exit /b 1
 call :install_binary
+if errorlevel 1 exit /b 1
 call :verify_install
+if errorlevel 1 exit /b 1
 goto :done
 
 :install_ci
 echo Installing %BINARY% !VERSION! (CI)...
 call :find_archive "" ARCHIVE
-
-REM Download
-curl -fsSL "https://github.com/%REPO%/releases/download/!VERSION!/!ARCHIVE!" -o "%TEMP%\!ARCHIVE!"
-if errorlevel 1 (
-    echo ERROR: Failed to download !ARCHIVE!
-    exit /b 1
-)
-
-REM Extract - try System32 first (CI often has admin), else local
-powershell -Command "try { Expand-Archive -Force '%TEMP%\!ARCHIVE!' '%TEMP%\core-extract' } catch { exit 1 }"
-if errorlevel 1 (
-    echo ERROR: Failed to extract archive
-    del "%TEMP%\!ARCHIVE!" 2>nul
-    exit /b 1
-)
-
-move /y "%TEMP%\core-extract\%BINARY%.exe" "C:\Windows\System32\%BINARY%.exe" >nul 2>&1
-if errorlevel 1 (
-    if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
-    move /y "%TEMP%\core-extract\%BINARY%.exe" "%INSTALL_DIR%\%BINARY%.exe"
-    echo %PATH% | findstr /i /c:"%INSTALL_DIR%" >nul
-    if errorlevel 1 (
-        powershell -Command "[Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'User') + ';%INSTALL_DIR%', 'User')"
-        set "PATH=%PATH%;%INSTALL_DIR%"
-    )
-)
-rmdir /s /q "%TEMP%\core-extract" 2>nul
-del "%TEMP%\!ARCHIVE!" 2>nul
+if errorlevel 1 exit /b 1
+call :download_and_extract
+if errorlevel 1 exit /b 1
+call :install_binary
+if errorlevel 1 exit /b 1
 
 %BINARY% --version || exit /b 1
 goto :done
@@ -104,9 +85,13 @@ goto :done
 :install_dev
 echo Installing %BINARY% !VERSION! (full) for Windows...
 call :find_archive "" ARCHIVE
+if errorlevel 1 exit /b 1
 call :download_and_extract
+if errorlevel 1 exit /b 1
 call :install_binary
+if errorlevel 1 exit /b 1
 call :verify_install
+if errorlevel 1 exit /b 1
 echo.
 echo Full development variant installed. Available commands:
 echo   core dev     - Multi-repo workflows
@@ -117,9 +102,13 @@ goto :done
 :install_variant
 echo Installing %BINARY% !VERSION! (%VARIANT% variant) for Windows...
 call :find_archive "%VARIANT%" ARCHIVE
+if errorlevel 1 exit /b 1
 call :download_and_extract
+if errorlevel 1 exit /b 1
 call :install_binary
+if errorlevel 1 exit /b 1
 call :verify_install
+if errorlevel 1 exit /b 1
 goto :done
 
 REM === Helper Functions ===
@@ -131,7 +120,7 @@ set "_result=%~2"
 REM Try variant-specific first, then full
 if not "%_variant%"=="" (
     set "_try=%BINARY%-%_variant%-windows-amd64.zip"
-    curl -fsSLI "https://github.com/%REPO%/releases/download/!VERSION!/!_try!" 2>nul | findstr /r "HTTP/.* [23]0[02]" >nul
+    curl -fsSLI "https://github.com/%REPO%/releases/download/!VERSION!/!_try!" 2>nul | findstr /r "HTTP/[12].* [23][0-9][0-9]" >nul
     if not errorlevel 1 (
         set "%_result%=!_try!"
         exit /b 0

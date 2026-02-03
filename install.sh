@@ -62,7 +62,7 @@ detect_platform() {
 resolve_version() {
   if [ "$VERSION" = "latest" ]; then
     info "Fetching latest version..."
-    VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    VERSION=$(curl -fsSL --max-time 10 "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
     if [ -z "$VERSION" ]; then
       error "Failed to fetch latest version from GitHub API"
     fi
@@ -100,18 +100,18 @@ find_archive() {
 }
 
 download_and_extract() {
-  TMPDIR=$(mktemp -d)
-  trap 'rm -rf "$TMPDIR"' EXIT
+  WORK_DIR=$(mktemp -d)
+  trap 'rm -rf "$WORK_DIR"' EXIT
 
   info "Downloading ${ARCHIVE}..."
-  if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/$ARCHIVE"; then
+  if ! curl -fsSL --max-time 120 "$DOWNLOAD_URL" -o "$WORK_DIR/$ARCHIVE"; then
     error "Failed to download ${DOWNLOAD_URL}"
   fi
 
   info "Extracting..."
   case "$ARCHIVE" in
-    *.tar.xz) tar -xJf "$TMPDIR/$ARCHIVE" -C "$TMPDIR" || error "Failed to extract archive" ;;
-    *.tar.gz) tar -xzf "$TMPDIR/$ARCHIVE" -C "$TMPDIR" || error "Failed to extract archive" ;;
+    *.tar.xz) tar -xJf "$WORK_DIR/$ARCHIVE" -C "$WORK_DIR" || error "Failed to extract archive" ;;
+    *.tar.gz) tar -xzf "$WORK_DIR/$ARCHIVE" -C "$WORK_DIR" || error "Failed to extract archive" ;;
     *) error "Unknown archive format: $ARCHIVE" ;;
   esac
 }
@@ -120,10 +120,11 @@ install_binary() {
   local install_dir="${1:-/usr/local/bin}"
 
   info "Installing to ${install_dir}..."
+  chmod +x "$WORK_DIR/${BINARY}"
   if [ -w "$install_dir" ]; then
-    mv "$TMPDIR/${BINARY}" "${install_dir}/${BINARY}"
+    mv "$WORK_DIR/${BINARY}" "${install_dir}/${BINARY}"
   else
-    sudo mv "$TMPDIR/${BINARY}" "${install_dir}/${BINARY}"
+    sudo mv "$WORK_DIR/${BINARY}" "${install_dir}/${BINARY}"
   fi
 }
 
@@ -163,10 +164,11 @@ install_ci() {
   download_and_extract
 
   # CI: prefer /usr/local/bin, no sudo prompts
+  chmod +x "$WORK_DIR/${BINARY}"
   if [ -w /usr/local/bin ]; then
-    mv "$TMPDIR/${BINARY}" /usr/local/bin/
+    mv "$WORK_DIR/${BINARY}" /usr/local/bin/
   else
-    sudo mv "$TMPDIR/${BINARY}" /usr/local/bin/
+    sudo mv "$WORK_DIR/${BINARY}" /usr/local/bin/
   fi
 
   ${BINARY} --version
