@@ -14,10 +14,10 @@ import (
 
 // Flag variables for release command
 var (
-	releaseVersion    string
-	releaseDraft      bool
-	releasePrerelease bool
-	releaseDryRun     bool
+	releaseVersion      string
+	releaseDraft        bool
+	releasePrerelease   bool
+	releaseGoForLaunch  bool
 )
 
 var releaseCmd = &cli.Command{
@@ -25,12 +25,12 @@ var releaseCmd = &cli.Command{
 	Short: i18n.T("cmd.build.release.short"),
 	Long:  i18n.T("cmd.build.release.long"),
 	RunE: func(cmd *cli.Command, args []string) error {
-		return runRelease(cmd.Context(), releaseDryRun, releaseVersion, releaseDraft, releasePrerelease)
+		return runRelease(cmd.Context(), !releaseGoForLaunch, releaseVersion, releaseDraft, releasePrerelease)
 	},
 }
 
 func init() {
-	releaseCmd.Flags().BoolVar(&releaseDryRun, "dry-run", false, i18n.T("cmd.build.release.flag.dry_run"))
+	releaseCmd.Flags().BoolVar(&releaseGoForLaunch, "we-are-go-for-launch", false, i18n.T("cmd.build.release.flag.go_for_launch"))
 	releaseCmd.Flags().StringVar(&releaseVersion, "version", "", i18n.T("cmd.build.release.flag.version"))
 	releaseCmd.Flags().BoolVar(&releaseDraft, "draft", false, i18n.T("cmd.build.release.flag.draft"))
 	releaseCmd.Flags().BoolVar(&releasePrerelease, "prerelease", false, i18n.T("cmd.build.release.flag.prerelease"))

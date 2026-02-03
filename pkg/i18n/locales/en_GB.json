@@ -233,7 +233,7 @@
 			"sdk.complete": "SDK generation complete",
 			"release.short": "Build, archive, and publish a release",
 			"release.long": "Build all targets, create archives, generate checksums, and publish to configured destinations. Requires .core/release.yaml configuration.",
-			"release.flag.dry_run": "Show what would be done without publishing",
+			"release.flag.go_for_launch": "Actually publish to configured targets (default: dry-run only)",
 			"release.flag.version": "Version to release (overrides config)",
 			"release.flag.draft": "Create as draft release",
 			"release.flag.prerelease": "Mark as pre-release",

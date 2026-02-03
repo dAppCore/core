@@ -63,7 +63,7 @@ var buildCmd = &cobra.Command{
 	Short: i18n.T("cmd.build.short"),
 	Long:  i18n.T("cmd.build.long"),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runProjectBuild(buildType, ciMode, targets, outputDir, doArchive, doChecksum, configPath, format, push, imageName, noSign, notarize, verbose)
+		return runProjectBuild(cmd.Context(), buildType, ciMode, targets, outputDir, doArchive, doChecksum, configPath, format, push, imageName, noSign, notarize, verbose)
 	},
 }
 
