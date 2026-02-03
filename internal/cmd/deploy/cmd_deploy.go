@@ -44,10 +44,10 @@ var appsCmd = &cobra.Command{
 }
 
 var dbsCmd = &cobra.Command{
-	Use:   "databases",
-	Short: "List Coolify databases",
+	Use:     "databases",
+	Short:   "List Coolify databases",
 	Aliases: []string{"dbs", "db"},
-	RunE:  runListDatabases,
+	RunE:    runListDatabases,
 }
 
 var servicesCmd = &cobra.Command{

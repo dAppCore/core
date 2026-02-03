@@ -109,11 +109,11 @@ type Task struct {
 
 // LoopControl controls loop behavior.
 type LoopControl struct {
-	LoopVar   string `yaml:"loop_var,omitempty"`
-	IndexVar  string `yaml:"index_var,omitempty"`
-	Label     string `yaml:"label,omitempty"`
-	Pause     int    `yaml:"pause,omitempty"`
-	Extended  bool   `yaml:"extended,omitempty"`
+	LoopVar  string `yaml:"loop_var,omitempty"`
+	IndexVar string `yaml:"index_var,omitempty"`
+	Label    string `yaml:"label,omitempty"`
+	Pause    int    `yaml:"pause,omitempty"`
+	Extended bool   `yaml:"extended,omitempty"`
 }
 
 // TaskResult holds the result of executing a task.
@@ -137,9 +137,9 @@ type Inventory struct {
 
 // InventoryGroup represents a group in inventory.
 type InventoryGroup struct {
-	Hosts    map[string]*Host          `yaml:"hosts,omitempty"`
+	Hosts    map[string]*Host           `yaml:"hosts,omitempty"`
 	Children map[string]*InventoryGroup `yaml:"children,omitempty"`
-	Vars     map[string]any            `yaml:"vars,omitempty"`
+	Vars     map[string]any             `yaml:"vars,omitempty"`
 }
 
 // Host represents a host in inventory.
