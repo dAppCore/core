@@ -300,12 +300,12 @@ func (e *Executor) moduleCopy(ctx context.Context, client *SSHClient, args map[s
 		return nil, err
 	}
 
-	// Handle owner/group
+	// Handle owner/group (best-effort, errors ignored)
 	if owner := getStringArg(args, "owner", ""); owner != "" {
-		client.Run(ctx, fmt.Sprintf("chown %s %q", owner, dest))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("chown %s %q", owner, dest))
 	}
 	if group := getStringArg(args, "group", ""); group != "" {
-		client.Run(ctx, fmt.Sprintf("chgrp %s %q", group, dest))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("chgrp %s %q", group, dest))
 	}
 
 	return &TaskResult{Changed: true, Msg: fmt.Sprintf("copied to %s", dest)}, nil
@@ -387,20 +387,20 @@ func (e *Executor) moduleFile(ctx context.Context, client *SSHClient, args map[s
 	case "file":
 		// Ensure file exists and set permissions
 		if mode := getStringArg(args, "mode", ""); mode != "" {
-			client.Run(ctx, fmt.Sprintf("chmod %s %q", mode, path))
+			_, _, _, _ = client.Run(ctx, fmt.Sprintf("chmod %s %q", mode, path))
 		}
 	}
 
-	// Handle owner/group
+	// Handle owner/group (best-effort, errors ignored)
 	if owner := getStringArg(args, "owner", ""); owner != "" {
-		client.Run(ctx, fmt.Sprintf("chown %s %q", owner, path))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("chown %s %q", owner, path))
 	}
 	if group := getStringArg(args, "group", ""); group != "" {
-		client.Run(ctx, fmt.Sprintf("chgrp %s %q", group, path))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("chgrp %s %q", group, path))
 	}
 	if recurse := getBoolArg(args, "recurse", false); recurse {
 		if owner := getStringArg(args, "owner", ""); owner != "" {
-			client.Run(ctx, fmt.Sprintf("chown -R %s %q", owner, path))
+			_, _, _, _ = client.Run(ctx, fmt.Sprintf("chown -R %s %q", owner, path))
 		}
 	}
 
@@ -438,12 +438,12 @@ func (e *Executor) moduleLineinfile(ctx context.Context, client *SSHClient, args
 			if rc != 0 {
 				// Line not found, append
 				cmd = fmt.Sprintf("echo %q >> %q", line, path)
-				client.Run(ctx, cmd)
+				_, _, _, _ = client.Run(ctx, cmd)
 			}
 		} else if line != "" {
 			// Ensure line is present
 			cmd := fmt.Sprintf("grep -qxF %q %q || echo %q >> %q", line, path, line, path)
-			client.Run(ctx, cmd)
+			_, _, _, _ = client.Run(ctx, cmd)
 		}
 	}
 
@@ -527,9 +527,9 @@ func (e *Executor) moduleGetURL(ctx context.Context, client *SSHClient, args map
 		return &TaskResult{Failed: true, Msg: stderr, Stdout: stdout, RC: rc}, nil
 	}
 
-	// Set mode if specified
+	// Set mode if specified (best-effort)
 	if mode := getStringArg(args, "mode", ""); mode != "" {
-		client.Run(ctx, fmt.Sprintf("chmod %s %q", mode, dest))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("chmod %s %q", mode, dest))
 	}
 
 	return &TaskResult{Changed: true}, nil
@@ -545,7 +545,7 @@ func (e *Executor) moduleApt(ctx context.Context, client *SSHClient, args map[st
 	var cmd string
 
 	if updateCache {
-		client.Run(ctx, "apt-get update -qq")
+		_, _, _, _ = client.Run(ctx, "apt-get update -qq")
 	}
 
 	switch state {
@@ -578,7 +578,7 @@ func (e *Executor) moduleAptKey(ctx context.Context, client *SSHClient, args map
 
 	if state == "absent" {
 		if keyring != "" {
-			client.Run(ctx, fmt.Sprintf("rm -f %q", keyring))
+			_, _, _, _ = client.Run(ctx, fmt.Sprintf("rm -f %q", keyring))
 		}
 		return &TaskResult{Changed: true}, nil
 	}
@@ -621,7 +621,7 @@ func (e *Executor) moduleAptRepository(ctx context.Context, client *SSHClient, a
 	path := fmt.Sprintf("/etc/apt/sources.list.d/%s.list", filename)
 
 	if state == "absent" {
-		client.Run(ctx, fmt.Sprintf("rm -f %q", path))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("rm -f %q", path))
 		return &TaskResult{Changed: true}, nil
 	}
 
@@ -631,9 +631,9 @@ func (e *Executor) moduleAptRepository(ctx context.Context, client *SSHClient, a
 		return &TaskResult{Failed: true, Msg: stderr, Stdout: stdout, RC: rc}, nil
 	}
 
-	// Update apt cache
+	// Update apt cache (best-effort)
 	if getBoolArg(args, "update_cache", true) {
-		client.Run(ctx, "apt-get update -qq")
+		_, _, _, _ = client.Run(ctx, "apt-get update -qq")
 	}
 
 	return &TaskResult{Changed: true}, nil
@@ -722,7 +722,7 @@ func (e *Executor) moduleService(ctx context.Context, client *SSHClient, args ma
 func (e *Executor) moduleSystemd(ctx context.Context, client *SSHClient, args map[string]any) (*TaskResult, error) {
 	// systemd is similar to service
 	if getBoolArg(args, "daemon_reload", false) {
-		client.Run(ctx, "systemctl daemon-reload")
+		_, _, _, _ = client.Run(ctx, "systemctl daemon-reload")
 	}
 
 	return e.moduleService(ctx, client, args)
@@ -740,7 +740,7 @@ func (e *Executor) moduleUser(ctx context.Context, client *SSHClient, args map[s
 
 	if state == "absent" {
 		cmd := fmt.Sprintf("userdel -r %s 2>/dev/null || true", name)
-		client.Run(ctx, cmd)
+		_, _, _, _ = client.Run(ctx, cmd)
 		return &TaskResult{Changed: true}, nil
 	}
 
@@ -791,7 +791,7 @@ func (e *Executor) moduleGroup(ctx context.Context, client *SSHClient, args map[
 
 	if state == "absent" {
 		cmd := fmt.Sprintf("groupdel %s 2>/dev/null || true", name)
-		client.Run(ctx, cmd)
+		_, _, _, _ = client.Run(ctx, cmd)
 		return &TaskResult{Changed: true}, nil
 	}
 
@@ -1032,8 +1032,8 @@ func (e *Executor) moduleUnarchive(ctx context.Context, client *SSHClient, args 
 		return nil, fmt.Errorf("unarchive: src and dest required")
 	}
 
-	// Create dest directory
-	client.Run(ctx, fmt.Sprintf("mkdir -p %q", dest))
+	// Create dest directory (best-effort)
+	_, _, _, _ = client.Run(ctx, fmt.Sprintf("mkdir -p %q", dest))
 
 	var cmd string
 	if !remote {
@@ -1048,7 +1048,7 @@ func (e *Executor) moduleUnarchive(ctx context.Context, client *SSHClient, args 
 			return nil, err
 		}
 		src = tmpPath
-		defer client.Run(ctx, fmt.Sprintf("rm -f %q", tmpPath))
+		defer func() { _, _, _, _ = client.Run(ctx, fmt.Sprintf("rm -f %q", tmpPath)) }()
 	}
 
 	// Detect archive type and extract
@@ -1114,8 +1114,8 @@ func (e *Executor) moduleHostname(ctx context.Context, client *SSHClient, args m
 		return &TaskResult{Failed: true, Msg: stderr, Stdout: stdout, RC: rc}, nil
 	}
 
-	// Update /etc/hosts if needed
-	client.Run(ctx, fmt.Sprintf("sed -i 's/127.0.1.1.*/127.0.1.1\t%s/' /etc/hosts", name))
+	// Update /etc/hosts if needed (best-effort)
+	_, _, _, _ = client.Run(ctx, fmt.Sprintf("sed -i 's/127.0.1.1.*/127.0.1.1\t%s/' /etc/hosts", name))
 
 	return &TaskResult{Changed: true}, nil
 }
@@ -1132,7 +1132,7 @@ func (e *Executor) moduleSysctl(ctx context.Context, client *SSHClient, args map
 	if state == "absent" {
 		// Remove from sysctl.conf
 		cmd := fmt.Sprintf("sed -i '/%s/d' /etc/sysctl.conf", name)
-		client.Run(ctx, cmd)
+		_, _, _, _ = client.Run(ctx, cmd)
 		return &TaskResult{Changed: true}, nil
 	}
 
@@ -1143,11 +1143,11 @@ func (e *Executor) moduleSysctl(ctx context.Context, client *SSHClient, args map
 		return &TaskResult{Failed: true, Msg: stderr, Stdout: stdout, RC: rc}, nil
 	}
 
-	// Persist if requested
+	// Persist if requested (best-effort)
 	if getBoolArg(args, "sysctl_set", true) {
 		cmd = fmt.Sprintf("grep -q '^%s' /etc/sysctl.conf && sed -i 's/^%s.*/%s=%s/' /etc/sysctl.conf || echo '%s=%s' >> /etc/sysctl.conf",
 			name, name, name, value, name, value)
-		client.Run(ctx, cmd)
+		_, _, _, _ = client.Run(ctx, cmd)
 	}
 
 	return &TaskResult{Changed: true}, nil
@@ -1170,7 +1170,7 @@ func (e *Executor) moduleCron(ctx context.Context, client *SSHClient, args map[s
 			// Remove by name (comment marker)
 			cmd := fmt.Sprintf("crontab -u %s -l 2>/dev/null | grep -v '# %s' | grep -v '%s' | crontab -u %s -",
 				user, name, job, user)
-			client.Run(ctx, cmd)
+			_, _, _, _ = client.Run(ctx, cmd)
 		}
 		return &TaskResult{Changed: true}, nil
 	}
@@ -1213,13 +1213,13 @@ func (e *Executor) moduleBlockinfile(ctx context.Context, client *SSHClient, arg
 			strings.ReplaceAll(beginMarker, "/", "\\/"),
 			strings.ReplaceAll(endMarker, "/", "\\/"),
 			path)
-		client.Run(ctx, cmd)
+		_, _, _, _ = client.Run(ctx, cmd)
 		return &TaskResult{Changed: true}, nil
 	}
 
-	// Create file if needed
+	// Create file if needed (best-effort)
 	if create {
-		client.Run(ctx, fmt.Sprintf("touch %q", path))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("touch %q", path))
 	}
 
 	// Remove existing block and add new one
@@ -1279,9 +1279,9 @@ func (e *Executor) moduleReboot(ctx context.Context, client *SSHClient, args map
 
 	if preRebootDelay > 0 {
 		cmd := fmt.Sprintf("sleep %d && shutdown -r now '%s' &", preRebootDelay, msg)
-		client.Run(ctx, cmd)
+		_, _, _, _ = client.Run(ctx, cmd)
 	} else {
-		client.Run(ctx, fmt.Sprintf("shutdown -r now '%s' &", msg))
+		_, _, _, _ = client.Run(ctx, fmt.Sprintf("shutdown -r now '%s' &", msg))
 	}
 
 	return &TaskResult{Changed: true, Msg: "Reboot initiated"}, nil
@@ -1366,12 +1366,12 @@ func (e *Executor) moduleAuthorizedKey(ctx context.Context, client *SSHClient, a
 		// Remove key
 		escapedKey := strings.ReplaceAll(key, "/", "\\/")
 		cmd := fmt.Sprintf("sed -i '/%s/d' %q 2>/dev/null || true", escapedKey[:40], authKeysPath)
-		client.Run(ctx, cmd)
+		_, _, _, _ = client.Run(ctx, cmd)
 		return &TaskResult{Changed: true}, nil
 	}
 
-	// Ensure .ssh directory exists
-	client.Run(ctx, fmt.Sprintf("mkdir -p %q && chmod 700 %q && chown %s:%s %q",
+	// Ensure .ssh directory exists (best-effort)
+	_, _, _, _ = client.Run(ctx, fmt.Sprintf("mkdir -p %q && chmod 700 %q && chown %s:%s %q",
 		filepath.Dir(authKeysPath), filepath.Dir(authKeysPath), user, user, filepath.Dir(authKeysPath)))
 
 	// Add key if not present
@@ -1382,8 +1382,8 @@ func (e *Executor) moduleAuthorizedKey(ctx context.Context, client *SSHClient, a
 		return &TaskResult{Failed: true, Msg: stderr, Stdout: stdout, RC: rc}, nil
 	}
 
-	// Fix permissions
-	client.Run(ctx, fmt.Sprintf("chmod 600 %q && chown %s:%s %q",
+	// Fix permissions (best-effort)
+	_, _, _, _ = client.Run(ctx, fmt.Sprintf("chmod 600 %q && chown %s:%s %q",
 		authKeysPath, user, user, authKeysPath))
 
 	return &TaskResult{Changed: true}, nil

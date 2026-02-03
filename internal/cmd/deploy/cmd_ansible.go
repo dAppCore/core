@@ -247,7 +247,7 @@ func runAnsibleTest(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("create client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -299,7 +299,7 @@ func runAnsibleTest(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if Coolify is running
-	stdout, _, rc, _ = client.Run(ctx, "docker ps 2>/dev/null | grep -q coolify && echo 'running' || echo 'not running'")
+	stdout, _, _, _ = client.Run(ctx, "docker ps 2>/dev/null | grep -q coolify && echo 'running' || echo 'not running'")
 	if strings.TrimSpace(stdout) == "running" {
 		fmt.Printf("  Coolify: %s\n", cli.SuccessStyle.Render("running"))
 	} else {

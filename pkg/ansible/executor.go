@@ -935,7 +935,7 @@ func (e *Executor) Close() {
 	defer e.mu.Unlock()
 
 	for _, client := range e.clients {
-		client.Close()
+		_ = client.Close()
 	}
 	e.clients = make(map[string]*SSHClient)
 }

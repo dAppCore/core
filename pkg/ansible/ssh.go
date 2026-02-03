@@ -145,7 +145,7 @@ func (c *SSHClient) Connect(ctx context.Context) error {
 
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("ssh connect %s: %w", addr, err)
 	}
 
@@ -176,7 +176,7 @@ func (c *SSHClient) Run(ctx context.Context, cmd string) (stdout, stderr string,
 	if err != nil {
 		return "", "", -1, fmt.Errorf("new session: %w", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	session.Stdout = &stdoutBuf
@@ -210,7 +210,7 @@ func (c *SSHClient) Run(ctx context.Context, cmd string) (stdout, stderr string,
 
 	select {
 	case <-ctx.Done():
-		session.Signal(ssh.SIGKILL)
+		_ = session.Signal(ssh.SIGKILL)
 		return "", "", -1, ctx.Err()
 	case err := <-done:
 		exitCode = 0
@@ -242,7 +242,7 @@ func (c *SSHClient) Upload(ctx context.Context, local io.Reader, remote string, 
 	if err != nil {
 		return fmt.Errorf("new session: %w", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// Read content
 	content, err := io.ReadAll(local)
@@ -270,7 +270,7 @@ func (c *SSHClient) Upload(ctx context.Context, local io.Reader, remote string, 
 	if err != nil {
 		return fmt.Errorf("new session for write: %w", err)
 	}
-	defer session2.Close()
+	defer func() { _ = session2.Close() }()
 
 	stdin, err := session2.StdinPipe()
 	if err != nil {
@@ -287,7 +287,7 @@ func (c *SSHClient) Upload(ctx context.Context, local io.Reader, remote string, 
 	if _, err := stdin.Write(content); err != nil {
 		return fmt.Errorf("write content: %w", err)
 	}
-	stdin.Close()
+	_ = stdin.Close()
 
 	if err := session2.Wait(); err != nil {
 		return fmt.Errorf("write failed: %w (stderr: %s)", err, stderrBuf.String())
@@ -334,14 +334,8 @@ func (c *SSHClient) FileExists(ctx context.Context, path string) (bool, error) {
 
 // Stat returns file info from the remote host.
 func (c *SSHClient) Stat(ctx context.Context, path string) (map[string]any, error) {
-	// Use stat command to get file info
-	cmd := fmt.Sprintf(`stat -c '{"exists":true,"isdir":%s,"mode":"%a","size":%s,"uid":%u,"gid":%g}' %q 2>/dev/null || echo '{"exists":false}'`,
-		`$(test -d %q && echo true || echo false)`,
-		`%s`,
-		path)
-
-	// Simpler approach - just get basic info
-	cmd = fmt.Sprintf(`
+	// Simple approach - get basic file info
+	cmd := fmt.Sprintf(`
 if [ -e %q ]; then
   if [ -d %q ]; then
     echo "exists=true isdir=true"
