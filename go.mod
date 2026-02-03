@@ -58,6 +58,7 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
+	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/wI2L/jsondiff v0.7.0 // indirect
 	github.com/woodsbury/decimal128 v1.4.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
