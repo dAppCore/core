@@ -28,6 +28,7 @@ import (
 	// Commands via self-registration
 	_ "github.com/host-uk/core/internal/cmd/ai"
 	_ "github.com/host-uk/core/internal/cmd/ci"
+	_ "github.com/host-uk/core/internal/cmd/deploy"
 	_ "github.com/host-uk/core/internal/cmd/dev"
 	_ "github.com/host-uk/core/internal/cmd/docs"
 	_ "github.com/host-uk/core/internal/cmd/doctor"

@@ -255,6 +255,10 @@
 			"changelog.short": "Generate changelog",
 			"version.short": "Show or set version"
 		},
+		"deploy": {
+			"short": "Infrastructure deployment via Coolify",
+			"long": "Infrastructure deployment tools for managing Coolify servers, projects, applications, databases, and services."
+		},
 		"dev": {
 			"short": "Multi-repo development workflow",
 			"long": "Multi-repo development workflow tools for managing federated monorepos. Provides health checks, commit assistance, push/pull operations, and CI status across all repositories.",
