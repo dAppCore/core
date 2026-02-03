@@ -135,7 +135,7 @@
 	"cmd": {
 		"ai": {
 			"short": "AI agent task management",
-			"long": "AI agent task management for core-agentic integration. Provides commands to list, claim, update, and complete tasks from the agentic task queue.",
+			"long": "AI agent task management for core-agentic integration. Provides commands to list, claim, update, and complete tasks from the agentic task queue. Includes RAG tools and metrics.",
 			"claude.short": "Claude Code integration",
 			"claude.long": "Claude Code integration for AI-assisted development workflows.",
 			"claude.config.short": "Configure Claude Code settings",
@@ -153,7 +153,11 @@
 			"task_complete.short": "Mark a task as completed",
 			"task_pr.short": "Create a pull request for a task",
 			"task_pr.branch_error": "cannot create PR from {{.Branch}} branch; create a feature branch first",
-			"task_update.short": "Update task status or progress"
+			"task_update.short": "Update task status or progress",
+			"metrics.short": "View AI and security event metrics",
+			"metrics.long": "View collected metrics from AI tasks, security scans, and job creation events. Reads JSONL event logs from ~/.core/ai/metrics/.",
+			"metrics.flag.since": "Time period to show (e.g. 7d, 24h, 30d)",
+			"metrics.none_found": "No events recorded in this period."
 		},
 		"build": {
 			"short": "Build projects with auto-detection and cross-compilation",
@@ -512,7 +516,14 @@
 			"secrets.short": "List exposed secrets",
 			"secrets.long": "List secrets detected by GitHub secret scanning.",
 			"flag.repo": "Specific repo to check",
-			"flag.severity": "Filter by severity (critical,high,medium,low)"
+			"flag.severity": "Filter by severity (critical,high,medium,low)",
+			"flag.target": "External repo to scan (e.g. wailsapp/wails)",
+			"jobs.short": "Create GitHub issues from scan results",
+			"jobs.long": "Create GitHub issues from security scan results so contributors can claim and work on them. Supports targeting external repositories.",
+			"jobs.flag.targets": "Target repos to scan (owner/repo format)",
+			"jobs.flag.issue_repo": "Repository to create issues in",
+			"jobs.flag.dry_run": "Show what would be created without creating issues",
+			"jobs.flag.copies": "Number of duplicate issues for parallel work"
 		},
 		"qa": {
 			"short": "Quality assurance workflows",
