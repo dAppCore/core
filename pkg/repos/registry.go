@@ -61,14 +61,10 @@ type Repo struct {
 	registry *Registry `yaml:"-"`
 }
 
-// LoadRegistry reads and parses a repos.yaml file.
+// LoadRegistry reads and parses a repos.yaml file from the given medium.
+// The path should be a valid path for the provided medium.
 func LoadRegistry(m io.Medium, path string) (*Registry, error) {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	content, err := m.Read(absPath)
+	content, err := m.Read(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read registry file: %w", err)
 	}
@@ -101,6 +97,7 @@ func LoadRegistry(m io.Medium, path string) (*Registry, error) {
 
 // FindRegistry searches for repos.yaml in common locations.
 // It checks: current directory, parent directories, and home directory.
+// This function is primarily intended for use with io.Local or other local-like filesystems.
 func FindRegistry(m io.Medium) (string, error) {
 	// Check current directory and parents
 	dir, err := os.Getwd()
@@ -143,20 +140,16 @@ func FindRegistry(m io.Medium) (string, error) {
 
 // ScanDirectory creates a Registry by scanning a directory for git repos.
 // This is used as a fallback when no repos.yaml is found.
+// The dir should be a valid path for the provided medium.
 func ScanDirectory(m io.Medium, dir string) (*Registry, error) {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve directory path: %w", err)
-	}
-
-	entries, err := m.List(absDir)
+	entries, err := m.List(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	reg := &Registry{
 		Version:  1,
-		BasePath: absDir,
+		BasePath: dir,
 		Repos:    make(map[string]*Repo),
 		medium:   m,
 	}
@@ -167,7 +160,7 @@ func ScanDirectory(m io.Medium, dir string) (*Registry, error) {
 			continue
 		}
 
-		repoPath := filepath.Join(absDir, entry.Name())
+		repoPath := filepath.Join(dir, entry.Name())
 		gitPath := filepath.Join(repoPath, ".git")
 
 		if !m.IsDir(gitPath) {
