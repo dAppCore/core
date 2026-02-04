@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build
-        uses: host-uk/build@v3
+        uses: host-uk/build@v4.0.0
         with:
           build-name: core
           build-platform: ${{ matrix.platform }}

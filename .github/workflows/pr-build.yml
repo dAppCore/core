@@ -34,7 +34,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Build
-        uses: host-uk/build@v3
+        uses: host-uk/build@v4.0.0
         with:
           build-name: core
           build-platform: ${{ matrix.platform }}
