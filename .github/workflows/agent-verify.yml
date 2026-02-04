@@ -5,6 +5,9 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  issues: write
+
 jobs:
   # When work is claimed, track the implementer
   track-implementer:
