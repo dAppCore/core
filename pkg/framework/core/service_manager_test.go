@@ -114,10 +114,7 @@ func TestServiceManager_LockNotAppliedWithoutEnable_Good(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-type mockFullLifecycle struct {
-	startOrder int
-	stopOrder  int
-}
+type mockFullLifecycle struct{}
 
 func (m *mockFullLifecycle) OnStartup(_ context.Context) error  { return nil }
 func (m *mockFullLifecycle) OnShutdown(_ context.Context) error { return nil }
