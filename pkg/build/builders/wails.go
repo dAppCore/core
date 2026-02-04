@@ -243,6 +243,5 @@ func detectPackageManager(fs io.Medium, dir string) string {
 	return "npm"
 }
 
-
 // Ensure WailsBuilder implements the Builder interface.
 var _ build.Builder = (*WailsBuilder)(nil)

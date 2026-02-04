@@ -197,7 +197,8 @@ func TestFileExists_Good(t *testing.T) {
 // These serve as integration tests with realistic project structures.
 func TestDiscover_Testdata(t *testing.T) {
 	fs := io.Local
-	testdataDir := "testdata"
+	testdataDir, err := filepath.Abs("testdata")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name     string

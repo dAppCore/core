@@ -303,8 +303,11 @@ func TestBuildConfig_ToTargets_Good(t *testing.T) {
 // TestLoadConfig_Testdata tests loading from the testdata fixture.
 func TestLoadConfig_Testdata(t *testing.T) {
 	fs := io.Local
+	abs, err := filepath.Abs("testdata/config-project")
+	require.NoError(t, err)
+
 	t.Run("loads config-project fixture", func(t *testing.T) {
-		cfg, err := LoadConfig(fs, "testdata/config-project")
+		cfg, err := LoadConfig(fs, abs)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
