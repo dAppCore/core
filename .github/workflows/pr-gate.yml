@@ -15,19 +15,21 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { owner, repo } = context.repo;
             const author = context.payload.pull_request.user.login;
+            const association = context.payload.pull_request.author_association;
 
-            // Check if author is an org member
-            try {
-              await github.rest.orgs.checkMembershipForUser({
-                org: owner,
-                username: author,
-              });
-              core.info(`${author} is an org member — gate passed`);
+            // Trusted bot accounts (act as org members)
+            const trustedBots = ['google-labs-jules[bot]'];
+            if (trustedBots.includes(author)) {
+              core.info(`${author} is a trusted bot — gate passed`);
               return;
-            } catch {
-              core.info(`${author} is not an org member — checking for label`);
+            }
+
+            // Check author association from webhook payload (no API call needed)
+            const trusted = ['MEMBER', 'OWNER', 'COLLABORATOR'];
+            if (trusted.includes(association)) {
+              core.info(`${author} is ${association} — gate passed`);
+              return;
             }
 
             // Check for external-approved label
@@ -38,5 +40,5 @@ jobs:
             }
 
             core.setFailed(
-              `External PR from ${author} requires an org member to add the "external-approved" label before merge.`
+              `External PR from ${author} (${association}) requires an org member to add the "external-approved" label before merge.`
             );

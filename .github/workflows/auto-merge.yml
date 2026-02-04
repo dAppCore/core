@@ -20,16 +20,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           script: |
-            const { owner, repo } = context.repo;
             const author = context.payload.pull_request.user.login;
+            const association = context.payload.pull_request.author_association;
 
-            try {
-              await github.rest.orgs.checkMembershipForUser({
-                org: owner,
-                username: author,
-              });
-            } catch {
-              core.info(`${author} is not an org member — skipping auto-merge`);
+            // Trusted bot accounts (act as org members)
+            const trustedBots = ['google-labs-jules[bot]'];
+            const isTrustedBot = trustedBots.includes(author);
+
+            // Check author association from webhook payload (no API call needed)
+            const trusted = ['MEMBER', 'OWNER', 'COLLABORATOR'];
+            if (!isTrustedBot && !trusted.includes(association)) {
+              core.info(`${author} is ${association} — skipping auto-merge`);
               return;
             }
 
