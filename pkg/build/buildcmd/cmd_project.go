@@ -74,6 +74,14 @@ func runProjectBuild(ctx context.Context, buildType string, ciMode bool, targets
 	if outputDir == "" {
 		outputDir = "dist"
 	}
+	if !filepath.IsAbs(outputDir) {
+		outputDir = filepath.Join(projectDir, outputDir)
+	}
+
+	// Ensure config path is absolute if provided
+	if configPath != "" && !filepath.IsAbs(configPath) {
+		configPath = filepath.Join(projectDir, configPath)
+	}
 
 	// Determine binary name
 	binaryName := buildCfg.Project.Binary
