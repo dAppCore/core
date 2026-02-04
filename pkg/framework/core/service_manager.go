@@ -26,14 +26,14 @@ func newServiceManager() *serviceManager {
 // registerService adds a named service to the registry.
 // It also appends to startables/stoppables if the service implements those interfaces.
 func (m *serviceManager) registerService(name string, svc any) error {
-	if m.locked {
-		return fmt.Errorf("core: service %q is not permitted by the serviceLock setting", name)
-	}
 	if name == "" {
 		return fmt.Errorf("core: service name cannot be empty")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.locked {
+		return fmt.Errorf("core: service %q is not permitted by the serviceLock setting", name)
+	}
 	if _, exists := m.services[name]; exists {
 		return fmt.Errorf("core: service %q already registered", name)
 	}
@@ -62,12 +62,16 @@ func (m *serviceManager) service(name string) any {
 
 // enableLock marks that the lock should be applied after initialisation.
 func (m *serviceManager) enableLock() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.lockEnabled = true
 }
 
 // applyLock activates the service lock if it was enabled.
 // Called once during New() after all options have been processed.
 func (m *serviceManager) applyLock() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.lockEnabled {
 		m.locked = true
 	}

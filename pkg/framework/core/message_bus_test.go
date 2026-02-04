@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
@@ -23,6 +24,22 @@ func TestMessageBus_Action_Good(t *testing.T) {
 	err := c.bus.action("hello")
 	assert.NoError(t, err)
 	assert.Len(t, received, 2)
+}
+
+func TestMessageBus_Action_Bad(t *testing.T) {
+	c, _ := New()
+
+	err1 := errors.New("handler1 failed")
+	err2 := errors.New("handler2 failed")
+
+	c.bus.registerAction(func(_ *Core, msg Message) error { return err1 })
+	c.bus.registerAction(func(_ *Core, msg Message) error { return nil })
+	c.bus.registerAction(func(_ *Core, msg Message) error { return err2 })
+
+	err := c.bus.action("test")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, err1)
+	assert.ErrorIs(t, err, err2)
 }
 
 func TestMessageBus_RegisterAction_Good(t *testing.T) {

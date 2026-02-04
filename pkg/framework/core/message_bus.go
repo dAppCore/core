@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 )
 
@@ -35,7 +34,7 @@ func (b *messageBus) action(msg Message) error {
 	var agg error
 	for _, h := range handlers {
 		if err := h(b.core, msg); err != nil {
-			agg = fmt.Errorf("%w; %v", agg, err)
+			agg = errors.Join(agg, err)
 		}
 	}
 	return agg
