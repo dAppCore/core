@@ -246,10 +246,10 @@ func (b *TaskfileBuilder) findArtifactsForTarget(fs io.Medium, outputDir string,
 	return artifacts
 }
 
-// matchPattern implements a very simple glob matcher for Taskfile artifacts.
+// matchPattern implements glob matching for Taskfile artifacts.
 func (b *TaskfileBuilder) matchPattern(name, pattern string) bool {
-	p := strings.ReplaceAll(pattern, "*", "")
-	return strings.Contains(name, p)
+	matched, _ := filepath.Match(pattern, name)
+	return matched
 }
 
 // validateTaskCli checks if the task CLI is available.

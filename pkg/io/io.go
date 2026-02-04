@@ -350,7 +350,7 @@ func (f *MockFile) Stat() (fs.FileInfo, error) {
 
 func (f *MockFile) Read(b []byte) (int, error) {
 	if f.offset >= int64(len(f.content)) {
-		return 0, fs.ErrClosed // Or io.EOF?
+		return 0, io.EOF
 	}
 	n := copy(b, f.content[f.offset:])
 	f.offset += int64(n)

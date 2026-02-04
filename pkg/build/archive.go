@@ -185,7 +185,13 @@ func createTarXzArchive(fs io_interface.Medium, src, dst string) error {
 	}
 
 	// Write to destination file
-	if err := fs.Write(dst, string(xzData)); err != nil {
+	dstFile, err := fs.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create archive file: %w", err)
+	}
+	defer func() { _ = dstFile.Close() }()
+
+	if _, err := dstFile.Write(xzData); err != nil {
 		return fmt.Errorf("failed to write archive file: %w", err)
 	}
 
