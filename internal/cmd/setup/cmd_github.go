@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/io"
 	"github.com/host-uk/core/pkg/i18n"
 	"github.com/host-uk/core/pkg/repos"
 	"github.com/spf13/cobra"
@@ -78,12 +79,12 @@ func runGitHubSetup() error {
 	}
 
 	// Find registry
-	registryPath, err := repos.FindRegistry()
+	registryPath, err := repos.FindRegistry(io.Local)
 	if err != nil {
 		return cli.Wrap(err, i18n.T("error.registry_not_found"))
 	}
 
-	reg, err := repos.LoadRegistry(registryPath)
+	reg, err := repos.LoadRegistry(io.Local, registryPath)
 	if err != nil {
 		return cli.Wrap(err, "failed to load registry")
 	}

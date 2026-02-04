@@ -69,7 +69,7 @@ type ghRepo struct {
 func runPkgSearch(org, pattern, repoType string, limit int, refresh bool) error {
 	// Initialize cache in workspace .core/ directory
 	var cacheDir string
-	if regPath, err := repos.FindRegistry(); err == nil {
+	if regPath, err := repos.FindRegistry(io.Local); err == nil {
 		cacheDir = filepath.Join(filepath.Dir(regPath), ".core", "cache")
 	}
 
