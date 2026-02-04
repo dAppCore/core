@@ -18,7 +18,7 @@ repos:
     type: foundation
     description: Core package
 `
-	m.Write("/tmp/repos.yaml", yaml)
+	_ = m.Write("/tmp/repos.yaml", yaml)
 
 	reg, err := LoadRegistry(m, "/tmp/repos.yaml")
 	assert.NoError(t, err)
@@ -51,7 +51,7 @@ func TestRepo_Exists(t *testing.T) {
 	assert.False(t, repo.Exists())
 
 	// Create directory in mock
-	m.EnsureDir("/tmp/repos/core")
+	_ = m.EnsureDir("/tmp/repos/core")
 	assert.True(t, repo.Exists())
 }
 
@@ -72,6 +72,6 @@ func TestRepo_IsGitRepo(t *testing.T) {
 	assert.False(t, repo.IsGitRepo())
 
 	// Create .git directory in mock
-	m.EnsureDir("/tmp/repos/core/.git")
+	_ = m.EnsureDir("/tmp/repos/core/.git")
 	assert.True(t, repo.IsGitRepo())
 }
