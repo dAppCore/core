@@ -287,7 +287,6 @@ func NewDaemon(opts DaemonOptions) *Daemon {
 	if opts.ShutdownTimeout == 0 {
 		opts.ShutdownTimeout = 30 * time.Second
 	}
-
 	if opts.Medium == nil {
 		opts.Medium = io.Local
 	}
