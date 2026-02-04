@@ -47,6 +47,14 @@ func (m *Medium) path(p string) string {
 		clean = strings.TrimLeft(clean, cutset)
 		return filepath.Join(m.root, clean)
 	}
+	// If the path is relative and the medium is rooted at "/",
+	// treat it as relative to the current working directory.
+	// This makes io.Local behave more like the standard 'os' package.
+	if m.root == "/" && !filepath.IsAbs(clean) {
+		cwd, _ := os.Getwd()
+		return filepath.Join(cwd, clean)
+	}
+
 	return filepath.Join(m.root, clean)
 }
 

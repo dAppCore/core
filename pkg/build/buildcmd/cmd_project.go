@@ -77,6 +77,8 @@ func runProjectBuild(ctx context.Context, buildType string, ciMode bool, targets
 	if !filepath.IsAbs(outputDir) {
 		outputDir = filepath.Join(projectDir, outputDir)
 	}
+	outputDir = filepath.Clean(outputDir)
+
 
 	// Ensure config path is absolute if provided
 	if configPath != "" && !filepath.IsAbs(configPath) {
