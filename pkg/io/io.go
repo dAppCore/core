@@ -1,7 +1,7 @@
 package io
 
 import (
-	"io"
+	goio "io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -53,7 +53,7 @@ type Medium interface {
 	Open(path string) (fs.File, error)
 
 	// Create creates or truncates the named file.
-	Create(path string) (io.WriteCloser, error)
+	Create(path string) (goio.WriteCloser, error)
 
 	// Exists checks if a path exists (file or directory).
 	Exists(path string) bool
@@ -327,7 +327,7 @@ func (m *MockMedium) Open(path string) (fs.File, error) {
 }
 
 // Create creates a file in the mock filesystem.
-func (m *MockMedium) Create(path string) (io.WriteCloser, error) {
+func (m *MockMedium) Create(path string) (goio.WriteCloser, error) {
 	return &MockWriteCloser{
 		medium: m,
 		path:   path,
@@ -350,7 +350,7 @@ func (f *MockFile) Stat() (fs.FileInfo, error) {
 
 func (f *MockFile) Read(b []byte) (int, error) {
 	if f.offset >= int64(len(f.content)) {
-		return 0, io.EOF
+		return 0, goio.EOF
 	}
 	n := copy(b, f.content[f.offset:])
 	f.offset += int64(n)
