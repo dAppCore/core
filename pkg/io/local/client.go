@@ -2,6 +2,7 @@
 package local
 
 import (
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -104,6 +105,20 @@ func (m *Medium) List(p string) ([]fs.DirEntry, error) {
 // Stat returns file info.
 func (m *Medium) Stat(p string) (fs.FileInfo, error) {
 	return os.Stat(m.path(p))
+}
+
+// Open opens the named file for reading.
+func (m *Medium) Open(p string) (fs.File, error) {
+	return os.Open(m.path(p))
+}
+
+// Create creates or truncates the named file.
+func (m *Medium) Create(p string) (io.WriteCloser, error) {
+	full := m.path(p)
+	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+		return nil, err
+	}
+	return os.Create(full)
 }
 
 // Delete removes a file or empty directory.

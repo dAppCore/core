@@ -208,8 +208,11 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) (*Release, error) {
 
 // buildArtifacts builds all artifacts for the release.
 func buildArtifacts(ctx context.Context, cfg *Config, projectDir, version string) ([]build.Artifact, error) {
+	// Use local filesystem as the default medium
+	fs := io.Local
+
 	// Load build configuration
-	buildCfg, err := build.LoadConfig(projectDir)
+	buildCfg, err := build.LoadConfig(fs, projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load build config: %w", err)
 	}
@@ -248,7 +251,7 @@ func buildArtifacts(ctx context.Context, cfg *Config, projectDir, version string
 	outputDir := filepath.Join(projectDir, "dist")
 
 	// Get builder (detect project type)
-	projectType, err := build.PrimaryType(projectDir)
+	projectType, err := build.PrimaryType(fs, projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect project type: %w", err)
 	}
@@ -260,6 +263,7 @@ func buildArtifacts(ctx context.Context, cfg *Config, projectDir, version string
 
 	// Build configuration
 	buildConfig := &build.Config{
+		FS:         fs,
 		ProjectDir: projectDir,
 		OutputDir:  outputDir,
 		Name:       binaryName,
@@ -274,20 +278,20 @@ func buildArtifacts(ctx context.Context, cfg *Config, projectDir, version string
 	}
 
 	// Archive artifacts
-	archivedArtifacts, err := build.ArchiveAll(artifacts)
+	archivedArtifacts, err := build.ArchiveAll(fs, artifacts)
 	if err != nil {
 		return nil, fmt.Errorf("archive failed: %w", err)
 	}
 
 	// Compute checksums
-	checksummedArtifacts, err := build.ChecksumAll(archivedArtifacts)
+	checksummedArtifacts, err := build.ChecksumAll(fs, archivedArtifacts)
 	if err != nil {
 		return nil, fmt.Errorf("checksum failed: %w", err)
 	}
 
 	// Write CHECKSUMS.txt
 	checksumPath := filepath.Join(outputDir, "CHECKSUMS.txt")
-	if err := build.WriteChecksumFile(checksummedArtifacts, checksumPath); err != nil {
+	if err := build.WriteChecksumFile(fs, checksummedArtifacts, checksumPath); err != nil {
 		return nil, fmt.Errorf("failed to write checksums file: %w", err)
 	}
 
