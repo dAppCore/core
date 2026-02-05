@@ -1,6 +1,7 @@
 package help
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"unicode"
@@ -16,15 +17,15 @@ type SearchResult struct {
 
 // searchIndex provides full-text search.
 type searchIndex struct {
-	topics map[string]*Topic          // topicID -> Topic
-	index  map[string]map[string]bool // word -> set of topicIDs
+	topics map[string]*Topic   // topicID -> Topic
+	index  map[string][]string // word -> []topicID
 }
 
 // newSearchIndex creates a new empty search index.
 func newSearchIndex() *searchIndex {
 	return &searchIndex{
 		topics: make(map[string]*Topic),
-		index:  make(map[string]map[string]bool),
+		index:  make(map[string][]string),
 	}
 }
 
@@ -62,10 +63,13 @@ func (i *searchIndex) Add(topic *Topic) {
 
 // addToIndex adds a word-to-topic mapping.
 func (i *searchIndex) addToIndex(word, topicID string) {
-	if i.index[word] == nil {
-		i.index[word] = make(map[string]bool)
+	// Avoid duplicates
+	for _, id := range i.index[word] {
+		if id == topicID {
+			return
+		}
 	}
-	i.index[word][topicID] = true
+	i.index[word] = append(i.index[word], topicID)
 }
 
 // Search finds topics matching the query.
@@ -81,7 +85,7 @@ func (i *searchIndex) Search(query string) []*SearchResult {
 	for _, word := range queryWords {
 		// Exact matches
 		if topicIDs, ok := i.index[word]; ok {
-			for topicID := range topicIDs {
+			for _, topicID := range topicIDs {
 				scores[topicID] += 1.0
 			}
 		}
@@ -89,9 +93,19 @@ func (i *searchIndex) Search(query string) []*SearchResult {
 		// Prefix matches (partial word matching)
 		for indexWord, topicIDs := range i.index {
 			if strings.HasPrefix(indexWord, word) && indexWord != word {
-				for topicID := range topicIDs {
+				for _, topicID := range topicIDs {
 					scores[topicID] += 0.5 // Lower score for partial matches
 				}
+			}
+		}
+	}
+
+	// Pre-compile regexes for snippets
+	var res []*regexp.Regexp
+	for _, word := range queryWords {
+		if len(word) >= 2 {
+			if re, err := regexp.Compile("(?i)" + regexp.QuoteMeta(word)); err == nil {
+				res = append(res, re)
 			}
 		}
 	}
@@ -106,14 +120,34 @@ func (i *searchIndex) Search(query string) []*SearchResult {
 
 		// Title boost: if query words appear in title
 		titleLower := strings.ToLower(topic.Title)
+		hasTitleMatch := false
 		for _, word := range queryWords {
 			if strings.Contains(titleLower, word) {
-				score += 2.0 // Title matches are worth more
+				hasTitleMatch = true
+				break
 			}
+		}
+		if hasTitleMatch {
+			score += 10.0
 		}
 
 		// Find matching section and extract snippet
-		section, snippet := i.findBestMatch(topic, queryWords)
+		section, snippet := i.findBestMatch(topic, queryWords, res)
+
+		// Section title boost
+		if section != nil {
+			sectionTitleLower := strings.ToLower(section.Title)
+			hasSectionTitleMatch := false
+			for _, word := range queryWords {
+				if strings.Contains(sectionTitleLower, word) {
+					hasSectionTitleMatch = true
+					break
+				}
+			}
+			if hasSectionTitleMatch {
+				score += 5.0
+			}
+		}
 
 		results = append(results, &SearchResult{
 			Topic:   topic,
@@ -125,14 +159,17 @@ func (i *searchIndex) Search(query string) []*SearchResult {
 
 	// Sort by score (highest first)
 	sort.Slice(results, func(a, b int) bool {
-		return results[a].Score > results[b].Score
+		if results[a].Score != results[b].Score {
+			return results[a].Score > results[b].Score
+		}
+		return results[a].Topic.Title < results[b].Topic.Title
 	})
 
 	return results
 }
 
 // findBestMatch finds the section with the best match and extracts a snippet.
-func (i *searchIndex) findBestMatch(topic *Topic, queryWords []string) (*Section, string) {
+func (i *searchIndex) findBestMatch(topic *Topic, queryWords []string, res []*regexp.Regexp) (*Section, string) {
 	var bestSection *Section
 	var bestSnippet string
 	bestScore := 0
@@ -140,7 +177,7 @@ func (i *searchIndex) findBestMatch(topic *Topic, queryWords []string) (*Section
 	// Check topic title
 	titleScore := countMatches(topic.Title, queryWords)
 	if titleScore > 0 {
-		bestSnippet = extractSnippet(topic.Content, queryWords)
+		bestSnippet = extractSnippet(topic.Content, res)
 	}
 
 	// Check sections
@@ -154,7 +191,7 @@ func (i *searchIndex) findBestMatch(topic *Topic, queryWords []string) (*Section
 			bestScore = totalScore
 			bestSection = section
 			if contentScore > 0 {
-				bestSnippet = extractSnippet(section.Content, queryWords)
+				bestSnippet = extractSnippet(section.Content, res)
 			} else {
 				bestSnippet = extractSnippet(section.Content, nil)
 			}
@@ -163,7 +200,7 @@ func (i *searchIndex) findBestMatch(topic *Topic, queryWords []string) (*Section
 
 	// If no section matched, use topic content
 	if bestSnippet == "" && topic.Content != "" {
-		bestSnippet = extractSnippet(topic.Content, queryWords)
+		bestSnippet = extractSnippet(topic.Content, res)
 	}
 
 	return bestSection, bestSnippet
@@ -207,17 +244,16 @@ func countMatches(text string, queryWords []string) int {
 	return count
 }
 
-// extractSnippet extracts a short snippet around the first match.
-// Uses rune-based indexing to properly handle multi-byte UTF-8 characters.
-func extractSnippet(content string, queryWords []string) string {
+// extractSnippet extracts a short snippet around the first match and highlights matches.
+func extractSnippet(content string, res []*regexp.Regexp) string {
 	if content == "" {
 		return ""
 	}
 
 	const snippetLen = 150
 
-	// If no query words, return start of content
-	if len(queryWords) == 0 {
+	// If no regexes, return start of content without highlighting
+	if len(res) == 0 {
 		lines := strings.Split(content, "\n")
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
@@ -232,13 +268,12 @@ func extractSnippet(content string, queryWords []string) string {
 		return ""
 	}
 
-	// Find first match position (byte-based for strings.Index)
-	contentLower := strings.ToLower(content)
+	// Find first match position (byte-based)
 	matchPos := -1
-	for _, word := range queryWords {
-		pos := strings.Index(contentLower, word)
-		if pos != -1 && (matchPos == -1 || pos < matchPos) {
-			matchPos = pos
+	for _, re := range res {
+		loc := re.FindStringIndex(content)
+		if loc != nil && (matchPos == -1 || loc[0] < matchPos) {
+			matchPos = loc[0]
 		}
 	}
 
@@ -246,41 +281,113 @@ func extractSnippet(content string, queryWords []string) string {
 	runes := []rune(content)
 	runeLen := len(runes)
 
+	var start, end int
 	if matchPos == -1 {
-		// No match found, return start of content
-		if runeLen > snippetLen {
-			return string(runes[:snippetLen]) + "..."
-		}
-		return content
-	}
-
-	// Convert byte position to rune position (use same string as Index)
-	matchRunePos := len([]rune(contentLower[:matchPos]))
-
-	// Extract snippet around match (rune-based)
-	start := matchRunePos - 50
-	if start < 0 {
+		// No match found, use start of content
 		start = 0
-	}
+		end = snippetLen
+		if end > runeLen {
+			end = runeLen
+		}
+	} else {
+		// Convert byte position to rune position
+		matchRunePos := len([]rune(content[:matchPos]))
 
-	end := start + snippetLen
-	if end > runeLen {
-		end = runeLen
+		// Extract snippet around match (rune-based)
+		start = matchRunePos - 50
+		if start < 0 {
+			start = 0
+		}
+
+		end = start + snippetLen
+		if end > runeLen {
+			end = runeLen
+		}
 	}
 
 	snippet := string(runes[start:end])
 
 	// Trim to word boundaries
+	prefix := ""
+	suffix := ""
 	if start > 0 {
 		if idx := strings.Index(snippet, " "); idx != -1 {
-			snippet = "..." + snippet[idx+1:]
+			snippet = snippet[idx+1:]
+			prefix = "..."
 		}
 	}
 	if end < runeLen {
 		if idx := strings.LastIndex(snippet, " "); idx != -1 {
-			snippet = snippet[:idx] + "..."
+			snippet = snippet[:idx]
+			suffix = "..."
 		}
 	}
 
-	return strings.TrimSpace(snippet)
+	snippet = strings.TrimSpace(snippet)
+	if snippet == "" {
+		return ""
+	}
+
+	// Apply highlighting
+	highlighted := highlight(snippet, res)
+
+	return prefix + highlighted + suffix
+}
+
+// highlight wraps matches in **bold**.
+func highlight(text string, res []*regexp.Regexp) string {
+	if len(res) == 0 {
+		return text
+	}
+
+	type match struct {
+		start, end int
+	}
+	var matches []match
+
+	for _, re := range res {
+		indices := re.FindAllStringIndex(text, -1)
+		for _, idx := range indices {
+			matches = append(matches, match{idx[0], idx[1]})
+		}
+	}
+
+	if len(matches) == 0 {
+		return text
+	}
+
+	// Sort matches by start position
+	sort.Slice(matches, func(i, j int) bool {
+		if matches[i].start != matches[j].start {
+			return matches[i].start < matches[j].start
+		}
+		return matches[i].end > matches[j].end
+	})
+
+	// Merge overlapping or adjacent matches
+	var merged []match
+	if len(matches) > 0 {
+		curr := matches[0]
+		for i := 1; i < len(matches); i++ {
+			if matches[i].start <= curr.end {
+				if matches[i].end > curr.end {
+					curr.end = matches[i].end
+				}
+			} else {
+				merged = append(merged, curr)
+				curr = matches[i]
+			}
+		}
+		merged = append(merged, curr)
+	}
+
+	// Build highlighted string from back to front to avoid position shifts
+	result := text
+	for i := len(merged) - 1; i >= 0; i-- {
+		m := merged[i]
+		result = result[:m.end] + "**" + result[m.end:]
+		result = result[:m.start] + "**" + result[m.start:]
+	}
+
+	return result
 }

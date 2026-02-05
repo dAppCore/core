@@ -2,6 +2,7 @@ package help
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/host-uk/core/pkg/cli"
 	"github.com/host-uk/core/pkg/help"
@@ -28,7 +29,17 @@ func AddHelpCommands(root *cli.Command) {
 				}
 				fmt.Println("Search Results:")
 				for _, res := range results {
-					fmt.Printf("  %s - %s\n", res.Topic.ID, res.Topic.Title)
+					title := res.Topic.Title
+					if res.Section != nil {
+						title = fmt.Sprintf("%s > %s", res.Topic.Title, res.Section.Title)
+					}
+					// Use bold for title
+					fmt.Printf("  \033[1m%s\033[0m (%s)\n", title, res.Topic.ID)
+					if res.Snippet != "" {
+						// Highlight markdown bold as ANSI bold for CLI output
+						fmt.Printf("    %s\n", replaceMarkdownBold(res.Snippet))
+					}
+					fmt.Println()
 				}
 				return
 			}
@@ -54,6 +65,22 @@ func AddHelpCommands(root *cli.Command) {
 
 	helpCmd.Flags().StringVarP(&searchFlag, "search", "s", "", "Search help topics")
 	root.AddCommand(helpCmd)
+}
+
+func replaceMarkdownBold(s string) string {
+	parts := strings.Split(s, "**")
+	var result strings.Builder
+	for i, part := range parts {
+		result.WriteString(part)
+		if i < len(parts)-1 {
+			if i%2 == 0 {
+				result.WriteString("\033[1m")
+			} else {
+				result.WriteString("\033[0m")
+			}
+		}
+	}
+	return result.String()
 }
 
 func renderTopic(t *help.Topic) {
