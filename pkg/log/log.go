@@ -70,15 +70,45 @@ type Logger struct {
 	StyleError     func(string) string
 }
 
+// RotationOptions defines the log rotation and retention policy.
+type RotationOptions struct {
+	// Filename is the log file path. If empty, rotation is disabled.
+	Filename string
+
+	// MaxSize is the maximum size of the log file in megabytes before it gets rotated.
+	// It defaults to 100 megabytes.
+	MaxSize int
+
+	// MaxAge is the maximum number of days to retain old log files based on their
+	// file modification time. It defaults to 28 days.
+	// Note: set to a negative value to disable age-based retention.
+	MaxAge int
+
+	// MaxBackups is the maximum number of old log files to retain.
+	// It defaults to 5 backups.
+	MaxBackups int
+
+	// Compress determines if the rotated log files should be compressed using gzip.
+	// It defaults to true.
+	Compress bool
+}
+
 // Options configures a Logger.
 type Options struct {
-	Level  Level
-	Output io.Writer // defaults to os.Stderr
+	Level Level
+	// Output is the destination for log messages. If Rotation is provided,
+	// Output is ignored and logs are written to the rotating file instead.
+	Output io.Writer
+	// Rotation enables log rotation to file. If provided, Filename must be set.
+	Rotation *RotationOptions
 }
 
 // New creates a new Logger with the given options.
 func New(opts Options) *Logger {
 	output := opts.Output
+	if opts.Rotation != nil && opts.Rotation.Filename != "" {
+		output = NewRotatingWriter(*opts.Rotation, nil)
+	}
 	if output == nil {
 		output = os.Stderr
 	}
