@@ -19,3 +19,4 @@ tasks
 
 
 patch_cov.*
+go.work.sum

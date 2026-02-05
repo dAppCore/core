@@ -1,0 +1,15 @@
+[Unit]
+Description=Core IDE Job Runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/core-ide --headless
+Restart=always
+RestartSec=10
+Environment=CORE_DAEMON=1
+Environment=GITHUB_TOKEN=
+
+[Install]
+WantedBy=multi-user.target
