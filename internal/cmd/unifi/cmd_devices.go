@@ -1,10 +1,10 @@
 package unifi
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/log"
 	uf "github.com/host-uk/core/pkg/unifi"
 )
 
@@ -34,12 +34,12 @@ func addDevicesCommand(parent *cli.Command) {
 func runDevices() error {
 	client, err := uf.NewFromConfig("", "", "", "")
 	if err != nil {
-		return err
+		return log.E("unifi.devices", "failed to initialise client", err)
 	}
 
 	devices, err := client.GetDeviceList(devicesSite, strings.ToLower(devicesType))
 	if err != nil {
-		return err
+		return log.E("unifi.devices", "failed to fetch devices", err)
 	}
 
 	if len(devices) == 0 {
@@ -67,7 +67,7 @@ func runDevices() error {
 	}
 
 	cli.Blank()
-	cli.Print("  %s\n\n", fmt.Sprintf("%d devices", len(devices)))
+	cli.Print("  %d devices\n\n", len(devices))
 	table.Render()
 
 	return nil

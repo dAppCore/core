@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/log"
 	uf "github.com/host-uk/core/pkg/unifi"
 )
 
@@ -31,12 +32,12 @@ func addNetworksCommand(parent *cli.Command) {
 func runNetworks() error {
 	client, err := uf.NewFromConfig("", "", "", "")
 	if err != nil {
-		return err
+		return log.E("unifi.networks", "failed to initialise client", err)
 	}
 
 	networks, err := client.GetNetworks(networksSite)
 	if err != nil {
-		return err
+		return log.E("unifi.networks", "failed to fetch networks", err)
 	}
 
 	if len(networks) == 0 {

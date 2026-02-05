@@ -28,7 +28,10 @@ func New(url, user, pass, apikey string) (*Client, error) {
 	// Skip TLS verification for self-signed certs
 	httpClient := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, //nolint:gosec
+				MinVersion:         tls.VersionTLS12,
+			},
 		},
 	}
 

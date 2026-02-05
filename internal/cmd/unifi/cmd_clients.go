@@ -1,9 +1,11 @@
 package unifi
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/log"
 	uf "github.com/host-uk/core/pkg/unifi"
 )
 
@@ -33,9 +35,13 @@ func addClientsCommand(parent *cli.Command) {
 }
 
 func runClients() error {
+	if clientsWired && clientsWireless {
+		return log.E("unifi.clients", "conflicting flags", errors.New("--wired and --wireless cannot both be set"))
+	}
+
 	client, err := uf.NewFromConfig("", "", "", "")
 	if err != nil {
-		return err
+		return log.E("unifi.clients", "failed to initialise client", err)
 	}
 
 	clients, err := client.GetClients(uf.ClientFilter{
@@ -44,7 +50,7 @@ func runClients() error {
 		Wireless: clientsWireless,
 	})
 	if err != nil {
-		return err
+		return log.E("unifi.clients", "failed to fetch clients", err)
 	}
 
 	if len(clients) == 0 {
@@ -79,7 +85,7 @@ func runClients() error {
 	}
 
 	cli.Blank()
-	cli.Print("  %s\n\n", fmt.Sprintf("%d clients", len(clients)))
+	cli.Print("  %d clients\n\n", len(clients))
 	table.Render()
 
 	return nil

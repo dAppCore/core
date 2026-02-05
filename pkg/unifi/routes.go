@@ -3,6 +3,7 @@ package unifi
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/host-uk/core/pkg/log"
 )
@@ -31,7 +32,7 @@ func (c *Client) GetRoutes(siteName string) ([]Route, error) {
 		siteName = "default"
 	}
 
-	path := fmt.Sprintf("/api/s/%s/stat/routing", siteName)
+	path := fmt.Sprintf("/api/s/%s/stat/routing", url.PathEscape(siteName))
 
 	raw, err := c.api.GetJSON(path)
 	if err != nil {

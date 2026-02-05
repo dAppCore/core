@@ -1,9 +1,8 @@
 package unifi
 
 import (
-	"fmt"
-
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/log"
 	uf "github.com/host-uk/core/pkg/unifi"
 )
 
@@ -24,12 +23,12 @@ func addSitesCommand(parent *cli.Command) {
 func runSites() error {
 	client, err := uf.NewFromConfig("", "", "", "")
 	if err != nil {
-		return err
+		return log.E("unifi.sites", "failed to initialise client", err)
 	}
 
 	sites, err := client.GetSites()
 	if err != nil {
-		return err
+		return log.E("unifi.sites", "failed to fetch sites", err)
 	}
 
 	if len(sites) == 0 {
@@ -47,7 +46,7 @@ func runSites() error {
 	}
 
 	cli.Blank()
-	cli.Print("  %s\n\n", fmt.Sprintf("%d sites", len(sites)))
+	cli.Print("  %d sites\n\n", len(sites))
 	table.Render()
 
 	return nil

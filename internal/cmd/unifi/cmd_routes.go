@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/log"
 	uf "github.com/host-uk/core/pkg/unifi"
 )
 
@@ -25,7 +26,7 @@ func addRoutesCommand(parent *cli.Command) {
 	}
 
 	cmd.Flags().StringVar(&routesSite, "site", "", "Site name (default: \"default\")")
-	cmd.Flags().StringVar(&routesType, "type", "", "Filter by route type (static, connected, kernel)")
+	cmd.Flags().StringVar(&routesType, "type", "", "Filter by route type (static, connected, kernel, bgp, ospf)")
 
 	parent.AddCommand(cmd)
 }
@@ -33,12 +34,12 @@ func addRoutesCommand(parent *cli.Command) {
 func runRoutes() error {
 	client, err := uf.NewFromConfig("", "", "", "")
 	if err != nil {
-		return err
+		return log.E("unifi.routes", "failed to initialise client", err)
 	}
 
 	routes, err := client.GetRoutes(routesSite)
 	if err != nil {
-		return err
+		return log.E("unifi.routes", "failed to fetch routes", err)
 	}
 
 	// Filter by type if requested
@@ -78,7 +79,7 @@ func runRoutes() error {
 	}
 
 	cli.Blank()
-	cli.Print("  %s\n\n", fmt.Sprintf("%d routes", len(routes)))
+	cli.Print("  %d routes\n\n", len(routes))
 	table.Render()
 
 	return nil
