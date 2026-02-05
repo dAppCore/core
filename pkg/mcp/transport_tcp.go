@@ -48,7 +48,7 @@ func (s *Service) ServeTCP(ctx context.Context, addr string) error {
 	if addr == "" {
 		addr = t.listener.Addr().String()
 	}
-	log.Info("MCP TCP server listening", "addr", addr)
+	s.logger.Security("MCP TCP server listening", "addr", addr, "user", log.Username())
 
 	for {
 		conn, err := t.listener.Accept()
@@ -57,11 +57,12 @@ func (s *Service) ServeTCP(ctx context.Context, addr string) error {
 			case <-ctx.Done():
 				return nil
 			default:
-				log.Error("mcp: accept error", "err", err)
+				s.logger.Error("MCP TCP accept error", "err", err, "user", log.Username())
 				continue
 			}
 		}
 
+		s.logger.Security("MCP TCP connection accepted", "remote", conn.RemoteAddr().String(), "user", log.Username())
 		go s.handleConnection(ctx, conn)
 	}
 }
@@ -83,7 +84,7 @@ func (s *Service) handleConnection(ctx context.Context, conn net.Conn) {
 	// Run server (blocks until connection closed)
 	// Server.Run calls Connect, then Read loop.
 	if err := server.Run(ctx, transport); err != nil {
-		log.Error("mcp: connection error", "err", err, "remote", conn.RemoteAddr())
+		s.logger.Error("MCP TCP connection error", "err", err, "remote", conn.RemoteAddr().String(), "user", log.Username())
 	}
 }
 

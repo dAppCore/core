@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/host-uk/core/pkg/i18n"
+	"github.com/host-uk/core/pkg/log"
 )
 
 // GhAuthenticated checks if the GitHub CLI is authenticated.
@@ -17,7 +18,15 @@ import (
 func GhAuthenticated() bool {
 	cmd := exec.Command("gh", "auth", "status")
 	output, _ := cmd.CombinedOutput()
-	return strings.Contains(string(output), "Logged in")
+	authenticated := strings.Contains(string(output), "Logged in")
+
+	if authenticated {
+		LogSecurity("GitHub CLI authenticated", "user", log.Username())
+	} else {
+		LogSecurity("GitHub CLI not authenticated", "user", log.Username())
+	}
+
+	return authenticated
 }
 
 // ConfirmOption configures Confirm behaviour.

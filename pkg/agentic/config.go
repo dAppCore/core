@@ -92,9 +92,11 @@ func LoadConfig(dir string) (*Config, error) {
 
 	// Validate configuration
 	if cfg.Token == "" {
+		log.Security("agentic authentication failed: no token configured", "user", log.Username())
 		return nil, log.E("agentic.LoadConfig", "no authentication token configured", nil)
 	}
 
+	log.Security("agentic configuration loaded", "user", log.Username(), "baseURL", cfg.BaseURL)
 	return cfg, nil
 }
 

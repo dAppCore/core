@@ -48,6 +48,7 @@ func NewLogService(opts LogOptions) func(*framework.Core) (any, error) {
 		logSvc.StyleInfo = func(s string) string { return InfoStyle.Render(s) }
 		logSvc.StyleWarn = func(s string) string { return WarningStyle.Render(s) }
 		logSvc.StyleError = func(s string) string { return ErrorStyle.Render(s) }
+		logSvc.StyleSecurity = func(s string) string { return SecurityStyle.Render(s) }
 
 		return &LogService{Service: logSvc}, nil
 	}
@@ -92,5 +93,23 @@ func LogWarn(msg string, keyvals ...any) {
 func LogError(msg string, keyvals ...any) {
 	if l := Log(); l != nil {
 		l.Error(msg, keyvals...)
+	}
+}
+
+// LogSecurity logs a security message if log service is available.
+func LogSecurity(msg string, keyvals ...any) {
+	if l := Log(); l != nil {
+		// Ensure user context is included if not already present
+		hasUser := false
+		for i := 0; i < len(keyvals); i += 2 {
+			if keyvals[i] == "user" {
+				hasUser = true
+				break
+			}
+		}
+		if !hasUser {
+			keyvals = append(keyvals, "user", log.Username())
+		}
+		l.Security(msg, keyvals...)
 	}
 }

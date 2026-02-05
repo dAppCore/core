@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"sync"
 	"time"
 )
@@ -68,6 +69,7 @@ type Logger struct {
 	StyleInfo      func(string) string
 	StyleWarn      func(string) string
 	StyleError     func(string) string
+	StyleSecurity  func(string) string
 }
 
 // RotationOptions defines the log rotation and retention policy.
@@ -121,6 +123,7 @@ func New(opts Options) *Logger {
 		StyleInfo:      identity,
 		StyleWarn:      identity,
 		StyleError:     identity,
+		StyleSecurity:  identity,
 	}
 }
 
@@ -244,6 +247,28 @@ func (l *Logger) Error(msg string, keyvals ...any) {
 	}
 }
 
+// Security logs a security event with optional key-value pairs.
+// It uses LevelError to ensure security events are visible even in restrictive
+// log configurations.
+func (l *Logger) Security(msg string, keyvals ...any) {
+	if l.shouldLog(LevelError) {
+		l.log(LevelError, l.StyleSecurity("[SEC]"), msg, keyvals...)
+	}
+}
+
+// Username returns the current system username.
+// It uses os/user for reliability and falls back to environment variables.
+func Username() string {
+	if u, err := user.Current(); err == nil {
+		return u.Username
+	}
+	// Fallback for environments where user lookup might fail
+	if u := os.Getenv("USER"); u != "" {
+		return u
+	}
+	return os.Getenv("USERNAME")
+}
+
 // --- Default logger ---
 
 var defaultLogger = New(Options{Level: LevelInfo})
@@ -281,4 +306,9 @@ func Warn(msg string, keyvals ...any) {
 // Error logs to the default logger.
 func Error(msg string, keyvals ...any) {
 	defaultLogger.Error(msg, keyvals...)
+}
+
+// Security logs to the default logger.
+func Security(msg string, keyvals ...any) {
+	defaultLogger.Security(msg, keyvals...)
 }
