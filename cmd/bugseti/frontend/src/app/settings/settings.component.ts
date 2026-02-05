@@ -9,6 +9,7 @@ interface Config {
   notificationsEnabled: boolean;
   notificationSound: boolean;
   workspaceDir: string;
+  marketplaceMcpRoot: string;
   theme: string;
   autoSeedContext: boolean;
   workHours?: {
@@ -161,6 +162,13 @@ interface Config {
             <input type="text" class="form-input" [(ngModel)]="config.workspaceDir"
                    placeholder="Leave empty for default">
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Marketplace MCP Root</label>
+            <input type="text" class="form-input" [(ngModel)]="config.marketplaceMcpRoot"
+                   placeholder="Path to core-agent (optional)">
+            <p class="section-description">Override the marketplace MCP root. Leave empty to auto-detect.</p>
+          </div>
         </section>
       </div>
     </div>
@@ -308,6 +316,7 @@ export class SettingsComponent implements OnInit {
     notificationsEnabled: true,
     notificationSound: true,
     workspaceDir: '',
+    marketplaceMcpRoot: '',
     theme: 'dark',
     autoSeedContext: true,
     workHours: {

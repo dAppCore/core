@@ -48,7 +48,7 @@ func (s *SeederService) SeedIssue(issue *Issue) (*IssueContext, error) {
 	if err != nil {
 		log.Printf("Seed skill failed, using fallback: %v", err)
 		// Fallback to basic context preparation
-		guard := getEthicsGuard(context.Background())
+		guard := getEthicsGuardWithRoot(context.Background(), s.config.GetMarketplaceMCPRoot())
 		ctx = s.prepareBasicContext(issue, guard)
 	}
 
@@ -95,7 +95,7 @@ func (s *SeederService) runSeedSkill(issue *Issue, workDir string) (*IssueContex
 	mcpCtx, mcpCancel := context.WithTimeout(ctx, 20*time.Second)
 	defer mcpCancel()
 
-	marketplace, err := newMarketplaceClient(mcpCtx)
+	marketplace, err := newMarketplaceClient(mcpCtx, s.config.GetMarketplaceMCPRoot())
 	if err != nil {
 		return nil, err
 	}

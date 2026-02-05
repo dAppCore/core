@@ -14,13 +14,15 @@ import (
 type NotifyService struct {
 	enabled bool
 	sound   bool
+	config  *ConfigService
 }
 
 // NewNotifyService creates a new NotifyService.
-func NewNotifyService() *NotifyService {
+func NewNotifyService(config *ConfigService) *NotifyService {
 	return &NotifyService{
 		enabled: true,
 		sound:   true,
+		config:  config,
 	}
 }
 
@@ -45,7 +47,7 @@ func (n *NotifyService) Notify(title, message string) error {
 		return nil
 	}
 
-	guard := getEthicsGuard(context.Background())
+	guard := getEthicsGuardWithRoot(context.Background(), n.getMarketplaceRoot())
 	safeTitle := guard.SanitizeNotification(title)
 	safeMessage := guard.SanitizeNotification(message)
 
@@ -70,6 +72,13 @@ func (n *NotifyService) Notify(title, message string) error {
 		log.Printf("Notification error: %v", err)
 	}
 	return err
+}
+
+func (n *NotifyService) getMarketplaceRoot() string {
+	if n == nil || n.config == nil {
+		return ""
+	}
+	return n.config.GetMarketplaceMCPRoot()
 }
 
 // NotifyIssue sends a notification about a new issue.

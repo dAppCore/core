@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Initialize core services
-	notifyService := bugseti.NewNotifyService()
+	notifyService := bugseti.NewNotifyService(configService)
 	statsService := bugseti.NewStatsService(configService)
 	fetcherService := bugseti.NewFetcherService(configService, notifyService)
 	queueService := bugseti.NewQueueService(configService)

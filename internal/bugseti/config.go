@@ -37,6 +37,8 @@ type Config struct {
 	// Workspace
 	WorkspaceDir string `json:"workspaceDir,omitempty"`
 	DataDir      string `json:"dataDir,omitempty"`
+	// Marketplace MCP
+	MarketplaceMCPRoot string `json:"marketplaceMcpRoot,omitempty"`
 
 	// Onboarding
 	Onboarded   bool      `json:"onboarded"`
@@ -96,6 +98,7 @@ func NewConfigService() *ConfigService {
 			MaxConcurrentIssues:  1,
 			AutoSeedContext:      true,
 			DataDir:              bugsetiDir,
+			MarketplaceMCPRoot:   "",
 			UpdateChannel:        "stable",
 			AutoUpdate:           false,
 			UpdateCheckInterval:  6, // Check every 6 hours
@@ -179,6 +182,13 @@ func (c *ConfigService) GetConfig() Config {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return *c.config
+}
+
+// GetMarketplaceMCPRoot returns the configured marketplace MCP root path.
+func (c *ConfigService) GetMarketplaceMCPRoot() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.MarketplaceMCPRoot
 }
 
 // SetConfig updates the configuration and saves it.

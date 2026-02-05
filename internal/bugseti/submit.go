@@ -67,7 +67,7 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 		return nil, fmt.Errorf("work directory not specified")
 	}
 
-	guard := getEthicsGuard(context.Background())
+	guard := getEthicsGuardWithRoot(context.Background(), s.config.GetMarketplaceMCPRoot())
 	issueTitle := guard.SanitizeTitle(issue.Title)
 
 	// Step 1: Ensure we have a fork

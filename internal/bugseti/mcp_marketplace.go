@@ -60,12 +60,12 @@ type mcpMarketplaceClient struct {
 	client *client.Client
 }
 
-func newMarketplaceClient(ctx context.Context) (marketplaceClient, error) {
+func newMarketplaceClient(ctx context.Context, rootHint string) (marketplaceClient, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	command, args, err := resolveMarketplaceCommand()
+	command, args, err := resolveMarketplaceCommand(rootHint)
 	if err != nil {
 		return nil, err
 	}
@@ -180,10 +180,15 @@ func toolResultMessage(result *mcp.CallToolResult) string {
 	return "unknown error"
 }
 
-func resolveMarketplaceCommand() (string, []string, error) {
+func resolveMarketplaceCommand(rootHint string) (string, []string, error) {
 	if command := strings.TrimSpace(os.Getenv("BUGSETI_MCP_COMMAND")); command != "" {
 		args := strings.Fields(os.Getenv("BUGSETI_MCP_ARGS"))
 		return command, args, nil
+	}
+
+	if root := strings.TrimSpace(rootHint); root != "" {
+		path := filepath.Join(root, "mcp")
+		return "go", []string{"run", path}, nil
 	}
 
 	if root := strings.TrimSpace(os.Getenv("BUGSETI_MCP_ROOT")); root != "" {

@@ -26,19 +26,32 @@ type EthicsGuard struct {
 }
 
 var (
-	ethicsGuardOnce sync.Once
+	ethicsGuardMu   sync.Mutex
 	ethicsGuard     *EthicsGuard
+	ethicsGuardRoot string
 )
 
 func getEthicsGuard(ctx context.Context) *EthicsGuard {
-	ethicsGuardOnce.Do(func() {
-		guard := loadEthicsGuard(ctx)
-		if guard == nil {
-			guard = &EthicsGuard{}
-		}
-		ethicsGuard = guard
-	})
+	return getEthicsGuardWithRoot(ctx, "")
+}
 
+func getEthicsGuardWithRoot(ctx context.Context, rootHint string) *EthicsGuard {
+	rootHint = strings.TrimSpace(rootHint)
+
+	ethicsGuardMu.Lock()
+	defer ethicsGuardMu.Unlock()
+
+	if ethicsGuard != nil && ethicsGuardRoot == rootHint {
+		return ethicsGuard
+	}
+
+	guard := loadEthicsGuard(ctx, rootHint)
+	if guard == nil {
+		guard = &EthicsGuard{}
+	}
+
+	ethicsGuard = guard
+	ethicsGuardRoot = rootHint
 	if ethicsGuard == nil {
 		return &EthicsGuard{}
 	}
@@ -67,14 +80,14 @@ func guardFromMarketplace(ctx context.Context, client marketplaceClient) *Ethics
 	}
 }
 
-func loadEthicsGuard(ctx context.Context) *EthicsGuard {
+func loadEthicsGuard(ctx context.Context, rootHint string) *EthicsGuard {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	client, err := newMarketplaceClient(ctx)
+	client, err := newMarketplaceClient(ctx, rootHint)
 	if err != nil {
 		return &EthicsGuard{}
 	}
