@@ -48,7 +48,8 @@ func (s *SeederService) SeedIssue(issue *Issue) (*IssueContext, error) {
 	if err != nil {
 		log.Printf("Seed skill failed, using fallback: %v", err)
 		// Fallback to basic context preparation
-		ctx = s.prepareBasicContext(issue)
+		guard := getEthicsGuard(context.Background())
+		ctx = s.prepareBasicContext(issue, guard)
 	}
 
 	ctx.PreparedAt = time.Now()
@@ -91,22 +92,20 @@ func (s *SeederService) runSeedSkill(issue *Issue, workDir string) (*IssueContex
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Look for the plugin script
-	pluginPaths := []string{
-		"/home/shared/hostuk/claude-plugins/agentic-flows/skills/seed-agent-developer/scripts/analyze-issue.sh",
-		filepath.Join(os.Getenv("HOME"), ".claude/plugins/agentic-flows/skills/seed-agent-developer/scripts/analyze-issue.sh"),
-	}
+	mcpCtx, mcpCancel := context.WithTimeout(ctx, 20*time.Second)
+	defer mcpCancel()
 
-	var scriptPath string
-	for _, p := range pluginPaths {
-		if _, err := os.Stat(p); err == nil {
-			scriptPath = p
-			break
-		}
+	marketplace, err := newMarketplaceClient(mcpCtx)
+	if err != nil {
+		return nil, err
 	}
+	defer marketplace.Close()
 
-	if scriptPath == "" {
-		return nil, fmt.Errorf("seed-agent-developer skill not found")
+	guard := guardFromMarketplace(mcpCtx, marketplace)
+
+	scriptPath, err := findSeedSkillScript(mcpCtx, marketplace)
+	if err != nil {
+		return nil, err
 	}
 
 	// Run the analyze-issue script
@@ -114,9 +113,9 @@ func (s *SeederService) runSeedSkill(issue *Issue, workDir string) (*IssueContex
 	cmd.Dir = workDir
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("ISSUE_NUMBER=%d", issue.Number),
-		fmt.Sprintf("ISSUE_REPO=%s", issue.Repo),
-		fmt.Sprintf("ISSUE_TITLE=%s", issue.Title),
-		fmt.Sprintf("ISSUE_URL=%s", issue.URL),
+		fmt.Sprintf("ISSUE_REPO=%s", guard.SanitizeEnv(issue.Repo)),
+		fmt.Sprintf("ISSUE_TITLE=%s", guard.SanitizeEnv(issue.Title)),
+		fmt.Sprintf("ISSUE_URL=%s", guard.SanitizeEnv(issue.URL)),
 	)
 
 	var stdout, stderr bytes.Buffer
@@ -139,36 +138,36 @@ func (s *SeederService) runSeedSkill(issue *Issue, workDir string) (*IssueContex
 
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 		// If not JSON, treat as plain text summary
-		return &IssueContext{
+		return sanitizeIssueContext(&IssueContext{
 			Summary:    stdout.String(),
 			Complexity: "unknown",
-		}, nil
+		}, guard), nil
 	}
 
-	return &IssueContext{
+	return sanitizeIssueContext(&IssueContext{
 		Summary:       result.Summary,
 		RelevantFiles: result.RelevantFiles,
 		SuggestedFix:  result.SuggestedFix,
 		RelatedIssues: result.RelatedIssues,
 		Complexity:    result.Complexity,
 		EstimatedTime: result.EstimatedTime,
-	}, nil
+	}, guard), nil
 }
 
 // prepareBasicContext creates a basic context without the seed skill.
-func (s *SeederService) prepareBasicContext(issue *Issue) *IssueContext {
+func (s *SeederService) prepareBasicContext(issue *Issue, guard *EthicsGuard) *IssueContext {
 	// Extract potential file references from issue body
 	files := extractFileReferences(issue.Body)
 
 	// Estimate complexity based on labels and body length
 	complexity := estimateComplexity(issue)
 
-	return &IssueContext{
+	return sanitizeIssueContext(&IssueContext{
 		Summary:       fmt.Sprintf("Issue #%d in %s: %s", issue.Number, issue.Repo, issue.Title),
 		RelevantFiles: files,
 		Complexity:    complexity,
 		EstimatedTime: estimateTime(complexity),
-	}
+	}, guard)
 }
 
 // sanitizeRepoName converts owner/repo to a safe directory name.
@@ -254,6 +253,87 @@ func estimateTime(complexity string) string {
 	default:
 		return "unknown"
 	}
+}
+
+const seedSkillName = "seed-agent-developer"
+
+func findSeedSkillScript(ctx context.Context, marketplace marketplaceClient) (string, error) {
+	if marketplace == nil {
+		return "", fmt.Errorf("marketplace client is nil")
+	}
+
+	plugins, err := marketplace.ListMarketplace(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	for _, plugin := range plugins {
+		info, err := marketplace.PluginInfo(ctx, plugin.Name)
+		if err != nil || info == nil {
+			continue
+		}
+
+		if !containsSkill(info.Skills, seedSkillName) {
+			continue
+		}
+
+		scriptPath, err := safeJoinUnder(info.Path, "skills", seedSkillName, "scripts", "analyze-issue.sh")
+		if err != nil {
+			continue
+		}
+		if stat, err := os.Stat(scriptPath); err == nil && !stat.IsDir() {
+			return scriptPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("seed-agent-developer skill not found in marketplace")
+}
+
+func containsSkill(skills []string, name string) bool {
+	for _, skill := range skills {
+		if skill == name {
+			return true
+		}
+	}
+	return false
+}
+
+func safeJoinUnder(base string, elems ...string) (string, error) {
+	if base == "" {
+		return "", fmt.Errorf("base path is empty")
+	}
+	baseAbs, err := filepath.Abs(base)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve base path: %w", err)
+	}
+
+	joined := filepath.Join(append([]string{baseAbs}, elems...)...)
+	rel, err := filepath.Rel(baseAbs, joined)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve relative path: %w", err)
+	}
+	if strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("resolved path escapes base: %s", rel)
+	}
+
+	return joined, nil
+}
+
+func sanitizeIssueContext(ctx *IssueContext, guard *EthicsGuard) *IssueContext {
+	if ctx == nil {
+		return nil
+	}
+	if guard == nil {
+		guard = &EthicsGuard{}
+	}
+
+	ctx.Summary = guard.SanitizeSummary(ctx.Summary)
+	ctx.SuggestedFix = guard.SanitizeSummary(ctx.SuggestedFix)
+	ctx.Complexity = guard.SanitizeTitle(ctx.Complexity)
+	ctx.EstimatedTime = guard.SanitizeTitle(ctx.EstimatedTime)
+	ctx.RelatedIssues = guard.SanitizeList(ctx.RelatedIssues, maxTitleRunes)
+	ctx.RelevantFiles = guard.SanitizeFiles(ctx.RelevantFiles)
+	return ctx
 }
 
 // GetWorkspaceDir returns the workspace directory for an issue.
