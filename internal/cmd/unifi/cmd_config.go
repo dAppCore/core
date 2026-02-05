@@ -73,7 +73,7 @@ func runConfig(cmd *cli.Command) error {
 	}
 
 	// If no flags, show current config
-	if configURL == "" && configUser == "" && configPass == "" && configAPIKey == "" && !configTest {
+	if configURL == "" && configUser == "" && configPass == "" && configAPIKey == "" && !configInsecure && !configTest {
 		return showConfig()
 	}
 
@@ -111,7 +111,11 @@ func showConfig() error {
 		cli.Print("  %s %s\n", dimStyle.Render("API Key:"), warningStyle.Render("not set"))
 	}
 
-	cli.Print("  %s %s\n", dimStyle.Render("Insecure:"), valueStyle.Render(fmt.Sprintf("%v", insecure)))
+	if insecure {
+		cli.Print("  %s %s\n", dimStyle.Render("Insecure:"), warningStyle.Render("enabled"))
+	} else {
+		cli.Print("  %s %s\n", dimStyle.Render("Insecure:"), successStyle.Render("disabled"))
+	}
 
 	cli.Blank()
 

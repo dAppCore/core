@@ -33,9 +33,9 @@ const (
 
 // NewFromConfig creates a UniFi client using the standard config resolution:
 //
-//  1. ~/.core/config.yaml keys: unifi.url, unifi.user, unifi.pass, unifi.apikey
+//  1. ~/.core/config.yaml keys: unifi.url, unifi.user, unifi.pass, unifi.apikey, unifi.insecure
 //  2. UNIFI_URL + UNIFI_USER + UNIFI_PASS + UNIFI_APIKEY + UNIFI_INSECURE environment variables (override config file)
-//  3. Provided flag overrides (highest priority; pass empty to skip)
+//  3. Provided flag overrides (highest priority; pass nil to skip)
 func NewFromConfig(flagURL, flagUser, flagPass, flagAPIKey string, flagInsecure *bool) (*Client, error) {
 	url, user, pass, apikey, insecure, err := ResolveConfig(flagURL, flagUser, flagPass, flagAPIKey, flagInsecure)
 	if err != nil {
