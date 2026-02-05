@@ -107,26 +107,28 @@ func Exit(code int, err error) error {
 // Fatal Functions (Deprecated - return error from command instead)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Fatal prints an error message to stderr and exits with code 1.
+// Fatal prints an error message to stderr, logs it, and exits with code 1.
 //
 // Deprecated: return an error from the command instead.
 func Fatal(err error) {
 	if err != nil {
+		LogError("Fatal error", "err", err)
 		fmt.Fprintln(os.Stderr, ErrorStyle.Render(Glyph(":cross:")+" "+err.Error()))
 		os.Exit(1)
 	}
 }
 
-// Fatalf prints a formatted error message to stderr and exits with code 1.
+// Fatalf prints a formatted error message to stderr, logs it, and exits with code 1.
 //
 // Deprecated: return an error from the command instead.
 func Fatalf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
+	LogError("Fatal error", "msg", msg)
 	fmt.Fprintln(os.Stderr, ErrorStyle.Render(Glyph(":cross:")+" "+msg))
 	os.Exit(1)
 }
 
-// FatalWrap prints a wrapped error message to stderr and exits with code 1.
+// FatalWrap prints a wrapped error message to stderr, logs it, and exits with code 1.
 // Does nothing if err is nil.
 //
 // Deprecated: return an error from the command instead.
@@ -136,12 +138,13 @@ func FatalWrap(err error, msg string) {
 	if err == nil {
 		return
 	}
+	LogError("Fatal error", "msg", msg, "err", err)
 	fullMsg := fmt.Sprintf("%s: %v", msg, err)
 	fmt.Fprintln(os.Stderr, ErrorStyle.Render(Glyph(":cross:")+" "+fullMsg))
 	os.Exit(1)
 }
 
-// FatalWrapVerb prints a wrapped error using i18n grammar to stderr and exits with code 1.
+// FatalWrapVerb prints a wrapped error using i18n grammar to stderr, logs it, and exits with code 1.
 // Does nothing if err is nil.
 //
 // Deprecated: return an error from the command instead.
@@ -152,6 +155,7 @@ func FatalWrapVerb(err error, verb, subject string) {
 		return
 	}
 	msg := i18n.ActionFailed(verb, subject)
+	LogError("Fatal error", "msg", msg, "err", err, "verb", verb, "subject", subject)
 	fullMsg := fmt.Sprintf("%s: %v", msg, err)
 	fmt.Fprintln(os.Stderr, ErrorStyle.Render(Glyph(":cross:")+" "+fullMsg))
 	os.Exit(1)

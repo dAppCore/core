@@ -57,7 +57,7 @@ func (s *Service) ServeTCP(ctx context.Context, addr string) error {
 			case <-ctx.Done():
 				return nil
 			default:
-				log.Error("Accept error", "err", err)
+				log.Error("mcp: accept error", "err", err)
 				continue
 			}
 		}
@@ -83,7 +83,7 @@ func (s *Service) handleConnection(ctx context.Context, conn net.Conn) {
 	// Run server (blocks until connection closed)
 	// Server.Run calls Connect, then Read loop.
 	if err := server.Run(ctx, transport); err != nil {
-		log.Error("Connection error", "err", err)
+		log.Error("mcp: connection error", "err", err, "remote", conn.RemoteAddr())
 	}
 }
 
