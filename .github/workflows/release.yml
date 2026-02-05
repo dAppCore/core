@@ -56,7 +56,8 @@ jobs:
           BINARY="core${EXT}"
           ARCHIVE_PREFIX="core-${GOOS}-${GOARCH}"
 
-          go build -ldflags "-s -w" -o "./bin/${BINARY}" .
+          APP_VERSION="${GITHUB_REF_NAME#v}"
+          go build -ldflags "-s -w -X github.com/host-uk/core/pkg/cli.AppVersion=${APP_VERSION}" -o "./bin/${BINARY}" .
 
           # Create tar.gz for Homebrew (non-Windows)
           if [ "$GOOS" != "windows" ]; then

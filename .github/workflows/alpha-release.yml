@@ -61,7 +61,8 @@ jobs:
           BINARY="core${EXT}"
           ARCHIVE_PREFIX="core-${GOOS}-${GOARCH}"
 
-          go build -ldflags "-s -w" -o "./bin/${BINARY}" .
+          APP_VERSION="${{ env.NEXT_VERSION }}-alpha.${{ github.run_number }}"
+          go build -ldflags "-s -w -X github.com/host-uk/core/pkg/cli.AppVersion=${APP_VERSION}" -o "./bin/${BINARY}" .
 
           # Create tar.gz for Homebrew (non-Windows)
           if [ "$GOOS" != "windows" ]; then
@@ -159,7 +160,7 @@ jobs:
 
       - name: Update Homebrew formula
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
           # Strip leading 'v' for formula version
@@ -214,6 +215,8 @@ jobs:
           sed -i 's/^          //' /tmp/tap/Formula/core.rb
 
           cd /tmp/tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
           git diff --cached --quiet && echo "No changes to tap" && exit 0
           git commit -m "Update core to ${FORMULA_VERSION}"
