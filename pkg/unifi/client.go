@@ -16,8 +16,7 @@ type Client struct {
 }
 
 // New creates a new UniFi API client for the given controller URL and credentials.
-// TLS verification is disabled by default (self-signed certs on home lab controllers).
-func New(url, user, pass, apikey string) (*Client, error) {
+func New(url, user, pass, apikey string, insecure bool) (*Client, error) {
 	cfg := &uf.Config{
 		URL:    url,
 		User:   user,
@@ -25,11 +24,11 @@ func New(url, user, pass, apikey string) (*Client, error) {
 		APIKey: apikey,
 	}
 
-	// Skip TLS verification for self-signed certs
+	// Setup HTTP client with optional TLS verification skip
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, //nolint:gosec
+				InsecureSkipVerify: insecure,
 				MinVersion:         tls.VersionTLS12,
 			},
 		},

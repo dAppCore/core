@@ -11,9 +11,10 @@ import (
 var (
 	configURL    string
 	configUser   string
-	configPass   string
-	configAPIKey string
-	configTest   bool
+	configPass     string
+	configAPIKey   string
+	configInsecure bool
+	configTest     bool
 )
 
 // addConfigCommand adds the 'config' subcommand for UniFi connection setup.
@@ -31,6 +32,7 @@ func addConfigCommand(parent *cli.Command) {
 	cmd.Flags().StringVar(&configUser, "user", "", "UniFi username")
 	cmd.Flags().StringVar(&configPass, "pass", "", "UniFi password")
 	cmd.Flags().StringVar(&configAPIKey, "apikey", "", "UniFi API key")
+	cmd.Flags().BoolVar(&configInsecure, "insecure", false, "Allow insecure TLS connections (skip verification)")
 	cmd.Flags().BoolVar(&configTest, "test", false, "Test the current connection")
 
 	parent.AddCommand(cmd)
@@ -38,8 +40,12 @@ func addConfigCommand(parent *cli.Command) {
 
 func runConfig() error {
 	// If setting values, save them first
-	if configURL != "" || configUser != "" || configPass != "" || configAPIKey != "" {
-		if err := uf.SaveConfig(configURL, configUser, configPass, configAPIKey); err != nil {
+	if configURL != "" || configUser != "" || configPass != "" || configAPIKey != "" || configInsecure {
+		var insecure *bool
+		if configInsecure {
+			insecure = &configInsecure
+		}
+		if err := uf.SaveConfig(configURL, configUser, configPass, configAPIKey, insecure); err != nil {
 			return err
 		}
 
@@ -55,6 +61,9 @@ func runConfig() error {
 		if configAPIKey != "" {
 			cli.Success("UniFi API key saved")
 		}
+		if configInsecure {
+			cli.Success("UniFi insecure mode enabled")
+		}
 	}
 
 	// If testing, verify the connection
@@ -63,7 +72,7 @@ func runConfig() error {
 	}
 
 	// If no flags, show current config
-	if configURL == "" && configUser == "" && configPass == "" && configAPIKey == "" && !configTest {
+	if configURL == "" && configUser == "" && configPass == "" && configAPIKey == "" && !configInsecure && !configTest {
 		return showConfig()
 	}
 
@@ -71,7 +80,7 @@ func runConfig() error {
 }
 
 func showConfig() error {
-	url, user, pass, apikey, err := uf.ResolveConfig("", "", "", "")
+	url, user, pass, apikey, insecure, err := uf.ResolveConfig("", "", "", "", false)
 	if err != nil {
 		return err
 	}
@@ -101,13 +110,19 @@ func showConfig() error {
 		cli.Print("  %s %s\n", dimStyle.Render("API Key:"), warningStyle.Render("not set"))
 	}
 
+	if insecure {
+		cli.Print("  %s %s\n", dimStyle.Render("Insecure:"), warningStyle.Render("enabled"))
+	} else {
+		cli.Print("  %s %s\n", dimStyle.Render("Insecure:"), successStyle.Render("disabled"))
+	}
+
 	cli.Blank()
 
 	return nil
 }
 
 func runConfigTest() error {
-	client, err := uf.NewFromConfig(configURL, configUser, configPass, configAPIKey)
+	client, err := uf.NewFromConfig(configURL, configUser, configPass, configAPIKey, configInsecure)
 	if err != nil {
 		return err
 	}
