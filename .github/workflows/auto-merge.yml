@@ -1,3 +1,6 @@
+# This workflow is localized from host-uk/.github/.github/workflows/auto-merge.yml@dev
+# because the reusable version is currently failing due to missing git context.
+# See: https://github.com/host-uk/core/actions/runs/21697467567/job/62570690752
 name: Auto Merge
 
 on:
