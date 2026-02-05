@@ -213,6 +213,26 @@ func (m *Medium) Append(p string) (goio.WriteCloser, error) {
 	return os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 }
 
+// ReadStream returns a reader for the file content.
+//
+// This is a convenience wrapper around Open that exposes a streaming-oriented
+// API, as required by the io.Medium interface, while Open provides the more
+// general filesystem-level operation. Both methods are kept for semantic
+// clarity and backward compatibility.
+func (m *Medium) ReadStream(path string) (goio.ReadCloser, error) {
+	return m.Open(path)
+}
+
+// WriteStream returns a writer for the file content.
+//
+// This is a convenience wrapper around Create that exposes a streaming-oriented
+// API, as required by the io.Medium interface, while Create provides the more
+// general filesystem-level operation. Both methods are kept for semantic
+// clarity and backward compatibility.
+func (m *Medium) WriteStream(path string) (goio.WriteCloser, error) {
+	return m.Create(path)
+}
+
 // Delete removes a file or empty directory.
 func (m *Medium) Delete(p string) error {
 	full, err := m.validatePath(p)
