@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	goio "io"
+	"sync/atomic"
 )
 
 // This file defines the public API contracts (interfaces) for the services
@@ -53,6 +54,14 @@ type Query interface{}
 // Used with PERFORM (first responder executes).
 type Task interface{}
 
+// TaskWithID is an optional interface for tasks that need to know their assigned ID.
+// This is useful for tasks that want to report progress back to the frontend.
+type TaskWithID interface {
+	Task
+	SetTaskID(id string)
+	GetTaskID() string
+}
+
 // QueryHandler handles Query requests. Returns (result, handled, error).
 // If handled is false, the query will be passed to the next handler.
 type QueryHandler func(*Core, Query) (any, bool, error)
@@ -78,6 +87,8 @@ type Core struct {
 	Features *Features
 	svc      *serviceManager
 	bus      *messageBus
+
+	taskIDCounter atomic.Uint64
 }
 
 // Config provides access to application configuration.
@@ -128,3 +139,25 @@ type ActionServiceStartup struct{}
 // ActionServiceShutdown is a message sent when the application is shutting down.
 // This allows services to perform cleanup tasks, such as saving state or closing resources.
 type ActionServiceShutdown struct{}
+
+// ActionTaskStarted is a message sent when a background task has started.
+type ActionTaskStarted struct {
+	TaskID string
+	Task   Task
+}
+
+// ActionTaskProgress is a message sent when a task has progress updates.
+type ActionTaskProgress struct {
+	TaskID   string
+	Task     Task
+	Progress float64 // 0.0 to 1.0
+	Message  string
+}
+
+// ActionTaskCompleted is a message sent when a task has completed.
+type ActionTaskCompleted struct {
+	TaskID string
+	Task   Task
+	Result any
+	Error  error
+}
