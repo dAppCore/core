@@ -16,5 +16,4 @@ bin/
 dist/
 tasks
 /core
-
-
+go.work.sum

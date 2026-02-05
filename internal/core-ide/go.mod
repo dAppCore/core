@@ -6,7 +6,12 @@ require github.com/wailsapp/wails/v3 v3.0.0-alpha.64
 
 require (
 	github.com/coder/websocket v1.8.14 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/spf13/cobra v1.10.2 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/term v0.39.0 // indirect
 )
 
 require (
@@ -27,6 +32,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3
+	github.com/host-uk/core v0.0.0
 	github.com/host-uk/core-gui v0.0.0
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
@@ -50,5 +56,7 @@ require (
 	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
+
+replace github.com/host-uk/core => ../..
 
 replace github.com/host-uk/core-gui => ../../../core-gui

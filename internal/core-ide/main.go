@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"os"
 	"runtime"
 
 	"github.com/host-uk/core/internal/core-ide/icons"
@@ -17,6 +18,19 @@ var assets embed.FS
 const mcpPort = 9877
 
 func main() {
+	// Check for headless mode
+	headless := false
+	for _, arg := range os.Args[1:] {
+		if arg == "--headless" {
+			headless = true
+		}
+	}
+
+	if headless || !hasDisplay() {
+		startHeadless()
+		return
+	}
+
 	// Strip the embed path prefix so files are served from root
 	staticAssets, err := fs.Sub(assets, "frontend/dist/wails-angular-template/browser")
 	if err != nil {
