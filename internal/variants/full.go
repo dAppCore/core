@@ -22,6 +22,7 @@
 //   - monitor: Security monitoring aggregation
 //   - gitea: Gitea instance management (repos, issues, PRs, mirrors)
 //   - unifi: UniFi network management (sites, devices, clients)
+//   - prod: Production infrastructure management
 
 package variants
 
@@ -45,6 +46,7 @@ import (
 	_ "github.com/host-uk/core/internal/cmd/php"
 	_ "github.com/host-uk/core/internal/cmd/pkgcmd"
 	_ "github.com/host-uk/core/internal/cmd/plugin"
+	_ "github.com/host-uk/core/internal/cmd/prod"
 	_ "github.com/host-uk/core/internal/cmd/qa"
 	_ "github.com/host-uk/core/internal/cmd/sdk"
 	_ "github.com/host-uk/core/internal/cmd/security"

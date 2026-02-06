@@ -1,0 +1,98 @@
+# Redis Sentinel Deployment
+# Deploys Redis with Sentinel on de + de2
+#
+# Usage:
+#   core deploy ansible playbooks/redis-deploy.yml -i playbooks/inventory.yml
+---
+- name: Deploy Redis with Sentinel
+  hosts: app_servers
+  become: true
+  vars:
+    redis_version: "7"
+    redis_password: "{{ lookup('env', 'REDIS_PASSWORD') | default('', true) }}"
+
+  tasks:
+    - name: Create Redis data directory
+      file:
+        path: /opt/redis/data
+        state: directory
+        mode: "0755"
+
+    - name: Create Redis config directory
+      file:
+        path: /opt/redis/conf
+        state: directory
+        mode: "0755"
+
+    - name: Write Redis configuration
+      copy:
+        dest: /opt/redis/conf/redis.conf
+        content: |
+          maxmemory {{ redis_maxmemory }}
+          maxmemory-policy allkeys-lru
+          appendonly yes
+          appendfsync everysec
+          tcp-keepalive 300
+          timeout 0
+          {% if redis_password %}
+          requirepass {{ redis_password }}
+          masterauth {{ redis_password }}
+          {% endif %}
+
+    - name: Write Sentinel configuration
+      copy:
+        dest: /opt/redis/conf/sentinel.conf
+        content: |
+          port 26379
+          sentinel monitor hostuk-redis 116.202.82.115 6379 2
+          sentinel down-after-milliseconds hostuk-redis 5000
+          sentinel failover-timeout hostuk-redis 60000
+          sentinel parallel-syncs hostuk-redis 1
+          {% if redis_password %}
+          sentinel auth-pass hostuk-redis {{ redis_password }}
+          {% endif %}
+
+    - name: Stop existing Redis containers
+      shell: |
+        docker stop redis redis-sentinel 2>/dev/null || true
+        docker rm redis redis-sentinel 2>/dev/null || true
+      changed_when: false
+
+    - name: Start Redis container
+      shell: |
+        docker run -d \
+          --name redis \
+          --restart unless-stopped \
+          --network host \
+          -v /opt/redis/data:/data \
+          -v /opt/redis/conf/redis.conf:/usr/local/etc/redis/redis.conf \
+          redis:{{ redis_version }}-alpine \
+          redis-server /usr/local/etc/redis/redis.conf
+
+    - name: Start Redis Sentinel container
+      shell: |
+        docker run -d \
+          --name redis-sentinel \
+          --restart unless-stopped \
+          --network host \
+          -v /opt/redis/conf/sentinel.conf:/usr/local/etc/redis/sentinel.conf \
+          redis:{{ redis_version }}-alpine \
+          redis-sentinel /usr/local/etc/redis/sentinel.conf
+
+    - name: Wait for Redis to be ready
+      shell: |
+        for i in $(seq 1 30); do
+          docker exec redis redis-cli ping 2>/dev/null | grep -q PONG && exit 0
+          sleep 1
+        done
+        exit 1
+      changed_when: false
+
+    - name: Check Redis info
+      shell: docker exec redis redis-cli info replication | head -10
+      register: redis_info
+      changed_when: false
+
+    - name: Display Redis info
+      debug:
+        var: redis_info.stdout_lines

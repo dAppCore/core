@@ -1,0 +1,268 @@
+# Infrastructure Configuration — Host UK Production
+# This file is the source of truth for production topology.
+# Used by: core prod status, core prod setup, core deploy ansible
+
+# --- Hosts ---
+hosts:
+  noc:
+    fqdn: noc.host.uk.com
+    ip: 77.42.42.205
+    private_ip: 10.0.0.4
+    type: hcloud
+    role: bastion
+    ssh:
+      user: root
+      key: ~/.ssh/hostuk
+      port: 22
+    services:
+      - coolify
+
+  de:
+    fqdn: de.host.uk.com
+    ip: 116.202.82.115
+    type: hrobot
+    role: app
+    ssh:
+      user: root
+      key: ~/.ssh/hostuk
+      port: 22
+    services:
+      - traefik
+      - app
+      - web
+      - horizon
+      - scheduler
+      - mcp
+      - redis
+      - galera
+
+  de2:
+    fqdn: de2.host.uk.com
+    ip: 88.99.195.41
+    type: hrobot
+    role: app
+    ssh:
+      user: root
+      key: ~/.ssh/hostuk
+      port: 22
+    services:
+      - traefik
+      - app
+      - web
+      - horizon
+      - scheduler
+      - mcp
+      - redis
+      - galera
+
+  build:
+    fqdn: build.de.host.uk.com
+    ip: 46.224.93.62
+    private_ip: 10.0.0.5
+    type: hcloud
+    role: builder
+    ssh:
+      user: root
+      key: ~/.ssh/hostuk
+      port: 22
+    services:
+      - forgejo-runner
+
+# --- Load Balancer ---
+load_balancer:
+  name: hermes
+  fqdn: hermes.lb.host.uk.com
+  provider: hetzner
+  type: lb11
+  location: fsn1
+  algorithm: round_robin
+  backends:
+    - host: de
+      port: 80
+    - host: de2
+      port: 80
+  health_check:
+    protocol: http
+    path: /health
+    interval: 15
+  listeners:
+    - frontend: 443
+      backend: 80
+      protocol: https
+      proxy_protocol: true
+  ssl:
+    certificate: "*.host.uk.com"
+    san:
+      - host.uk.com
+
+# --- Private Network ---
+network:
+  cidr: 10.0.0.0/16
+  name: host-uk-internal
+
+# --- DNS ---
+dns:
+  provider: cloudns
+  nameservers:
+    - ns1.lthn.io
+    - ns2.lthn.io
+    - ns3.lthn.io
+    - ns4.lthn.io
+  zones:
+    host.uk.com:
+      records:
+        - name: "@"
+          type: A
+          value: "{{.lb_ip}}"
+          ttl: 300
+        - name: "*"
+          type: CNAME
+          value: hermes.lb.host.uk.com
+          ttl: 300
+        - name: hermes.lb
+          type: A
+          value: "{{.lb_ip}}"
+          ttl: 300
+        - name: noc
+          type: A
+          value: 77.42.42.205
+          ttl: 300
+        - name: de
+          type: A
+          value: 116.202.82.115
+          ttl: 300
+        - name: de2
+          type: A
+          value: 88.99.195.41
+          ttl: 300
+        - name: build.de
+          type: A
+          value: 46.224.93.62
+          ttl: 300
+
+# --- SSL ---
+ssl:
+  wildcard:
+    domains:
+      - "*.host.uk.com"
+      - host.uk.com
+    method: dns-01
+    dns_provider: cloudns
+    termination: load_balancer
+
+# --- Database ---
+database:
+  engine: mariadb
+  version: "11"
+  cluster: galera
+  nodes:
+    - host: de
+      port: 3306
+    - host: de2
+      port: 3306
+  sst_method: mariabackup
+  backup:
+    schedule: "0 3 * * *"
+    destination: s3
+    bucket: hostuk
+    prefix: backup/galera/
+
+# --- Cache ---
+cache:
+  engine: redis
+  version: "7"
+  sentinel: true
+  nodes:
+    - host: de
+      port: 6379
+    - host: de2
+      port: 6379
+
+# --- Containers (per app server) ---
+containers:
+  app:
+    image: host-uk/app:latest
+    port: 9000
+    runtime: php-fpm
+    replicas: 1
+
+  web:
+    image: host-uk/web:latest
+    port: 80
+    runtime: nginx
+    depends_on: [app]
+
+  horizon:
+    image: host-uk/app:latest
+    command: php artisan horizon
+    replicas: 1
+
+  scheduler:
+    image: host-uk/app:latest
+    command: php artisan schedule:work
+    replicas: 1
+
+  mcp:
+    image: host-uk/core:latest
+    port: 9000
+    command: core mcp serve
+    replicas: 1
+
+# --- Object Storage ---
+s3:
+  endpoint: fsn1.your-objectstorage.com
+  buckets:
+    hostuk:
+      purpose: infra
+      paths:
+        - backup/galera/
+        - backup/coolify/
+        - backup/certs/
+    host-uk:
+      purpose: media
+      paths:
+        - uploads/
+        - assets/
+
+# --- CDN ---
+cdn:
+  provider: bunnycdn
+  origin: hermes.lb.host.uk.com
+  zones:
+    - "*.host.uk.com"
+
+# --- CI/CD ---
+cicd:
+  provider: forgejo
+  url: https://gitea.snider.dev
+  runner: build.de
+  registry: gitea.snider.dev
+  deploy_hook: coolify
+
+# --- Monitoring ---
+monitoring:
+  health_endpoints:
+    - url: https://host.uk.com/health
+      interval: 60
+    - url: https://bio.host.uk.com/health
+      interval: 60
+  alerts:
+    galera_cluster_size: 2
+    redis_sentinel_quorum: 2
+
+# --- Backups ---
+backups:
+  daily:
+    - name: galera
+      type: mysqldump
+      destination: s3://hostuk/backup/galera/
+    - name: coolify
+      type: tar
+      destination: s3://hostuk/backup/coolify/
+    - name: certs
+      type: tar
+      destination: s3://hostuk/backup/certs/
+  weekly:
+    - name: snapshot
+      type: hcloud-snapshot
+      hosts: [noc, build]

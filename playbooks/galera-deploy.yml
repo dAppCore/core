@@ -1,0 +1,96 @@
+# MariaDB Galera Cluster Deployment
+# Deploys a 2-node Galera cluster on de + de2
+#
+# Usage:
+#   core deploy ansible playbooks/galera-deploy.yml -i playbooks/inventory.yml
+#   core deploy ansible playbooks/galera-deploy.yml -i playbooks/inventory.yml -l de   # Single node
+#
+# First-time bootstrap:
+#   Set galera_bootstrap=true for the first node:
+#   core deploy ansible playbooks/galera-deploy.yml -i playbooks/inventory.yml -l de -e galera_bootstrap=true
+---
+- name: Deploy MariaDB Galera Cluster
+  hosts: app_servers
+  become: true
+  vars:
+    mariadb_version: "11"
+    galera_cluster_address: "gcomm://116.202.82.115,88.99.195.41"
+    galera_bootstrap: false
+    db_root_password: "{{ lookup('env', 'DB_ROOT_PASSWORD') }}"
+    db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+
+  tasks:
+    - name: Create MariaDB data directory
+      file:
+        path: /opt/galera/data
+        state: directory
+        mode: "0755"
+
+    - name: Create MariaDB config directory
+      file:
+        path: /opt/galera/conf.d
+        state: directory
+        mode: "0755"
+
+    - name: Write Galera configuration
+      copy:
+        dest: /opt/galera/conf.d/galera.cnf
+        content: |
+          [mysqld]
+          wsrep_on=ON
+          wsrep_provider=/usr/lib/galera/libgalera_smm.so
+          wsrep_cluster_name={{ galera_cluster_name }}
+          wsrep_cluster_address={{ 'gcomm://' if galera_bootstrap else galera_cluster_address }}
+          wsrep_node_address={{ galera_node_address }}
+          wsrep_node_name={{ galera_node_name }}
+          wsrep_sst_method={{ galera_sst_method }}
+          binlog_format=ROW
+          default_storage_engine=InnoDB
+          innodb_autoinc_lock_mode=2
+          innodb_buffer_pool_size=1G
+          innodb_log_file_size=256M
+          character_set_server=utf8mb4
+          collation_server=utf8mb4_unicode_ci
+
+    - name: Stop existing MariaDB container
+      shell: docker stop galera 2>/dev/null || true
+      changed_when: false
+
+    - name: Remove existing MariaDB container
+      shell: docker rm galera 2>/dev/null || true
+      changed_when: false
+
+    - name: Start MariaDB Galera container
+      shell: |
+        docker run -d \
+          --name galera \
+          --restart unless-stopped \
+          --network host \
+          -v /opt/galera/data:/var/lib/mysql \
+          -v /opt/galera/conf.d:/etc/mysql/conf.d \
+          -e MARIADB_ROOT_PASSWORD={{ db_root_password }} \
+          -e MARIADB_DATABASE={{ db_name }} \
+          -e MARIADB_USER={{ db_user }} \
+          -e MARIADB_PASSWORD={{ db_password }} \
+          mariadb:{{ mariadb_version }}
+
+    - name: Wait for MariaDB to be ready
+      shell: |
+        for i in $(seq 1 60); do
+          docker exec galera mariadb -u root -p{{ db_root_password }} -e "SELECT 1" 2>/dev/null && exit 0
+          sleep 2
+        done
+        exit 1
+      changed_when: false
+
+    - name: Check Galera cluster status
+      shell: |
+        docker exec galera mariadb -u root -p{{ db_root_password }} \
+          -e "SHOW STATUS WHERE Variable_name IN ('wsrep_cluster_size','wsrep_ready','wsrep_cluster_status')" \
+          --skip-column-names
+      register: galera_status
+      changed_when: false
+
+    - name: Display cluster status
+      debug:
+        var: galera_status.stdout_lines
