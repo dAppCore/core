@@ -123,6 +123,7 @@ CACHE_STORE=file
 SESSION_DRIVER=file
 LOG_CHANNEL=single
 LOG_LEVEL=warning
+
 `, appKey, env.DatabasePath)
 
 	return os.WriteFile(filepath.Join(laravelRoot, ".env"), []byte(content), 0o644)
