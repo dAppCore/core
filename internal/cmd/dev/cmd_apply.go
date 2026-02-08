@@ -15,11 +15,7 @@ import (
 	"strings"
 
 	"github.com/host-uk/core/pkg/cli"
-<<<<<<< HEAD
-	errors "github.com/host-uk/core/pkg/framework/core"
-=======
 	core "github.com/host-uk/core/pkg/framework/core"
->>>>>>> fix/consolidate-workflows
 	"github.com/host-uk/core/pkg/git"
 	"github.com/host-uk/core/pkg/i18n"
 	"github.com/host-uk/core/pkg/io"

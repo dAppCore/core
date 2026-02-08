@@ -174,7 +174,6 @@ func (s *Service) runWork(task TaskWork) error {
 		cli.Print("  %s: %d commits\n", st.Name, st.Ahead)
 	}
 
-<<<<<<< HEAD
 	if !task.AutoPush {
 		cli.Blank()
 		cli.Print("Push all? [y/N] ")
@@ -184,15 +183,6 @@ func (s *Service) runWork(task TaskWork) error {
 			cli.Println("Aborted")
 			return nil
 		}
-=======
-	cli.Blank()
-	cli.Print("Push all? [y/N] ")
-	var answer string
-	_, _ = cli.Scanln(&answer)
-	if strings.ToLower(answer) != "y" {
-		cli.Println("Aborted")
-		return nil
->>>>>>> fix/consolidate-workflows
 	}
 
 	cli.Blank()

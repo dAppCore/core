@@ -212,7 +212,6 @@ func addGoCovCommand(parent *cli.Command) {
 			}
 			covPath := covFile.Name()
 			_ = covFile.Close()
-<<<<<<< HEAD
 			defer func() {
 				if covOutput == "" {
 					_ = os.Remove(covPath)
@@ -228,9 +227,6 @@ func addGoCovCommand(parent *cli.Command) {
 					_ = os.Remove(covPath)
 				}
 			}()
-=======
-			defer func() { _ = os.Remove(covPath) }()
->>>>>>> fix/consolidate-workflows
 
 			cli.Print("%s %s\n", dimStyle.Render(i18n.Label("coverage")), i18n.ProgressSubject("run", "tests"))
 			// Truncate package list if too long for display
@@ -273,11 +269,7 @@ func addGoCovCommand(parent *cli.Command) {
 					parts := strings.Fields(lastLine)
 					if len(parts) >= 3 {
 						covStr := strings.TrimSuffix(parts[len(parts)-1], "%")
-<<<<<<< HEAD
 						_, _ = fmt.Sscanf(covStr, "%f", &statementCov)
-=======
-						_, _ = fmt.Sscanf(covStr, "%f", &totalCov)
->>>>>>> fix/consolidate-workflows
 					}
 				}
 			}

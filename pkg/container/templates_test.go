@@ -414,19 +414,8 @@ kernel:
 	err = os.WriteFile(filepath.Join(coreDir, "user-custom.yml"), []byte(templateContent), 0644)
 	require.NoError(t, err)
 
-<<<<<<< HEAD
 	tm := NewTemplateManager(io.Local).WithWorkingDir(tmpDir)
 	templates := tm.ListTemplates()
-=======
-	// Change to the temp directory
-	oldWd, err := os.Getwd()
-	require.NoError(t, err)
-	err = os.Chdir(tmpDir)
-	require.NoError(t, err)
-	defer func() { _ = os.Chdir(oldWd) }()
-
-	templates := ListTemplates()
->>>>>>> fix/consolidate-workflows
 
 	// Should have at least the builtin templates plus the user template
 	assert.GreaterOrEqual(t, len(templates), 3)
@@ -460,19 +449,8 @@ services:
 	err = os.WriteFile(filepath.Join(coreDir, "my-user-template.yml"), []byte(templateContent), 0644)
 	require.NoError(t, err)
 
-<<<<<<< HEAD
 	tm := NewTemplateManager(io.Local).WithWorkingDir(tmpDir)
 	content, err := tm.GetTemplate("my-user-template")
-=======
-	// Change to the temp directory
-	oldWd, err := os.Getwd()
-	require.NoError(t, err)
-	err = os.Chdir(tmpDir)
-	require.NoError(t, err)
-	defer func() { _ = os.Chdir(oldWd) }()
-
-	content, err := GetTemplate("my-user-template")
->>>>>>> fix/consolidate-workflows
 
 	require.NoError(t, err)
 	assert.Contains(t, content, "kernel:")
@@ -605,21 +583,7 @@ func TestGetUserTemplatesDir_Good_NoDirectory(t *testing.T) {
 	tm := NewTemplateManager(io.Local).WithWorkingDir("/tmp/nonexistent-wd").WithHomeDir("/tmp/nonexistent-home")
 	dir := tm.getUserTemplatesDir()
 
-<<<<<<< HEAD
 	assert.Empty(t, dir)
-=======
-	// Create a temp directory without .core/linuxkit
-	tmpDir := t.TempDir()
-	err = os.Chdir(tmpDir)
-	require.NoError(t, err)
-	defer func() { _ = os.Chdir(oldWd) }()
-
-	dir := getUserTemplatesDir()
-
-	// Should return empty string since no templates dir exists
-	// (unless home dir has one)
-	assert.True(t, dir == "" || strings.Contains(dir, "linuxkit"))
->>>>>>> fix/consolidate-workflows
 }
 
 func TestScanUserTemplates_Good_DefaultDescription(t *testing.T) {

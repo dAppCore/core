@@ -216,11 +216,7 @@ func TestLinuxKitManager_Stop_Bad_NotRunning(t *testing.T) {
 	statePath := filepath.Join(tmpDir, "containers.json")
 	state, err := LoadState(io.Local, statePath)
 	require.NoError(t, err)
-<<<<<<< HEAD
 	manager := NewLinuxKitManagerWithHypervisor(io.Local, state, NewMockHypervisor())
-=======
-	manager := NewLinuxKitManagerWithHypervisor(state, NewMockHypervisor())
->>>>>>> fix/consolidate-workflows
 
 	container := &Container{
 		ID:     "abc12345",
@@ -240,11 +236,7 @@ func TestLinuxKitManager_List_Good(t *testing.T) {
 	statePath := filepath.Join(tmpDir, "containers.json")
 	state, err := LoadState(io.Local, statePath)
 	require.NoError(t, err)
-<<<<<<< HEAD
 	manager := NewLinuxKitManagerWithHypervisor(io.Local, state, NewMockHypervisor())
-=======
-	manager := NewLinuxKitManagerWithHypervisor(state, NewMockHypervisor())
->>>>>>> fix/consolidate-workflows
 
 	_ = state.Add(&Container{ID: "aaa11111", Status: StatusStopped})
 	_ = state.Add(&Container{ID: "bbb22222", Status: StatusStopped})
@@ -261,11 +253,7 @@ func TestLinuxKitManager_List_Good_VerifiesRunningStatus(t *testing.T) {
 	statePath := filepath.Join(tmpDir, "containers.json")
 	state, err := LoadState(io.Local, statePath)
 	require.NoError(t, err)
-<<<<<<< HEAD
 	manager := NewLinuxKitManagerWithHypervisor(io.Local, state, NewMockHypervisor())
-=======
-	manager := NewLinuxKitManagerWithHypervisor(state, NewMockHypervisor())
->>>>>>> fix/consolidate-workflows
 
 	// Add a "running" container with a fake PID that doesn't exist
 	_ = state.Add(&Container{

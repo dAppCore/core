@@ -150,11 +150,7 @@ func (r *QARunner) buildSpec(check string) *process.RunSpec {
 		phpunitBin := filepath.Join(r.dir, "vendor", "bin", "phpunit")
 
 		var cmd string
-<<<<<<< HEAD
 		if m.IsFile(pestBin) {
-=======
-		if _, err := os.Stat(pestBin); err == nil {
->>>>>>> fix/consolidate-workflows
 			cmd = pestBin
 		} else if m.IsFile(phpunitBin) {
 			cmd = phpunitBin

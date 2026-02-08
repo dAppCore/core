@@ -3,10 +3,7 @@ module github.com/host-uk/core
 go 1.25.5
 
 require (
-<<<<<<< HEAD
 	code.gitea.io/sdk/gitea v0.23.2
-=======
->>>>>>> fix/consolidate-workflows
 	github.com/Snider/Borg v0.2.0
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/host-uk/core/internal/core-ide v0.0.0-20260204004957-989b7e1e6555
@@ -66,11 +63,8 @@ require (
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-<<<<<<< HEAD
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
-=======
->>>>>>> fix/consolidate-workflows
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.7.0 // indirect
 	github.com/go-git/go-git/v5 v5.16.4 // indirect

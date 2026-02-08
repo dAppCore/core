@@ -225,7 +225,6 @@ func TestSave_Good(t *testing.T) {
 	assert.NoError(t, readErr)
 	assert.Contains(t, content, "key: value")
 }
-<<<<<<< HEAD
 
 func TestConfig_LoadFile_Env(t *testing.T) {
 	m := io.NewMockMedium()
@@ -276,5 +275,3 @@ func TestConfig_Get_EmptyKey(t *testing.T) {
 	assert.Equal(t, "test", full.App.Name)
 	assert.Equal(t, 1, full.Version)
 }
-=======
->>>>>>> fix/consolidate-workflows

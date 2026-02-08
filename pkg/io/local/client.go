@@ -33,7 +33,6 @@ func (m *Medium) path(p string) string {
 	if p == "" {
 		return m.root
 	}
-<<<<<<< HEAD
 
 	// If the path is relative and the medium is rooted at "/",
 	// treat it as relative to the current working directory.
@@ -41,23 +40,6 @@ func (m *Medium) path(p string) string {
 	if m.root == "/" && !filepath.IsAbs(p) {
 		cwd, _ := os.Getwd()
 		return filepath.Join(cwd, p)
-=======
-	clean := strings.ReplaceAll(p, "..", ".")
-	if filepath.IsAbs(clean) {
-		// If root is "/", allow absolute paths through
-		if m.root == "/" {
-			return filepath.Clean(clean)
-		}
-		// Otherwise, sandbox absolute paths by stripping volume + leading separators
-		vol := filepath.VolumeName(clean)
-		clean = strings.TrimPrefix(clean, vol)
-		cutset := string(os.PathSeparator)
-		if os.PathSeparator != '/' {
-			cutset += "/"
-		}
-		clean = strings.TrimLeft(clean, cutset)
-		return filepath.Join(m.root, clean)
->>>>>>> fix/consolidate-workflows
 	}
 
 	// Use filepath.Clean with a leading slash to resolve all .. and . internally

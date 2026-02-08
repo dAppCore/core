@@ -174,10 +174,6 @@ func needsRedis(dir string) bool {
 	if err != nil {
 		return false
 	}
-<<<<<<< HEAD
-=======
-	defer func() { _ = file.Close() }()
->>>>>>> fix/consolidate-workflows
 
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
@@ -242,10 +238,6 @@ func GetLaravelAppName(dir string) string {
 	if err != nil {
 		return ""
 	}
-<<<<<<< HEAD
-=======
-	defer func() { _ = file.Close() }()
->>>>>>> fix/consolidate-workflows
 
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
@@ -269,10 +261,6 @@ func GetLaravelAppURL(dir string) string {
 	if err != nil {
 		return ""
 	}
-<<<<<<< HEAD
-=======
-	defer func() { _ = file.Close() }()
->>>>>>> fix/consolidate-workflows
 
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
