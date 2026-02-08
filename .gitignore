@@ -16,7 +16,8 @@ bin/
 dist/
 tasks
 /core
-
+/i18n-validate
+cmd/bugseti/bugseti
 
 patch_cov.*
 go.work.sum
