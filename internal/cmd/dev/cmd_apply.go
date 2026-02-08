@@ -15,7 +15,11 @@ import (
 	"strings"
 
 	"github.com/host-uk/core/pkg/cli"
+<<<<<<< HEAD
 	errors "github.com/host-uk/core/pkg/framework/core"
+=======
+	core "github.com/host-uk/core/pkg/framework/core"
+>>>>>>> fix/consolidate-workflows
 	"github.com/host-uk/core/pkg/git"
 	"github.com/host-uk/core/pkg/i18n"
 	"github.com/host-uk/core/pkg/io"
@@ -66,19 +70,19 @@ func runApply() error {
 
 	// Validate inputs
 	if applyCommand == "" && applyScript == "" {
-		return errors.E("dev.apply", i18n.T("cmd.dev.apply.error.no_command"), nil)
+		return core.E("dev.apply", i18n.T("cmd.dev.apply.error.no_command"), nil)
 	}
 	if applyCommand != "" && applyScript != "" {
-		return errors.E("dev.apply", i18n.T("cmd.dev.apply.error.both_command_script"), nil)
+		return core.E("dev.apply", i18n.T("cmd.dev.apply.error.both_command_script"), nil)
 	}
 	if applyCommit && applyMessage == "" {
-		return errors.E("dev.apply", i18n.T("cmd.dev.apply.error.commit_needs_message"), nil)
+		return core.E("dev.apply", i18n.T("cmd.dev.apply.error.commit_needs_message"), nil)
 	}
 
 	// Validate script exists
 	if applyScript != "" {
 		if !io.Local.IsFile(applyScript) {
-			return errors.E("dev.apply", "script not found: "+applyScript, nil) // Error mismatch? IsFile returns bool
+			return core.E("dev.apply", "script not found: "+applyScript, nil) // Error mismatch? IsFile returns bool
 		}
 	}
 
@@ -89,7 +93,7 @@ func runApply() error {
 	}
 
 	if len(targetRepos) == 0 {
-		return errors.E("dev.apply", i18n.T("cmd.dev.apply.error.no_repos"), nil)
+		return core.E("dev.apply", i18n.T("cmd.dev.apply.error.no_repos"), nil)
 	}
 
 	// Show plan
@@ -227,12 +231,12 @@ func getApplyTargetRepos() ([]*repos.Repo, error) {
 	// Load registry
 	registryPath, err := repos.FindRegistry(io.Local)
 	if err != nil {
-		return nil, errors.E("dev.apply", "failed to find registry", err)
+		return nil, core.E("dev.apply", "failed to find registry", err)
 	}
 
 	registry, err := repos.LoadRegistry(io.Local, registryPath)
 	if err != nil {
-		return nil, errors.E("dev.apply", "failed to load registry", err)
+		return nil, core.E("dev.apply", "failed to load registry", err)
 	}
 
 	// If --repos specified, filter to those

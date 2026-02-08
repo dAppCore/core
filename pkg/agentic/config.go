@@ -99,6 +99,10 @@ func loadEnvFile(path string, cfg *Config) error {
 	if err != nil {
 		return err
 	}
+<<<<<<< HEAD
+=======
+	defer func() { _ = file.Close() }()
+>>>>>>> fix/consolidate-workflows
 
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
