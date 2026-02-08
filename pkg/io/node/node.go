@@ -25,7 +25,7 @@ type Node struct {
 }
 
 // compile-time interface check
-var _ coreio.Node = (*Node)(nil)
+var _ coreio.Medium = (*Node)(nil)
 
 // New creates a new, empty Node.
 func New() *Node {

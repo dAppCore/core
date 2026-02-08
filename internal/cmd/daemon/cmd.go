@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/io"
 	"github.com/host-uk/core/pkg/log"
 	"github.com/host-uk/core/pkg/mcp"
 )
@@ -118,7 +117,6 @@ func runDaemon(cfg Config) error {
 
 	// Create daemon with health checks
 	daemon := cli.NewDaemon(cli.DaemonOptions{
-		Medium:          io.Local,
 		PIDFile:         cfg.PIDFile,
 		HealthAddr:      cfg.HealthAddr,
 		ShutdownTimeout: 30,

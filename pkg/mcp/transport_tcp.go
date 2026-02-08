@@ -12,6 +12,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// DefaultTCPAddr is the default address for the MCP TCP server.
+const DefaultTCPAddr = "127.0.0.1:9100"
+
 // maxMCPMessageSize is the maximum size for MCP JSON-RPC messages (10 MB).
 const maxMCPMessageSize = 10 * 1024 * 1024
 

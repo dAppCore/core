@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/errors"
+	errors "github.com/host-uk/core/pkg/framework/core"
 	"github.com/host-uk/core/pkg/io"
 	"gopkg.in/yaml.v3"
 )

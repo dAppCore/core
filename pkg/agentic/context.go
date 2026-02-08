@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/host-uk/core/pkg/errors"
+	errors "github.com/host-uk/core/pkg/framework/core"
 	"github.com/host-uk/core/pkg/io"
 )
 

@@ -83,6 +83,11 @@ func IsPHPProject(fs io.Medium, dir string) bool {
 	return fileExists(fs, filepath.Join(dir, markerComposer))
 }
 
+// IsCPPProject checks if the directory contains a C++ project (CMakeLists.txt).
+func IsCPPProject(fs io.Medium, dir string) bool {
+	return fileExists(fs, filepath.Join(dir, "CMakeLists.txt"))
+}
+
 // fileExists checks if a file exists and is not a directory.
 func fileExists(fs io.Medium, path string) bool {
 	return fs.IsFile(path)

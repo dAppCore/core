@@ -5,20 +5,30 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/host-uk/core/pkg/io"
+	"github.com/host-uk/core/pkg/log"
+	"github.com/host-uk/core/pkg/process"
+	"github.com/host-uk/core/pkg/ws"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Service provides a lightweight MCP server with file operations only.
 // For full GUI features, use the core-gui package.
 type Service struct {
-	server        *mcp.Server
-	workspaceRoot string    // Root directory for file operations (empty = unrestricted)
-	medium        io.Medium // Filesystem medium for sandboxed operations
+	server         *mcp.Server
+	workspaceRoot  string            // Root directory for file operations (empty = unrestricted)
+	medium         io.Medium         // Filesystem medium for sandboxed operations
+	subsystems     []Subsystem       // Additional subsystems registered via WithSubsystem
+	logger         *log.Logger       // Logger for tool execution auditing
+	processService *process.Service  // Process management service (optional)
+	wsHub          *ws.Hub           // WebSocket hub for real-time streaming (optional)
+	wsServer       *http.Server      // WebSocket HTTP server (optional)
+	wsAddr         string            // WebSocket server address
 }
 
 // Option configures a Service.
@@ -61,7 +71,10 @@ func New(opts ...Option) (*Service, error) {
 	}
 
 	server := mcp.NewServer(impl, nil)
-	s := &Service{server: server}
+	s := &Service{
+		server: server,
+		logger: log.Default(),
+	}
 
 	// Default to current working directory with sandboxed medium
 	cwd, err := os.Getwd()
