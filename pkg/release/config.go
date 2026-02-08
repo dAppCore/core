@@ -3,9 +3,9 @@ package release
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
-	"github.com/host-uk/core/pkg/config"
 	"github.com/host-uk/core/pkg/io"
 	"gopkg.in/yaml.v3"
 )
@@ -19,17 +19,17 @@ const ConfigDir = ".core"
 // Config holds the complete release configuration loaded from .core/release.yaml.
 type Config struct {
 	// Version is the config file format version.
-	Version int `yaml:"version" mapstructure:"version"`
+	Version int `yaml:"version"`
 	// Project contains project metadata.
-	Project ProjectConfig `yaml:"project" mapstructure:"project"`
+	Project ProjectConfig `yaml:"project"`
 	// Build contains build settings for the release.
-	Build BuildConfig `yaml:"build" mapstructure:"build"`
+	Build BuildConfig `yaml:"build"`
 	// Publishers defines where to publish the release.
-	Publishers []PublisherConfig `yaml:"publishers" mapstructure:"publishers"`
+	Publishers []PublisherConfig `yaml:"publishers"`
 	// Changelog configures changelog generation.
-	Changelog ChangelogConfig `yaml:"changelog" mapstructure:"changelog"`
+	Changelog ChangelogConfig `yaml:"changelog"`
 	// SDK configures SDK generation.
-	SDK *SDKConfig `yaml:"sdk,omitempty" mapstructure:"sdk,omitempty"`
+	SDK *SDKConfig `yaml:"sdk,omitempty"`
 
 	// Internal fields (not serialized)
 	projectDir string // Set by LoadConfig
@@ -39,165 +39,165 @@ type Config struct {
 // ProjectConfig holds project metadata for releases.
 type ProjectConfig struct {
 	// Name is the project name.
-	Name string `yaml:"name" mapstructure:"name"`
+	Name string `yaml:"name"`
 	// Repository is the GitHub repository in owner/repo format.
-	Repository string `yaml:"repository" mapstructure:"repository"`
+	Repository string `yaml:"repository"`
 }
 
 // BuildConfig holds build settings for releases.
 type BuildConfig struct {
 	// Targets defines the build targets.
-	Targets []TargetConfig `yaml:"targets" mapstructure:"targets"`
+	Targets []TargetConfig `yaml:"targets"`
 }
 
 // TargetConfig defines a build target.
 type TargetConfig struct {
 	// OS is the target operating system (e.g., "linux", "darwin", "windows").
-	OS string `yaml:"os" mapstructure:"os"`
+	OS string `yaml:"os"`
 	// Arch is the target architecture (e.g., "amd64", "arm64").
-	Arch string `yaml:"arch" mapstructure:"arch"`
+	Arch string `yaml:"arch"`
 }
 
 // PublisherConfig holds configuration for a publisher.
 type PublisherConfig struct {
 	// Type is the publisher type (e.g., "github", "linuxkit", "docker").
-	Type string `yaml:"type" mapstructure:"type"`
+	Type string `yaml:"type"`
 	// Prerelease marks the release as a prerelease.
-	Prerelease bool `yaml:"prerelease" mapstructure:"prerelease"`
+	Prerelease bool `yaml:"prerelease"`
 	// Draft creates the release as a draft.
-	Draft bool `yaml:"draft" mapstructure:"draft"`
+	Draft bool `yaml:"draft"`
 
 	// LinuxKit-specific configuration
 	// Config is the path to the LinuxKit YAML configuration file.
-	Config string `yaml:"config,omitempty" mapstructure:"config,omitempty"`
+	Config string `yaml:"config,omitempty"`
 	// Formats are the output formats to build (iso, raw, qcow2, vmdk).
-	Formats []string `yaml:"formats,omitempty" mapstructure:"formats,omitempty"`
+	Formats []string `yaml:"formats,omitempty"`
 	// Platforms are the target platforms (linux/amd64, linux/arm64).
-	Platforms []string `yaml:"platforms,omitempty" mapstructure:"platforms,omitempty"`
+	Platforms []string `yaml:"platforms,omitempty"`
 
 	// Docker-specific configuration
 	// Registry is the container registry (default: ghcr.io).
-	Registry string `yaml:"registry,omitempty" mapstructure:"registry,omitempty"`
+	Registry string `yaml:"registry,omitempty"`
 	// Image is the image name in owner/repo format.
-	Image string `yaml:"image,omitempty" mapstructure:"image,omitempty"`
+	Image string `yaml:"image,omitempty"`
 	// Dockerfile is the path to the Dockerfile (default: Dockerfile).
-	Dockerfile string `yaml:"dockerfile,omitempty" mapstructure:"dockerfile,omitempty"`
+	Dockerfile string `yaml:"dockerfile,omitempty"`
 	// Tags are the image tags to apply.
-	Tags []string `yaml:"tags,omitempty" mapstructure:"tags,omitempty"`
+	Tags []string `yaml:"tags,omitempty"`
 	// BuildArgs are additional Docker build arguments.
-	BuildArgs map[string]string `yaml:"build_args,omitempty" mapstructure:"build_args,omitempty"`
+	BuildArgs map[string]string `yaml:"build_args,omitempty"`
 
 	// npm-specific configuration
 	// Package is the npm package name (e.g., "@host-uk/core").
-	Package string `yaml:"package,omitempty" mapstructure:"package,omitempty"`
+	Package string `yaml:"package,omitempty"`
 	// Access is the npm access level: "public" or "restricted".
-	Access string `yaml:"access,omitempty" mapstructure:"access,omitempty"`
+	Access string `yaml:"access,omitempty"`
 
 	// Homebrew-specific configuration
 	// Tap is the Homebrew tap repository (e.g., "host-uk/homebrew-tap").
-	Tap string `yaml:"tap,omitempty" mapstructure:"tap,omitempty"`
+	Tap string `yaml:"tap,omitempty"`
 	// Formula is the formula name (defaults to project name).
-	Formula string `yaml:"formula,omitempty" mapstructure:"formula,omitempty"`
+	Formula string `yaml:"formula,omitempty"`
 
 	// Scoop-specific configuration
 	// Bucket is the Scoop bucket repository (e.g., "host-uk/scoop-bucket").
-	Bucket string `yaml:"bucket,omitempty" mapstructure:"bucket,omitempty"`
+	Bucket string `yaml:"bucket,omitempty"`
 
 	// AUR-specific configuration
 	// Maintainer is the AUR package maintainer (e.g., "Name <email>").
-	Maintainer string `yaml:"maintainer,omitempty" mapstructure:"maintainer,omitempty"`
+	Maintainer string `yaml:"maintainer,omitempty"`
 
 	// Chocolatey-specific configuration
 	// Push determines whether to push to Chocolatey (false = generate only).
-	Push bool `yaml:"push,omitempty" mapstructure:"push,omitempty"`
+	Push bool `yaml:"push,omitempty"`
 
 	// Official repo configuration (for Homebrew, Scoop)
 	// When enabled, generates files for PR to official repos.
-	Official *OfficialConfig `yaml:"official,omitempty" mapstructure:"official,omitempty"`
+	Official *OfficialConfig `yaml:"official,omitempty"`
 }
 
 // OfficialConfig holds configuration for generating files for official repo PRs.
 type OfficialConfig struct {
 	// Enabled determines whether to generate files for official repos.
-	Enabled bool `yaml:"enabled" mapstructure:"enabled"`
+	Enabled bool `yaml:"enabled"`
 	// Output is the directory to write generated files.
-	Output string `yaml:"output,omitempty" mapstructure:"output,omitempty"`
+	Output string `yaml:"output,omitempty"`
 }
 
 // SDKConfig holds SDK generation configuration.
 type SDKConfig struct {
 	// Spec is the path to the OpenAPI spec file.
-	Spec string `yaml:"spec,omitempty" mapstructure:"spec,omitempty"`
+	Spec string `yaml:"spec,omitempty"`
 	// Languages to generate.
-	Languages []string `yaml:"languages,omitempty" mapstructure:"languages,omitempty"`
+	Languages []string `yaml:"languages,omitempty"`
 	// Output directory (default: sdk/).
-	Output string `yaml:"output,omitempty" mapstructure:"output,omitempty"`
+	Output string `yaml:"output,omitempty"`
 	// Package naming.
-	Package SDKPackageConfig `yaml:"package,omitempty" mapstructure:"package,omitempty"`
+	Package SDKPackageConfig `yaml:"package,omitempty"`
 	// Diff configuration.
-	Diff SDKDiffConfig `yaml:"diff,omitempty" mapstructure:"diff,omitempty"`
+	Diff SDKDiffConfig `yaml:"diff,omitempty"`
 	// Publish configuration.
-	Publish SDKPublishConfig `yaml:"publish,omitempty" mapstructure:"publish,omitempty"`
+	Publish SDKPublishConfig `yaml:"publish,omitempty"`
 }
 
 // SDKPackageConfig holds package naming configuration.
 type SDKPackageConfig struct {
-	Name    string `yaml:"name,omitempty" mapstructure:"name,omitempty"`
-	Version string `yaml:"version,omitempty" mapstructure:"version,omitempty"`
+	Name    string `yaml:"name,omitempty"`
+	Version string `yaml:"version,omitempty"`
 }
 
 // SDKDiffConfig holds diff configuration.
 type SDKDiffConfig struct {
-	Enabled        bool `yaml:"enabled,omitempty" mapstructure:"enabled,omitempty"`
-	FailOnBreaking bool `yaml:"fail_on_breaking,omitempty" mapstructure:"fail_on_breaking,omitempty"`
+	Enabled        bool `yaml:"enabled,omitempty"`
+	FailOnBreaking bool `yaml:"fail_on_breaking,omitempty"`
 }
 
 // SDKPublishConfig holds monorepo publish configuration.
 type SDKPublishConfig struct {
-	Repo string `yaml:"repo,omitempty" mapstructure:"repo,omitempty"`
-	Path string `yaml:"path,omitempty" mapstructure:"path,omitempty"`
+	Repo string `yaml:"repo,omitempty"`
+	Path string `yaml:"path,omitempty"`
 }
 
 // ChangelogConfig holds changelog generation settings.
 type ChangelogConfig struct {
 	// Include specifies commit types to include in the changelog.
-	Include []string `yaml:"include" mapstructure:"include"`
+	Include []string `yaml:"include"`
 	// Exclude specifies commit types to exclude from the changelog.
-	Exclude []string `yaml:"exclude" mapstructure:"exclude"`
+	Exclude []string `yaml:"exclude"`
 }
 
 // LoadConfig loads release configuration from the .core/release.yaml file in the given directory.
 // If the config file does not exist, it returns DefaultConfig().
 // Returns an error if the file exists but cannot be parsed.
-func LoadConfig(m io.Medium, dir string) (*Config, error) {
+func LoadConfig(dir string) (*Config, error) {
 	configPath := filepath.Join(dir, ConfigDir, ConfigFileName)
+
+	// Convert to absolute path for io.Local
 	absPath, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("release.LoadConfig: failed to resolve path: %w", err)
 	}
 
-	if !m.Exists(absPath) {
-		cfg := DefaultConfig()
-		cfg.projectDir = dir
-		return cfg, nil
-	}
-
-	// Use centralized config service
-	c, err := config.New(config.WithMedium(m), config.WithPath(absPath))
+	content, err := io.Local.Read(absPath)
 	if err != nil {
-		return nil, fmt.Errorf("release.LoadConfig: %w", err)
+		if os.IsNotExist(err) {
+			cfg := DefaultConfig()
+			cfg.projectDir = dir
+			return cfg, nil
+		}
+		return nil, fmt.Errorf("release.LoadConfig: failed to read config file: %w", err)
 	}
 
-	cfg := DefaultConfig()
-	if err := c.Get("", cfg); err != nil {
-		return nil, fmt.Errorf("release.LoadConfig: %w", err)
+	var cfg Config
+	if err := yaml.Unmarshal([]byte(content), &cfg); err != nil {
+		return nil, fmt.Errorf("release.LoadConfig: failed to parse config file: %w", err)
 	}
 
 	// Apply defaults for any missing fields
-	applyDefaults(cfg)
+	applyDefaults(&cfg)
 	cfg.projectDir = dir
 
-	return cfg, nil
+	return &cfg, nil
 }
 
 // DefaultConfig returns sensible defaults for release configuration.
@@ -212,6 +212,7 @@ func DefaultConfig() *Config {
 			Targets: []TargetConfig{
 				{OS: "linux", Arch: "amd64"},
 				{OS: "linux", Arch: "arm64"},
+				{OS: "darwin", Arch: "amd64"},
 				{OS: "darwin", Arch: "arm64"},
 				{OS: "windows", Arch: "amd64"},
 			},
@@ -268,13 +269,13 @@ func ConfigPath(dir string) string {
 }
 
 // ConfigExists checks if a release config file exists in the given directory.
-func ConfigExists(m io.Medium, dir string) bool {
+func ConfigExists(dir string) bool {
 	configPath := ConfigPath(dir)
 	absPath, err := filepath.Abs(configPath)
 	if err != nil {
 		return false
 	}
-	return m.Exists(absPath)
+	return io.Local.IsFile(absPath)
 }
 
 // GetRepository returns the repository from the config.
@@ -288,11 +289,19 @@ func (c *Config) GetProjectName() string {
 }
 
 // WriteConfig writes the config to the .core/release.yaml file.
-func WriteConfig(m io.Medium, cfg *Config, dir string) error {
+func WriteConfig(cfg *Config, dir string) error {
 	configPath := ConfigPath(dir)
+
+	// Convert to absolute path for io.Local
 	absPath, err := filepath.Abs(configPath)
 	if err != nil {
 		return fmt.Errorf("release.WriteConfig: failed to resolve path: %w", err)
+	}
+
+	// Ensure directory exists
+	configDir := filepath.Dir(absPath)
+	if err := io.Local.EnsureDir(configDir); err != nil {
+		return fmt.Errorf("release.WriteConfig: failed to create directory: %w", err)
 	}
 
 	data, err := yaml.Marshal(cfg)
@@ -300,8 +309,7 @@ func WriteConfig(m io.Medium, cfg *Config, dir string) error {
 		return fmt.Errorf("release.WriteConfig: failed to marshal config: %w", err)
 	}
 
-	// m.Write creates parent directories automatically
-	if err := m.Write(absPath, string(data)); err != nil {
+	if err := io.Local.Write(absPath, string(data)); err != nil {
 		return fmt.Errorf("release.WriteConfig: failed to write config file: %w", err)
 	}
 
