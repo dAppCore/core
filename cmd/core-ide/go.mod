@@ -3,6 +3,7 @@ module github.com/host-uk/core/cmd/core-ide
 go 1.25.5
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/host-uk/core v0.0.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.64
 )
@@ -26,7 +27,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/kevinburke/ssh_config v1.4.0 // indirect

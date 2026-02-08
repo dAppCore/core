@@ -43,6 +43,9 @@ func main() {
 	chatService := NewChatService(ideSub)
 	buildService := NewBuildService(ideSub)
 
+	// Create MCP bridge (SERVER: HTTP tool server + CLIENT: WebSocket relay)
+	mcpBridge := NewMCPBridge(hub, 9877)
+
 	app := application.New(application.Options{
 		Name:        "Core IDE",
 		Description: "Host UK Platform IDE - AI Agent Sessions, Build Monitoring & Dashboard",
@@ -50,6 +53,7 @@ func main() {
 			application.NewService(ideService),
 			application.NewService(chatService),
 			application.NewService(buildService),
+			application.NewService(mcpBridge),
 		},
 		Assets: application.AssetOptions{
 			Handler: spaHandler(staticAssets),
@@ -65,7 +69,8 @@ func main() {
 
 	log.Println("Starting Core IDE...")
 	log.Println("  - System tray active")
-	log.Println("  - Bridge connecting to Laravel core-agentic...")
+	log.Println("  - MCP bridge (SERVER) on :9877")
+	log.Println("  - Claude bridge (CLIENT) → MCP core on :9876")
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
