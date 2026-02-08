@@ -15,7 +15,6 @@ type State struct {
 	Containers map[string]*Container `json:"containers"`
 
 	mu       sync.RWMutex
-	medium   io.Medium
 	filePath string
 }
 
@@ -47,25 +46,19 @@ func DefaultLogsDir() (string, error) {
 }
 
 // NewState creates a new State instance.
-func NewState(m io.Medium, filePath string) *State {
+func NewState(filePath string) *State {
 	return &State{
 		Containers: make(map[string]*Container),
-		medium:     m,
 		filePath:   filePath,
 	}
 }
 
 // LoadState loads the state from the given file path.
 // If the file doesn't exist, returns an empty state.
-func LoadState(m io.Medium, filePath string) (*State, error) {
-	state := NewState(m, filePath)
+func LoadState(filePath string) (*State, error) {
+	state := NewState(filePath)
 
-	absPath, err := filepath.Abs(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	content, err := m.Read(absPath)
+	dataStr, err := io.Local.Read(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return state, nil
@@ -73,7 +66,7 @@ func LoadState(m io.Medium, filePath string) (*State, error) {
 		return nil, err
 	}
 
-	if err := json.Unmarshal([]byte(content), state); err != nil {
+	if err := json.Unmarshal([]byte(dataStr), state); err != nil {
 		return nil, err
 	}
 
@@ -85,8 +78,9 @@ func (s *State) SaveState() error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	absPath, err := filepath.Abs(s.filePath)
-	if err != nil {
+	// Ensure the directory exists
+	dir := filepath.Dir(s.filePath)
+	if err := io.Local.EnsureDir(dir); err != nil {
 		return err
 	}
 
@@ -95,8 +89,7 @@ func (s *State) SaveState() error {
 		return err
 	}
 
-	// s.medium.Write creates parent directories automatically
-	return s.medium.Write(absPath, string(data))
+	return io.Local.Write(s.filePath, string(data))
 }
 
 // Add adds a container to the state and persists it.
@@ -170,10 +163,10 @@ func LogPath(id string) (string, error) {
 }
 
 // EnsureLogsDir ensures the logs directory exists.
-func EnsureLogsDir(m io.Medium) error {
+func EnsureLogsDir() error {
 	logsDir, err := DefaultLogsDir()
 	if err != nil {
 		return err
 	}
-	return m.EnsureDir(logsDir)
+	return io.Local.EnsureDir(logsDir)
 }
