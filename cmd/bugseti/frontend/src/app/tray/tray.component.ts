@@ -66,6 +66,9 @@ interface TrayStatus {
       </section>
 
       <footer class="tray-footer">
+        <button class="btn btn--secondary btn--sm" (click)="openJellyfin()">
+          Jellyfin
+        </button>
         <button class="btn btn--secondary btn--sm" (click)="toggleRunning()">
           {{ status.running ? 'Pause' : 'Start' }}
         </button>
@@ -292,5 +295,9 @@ export class TrayComponent implements OnInit, OnDestroy {
         w.Focus();
       });
     }
+  }
+
+  openJellyfin() {
+    window.location.assign('/jellyfin');
   }
 }
