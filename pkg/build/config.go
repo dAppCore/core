@@ -69,16 +69,10 @@ type TargetConfig struct {
 // LoadConfig loads build configuration from the .core/build.yaml file in the given directory.
 // If the config file does not exist, it returns DefaultConfig().
 // Returns an error if the file exists but cannot be parsed.
-func LoadConfig(dir string) (*BuildConfig, error) {
+func LoadConfig(fs io.Medium, dir string) (*BuildConfig, error) {
 	configPath := filepath.Join(dir, ConfigDir, ConfigFileName)
 
-	// Convert to absolute path for io.Local
-	absPath, err := filepath.Abs(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("build.LoadConfig: failed to resolve path: %w", err)
-	}
-
-	content, err := io.Local.Read(absPath)
+	content, err := fs.Read(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return DefaultConfig(), nil
@@ -87,7 +81,8 @@ func LoadConfig(dir string) (*BuildConfig, error) {
 	}
 
 	var cfg BuildConfig
-	if err := yaml.Unmarshal([]byte(content), &cfg); err != nil {
+	data := []byte(content)
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("build.LoadConfig: failed to parse config file: %w", err)
 	}
 
@@ -115,7 +110,6 @@ func DefaultConfig() *BuildConfig {
 		Targets: []TargetConfig{
 			{OS: "linux", Arch: "amd64"},
 			{OS: "linux", Arch: "arm64"},
-			{OS: "darwin", Arch: "amd64"},
 			{OS: "darwin", Arch: "arm64"},
 			{OS: "windows", Arch: "amd64"},
 		},
@@ -161,8 +155,8 @@ func ConfigPath(dir string) string {
 }
 
 // ConfigExists checks if a build config file exists in the given directory.
-func ConfigExists(dir string) bool {
-	return fileExists(ConfigPath(dir))
+func ConfigExists(fs io.Medium, dir string) bool {
+	return fileExists(fs, ConfigPath(dir))
 }
 
 // ToTargets converts TargetConfig slice to Target slice for use with builders.
