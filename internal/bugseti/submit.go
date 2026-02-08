@@ -67,6 +67,9 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 		return nil, fmt.Errorf("work directory not specified")
 	}
 
+	guard := getEthicsGuardWithRoot(context.Background(), s.config.GetMarketplaceMCPRoot())
+	issueTitle := guard.SanitizeTitle(issue.Title)
+
 	// Step 1: Ensure we have a fork
 	forkOwner, err := s.ensureFork(issue.Repo)
 	if err != nil {
@@ -85,7 +88,9 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 	// Step 3: Stage and commit changes
 	commitMsg := submission.CommitMsg
 	if commitMsg == "" {
-		commitMsg = fmt.Sprintf("fix: resolve issue #%d\n\n%s\n\nFixes #%d", issue.Number, issue.Title, issue.Number)
+		commitMsg = fmt.Sprintf("fix: resolve issue #%d\n\n%s\n\nFixes #%d", issue.Number, issueTitle, issue.Number)
+	} else {
+		commitMsg = guard.SanitizeBody(commitMsg)
 	}
 	if err := s.commitChanges(workDir, submission.Files, commitMsg); err != nil {
 		return &PRResult{Success: false, Error: fmt.Sprintf("commit failed: %v", err)}, err
@@ -99,12 +104,15 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 	// Step 5: Create PR
 	prTitle := submission.Title
 	if prTitle == "" {
-		prTitle = fmt.Sprintf("Fix #%d: %s", issue.Number, issue.Title)
+		prTitle = fmt.Sprintf("Fix #%d: %s", issue.Number, issueTitle)
+	} else {
+		prTitle = guard.SanitizeTitle(prTitle)
 	}
 	prBody := submission.Body
 	if prBody == "" {
 		prBody = s.generatePRBody(issue)
 	}
+	prBody = guard.SanitizeBody(prBody)
 
 	prURL, prNumber, err := s.createPR(issue.Repo, forkOwner, branch, prTitle, prBody)
 	if err != nil {
