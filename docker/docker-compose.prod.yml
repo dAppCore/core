@@ -1,0 +1,200 @@
+# Host UK Production Docker Compose
+# Deployed to de.host.uk.com and de2.host.uk.com via Coolify
+#
+# Container topology per app server:
+#   app       - PHP 8.3-FPM (all Laravel modules)
+#   web       - Nginx (static files + FastCGI proxy)
+#   horizon   - Laravel Horizon (queue worker)
+#   scheduler - Laravel scheduler
+#   mcp       - Go MCP server
+#   redis     - Redis 7 (local cache + sessions)
+#   galera    - MariaDB 11 (Galera cluster node)
+
+services:
+  app:
+    image: ${REGISTRY:-gitea.snider.dev}/host-uk/app:${TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - app-storage:/app/storage
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=${APP_URL:-https://host.uk.com}
+      - DB_HOST=galera
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-hostuk}
+      - DB_USERNAME=${DB_USERNAME:-hostuk}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+      galera:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm-healthcheck || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    networks:
+      - app-net
+
+  web:
+    image: ${REGISTRY:-gitea.snider.dev}/host-uk/web:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    volumes:
+      - app-storage:/app/storage:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    networks:
+      - app-net
+
+  horizon:
+    image: ${REGISTRY:-gitea.snider.dev}/host-uk/app:${TAG:-latest}
+    restart: unless-stopped
+    command: php artisan horizon
+    volumes:
+      - app-storage:/app/storage
+    environment:
+      - APP_ENV=production
+      - DB_HOST=galera
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-hostuk}
+      - DB_USERNAME=${DB_USERNAME:-hostuk}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status | grep -q running"]
+      interval: 60s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    networks:
+      - app-net
+
+  scheduler:
+    image: ${REGISTRY:-gitea.snider.dev}/host-uk/app:${TAG:-latest}
+    restart: unless-stopped
+    command: php artisan schedule:work
+    volumes:
+      - app-storage:/app/storage
+    environment:
+      - APP_ENV=production
+      - DB_HOST=galera
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-hostuk}
+      - DB_USERNAME=${DB_USERNAME:-hostuk}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - app-net
+
+  mcp:
+    image: ${REGISTRY:-gitea.snider.dev}/host-uk/core:${TAG:-latest}
+    restart: unless-stopped
+    command: core mcp serve
+    ports:
+      - "${MCP_PORT:-9001}:9000"
+    environment:
+      - MCP_ADDR=:9000
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9000 || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - app-net
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-net
+
+  galera:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DB_DATABASE:-hostuk}
+      - MARIADB_USER=${DB_USERNAME:-hostuk}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - WSREP_CLUSTER_NAME=hostuk-galera
+      - WSREP_CLUSTER_ADDRESS=${GALERA_CLUSTER_ADDRESS:-gcomm://}
+      - WSREP_NODE_ADDRESS=${GALERA_NODE_ADDRESS}
+      - WSREP_NODE_NAME=${GALERA_NODE_NAME}
+      - WSREP_SST_METHOD=mariabackup
+    command: >
+      --wsrep-on=ON
+      --wsrep-provider=/usr/lib/galera/libgalera_smm.so
+      --wsrep-cluster-name=hostuk-galera
+      --wsrep-cluster-address=${GALERA_CLUSTER_ADDRESS:-gcomm://}
+      --wsrep-node-address=${GALERA_NODE_ADDRESS}
+      --wsrep-node-name=${GALERA_NODE_NAME}
+      --wsrep-sst-method=mariabackup
+      --binlog-format=ROW
+      --default-storage-engine=InnoDB
+      --innodb-autoinc-lock-mode=2
+      --innodb-buffer-pool-size=1G
+      --innodb-log-file-size=256M
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - galera-data:/var/lib/mysql
+    ports:
+      - "${GALERA_PORT:-3306}:3306"
+      - "4567:4567"
+      - "4568:4568"
+      - "4444:4444"
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb -u root -p${DB_ROOT_PASSWORD} -e 'SHOW STATUS LIKE \"wsrep_ready\"' | grep -q ON"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+    networks:
+      - app-net
+
+volumes:
+  app-storage:
+  redis-data:
+  galera-data:
+
+networks:
+  app-net:
+    driver: bridge

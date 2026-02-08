@@ -1,0 +1,63 @@
+# Galera Database Backup
+# Dumps the database and uploads to Hetzner S3
+#
+# Usage:
+#   core deploy ansible playbooks/galera-backup.yml -i playbooks/inventory.yml -l de
+---
+- name: Backup Galera Database to S3
+  hosts: app_servers
+  become: true
+  vars:
+    db_root_password: "{{ lookup('env', 'DB_ROOT_PASSWORD') }}"
+    s3_endpoint: "{{ lookup('env', 'HETZNER_S3_ENDPOINT') | default('fsn1.your-objectstorage.com', true) }}"
+    s3_bucket: "{{ lookup('env', 'HETZNER_S3_BUCKET') | default('hostuk', true) }}"
+    s3_access_key: "{{ lookup('env', 'HETZNER_S3_ACCESS_KEY') }}"
+    s3_secret_key: "{{ lookup('env', 'HETZNER_S3_SECRET_KEY') }}"
+    backup_prefix: backup/galera
+    backup_retain_days: 30
+
+  tasks:
+    - name: Create backup directory
+      file:
+        path: /opt/backup
+        state: directory
+        mode: "0700"
+
+    - name: Dump database
+      shell: |
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        DUMP_FILE="/opt/backup/hostuk-${TIMESTAMP}-{{ galera_node_name }}.sql.gz"
+        docker exec galera mariadb-dump \
+          -u root -p{{ db_root_password }} \
+          --all-databases \
+          --single-transaction \
+          --routines \
+          --triggers \
+          --events \
+          | gzip > "${DUMP_FILE}"
+        echo "${DUMP_FILE}"
+      register: dump_result
+
+    - name: Install s3cmd if missing
+      shell: |
+        which s3cmd 2>/dev/null || pip3 install s3cmd
+      changed_when: false
+
+    - name: Upload to S3
+      shell: |
+        s3cmd put {{ dump_result.stdout | trim }} \
+          s3://{{ s3_bucket }}/{{ backup_prefix }}/$(basename {{ dump_result.stdout | trim }}) \
+          --host={{ s3_endpoint }} \
+          --host-bucket='%(bucket)s.{{ s3_endpoint }}' \
+          --access_key={{ s3_access_key }} \
+          --secret_key={{ s3_secret_key }}
+      when: s3_access_key != ""
+
+    - name: Clean old local backups
+      shell: |
+        find /opt/backup -name "hostuk-*.sql.gz" -mtime +{{ backup_retain_days }} -delete
+      changed_when: false
+
+    - name: Show backup result
+      debug:
+        msg: "Backup completed: {{ dump_result.stdout | trim }}"

@@ -1,0 +1,146 @@
+# Host UK Production Deployment Pipeline
+# Runs on Forgejo Actions (gitea.snider.dev)
+# Runner: build.de.host.uk.com
+#
+# Workflow:
+#   1. composer install + test
+#   2. npm ci + build
+#   3. docker build + push
+#   4. Coolify deploy webhook (rolling restart)
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: gitea.snider.dev
+  IMAGE_APP: host-uk/app
+  IMAGE_WEB: host-uk/web
+  IMAGE_CORE: host-uk/core
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, gd, intl, mbstring, pdo_mysql, redis, zip
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run tests
+        run: composer test
+
+      - name: Check code style
+        run: ./vendor/bin/pint --test
+
+  build-app:
+    name: Build App Image
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Login to registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+
+      - name: Build and push app image
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          docker build \
+            -f docker/Dockerfile.app \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_APP }}:${SHA} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_APP }}:latest \
+            .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_APP }}:${SHA}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_APP }}:latest
+
+  build-web:
+    name: Build Web Image
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+
+      - name: Build and push web image
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          docker build \
+            -f docker/Dockerfile.web \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}:${SHA} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}:latest \
+            .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}:${SHA}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}:latest
+
+  build-core:
+    name: Build Core Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Build core binary
+        run: |
+          go build -ldflags '-s -w' -o bin/core .
+
+      - name: Login to registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+
+      - name: Build and push core image
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          cat > Dockerfile.core <<'EOF'
+          FROM alpine:3.20
+          RUN apk add --no-cache ca-certificates
+          COPY bin/core /usr/local/bin/core
+          ENTRYPOINT ["core"]
+          EOF
+          docker build \
+            -f Dockerfile.core \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_CORE }}:${SHA} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_CORE }}:latest \
+            .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_CORE }}:${SHA}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_CORE }}:latest
+
+  deploy:
+    name: Deploy to Production
+    needs: [build-app, build-web, build-core]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy" \
+            -H "Content-Type: application/json" \
+            -d '{"uuid": "${{ secrets.COOLIFY_APP_UUID }}", "force": false}'
+
+      - name: Wait for deployment
+        run: |
+          echo "Deployment triggered. Coolify will perform rolling restart."
+          echo "Monitor at: ${{ secrets.COOLIFY_URL }}"
