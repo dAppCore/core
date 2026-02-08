@@ -22,6 +22,8 @@ const (
 	ProjectTypeNode ProjectType = "node"
 	// ProjectTypePHP indicates a PHP/Laravel project with composer.json.
 	ProjectTypePHP ProjectType = "php"
+	// ProjectTypeCPP indicates a C++ project with CMakeLists.txt.
+	ProjectTypeCPP ProjectType = "cpp"
 	// ProjectTypeDocker indicates a Docker-based project with Dockerfile.
 	ProjectTypeDocker ProjectType = "docker"
 	// ProjectTypeLinuxKit indicates a LinuxKit VM configuration.

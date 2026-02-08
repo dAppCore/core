@@ -327,6 +327,9 @@ func TestWriteConfig_Bad(t *testing.T) {
 	})
 
 	t.Run("returns error when directory creation fails", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can create directories anywhere")
+		}
 		// Use a path that doesn't exist and can't be created
 		cfg := DefaultConfig()
 		err := WriteConfig(io.Local, cfg, "/nonexistent/path/that/cannot/be/created")

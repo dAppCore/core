@@ -21,8 +21,8 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// ReverseSigil is a symmetric Sigil that reverses the bytes of the payload.
-// Both In and Out perform the same reversal operation.
+// ReverseSigil is a Sigil that reverses the bytes of the payload.
+// It is a symmetrical Sigil, meaning that the In and Out methods perform the same operation.
 type ReverseSigil struct{}
 
 // In reverses the bytes of the data.
@@ -37,13 +37,13 @@ func (s *ReverseSigil) In(data []byte) ([]byte, error) {
 	return reversed, nil
 }
 
-// Out reverses the bytes of the data (symmetric with In).
+// Out reverses the bytes of the data.
 func (s *ReverseSigil) Out(data []byte) ([]byte, error) {
 	return s.In(data)
 }
 
 // HexSigil is a Sigil that encodes/decodes data to/from hexadecimal.
-// In encodes the data, Out decodes it.
+// The In method encodes the data, and the Out method decodes it.
 type HexSigil struct{}
 
 // In encodes the data to hexadecimal.
@@ -66,8 +66,8 @@ func (s *HexSigil) Out(data []byte) ([]byte, error) {
 	return dst, err
 }
 
-// Base64Sigil is a Sigil that encodes/decodes data to/from standard base64.
-// In encodes the data, Out decodes it.
+// Base64Sigil is a Sigil that encodes/decodes data to/from base64.
+// The In method encodes the data, and the Out method decodes it.
 type Base64Sigil struct{}
 
 // In encodes the data to base64.
@@ -91,8 +91,10 @@ func (s *Base64Sigil) Out(data []byte) ([]byte, error) {
 }
 
 // GzipSigil is a Sigil that compresses/decompresses data using gzip.
-// In compresses the data, Out decompresses it.
-type GzipSigil struct{}
+// The In method compresses the data, and the Out method decompresses it.
+type GzipSigil struct {
+	writer io.Writer
+}
 
 // In compresses the data using gzip.
 func (s *GzipSigil) In(data []byte) ([]byte, error) {
@@ -100,7 +102,11 @@ func (s *GzipSigil) In(data []byte) ([]byte, error) {
 		return nil, nil
 	}
 	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
+	w := s.writer
+	if w == nil {
+		w = &b
+	}
+	gz := gzip.NewWriter(w)
 	if _, err := gz.Write(data); err != nil {
 		return nil, err
 	}
@@ -124,12 +130,10 @@ func (s *GzipSigil) Out(data []byte) ([]byte, error) {
 }
 
 // JSONSigil is a Sigil that compacts or indents JSON data.
-// Out is a passthrough (no-op).
-type JSONSigil struct {
-	Indent bool
-}
+// The Out method is a no-op.
+type JSONSigil struct{ Indent bool }
 
-// In compacts or indents the JSON data depending on the Indent field.
+// In compacts or indents the JSON data.
 func (s *JSONSigil) In(data []byte) ([]byte, error) {
 	if s.Indent {
 		var out bytes.Buffer
@@ -141,23 +145,24 @@ func (s *JSONSigil) In(data []byte) ([]byte, error) {
 	return out.Bytes(), err
 }
 
-// Out is a passthrough for JSONSigil. The primary use is formatting.
+// Out is a no-op for JSONSigil.
 func (s *JSONSigil) Out(data []byte) ([]byte, error) {
+	// For simplicity, Out is a no-op. The primary use is formatting.
 	return data, nil
 }
 
-// HashSigil is a Sigil that hashes data using a specified algorithm.
-// In computes the hash digest, Out is a passthrough.
+// HashSigil is a Sigil that hashes the data using a specified algorithm.
+// The In method hashes the data, and the Out method is a no-op.
 type HashSigil struct {
 	Hash crypto.Hash
 }
 
-// NewHashSigil creates a new HashSigil for the given hash algorithm.
+// NewHashSigil creates a new HashSigil.
 func NewHashSigil(h crypto.Hash) *HashSigil {
 	return &HashSigil{Hash: h}
 }
 
-// In hashes the data using the configured algorithm.
+// In hashes the data.
 func (s *HashSigil) In(data []byte) ([]byte, error) {
 	var h io.Writer
 	switch s.Hash {
@@ -198,6 +203,7 @@ func (s *HashSigil) In(data []byte) ([]byte, error) {
 	case crypto.BLAKE2b_512:
 		h, _ = blake2b.New512(nil)
 	default:
+		// MD5SHA1 is not supported as a direct hash
 		return nil, errors.New("sigil: hash algorithm not available")
 	}
 
@@ -205,18 +211,13 @@ func (s *HashSigil) In(data []byte) ([]byte, error) {
 	return h.(interface{ Sum([]byte) []byte }).Sum(nil), nil
 }
 
-// Out is a passthrough for HashSigil. Hashing is irreversible.
+// Out is a no-op for HashSigil.
 func (s *HashSigil) Out(data []byte) ([]byte, error) {
 	return data, nil
 }
 
 // NewSigil is a factory function that returns a Sigil based on a string name.
 // It is the primary way to create Sigil instances.
-//
-// Supported names: reverse, hex, base64, gzip, json, json-indent,
-// md4, md5, sha1, sha224, sha256, sha384, sha512, ripemd160,
-// sha3-224, sha3-256, sha3-384, sha3-512, sha512-224, sha512-256,
-// blake2s-256, blake2b-256, blake2b-384, blake2b-512.
 func NewSigil(name string) (Sigil, error) {
 	switch name {
 	case "reverse":
@@ -268,6 +269,6 @@ func NewSigil(name string) (Sigil, error) {
 	case "blake2b-512":
 		return NewHashSigil(crypto.BLAKE2b_512), nil
 	default:
-		return nil, errors.New("sigil: unknown sigil name: " + name)
+		return nil, errors.New("sigil: unknown sigil name")
 	}
 }

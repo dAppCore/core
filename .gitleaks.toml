@@ -1,0 +1,10 @@
+# Gitleaks configuration for host-uk/core
+# Test fixtures contain private keys for cryptographic testing — not real secrets.
+
+[allowlist]
+  description = "Test fixture allowlist"
+  paths = [
+    '''pkg/crypt/pgp/pgp_test\.go''',
+    '''pkg/crypt/rsa/rsa_test\.go''',
+    '''pkg/crypt/openpgp/test_util\.go''',
+  ]

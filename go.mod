@@ -31,6 +31,7 @@ require (
 require (
 	aead.dev/minisign v0.3.0 // indirect
 	cloud.google.com/go v0.123.0 // indirect
+	codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2 v2.2.0 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/42wim/httpsig v1.2.3 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect

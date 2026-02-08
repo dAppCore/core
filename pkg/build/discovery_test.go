@@ -52,6 +52,13 @@ func TestDiscover_Good(t *testing.T) {
 		assert.Equal(t, []ProjectType{ProjectTypePHP}, types)
 	})
 
+	t.Run("detects C++ project", func(t *testing.T) {
+		dir := setupTestDir(t, "CMakeLists.txt")
+		types, err := Discover(fs, dir)
+		assert.NoError(t, err)
+		assert.Equal(t, []ProjectType{ProjectTypeCPP}, types)
+	})
+
 	t.Run("detects multiple project types", func(t *testing.T) {
 		dir := setupTestDir(t, "go.mod", "package.json")
 		types, err := Discover(fs, dir)
@@ -155,6 +162,19 @@ func TestIsNodeProject_Good(t *testing.T) {
 	})
 }
 
+func TestIsCPPProject_Good(t *testing.T) {
+	fs := io.Local
+	t.Run("true with CMakeLists.txt", func(t *testing.T) {
+		dir := setupTestDir(t, "CMakeLists.txt")
+		assert.True(t, IsCPPProject(fs, dir))
+	})
+
+	t.Run("false without CMakeLists.txt", func(t *testing.T) {
+		dir := t.TempDir()
+		assert.False(t, IsCPPProject(fs, dir))
+	})
+}
+
 func TestIsPHPProject_Good(t *testing.T) {
 	fs := io.Local
 	t.Run("true with composer.json", func(t *testing.T) {
@@ -209,6 +229,7 @@ func TestDiscover_Testdata(t *testing.T) {
 		{"wails-project", "wails-project", []ProjectType{ProjectTypeWails, ProjectTypeGo}},
 		{"node-project", "node-project", []ProjectType{ProjectTypeNode}},
 		{"php-project", "php-project", []ProjectType{ProjectTypePHP}},
+		{"cpp-project", "cpp-project", []ProjectType{ProjectTypeCPP}},
 		{"multi-project", "multi-project", []ProjectType{ProjectTypeGo, ProjectTypeNode}},
 		{"empty-project", "empty-project", []ProjectType{}},
 	}

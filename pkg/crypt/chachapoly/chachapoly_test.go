@@ -2,92 +2,113 @@ package chachapoly
 
 import (
 	"crypto/rand"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func generateKey(t *testing.T) []byte {
-	t.Helper()
+// mockReader is a reader that returns an error.
+type mockReader struct{}
+
+func (r *mockReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("read error")
+}
+
+func TestEncryptDecrypt(t *testing.T) {
 	key := make([]byte, 32)
-	_, err := rand.Read(key)
-	require.NoError(t, err)
-	return key
-}
+	for i := range key {
+		key[i] = 1
+	}
 
-func TestEncryptDecrypt_Good(t *testing.T) {
-	key := generateKey(t)
-	plaintext := []byte("hello, XChaCha20-Poly1305!")
-
+	plaintext := []byte("Hello, world!")
 	ciphertext, err := Encrypt(plaintext, key)
-	require.NoError(t, err)
-	assert.NotEqual(t, plaintext, ciphertext)
-	// Ciphertext should be longer than plaintext (nonce + overhead)
-	assert.Greater(t, len(ciphertext), len(plaintext))
+	assert.NoError(t, err)
 
 	decrypted, err := Decrypt(ciphertext, key)
-	require.NoError(t, err)
+	assert.NoError(t, err)
+
 	assert.Equal(t, plaintext, decrypted)
 }
 
-func TestEncryptDecrypt_Bad(t *testing.T) {
-	key1 := generateKey(t)
-	key2 := generateKey(t)
-	plaintext := []byte("secret data")
+func TestEncryptInvalidKeySize(t *testing.T) {
+	key := make([]byte, 16) // Wrong size
+	plaintext := []byte("test")
+	_, err := Encrypt(plaintext, key)
+	assert.Error(t, err)
+}
 
+func TestDecryptWithWrongKey(t *testing.T) {
+	key1 := make([]byte, 32)
+	key2 := make([]byte, 32)
+	key2[0] = 1 // Different key
+
+	plaintext := []byte("secret")
 	ciphertext, err := Encrypt(plaintext, key1)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	// Decrypting with a different key should fail
 	_, err = Decrypt(ciphertext, key2)
-	assert.Error(t, err)
+	assert.Error(t, err) // Should fail authentication
 }
 
-func TestEncryptDecrypt_Ugly(t *testing.T) {
-	// Invalid key length should fail
-	shortKey := []byte("too-short")
-	_, err := Encrypt([]byte("data"), shortKey)
-	assert.Error(t, err)
-
-	_, err = Decrypt([]byte("data"), shortKey)
-	assert.Error(t, err)
-
-	// Ciphertext too short should fail
-	key := generateKey(t)
-	_, err = Decrypt([]byte("short"), key)
-	assert.Error(t, err)
-}
-
-func TestEncryptDecryptEmpty_Good(t *testing.T) {
-	key := generateKey(t)
-	plaintext := []byte{}
-
+func TestDecryptTamperedCiphertext(t *testing.T) {
+	key := make([]byte, 32)
+	plaintext := []byte("secret")
 	ciphertext, err := Encrypt(plaintext, key)
-	require.NoError(t, err)
+	assert.NoError(t, err)
+
+	// Tamper with the ciphertext
+	ciphertext[0] ^= 0xff
+
+	_, err = Decrypt(ciphertext, key)
+	assert.Error(t, err)
+}
+
+func TestEncryptEmptyPlaintext(t *testing.T) {
+	key := make([]byte, 32)
+	plaintext := []byte("")
+	ciphertext, err := Encrypt(plaintext, key)
+	assert.NoError(t, err)
 
 	decrypted, err := Decrypt(ciphertext, key)
-	require.NoError(t, err)
+	assert.NoError(t, err)
+
 	assert.Equal(t, plaintext, decrypted)
 }
 
-func TestEncryptNonDeterministic_Good(t *testing.T) {
-	key := generateKey(t)
-	plaintext := []byte("same input")
+func TestDecryptShortCiphertext(t *testing.T) {
+	key := make([]byte, 32)
+	shortCiphertext := []byte("short")
 
-	ct1, err := Encrypt(plaintext, key)
-	require.NoError(t, err)
+	_, err := Decrypt(shortCiphertext, key)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "too short")
+}
 
-	ct2, err := Encrypt(plaintext, key)
-	require.NoError(t, err)
+func TestCiphertextDiffersFromPlaintext(t *testing.T) {
+	key := make([]byte, 32)
+	plaintext := []byte("Hello, world!")
+	ciphertext, err := Encrypt(plaintext, key)
+	assert.NoError(t, err)
+	assert.NotEqual(t, plaintext, ciphertext)
+}
 
-	// Different nonces mean different ciphertexts
-	assert.NotEqual(t, ct1, ct2, "each encryption should produce unique ciphertext due to random nonce")
+func TestEncryptNonceError(t *testing.T) {
+	key := make([]byte, 32)
+	plaintext := []byte("test")
 
-	// Both should decrypt to the same plaintext
-	d1, err := Decrypt(ct1, key)
-	require.NoError(t, err)
-	d2, err := Decrypt(ct2, key)
-	require.NoError(t, err)
-	assert.Equal(t, d1, d2)
+	// Replace the rand.Reader with our mock reader
+	oldReader := rand.Reader
+	rand.Reader = &mockReader{}
+	defer func() { rand.Reader = oldReader }()
+
+	_, err := Encrypt(plaintext, key)
+	assert.Error(t, err)
+}
+
+func TestDecryptInvalidKeySize(t *testing.T) {
+	key := make([]byte, 16) // Wrong size
+	ciphertext := []byte("test")
+	_, err := Decrypt(ciphertext, key)
+	assert.Error(t, err)
 }

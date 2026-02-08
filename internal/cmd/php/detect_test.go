@@ -178,6 +178,9 @@ return [
 	})
 
 	t.Run("project with octane but unreadable config file", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can read any file")
+		}
 		dir := t.TempDir()
 
 		// Create composer.json with laravel/octane

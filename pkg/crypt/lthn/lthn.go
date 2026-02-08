@@ -1,4 +1,4 @@
-// Package lthn implements the LTHN quasi-salted hash algorithm.
+// Package lthn implements the LTHN quasi-salted hash algorithm (RFC-0004).
 //
 // LTHN produces deterministic, verifiable hashes without requiring separate salt
 // storage. The salt is derived from the input itself through:
@@ -9,8 +9,6 @@
 //
 // This is suitable for content identifiers, cache keys, and deduplication.
 // NOT suitable for password hashing - use bcrypt, Argon2, or scrypt instead.
-//
-// Ported from Enchantrix (github.com/Snider/Enchantrix/pkg/crypt/std/lthn).
 //
 // Example:
 //
@@ -68,12 +66,6 @@ func Hash(input string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// Verify checks if an input string produces the given hash.
-// Returns true if Hash(input) equals the provided hash value.
-func Verify(input string, hash string) bool {
-	return Hash(input) == hash
-}
-
 // createSalt derives a quasi-salt by reversing the input and applying substitutions.
 // For example: "hello" -> reversed "olleh" -> substituted "011eh"
 func createSalt(input string) string {
@@ -91,4 +83,12 @@ func createSalt(input string) string {
 		}
 	}
 	return string(salt)
+}
+
+// Verify checks if an input string produces the given hash.
+// Returns true if Hash(input) equals the provided hash value.
+// Uses direct string comparison - for security-critical applications,
+// consider using constant-time comparison.
+func Verify(input string, hash string) bool {
+	return Hash(input) == hash
 }
