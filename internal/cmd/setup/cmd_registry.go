@@ -22,7 +22,7 @@ import (
 
 // runRegistrySetup loads a registry from path and runs setup.
 func runRegistrySetup(ctx context.Context, registryPath, only string, dryRun, all, runBuild bool) error {
-	reg, err := repos.LoadRegistry(coreio.Local, registryPath)
+	reg, err := repos.LoadRegistry(registryPath)
 	if err != nil {
 		return fmt.Errorf("failed to load registry: %w", err)
 	}
@@ -117,7 +117,7 @@ func runRegistrySetupWithReg(ctx context.Context, reg *repos.Registry, registryP
 
 			// Check if already exists
 			repoPath := filepath.Join(basePath, repo.Name)
-			// Check .git dir existence via Exists
+			// Check .git dir existence via List
 			if coreio.Local.Exists(filepath.Join(repoPath, ".git")) {
 				exists++
 				continue

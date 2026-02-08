@@ -30,22 +30,22 @@ func loadRegistry(registryPath string) (*repos.Registry, string, error) {
 	var registryDir string
 
 	if registryPath != "" {
-		reg, err = repos.LoadRegistry(io.Local, registryPath)
+		reg, err = repos.LoadRegistry(registryPath)
 		if err != nil {
 			return nil, "", cli.Wrap(err, i18n.T("i18n.fail.load", "registry"))
 		}
 		registryDir = filepath.Dir(registryPath)
 	} else {
-		registryPath, err = repos.FindRegistry(io.Local)
+		registryPath, err = repos.FindRegistry()
 		if err == nil {
-			reg, err = repos.LoadRegistry(io.Local, registryPath)
+			reg, err = repos.LoadRegistry(registryPath)
 			if err != nil {
 				return nil, "", cli.Wrap(err, i18n.T("i18n.fail.load", "registry"))
 			}
 			registryDir = filepath.Dir(registryPath)
 		} else {
 			cwd, _ := os.Getwd()
-			reg, err = repos.ScanDirectory(io.Local, cwd)
+			reg, err = repos.ScanDirectory(cwd)
 			if err != nil {
 				return nil, "", cli.Wrap(err, i18n.T("i18n.fail.scan", "directory"))
 			}
@@ -117,7 +117,7 @@ func scanRepoDocs(repo *repos.Repo) RepoDocInfo {
 	docsDir := filepath.Join(repo.Path, "docs")
 	// Check if directory exists by listing it
 	if _, err := io.Local.List(docsDir); err == nil {
-		_ = filepath.WalkDir(docsDir, func(path string, d fs.DirEntry, err error) error {
+		filepath.WalkDir(docsDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return nil
 			}

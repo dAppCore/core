@@ -9,15 +9,16 @@ package dev
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/errors"
 	"github.com/host-uk/core/pkg/git"
 	"github.com/host-uk/core/pkg/i18n"
 	coreio "github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/log"
 	"github.com/host-uk/core/pkg/repos"
 )
 
@@ -58,19 +59,30 @@ func runFileSync(source string) error {
 
 	// Security: Reject path traversal attempts
 	if strings.Contains(source, "..") {
-		return log.E("dev.sync", "path traversal not allowed", nil)
+		return errors.E("dev.sync", "path traversal not allowed", nil)
 	}
 
-	// Convert to absolute path for io.Local
-	absSource, err := filepath.Abs(source)
-	if err != nil {
-		return log.E("dev.sync", "failed to resolve source path", err)
+	// Validate source exists
+	sourceInfo, err := os.Stat(source) // Keep os.Stat for local source check or use coreio? coreio.Local.IsFile is bool.
+	// If source is local file on disk (not in medium), we can use os.Stat.
+	// But concept is everything is via Medium?
+	// User is running CLI on host. `source` is relative to CWD.
+	// coreio.Local uses absolute path or relative to root (which is "/" by default).
+	// So coreio.Local works.
+	if !coreio.Local.IsFile(source) {
+		// Might be directory
+		// IsFile returns false for directory.
 	}
+	// Let's rely on os.Stat for initial source check to distinguish dir vs file easily if coreio doesn't expose Stat.
+	// coreio doesn't expose Stat.
 
-	// Validate source exists using io.Local.Stat
-	sourceInfo, err := coreio.Local.Stat(absSource)
+	// Check using standard os for source determination as we are outside strict sandbox for input args potentially?
+	// But we should use coreio where possible.
+	// coreio.Local.List worked for dirs.
+	// Let's stick to os.Stat for source properties finding as typically allowed for CLI args.
+
 	if err != nil {
-		return log.E("dev.sync", i18n.T("cmd.dev.file_sync.error.source_not_found", map[string]interface{}{"Path": source}), err)
+		return errors.E("dev.sync", i18n.T("cmd.dev.file_sync.error.source_not_found", map[string]interface{}{"Path": source}), err)
 	}
 
 	// Find target repos
@@ -119,11 +131,7 @@ func runFileSync(source string) error {
 			}
 		} else {
 			// Ensure dir exists
-			if err := coreio.Local.EnsureDir(filepath.Dir(destPath)); err != nil {
-				cli.Print("  %s %s: copy failed: %s\n", errorStyle.Render("x"), repoName, err)
-				failed++
-				continue
-			}
+			coreio.Local.EnsureDir(filepath.Dir(destPath))
 			if err := coreio.Copy(coreio.Local, source, coreio.Local, destPath); err != nil {
 				cli.Print("  %s %s: copy failed: %s\n", errorStyle.Render("x"), repoName, err)
 				failed++
@@ -195,14 +203,14 @@ func runFileSync(source string) error {
 // resolveTargetRepos resolves the --to pattern to actual repos
 func resolveTargetRepos(pattern string) ([]*repos.Repo, error) {
 	// Load registry
-	registryPath, err := repos.FindRegistry(coreio.Local)
+	registryPath, err := repos.FindRegistry()
 	if err != nil {
-		return nil, log.E("dev.sync", "failed to find registry", err)
+		return nil, errors.E("dev.sync", "failed to find registry", err)
 	}
 
-	registry, err := repos.LoadRegistry(coreio.Local, registryPath)
+	registry, err := repos.LoadRegistry(registryPath)
 	if err != nil {
-		return nil, log.E("dev.sync", "failed to load registry", err)
+		return nil, errors.E("dev.sync", "failed to load registry", err)
 	}
 
 	// Match pattern against repo names
