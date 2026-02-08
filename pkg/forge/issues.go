@@ -117,3 +117,26 @@ func (c *Client) GetPullRequest(owner, repo string, number int64) (*forgejo.Pull
 
 	return pr, nil
 }
+
+// CreateIssueComment posts a comment on an issue or pull request.
+func (c *Client) CreateIssueComment(owner, repo string, issue int64, body string) error {
+	_, _, err := c.api.CreateIssueComment(owner, repo, issue, forgejo.CreateIssueCommentOption{
+		Body: body,
+	})
+	if err != nil {
+		return log.E("forge.CreateIssueComment", "failed to create comment", err)
+	}
+	return nil
+}
+
+// CloseIssue closes an issue by setting its state to closed.
+func (c *Client) CloseIssue(owner, repo string, number int64) error {
+	closed := forgejo.StateClosed
+	_, _, err := c.api.EditIssue(owner, repo, number, forgejo.EditIssueOption{
+		State: &closed,
+	})
+	if err != nil {
+		return log.E("forge.CloseIssue", "failed to close issue", err)
+	}
+	return nil
+}

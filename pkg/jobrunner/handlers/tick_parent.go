@@ -6,16 +6,21 @@ import (
 	"strings"
 	"time"
 
+	forgejosdk "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
+
+	"github.com/host-uk/core/pkg/forge"
 	"github.com/host-uk/core/pkg/jobrunner"
 )
 
 // TickParentHandler ticks a child checkbox in the parent epic issue body
 // after the child's PR has been merged.
-type TickParentHandler struct{}
+type TickParentHandler struct {
+	forge *forge.Client
+}
 
 // NewTickParentHandler creates a handler that ticks parent epic checkboxes.
-func NewTickParentHandler() *TickParentHandler {
-	return &TickParentHandler{}
+func NewTickParentHandler(f *forge.Client) *TickParentHandler {
+	return &TickParentHandler{forge: f}
 }
 
 // Name returns the handler identifier.
@@ -29,24 +34,17 @@ func (h *TickParentHandler) Match(signal *jobrunner.PipelineSignal) bool {
 }
 
 // Execute fetches the epic body, replaces the unchecked checkbox for the
-// child issue with a checked one, and updates the epic.
+// child issue with a checked one, updates the epic, and closes the child issue.
 func (h *TickParentHandler) Execute(ctx context.Context, signal *jobrunner.PipelineSignal) (*jobrunner.ActionResult, error) {
 	start := time.Now()
-	repoFlag := signal.RepoFullName()
 
 	// Fetch the epic issue body.
-	viewCmd := execCommand(ctx, "gh", "issue", "view",
-		fmt.Sprintf("%d", signal.EpicNumber),
-		"-R", repoFlag,
-		"--json", "body",
-		"-q", ".body",
-	)
-	bodyBytes, err := viewCmd.Output()
+	epic, err := h.forge.GetIssue(signal.RepoOwner, signal.RepoName, int64(signal.EpicNumber))
 	if err != nil {
-		return nil, fmt.Errorf("tick_parent: fetch epic body: %w", err)
+		return nil, fmt.Errorf("tick_parent: fetch epic: %w", err)
 	}
 
-	oldBody := string(bodyBytes)
+	oldBody := epic.Body
 	unchecked := fmt.Sprintf("- [ ] #%d", signal.ChildNumber)
 	checked := fmt.Sprintf("- [x] #%d", signal.ChildNumber)
 
@@ -65,30 +63,24 @@ func (h *TickParentHandler) Execute(ctx context.Context, signal *jobrunner.Pipel
 
 	newBody := strings.Replace(oldBody, unchecked, checked, 1)
 
-	editCmd := execCommand(ctx, "gh", "issue", "edit",
-		fmt.Sprintf("%d", signal.EpicNumber),
-		"-R", repoFlag,
-		"--body", newBody,
-	)
-	editOutput, err := editCmd.CombinedOutput()
+	// Update the epic body.
+	_, err = h.forge.EditIssue(signal.RepoOwner, signal.RepoName, int64(signal.EpicNumber), forgejosdk.EditIssueOption{
+		Body: &newBody,
+	})
 	if err != nil {
 		return &jobrunner.ActionResult{
 			Action:    "tick_parent",
 			RepoOwner: signal.RepoOwner,
 			RepoName:  signal.RepoName,
 			PRNumber:  signal.PRNumber,
-			Error:     fmt.Sprintf("gh issue edit failed: %v: %s", err, string(editOutput)),
+			Error:     fmt.Sprintf("edit epic failed: %v", err),
 			Timestamp: time.Now(),
 			Duration:  time.Since(start),
 		}, nil
 	}
 
-	// Also close the child issue (design steps 8+9 combined).
-	closeCmd := execCommand(ctx, "gh", "issue", "close",
-		fmt.Sprintf("%d", signal.ChildNumber),
-		"-R", repoFlag,
-	)
-	closeOutput, err := closeCmd.CombinedOutput()
+	// Close the child issue.
+	err = h.forge.CloseIssue(signal.RepoOwner, signal.RepoName, int64(signal.ChildNumber))
 
 	result := &jobrunner.ActionResult{
 		Action:    "tick_parent",
@@ -101,7 +93,7 @@ func (h *TickParentHandler) Execute(ctx context.Context, signal *jobrunner.Pipel
 	}
 
 	if err != nil {
-		result.Error = fmt.Sprintf("gh issue close failed: %v: %s", err, string(closeOutput))
+		result.Error = fmt.Sprintf("close child issue failed: %v", err)
 	}
 
 	return result, nil

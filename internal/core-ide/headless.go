@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/forge"
 	"github.com/host-uk/core/pkg/jobrunner"
-	"github.com/host-uk/core/pkg/jobrunner/github"
+	forgejosource "github.com/host-uk/core/pkg/jobrunner/forgejo"
 	"github.com/host-uk/core/pkg/jobrunner/handlers"
 )
 
@@ -33,11 +34,6 @@ func startHeadless() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// TODO: Updater integration — the internal/cmd/updater package cannot be
-	// imported from the core-ide module due to Go's internal package restriction
-	// (separate modules). Move updater to pkg/updater or export a public API to
-	// enable auto-update in headless mode.
-
 	// Journal
 	journalDir := filepath.Join(os.Getenv("HOME"), ".core", "journal")
 	journal, err := jobrunner.NewJournal(journalDir)
@@ -45,30 +41,36 @@ func startHeadless() {
 		log.Fatalf("Failed to create journal: %v", err)
 	}
 
-	// GitHub source — repos from CORE_REPOS env var or default
+	// Forge client
+	forgeClient, err := forge.NewFromConfig("", "")
+	if err != nil {
+		log.Fatalf("Failed to create forge client: %v", err)
+	}
+
+	// Forgejo source — repos from CORE_REPOS env var or default
 	repos := parseRepoList(os.Getenv("CORE_REPOS"))
 	if len(repos) == 0 {
 		repos = []string{"host-uk/core", "host-uk/core-php", "host-uk/core-tenant", "host-uk/core-admin"}
 	}
 
-	ghSource := github.NewGitHubSource(github.Config{
+	source := forgejosource.New(forgejosource.Config{
 		Repos: repos,
-	})
+	}, forgeClient)
 
 	// Handlers (order matters — first match wins)
-	publishDraft := handlers.NewPublishDraftHandler(nil, "")
-	sendFix := handlers.NewSendFixCommandHandler(nil, "")
-	resolveThreads := handlers.NewResolveThreadsHandler(nil, "")
-	enableAutoMerge := handlers.NewEnableAutoMergeHandler()
-	tickParent := handlers.NewTickParentHandler()
+	publishDraft := handlers.NewPublishDraftHandler(forgeClient)
+	sendFix := handlers.NewSendFixCommandHandler(forgeClient)
+	dismissReviews := handlers.NewDismissReviewsHandler(forgeClient)
+	enableAutoMerge := handlers.NewEnableAutoMergeHandler(forgeClient)
+	tickParent := handlers.NewTickParentHandler(forgeClient)
 
 	// Build poller
 	poller := jobrunner.NewPoller(jobrunner.PollerConfig{
-		Sources: []jobrunner.JobSource{ghSource},
+		Sources: []jobrunner.JobSource{source},
 		Handlers: []jobrunner.JobHandler{
 			publishDraft,
 			sendFix,
-			resolveThreads,
+			dismissReviews,
 			enableAutoMerge,
 			tickParent,
 		},

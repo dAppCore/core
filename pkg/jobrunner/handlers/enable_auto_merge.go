@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/host-uk/core/pkg/forge"
 	"github.com/host-uk/core/pkg/jobrunner"
 )
 
-// EnableAutoMergeHandler enables squash auto-merge on a PR that is ready.
-type EnableAutoMergeHandler struct{}
+// EnableAutoMergeHandler merges a PR that is ready using squash strategy.
+type EnableAutoMergeHandler struct {
+	forge *forge.Client
+}
 
-// NewEnableAutoMergeHandler creates a handler that enables auto-merge.
-func NewEnableAutoMergeHandler() *EnableAutoMergeHandler {
-	return &EnableAutoMergeHandler{}
+// NewEnableAutoMergeHandler creates a handler that merges ready PRs.
+func NewEnableAutoMergeHandler(f *forge.Client) *EnableAutoMergeHandler {
+	return &EnableAutoMergeHandler{forge: f}
 }
 
 // Name returns the handler identifier.
@@ -31,15 +34,11 @@ func (h *EnableAutoMergeHandler) Match(signal *jobrunner.PipelineSignal) bool {
 		!signal.HasUnresolvedThreads()
 }
 
-// Execute shells out to gh to enable auto-merge with squash strategy.
+// Execute merges the pull request with squash strategy.
 func (h *EnableAutoMergeHandler) Execute(ctx context.Context, signal *jobrunner.PipelineSignal) (*jobrunner.ActionResult, error) {
 	start := time.Now()
 
-	repoFlag := fmt.Sprintf("%s/%s", signal.RepoOwner, signal.RepoName)
-	prNumber := fmt.Sprintf("%d", signal.PRNumber)
-
-	cmd := execCommand(ctx, "gh", "pr", "merge", "--auto", "--squash", prNumber, "-R", repoFlag)
-	output, err := cmd.CombinedOutput()
+	err := h.forge.MergePullRequest(signal.RepoOwner, signal.RepoName, int64(signal.PRNumber), "squash")
 
 	result := &jobrunner.ActionResult{
 		Action:    "enable_auto_merge",
@@ -52,7 +51,7 @@ func (h *EnableAutoMergeHandler) Execute(ctx context.Context, signal *jobrunner.
 	}
 
 	if err != nil {
-		result.Error = fmt.Sprintf("gh pr merge failed: %v: %s", err, string(output))
+		result.Error = fmt.Sprintf("merge failed: %v", err)
 	}
 
 	return result, nil

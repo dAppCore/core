@@ -14,7 +14,7 @@ import (
 )
 
 func TestSendFixCommand_Match_Good_Conflicting(t *testing.T) {
-	h := NewSendFixCommandHandler(nil, "")
+	h := NewSendFixCommandHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:   "OPEN",
 		Mergeable: "CONFLICTING",
@@ -23,7 +23,7 @@ func TestSendFixCommand_Match_Good_Conflicting(t *testing.T) {
 }
 
 func TestSendFixCommand_Match_Good_UnresolvedThreads(t *testing.T) {
-	h := NewSendFixCommandHandler(nil, "")
+	h := NewSendFixCommandHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:         "OPEN",
 		Mergeable:       "MERGEABLE",
@@ -35,7 +35,7 @@ func TestSendFixCommand_Match_Good_UnresolvedThreads(t *testing.T) {
 }
 
 func TestSendFixCommand_Match_Bad_Clean(t *testing.T) {
-	h := NewSendFixCommandHandler(nil, "")
+	h := NewSendFixCommandHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:         "OPEN",
 		Mergeable:       "MERGEABLE",
@@ -51,17 +51,19 @@ func TestSendFixCommand_Execute_Good_Conflict(t *testing.T) {
 	var capturedPath string
 	var capturedBody string
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedMethod = r.Method
 		capturedPath = r.URL.Path
 		b, _ := io.ReadAll(r.Body)
 		capturedBody = string(b)
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte(`{"id":1}`))
-	}))
+	})))
 	defer srv.Close()
 
-	h := NewSendFixCommandHandler(srv.Client(), srv.URL)
+	client := newTestForgeClient(t, srv.URL)
+
+	h := NewSendFixCommandHandler(client)
 	sig := &jobrunner.PipelineSignal{
 		RepoOwner: "host-uk",
 		RepoName:  "core-tenant",
@@ -74,7 +76,7 @@ func TestSendFixCommand_Execute_Good_Conflict(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.MethodPost, capturedMethod)
-	assert.Equal(t, "/repos/host-uk/core-tenant/issues/17/comments", capturedPath)
+	assert.Equal(t, "/api/v1/repos/host-uk/core-tenant/issues/17/comments", capturedPath)
 	assert.Contains(t, capturedBody, "fix the merge conflict")
 
 	assert.True(t, result.Success)
