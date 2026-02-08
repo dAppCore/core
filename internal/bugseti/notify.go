@@ -14,13 +14,15 @@ import (
 type NotifyService struct {
 	enabled bool
 	sound   bool
+	config  *ConfigService
 }
 
 // NewNotifyService creates a new NotifyService.
-func NewNotifyService() *NotifyService {
+func NewNotifyService(config *ConfigService) *NotifyService {
 	return &NotifyService{
 		enabled: true,
 		sound:   true,
+		config:  config,
 	}
 }
 
@@ -45,7 +47,11 @@ func (n *NotifyService) Notify(title, message string) error {
 		return nil
 	}
 
-	log.Printf("Notification: %s - %s", title, message)
+	guard := getEthicsGuardWithRoot(context.Background(), n.getMarketplaceRoot())
+	safeTitle := guard.SanitizeNotification(title)
+	safeMessage := guard.SanitizeNotification(message)
+
+	log.Printf("Notification: %s - %s", safeTitle, safeMessage)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -53,11 +59,11 @@ func (n *NotifyService) Notify(title, message string) error {
 	var err error
 	switch runtime.GOOS {
 	case "darwin":
-		err = n.notifyMacOS(ctx, title, message)
+		err = n.notifyMacOS(ctx, safeTitle, safeMessage)
 	case "linux":
-		err = n.notifyLinux(ctx, title, message)
+		err = n.notifyLinux(ctx, safeTitle, safeMessage)
 	case "windows":
-		err = n.notifyWindows(ctx, title, message)
+		err = n.notifyWindows(ctx, safeTitle, safeMessage)
 	default:
 		err = fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
@@ -66,6 +72,13 @@ func (n *NotifyService) Notify(title, message string) error {
 		log.Printf("Notification error: %v", err)
 	}
 	return err
+}
+
+func (n *NotifyService) getMarketplaceRoot() string {
+	if n == nil || n.config == nil {
+		return ""
+	}
+	return n.config.GetMarketplaceMCPRoot()
 }
 
 // NotifyIssue sends a notification about a new issue.
@@ -84,7 +97,7 @@ func (n *NotifyService) NotifyPRStatus(repo string, prNumber int, status string)
 
 // notifyMacOS sends a notification on macOS using osascript.
 func (n *NotifyService) notifyMacOS(ctx context.Context, title, message string) error {
-	script := fmt.Sprintf(`display notification "%s" with title "%s"`, message, title)
+	script := fmt.Sprintf(`display notification "%s" with title "%s"`, escapeAppleScript(message), escapeAppleScript(title))
 	if n.sound {
 		script += ` sound name "Glass"`
 	}
@@ -106,6 +119,9 @@ func (n *NotifyService) notifyLinux(ctx context.Context, title, message string) 
 
 // notifyWindows sends a notification on Windows using PowerShell.
 func (n *NotifyService) notifyWindows(ctx context.Context, title, message string) error {
+	title = escapePowerShellXML(title)
+	message = escapePowerShellXML(message)
+
 	script := fmt.Sprintf(`
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
