@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lethean Community — Build Trust Through Code</title>
+  <meta name="description" content="An open source community where developers earn functional trust by fixing real bugs. BugSETI by Lethean.io — SETI@home for code.">
+  <link rel="canonical" href="https://lthn.community">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Lethean Community — Build Trust Through Code">
+  <meta property="og:description" content="An open source community where developers earn functional trust by fixing real bugs.">
+  <meta property="og:url" content="https://lthn.community">
+  <meta property="og:type" content="website">
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            lethean: {
+              950: '#070a0f',
+              900: '#0d1117',
+              800: '#161b22',
+              700: '#21262d',
+              600: '#30363d',
+              500: '#484f58',
+              400: '#8b949e',
+              300: '#c9d1d9',
+              200: '#e6edf3',
+            },
+            cyan: {
+              400: '#40c1c5',
+              500: '#2da8ac',
+            },
+            blue: {
+              400: '#58a6ff',
+              500: '#4A90E2',
+              600: '#357ABD',
+            },
+          },
+          fontFamily: {
+            display: ['"DM Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #070a0f;
+      color: #c9d1d9;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* Cursor glow */
+    .glow-cursor {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      background: radial-gradient(circle, rgba(64,193,197,0.06) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      transition: opacity 0.3s;
+    }
+
+    /* Typing cursor blink */
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+    .cursor-blink::after {
+      content: '▊';
+      animation: blink 1s infinite;
+      color: #40c1c5;
+      margin-left: 2px;
+    }
+
+    /* Fade-in on scroll */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up {
+      opacity: 0;
+      animation: fadeUp 0.6s ease-out forwards;
+    }
+    .fade-up-d1 { animation-delay: 0.1s; }
+    .fade-up-d2 { animation-delay: 0.2s; }
+    .fade-up-d3 { animation-delay: 0.3s; }
+    .fade-up-d4 { animation-delay: 0.4s; }
+    .fade-up-d5 { animation-delay: 0.5s; }
+    .fade-up-d6 { animation-delay: 0.6s; }
+
+    /* Terminal-style section divider */
+    .terminal-line::before {
+      content: '$ ';
+      color: #40c1c5;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Gradient border effect */
+    .gradient-border {
+      position: relative;
+    }
+    .gradient-border::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(135deg, #40c1c5, #4A90E2, #40c1c5);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+
+    /* Soft glow for hero text */
+    .text-glow {
+      text-shadow: 0 0 80px rgba(64,193,197,0.3), 0 0 32px rgba(64,193,197,0.1);
+    }
+
+    /* Stats counter animation */
+    @keyframes countUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Link hover effect */
+    .link-underline {
+      position: relative;
+    }
+    .link-underline::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: #40c1c5;
+      transition: width 0.3s ease;
+    }
+    .link-underline:hover::after {
+      width: 100%;
+    }
+  </style>
+</head>
+<body class="antialiased relative overflow-x-hidden">
+
+  <!-- Cursor glow follower -->
+  <div class="glow-cursor hidden lg:block" id="glowCursor"></div>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- NAV -->
+  <!-- ─────────────────────────────────────────────── -->
+  <nav class="fixed top-0 inset-x-0 z-40 backdrop-blur-xl bg-lethean-950/80 border-b border-lethean-600/30">
+    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <span class="text-cyan-400 font-mono text-sm font-medium tracking-tight">lthn</span>
+        <span class="text-lethean-500 font-mono text-xs">/</span>
+        <span class="text-lethean-300 text-sm font-medium">community</span>
+      </a>
+      <div class="flex items-center gap-6 text-sm">
+        <a href="#how-it-works" class="text-lethean-400 hover:text-lethean-200 transition-colors link-underline">How it works</a>
+        <a href="#ecosystem" class="text-lethean-400 hover:text-lethean-200 transition-colors link-underline">Ecosystem</a>
+        <a href="https://github.com/host-uk/core" target="_blank" rel="noopener" class="text-lethean-400 hover:text-lethean-200 transition-colors link-underline">GitHub</a>
+        <a href="#join" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-cyan-400/10 text-cyan-400 border border-cyan-400/20 hover:bg-cyan-400/20 hover:border-cyan-400/30 transition-all text-sm font-medium">
+          Get BugSETI
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- HERO -->
+  <!-- ─────────────────────────────────────────────── -->
+  <section class="relative min-h-screen flex items-center justify-center pt-14">
+    <!-- Background grid -->
+    <div class="absolute inset-0" style="background-image: linear-gradient(rgba(48,54,61,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(48,54,61,0.15) 1px, transparent 1px); background-size: 64px 64px;"></div>
+    <!-- Radial fade -->
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,#070a0f_70%)]"></div>
+
+    <div class="relative z-10 max-w-4xl mx-auto px-6 text-center">
+      <!-- Badge -->
+      <div class="fade-up inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lethean-800/80 border border-lethean-600/40 text-xs font-mono text-lethean-400 mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+        BugSETI by Lethean.io
+      </div>
+
+      <!-- Headline -->
+      <h1 class="fade-up fade-up-d1 text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6">
+        <span class="text-lethean-200">Build trust</span><br>
+        <span class="text-glow text-cyan-400">through code</span>
+      </h1>
+
+      <!-- Subheadline -->
+      <p class="fade-up fade-up-d2 text-lg sm:text-xl text-lethean-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        An open source community where every commit, review, and pull request
+        builds your reputation. Like SETI@home, but for fixing real bugs in real projects.
+      </p>
+
+      <!-- Terminal preview -->
+      <div class="fade-up fade-up-d3 max-w-lg mx-auto mb-10">
+        <div class="gradient-border rounded-lg overflow-hidden">
+          <div class="bg-lethean-900 rounded-lg">
+            <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-lethean-700/50">
+              <span class="w-2.5 h-2.5 rounded-full bg-lethean-600/60"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-lethean-600/60"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-lethean-600/60"></span>
+              <span class="ml-3 text-xs font-mono text-lethean-500">~</span>
+            </div>
+            <div class="px-4 py-4 text-left font-mono text-sm leading-relaxed">
+              <div class="text-lethean-400"><span class="text-cyan-400">$</span> bugseti start</div>
+              <div class="text-lethean-500 mt-1">⠋ Fetching issues from 42 OSS repos...</div>
+              <div class="text-green-400/80 mt-1">✓ 7 beginner-friendly issues queued</div>
+              <div class="text-green-400/80">✓ AI context prepared for each issue</div>
+              <div class="text-lethean-300 mt-1">Ready. Fix bugs. Build trust. <span class="cursor-blink"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTAs -->
+      <div class="fade-up fade-up-d4 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a href="#join" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-cyan-400 text-lethean-950 font-semibold text-sm hover:bg-cyan-400/90 transition-all shadow-lg shadow-cyan-400/10">
+          Download BugSETI
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+        </a>
+        <a href="https://github.com/host-uk/core" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-lethean-600/50 text-lethean-300 font-medium text-sm hover:bg-lethean-800/50 hover:border-lethean-500/50 transition-all">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View Source
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- HOW IT WORKS -->
+  <!-- ─────────────────────────────────────────────── -->
+  <section id="how-it-works" class="relative py-32">
+    <div class="max-w-5xl mx-auto px-6">
+
+      <div class="text-center mb-20">
+        <p class="font-mono text-xs text-cyan-400 tracking-widest uppercase mb-3">How it works</p>
+        <h2 class="text-3xl sm:text-4xl font-bold text-lethean-200 mb-4">From install to impact</h2>
+        <p class="text-lethean-400 max-w-xl mx-auto">BugSETI runs in your system tray. It finds issues, prepares context, and gets out of your way. You write code. The community remembers.</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- Step 1 -->
+        <div class="group relative p-6 rounded-xl bg-lethean-900/50 border border-lethean-700/30 hover:border-cyan-400/20 transition-all duration-300">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center justify-center w-8 h-8 rounded-md bg-cyan-400/10 text-cyan-400 font-mono text-sm font-bold">1</span>
+            <h3 class="text-lethean-200 font-semibold">Install & connect</h3>
+          </div>
+          <p class="text-sm text-lethean-400 leading-relaxed mb-4">Download BugSETI, connect your GitHub account. That's your identity in the Lethean Community — one account, everywhere.</p>
+          <div class="font-mono text-xs text-lethean-500 bg-lethean-800/50 rounded-md px-3 py-2">
+            <span class="text-cyan-400/70">$</span> gh auth login<br>
+            <span class="text-cyan-400/70">$</span> bugseti init
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="group relative p-6 rounded-xl bg-lethean-900/50 border border-lethean-700/30 hover:border-cyan-400/20 transition-all duration-300">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center justify-center w-8 h-8 rounded-md bg-cyan-400/10 text-cyan-400 font-mono text-sm font-bold">2</span>
+            <h3 class="text-lethean-200 font-semibold">Pick an issue</h3>
+          </div>
+          <p class="text-sm text-lethean-400 leading-relaxed mb-4">BugSETI scans OSS repos for beginner-friendly issues. AI prepares context — the relevant files, similar past fixes, project conventions.</p>
+          <div class="font-mono text-xs text-lethean-500 bg-lethean-800/50 rounded-md px-3 py-2">
+            <span class="text-green-400/70">✓</span> 7 issues ready<br>
+            <span class="text-green-400/70">✓</span> Context seeded
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="group relative p-6 rounded-xl bg-lethean-900/50 border border-lethean-700/30 hover:border-cyan-400/20 transition-all duration-300">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center justify-center w-8 h-8 rounded-md bg-cyan-400/10 text-cyan-400 font-mono text-sm font-bold">3</span>
+            <h3 class="text-lethean-200 font-semibold">Fix & earn trust</h3>
+          </div>
+          <p class="text-sm text-lethean-400 leading-relaxed mb-4">Submit your PR. Every merged fix, every review, every contribution — it all counts. Your track record becomes your reputation.</p>
+          <div class="font-mono text-xs text-lethean-500 bg-lethean-800/50 rounded-md px-3 py-2">
+            <span class="text-green-400/70">✓</span> PR #247 merged<br>
+            <span class="text-cyan-400/70">↑</span> Trust updated
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- WHAT YOU GET -->
+  <!-- ─────────────────────────────────────────────── -->
+  <section class="relative py-24">
+    <div class="max-w-5xl mx-auto px-6">
+
+      <!-- BugSETI features -->
+      <div class="grid lg:grid-cols-2 gap-16 items-center mb-32">
+        <div>
+          <p class="font-mono text-xs text-cyan-400 tracking-widest uppercase mb-3">The app</p>
+          <h2 class="text-3xl font-bold text-lethean-200 mb-4">A workbench in your tray</h2>
+          <p class="text-lethean-400 leading-relaxed mb-6">BugSETI lives in your system tray on macOS, Linux, and Windows. It quietly fetches issues, seeds AI context, and presents a clean workbench when you're ready to code.</p>
+          <div class="space-y-3 text-sm">
+            <div class="flex items-start gap-3">
+              <span class="text-cyan-400 mt-0.5 font-mono text-xs">→</span>
+              <span class="text-lethean-300">Priority queue — issues ranked by your skills and interests</span>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-cyan-400 mt-0.5 font-mono text-xs">→</span>
+              <span class="text-lethean-300">AI context seeding — relevant files and patterns, ready to go</span>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-cyan-400 mt-0.5 font-mono text-xs">→</span>
+              <span class="text-lethean-300">One-click PR submission — fork, branch, commit, push</span>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-cyan-400 mt-0.5 font-mono text-xs">→</span>
+              <span class="text-lethean-300">Stats tracking — streaks, repos contributed, PRs merged</span>
+            </div>
+          </div>
+        </div>
+        <div class="gradient-border rounded-xl overflow-hidden">
+          <div class="bg-lethean-900 rounded-xl p-1">
+            <!-- Mock app UI -->
+            <div class="bg-lethean-800 rounded-lg overflow-hidden">
+              <div class="flex items-center gap-1.5 px-3 py-2 bg-lethean-900/80 border-b border-lethean-700/30">
+                <span class="w-2 h-2 rounded-full bg-red-400/40"></span>
+                <span class="w-2 h-2 rounded-full bg-yellow-400/40"></span>
+                <span class="w-2 h-2 rounded-full bg-green-400/40"></span>
+                <span class="ml-2 text-[10px] font-mono text-lethean-500">BugSETI — Workbench</span>
+              </div>
+              <div class="p-4 space-y-3">
+                <!-- Mock issue card -->
+                <div class="p-3 rounded-md bg-lethean-900/60 border border-lethean-700/20">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-mono text-cyan-400/80">lodash/lodash#5821</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-green-400/10 text-green-400/80 border border-green-400/20">good first issue</span>
+                  </div>
+                  <p class="text-xs text-lethean-300 mb-2">Fix _.merge not handling Symbol properties</p>
+                  <div class="flex items-center gap-3 text-[10px] text-lethean-500">
+                    <span>⭐ 58.2k</span>
+                    <span>JavaScript</span>
+                    <span>Context ready</span>
+                  </div>
+                </div>
+                <!-- Mock issue card 2 -->
+                <div class="p-3 rounded-md bg-lethean-900/30 border border-lethean-700/10">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-mono text-lethean-500">vuejs/core#9214</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-400/10 text-blue-400/70 border border-blue-400/15">bug</span>
+                  </div>
+                  <p class="text-xs text-lethean-400 mb-2">Teleport target not updating on HMR</p>
+                  <div class="flex items-center gap-3 text-[10px] text-lethean-500">
+                    <span>⭐ 44.7k</span>
+                    <span>TypeScript</span>
+                    <span>Seeding...</span>
+                  </div>
+                </div>
+                <!-- Status bar -->
+                <div class="flex items-center justify-between pt-2 border-t border-lethean-700/20 text-[10px] font-mono text-lethean-500">
+                  <span>7 issues queued</span>
+                  <span class="text-cyan-400/60">♫ dapp.fm playing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dapp.fm teaser -->
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <div class="order-2 lg:order-1">
+          <div class="gradient-border rounded-xl overflow-hidden">
+            <div class="bg-lethean-900 rounded-xl p-6">
+              <div class="flex items-center gap-4 mb-4">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20 flex items-center justify-center text-cyan-400">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                </div>
+                <div>
+                  <p class="text-lethean-200 font-semibold">dapp.fm</p>
+                  <p class="text-xs text-lethean-500">Built into BugSETI</p>
+                </div>
+              </div>
+              <!-- Mini player mock -->
+              <div class="bg-lethean-800/60 rounded-lg p-4 border border-lethean-700/20">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-md bg-gradient-to-br from-purple-500/30 to-cyan-400/30 flex items-center justify-center text-xs text-lethean-400">♫</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-lethean-200 truncate">It Feels So Good (Amnesia Mix)</p>
+                    <p class="text-[10px] text-lethean-500">The Conductor & The Cowboy</p>
+                  </div>
+                  <span class="text-[10px] font-mono text-lethean-500">3:42</span>
+                </div>
+                <div class="h-1 bg-lethean-700/50 rounded-full overflow-hidden">
+                  <div class="h-full w-2/3 bg-gradient-to-r from-cyan-400/60 to-cyan-400/30 rounded-full"></div>
+                </div>
+              </div>
+              <p class="text-[10px] text-lethean-500 mt-3 font-mono">Zero-trust DRM · Artists keep 95–100% · ChaCha20-Poly1305</p>
+            </div>
+          </div>
+        </div>
+        <div class="order-1 lg:order-2">
+          <p class="font-mono text-xs text-cyan-400 tracking-widest uppercase mb-3">Built in</p>
+          <h2 class="text-3xl font-bold text-lethean-200 mb-4">Music while you merge</h2>
+          <p class="text-lethean-400 leading-relaxed mb-6">dapp.fm is a free music player built into BugSETI. Zero-trust DRM where the password is the license. Artists keep almost everything. No middlemen, no platform fees.</p>
+          <p class="text-sm text-lethean-400 leading-relaxed">The player is a working implementation of the Lethean protocol RFCs — encrypted, decentralised, and yours. Code, listen, contribute.</p>
+          <a href="https://demo.dapp.fm" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-4 text-sm text-cyan-400 hover:text-cyan-400/80 transition-colors link-underline">
+            Try the demo
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- ECOSYSTEM -->
+  <!-- ─────────────────────────────────────────────── -->
+  <section id="ecosystem" class="relative py-32">
+    <div class="max-w-5xl mx-auto px-6">
+
+      <div class="text-center mb-16">
+        <p class="font-mono text-xs text-cyan-400 tracking-widest uppercase mb-3">Ecosystem</p>
+        <h2 class="text-3xl sm:text-4xl font-bold text-lethean-200 mb-4">One identity, everywhere</h2>
+        <p class="text-lethean-400 max-w-xl mx-auto">Your GitHub is your Lethean identity. One name across Web2, Web3, Handshake DNS, blockchain — verified by what you've actually done.</p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Card: Lethean Protocol -->
+        <div class="p-5 rounded-xl bg-lethean-900/40 border border-lethean-700/20 hover:border-lethean-600/40 transition-all group">
+          <div class="text-cyan-400/60 mb-3 font-mono text-xs">Protocol</div>
+          <h3 class="text-lethean-200 font-semibold mb-2 group-hover:text-cyan-400 transition-colors">Lethean Network</h3>
+          <p class="text-sm text-lethean-400 leading-relaxed">Privacy-first blockchain. Consent-gated networking via the UEPS protocol. Data sovereignty cryptographically enforced.</p>
+          <a href="https://lt.hn" target="_blank" rel="noopener" class="inline-flex items-center gap-1 mt-3 text-xs text-cyan-400/60 hover:text-cyan-400 transition-colors">lt.hn →</a>
+        </div>
+
+        <!-- Card: Handshake DNS -->
+        <div class="p-5 rounded-xl bg-lethean-900/40 border border-lethean-700/20 hover:border-lethean-600/40 transition-all group">
+          <div class="text-cyan-400/60 mb-3 font-mono text-xs">Identity</div>
+          <h3 class="text-lethean-200 font-semibold mb-2 group-hover:text-cyan-400 transition-colors">lthn/ everywhere</h3>
+          <p class="text-sm text-lethean-400 leading-relaxed">Handshake TLD, .io, .ai, .community, .eth, .tron — one name that resolves across every namespace. Your DID, decentralised.</p>
+          <a href="https://hns.to" target="_blank" rel="noopener" class="inline-flex items-center gap-1 mt-3 text-xs text-cyan-400/60 hover:text-cyan-400 transition-colors">hns.to →</a>
+        </div>
+
+        <!-- Card: Open Source -->
+        <div class="p-5 rounded-xl bg-lethean-900/40 border border-lethean-700/20 hover:border-lethean-600/40 transition-all group">
+          <div class="text-cyan-400/60 mb-3 font-mono text-xs">Foundation</div>
+          <h3 class="text-lethean-200 font-semibold mb-2 group-hover:text-cyan-400 transition-colors">EUPL-1.2</h3>
+          <p class="text-sm text-lethean-400 leading-relaxed">Every line is open source under the European Union Public License. 23 languages, no jurisdiction loopholes. Code stays open, forever.</p>
+          <a href="https://host.uk.com/oss" target="_blank" rel="noopener" class="inline-flex items-center gap-1 mt-3 text-xs text-cyan-400/60 hover:text-cyan-400 transition-colors">host.uk.com/oss →</a>
+        </div>
+
+        <!-- Card: AI Models -->
+        <div class="p-5 rounded-xl bg-lethean-900/40 border border-lethean-700/20 hover:border-lethean-600/40 transition-all group">
+          <div class="text-cyan-400/60 mb-3 font-mono text-xs">Coming</div>
+          <h3 class="text-lethean-200 font-semibold mb-2 group-hover:text-cyan-400 transition-colors">lthn.ai</h3>
+          <p class="text-sm text-lethean-400 leading-relaxed">Open source EUPL-1.2 models up to 70B parameters. High quality, embeddable transformers for the community.</p>
+          <span class="inline-flex items-center gap-1 mt-3 text-xs text-lethean-500">Coming soon</span>
+        </div>
+
+        <!-- Card: dapp.fm -->
+        <div class="p-5 rounded-xl bg-lethean-900/40 border border-lethean-700/20 hover:border-lethean-600/40 transition-all group">
+          <div class="text-cyan-400/60 mb-3 font-mono text-xs">Music</div>
+          <h3 class="text-lethean-200 font-semibold mb-2 group-hover:text-cyan-400 transition-colors">dapp.fm</h3>
+          <p class="text-sm text-lethean-400 leading-relaxed">All-in-one publishing platform. Zero-trust DRM. Artists keep 95–100%. Built on Borg encryption and LTHN rolling keys.</p>
+          <a href="https://demo.dapp.fm" target="_blank" rel="noopener" class="inline-flex items-center gap-1 mt-3 text-xs text-cyan-400/60 hover:text-cyan-400 transition-colors">demo.dapp.fm →</a>
+        </div>
+
+        <!-- Card: Host UK -->
+        <div class="p-5 rounded-xl bg-lethean-900/40 border border-lethean-700/20 hover:border-lethean-600/40 transition-all group">
+          <div class="text-cyan-400/60 mb-3 font-mono text-xs">Services</div>
+          <h3 class="text-lethean-200 font-semibold mb-2 group-hover:text-cyan-400 transition-colors">Host UK</h3>
+          <p class="text-sm text-lethean-400 leading-relaxed">Infrastructure and services brand of the Lethean Community. Privacy-first hosting, analytics, trust verification, notifications.</p>
+          <a href="https://host.uk.com" target="_blank" rel="noopener" class="inline-flex items-center gap-1 mt-3 text-xs text-cyan-400/60 hover:text-cyan-400 transition-colors">host.uk.com →</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- JOIN / DOWNLOAD -->
+  <!-- ─────────────────────────────────────────────── -->
+  <section id="join" class="relative py-32">
+    <!-- Subtle gradient bg -->
+    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/[0.02] to-transparent"></div>
+
+    <div class="relative max-w-3xl mx-auto px-6 text-center">
+
+      <p class="font-mono text-xs text-cyan-400 tracking-widest uppercase mb-3">Get started</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-lethean-200 mb-4">Join the community</h2>
+      <p class="text-lethean-400 max-w-lg mx-auto mb-10">Install BugSETI. Connect your GitHub. Start contributing. Every bug you fix makes open source better — and builds a trust record that's cryptographically yours.</p>
+
+      <!-- Download buttons -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
+        <a href="https://github.com/host-uk/core/releases" target="_blank" rel="noopener" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-lethean-800 border border-lethean-600/40 text-lethean-200 font-medium text-sm hover:bg-lethean-700 hover:border-lethean-500/50 transition-all">
+          <span class="text-lg">🐧</span> Linux
+        </a>
+        <a href="https://github.com/host-uk/core/releases" target="_blank" rel="noopener" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-lethean-800 border border-lethean-600/40 text-lethean-200 font-medium text-sm hover:bg-lethean-700 hover:border-lethean-500/50 transition-all">
+          <span class="text-lg">🍎</span> macOS
+        </a>
+        <a href="https://github.com/host-uk/core/releases" target="_blank" rel="noopener" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-lethean-800 border border-lethean-600/40 text-lethean-200 font-medium text-sm hover:bg-lethean-700 hover:border-lethean-500/50 transition-all">
+          <span class="text-lg">🪟</span> Windows
+        </a>
+      </div>
+
+      <!-- Or just the terminal way -->
+      <div class="gradient-border rounded-lg overflow-hidden max-w-md mx-auto">
+        <div class="bg-lethean-900 rounded-lg px-5 py-3 font-mono text-sm text-left">
+          <span class="text-lethean-500"># or build from source</span><br>
+          <span class="text-cyan-400">$</span> <span class="text-lethean-300">git clone https://github.com/host-uk/core</span><br>
+          <span class="text-cyan-400">$</span> <span class="text-lethean-300">cd core && go build ./cmd/bugseti</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- FOOTER -->
+  <!-- ─────────────────────────────────────────────── -->
+  <footer class="border-t border-lethean-700/20 py-12">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-2">
+          <span class="font-mono text-sm text-cyan-400">lthn</span>
+          <span class="text-lethean-600 font-mono text-xs">/</span>
+          <span class="text-lethean-400 text-sm">community</span>
+        </div>
+
+        <div class="flex items-center gap-6 text-xs text-lethean-500">
+          <a href="https://github.com/host-uk" target="_blank" rel="noopener" class="hover:text-lethean-300 transition-colors">GitHub</a>
+          <a href="https://discord.com/invite/lethean-lthn-379876792003067906" target="_blank" rel="noopener" class="hover:text-lethean-300 transition-colors">Discord</a>
+          <a href="https://lethean.io" target="_blank" rel="noopener" class="hover:text-lethean-300 transition-colors">Lethean.io</a>
+          <a href="https://host.uk.com" target="_blank" rel="noopener" class="hover:text-lethean-300 transition-colors">Host UK</a>
+        </div>
+
+        <div class="text-xs text-lethean-600 font-mono">
+          EUPL-1.2 · Viva La OpenSource
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ─────────────────────────────────────────────── -->
+  <!-- JS: Cursor glow + scroll animations -->
+  <!-- ─────────────────────────────────────────────── -->
+  <script>
+    // Cursor glow follower
+    const glow = document.getElementById('glowCursor');
+    if (glow && window.matchMedia('(pointer: fine)').matches) {
+      document.addEventListener('mousemove', (e) => {
+        glow.style.left = e.clientX + 'px';
+        glow.style.top = e.clientY + 'px';
+      });
+    }
+
+    // Intersection Observer for fade-in sections
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('fade-up');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    // Observe all section headings and cards
+    document.querySelectorAll('section:not(:first-of-type) h2, section:not(:first-of-type) .grid > div').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(24px)';
+      observer.observe(el);
+    });
+  </script>
+
+</body>
+</html>
