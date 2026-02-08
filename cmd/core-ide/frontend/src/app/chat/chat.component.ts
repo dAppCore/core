@@ -51,7 +51,7 @@ import { Subscription } from 'rxjs';
         <textarea
           class="form-textarea"
           [(ngModel)]="draft"
-          (keydown.enter)="sendMessage($event)"
+          (keydown.enter)="sendMessage($any($event))"
           placeholder="Type a message... (Enter to send)"
           rows="2"
         ></textarea>

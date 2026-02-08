@@ -145,10 +145,12 @@ export class JellyfinComponent {
   apiKey = '';
   mediaSourceId = '';
 
-  safeWebUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl('https://media.lthn.ai/web/index.html');
+  safeWebUrl!: SafeResourceUrl;
   streamUrl = '';
 
-  constructor(private sanitizer: DomSanitizer) {}
+  constructor(private sanitizer: DomSanitizer) {
+    this.safeWebUrl = this.sanitizer.bypassSecurityTrustResourceUrl('https://media.lthn.ai/web/index.html');
+  }
 
   load(): void {
     const base = this.normalizeBase(this.serverUrl);

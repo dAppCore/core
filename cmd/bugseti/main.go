@@ -12,12 +12,15 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net/http"
 	"runtime"
+	"strings"
 
 	"github.com/host-uk/core/cmd/bugseti/icons"
 	"github.com/host-uk/core/internal/bugseti"
 	"github.com/host-uk/core/internal/bugseti/updater"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:frontend/dist/bugseti/browser
@@ -80,7 +83,7 @@ func main() {
 		Description: "Distributed Bug Fixing - like SETI@home but for code",
 		Services:    services,
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(staticAssets),
+			Handler: spaHandler(staticAssets),
 		},
 		Mac: application.MacOptions{
 			ActivationPolicy: application.ActivationPolicyAccessory,
@@ -236,9 +239,31 @@ func setupSystemTray(app *application.App, fetcher *bugseti.FetcherService, queu
 
 	systray.SetMenu(trayMenu)
 
-	// Check if onboarding needed
-	if !config.IsOnboarded() {
-		onboardingWindow.Show()
-		onboardingWindow.Focus()
-	}
+	// Check if onboarding needed (deferred until app is running)
+	app.Event.RegisterApplicationEventHook(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
+		if !config.IsOnboarded() {
+			onboardingWindow.Show()
+			onboardingWindow.Focus()
+		}
+	})
+}
+
+// spaHandler wraps an fs.FS to serve static files with SPA fallback.
+// If the requested path doesn't match a real file, it serves index.html
+// so Angular's client-side router can handle the route.
+func spaHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+
+		// Check if the file exists
+		if _, err := fs.Stat(fsys, path); err != nil {
+			// File doesn't exist — serve index.html for SPA routing
+			r.URL.Path = "/"
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 }

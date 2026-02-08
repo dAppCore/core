@@ -9,7 +9,9 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net/http"
 	"runtime"
+	"strings"
 
 	"github.com/host-uk/core/cmd/core-ide/icons"
 	"github.com/host-uk/core/pkg/mcp/ide"
@@ -50,7 +52,7 @@ func main() {
 			application.NewService(buildService),
 		},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(staticAssets),
+			Handler: spaHandler(staticAssets),
 		},
 		Mac: application.MacOptions{
 			ActivationPolicy: application.ActivationPolicyAccessory,
@@ -148,4 +150,19 @@ func setupSystemTray(app *application.App, ideService *IDEService) {
 	})
 
 	systray.SetMenu(trayMenu)
+}
+
+// spaHandler wraps an fs.FS to serve static files with SPA fallback.
+func spaHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		if _, err := fs.Stat(fsys, path); err != nil {
+			r.URL.Path = "/"
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 }
