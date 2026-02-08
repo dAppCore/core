@@ -282,6 +282,9 @@
 			"vm.status.short": "Show development VM status",
 			"no_changes": "No uncommitted changes found.",
 			"no_git_repos": "No git repositories found.",
+			"modified": "{{.Count}} modified",
+			"staged": "{{.Count}} staged",
+			"untracked": "{{.Count}} untracked",
 			"confirm_claude_commit": "Have Claude commit these repos?",
 			"health.short": "Quick health check across all repos",
 			"health.long": "Shows a summary of repository health across all repos in the workspace.",
@@ -298,6 +301,12 @@
 			"status.clean": "clean",
 			"commit.short": "Claude-assisted commits across repos",
 			"push.short": "Push commits across all repos",
+			"push.long": "Push commits to remote across all repos in the workspace.",
+			"push.flag.force": "Push without confirmation",
+			"push.all_up_to_date": "All repos are up to date.",
+			"push.confirm_push": "Push {{.Commits}} commit(s) across {{.Repos}} repo(s)?",
+			"push.done_pushed": "Pushed {{.Count}} repo(s)",
+			"push.pull_and_retry": "Pull and retry push?",
 			"push.diverged": "branch has diverged from remote",
 			"push.diverged_help": "Some repos have diverged (local and remote have different commits).",
 			"push.uncommitted_changes_commit": "You have uncommitted changes. Commit with Claude first?",
@@ -731,7 +740,9 @@
 			"succeeded": "{{.Count}} succeeded",
 			"failed": "{{.Count}} failed",
 			"skipped": "{{.Count}} skipped",
-			"passed": "{{.Count}} passed"
+			"passed": "{{.Count}} passed",
+			"commits": "{{.Count}} commit(s) ahead",
+			"repos_unpushed": "{{.Count}} repo(s) with unpushed commits"
 		}
 	},
 	"error": {
@@ -748,6 +759,7 @@
 	},
 	"cli": {
 		"pass": "PASS",
-		"fail": "FAIL"
+		"fail": "FAIL",
+		"aborted": "Aborted."
 	}
 }

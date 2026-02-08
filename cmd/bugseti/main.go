@@ -44,6 +44,7 @@ func main() {
 	seederService := bugseti.NewSeederService(configService)
 	submitService := bugseti.NewSubmitService(configService, notifyService, statsService)
 	versionService := bugseti.NewVersionService()
+	workspaceService := NewWorkspaceService(configService)
 
 	// Initialize update service
 	updateService, err := updater.NewService(configService)
@@ -64,6 +65,7 @@ func main() {
 		application.NewService(seederService),
 		application.NewService(submitService),
 		application.NewService(versionService),
+		application.NewService(workspaceService),
 		application.NewService(trayService),
 	}
 

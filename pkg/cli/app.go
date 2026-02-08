@@ -17,10 +17,36 @@ const (
 	AppName = "core"
 )
 
-// AppVersion is set at build time via ldflags:
+// Build-time variables set via ldflags (SemVer 2.0.0):
 //
-//	go build -ldflags="-X github.com/host-uk/core/pkg/cli.AppVersion=v1.0.0"
-var AppVersion = "dev"
+//	go build -ldflags="-X github.com/host-uk/core/pkg/cli.AppVersion=1.2.0 \
+//	  -X github.com/host-uk/core/pkg/cli.BuildCommit=df94c24 \
+//	  -X github.com/host-uk/core/pkg/cli.BuildDate=2026-02-06 \
+//	  -X github.com/host-uk/core/pkg/cli.BuildPreRelease=dev.8"
+var (
+	AppVersion     = "0.0.0"
+	BuildCommit    = "unknown"
+	BuildDate      = "unknown"
+	BuildPreRelease = ""
+)
+
+// SemVer returns the full SemVer 2.0.0 version string.
+//   - Release:  1.2.0
+//   - Pre-release: 1.2.0-dev.8
+//   - Full:     1.2.0-dev.8+df94c24.20260206
+func SemVer() string {
+	v := AppVersion
+	if BuildPreRelease != "" {
+		v += "-" + BuildPreRelease
+	}
+	if BuildCommit != "unknown" {
+		v += "+" + BuildCommit
+		if BuildDate != "unknown" {
+			v += "." + BuildDate
+		}
+	}
+	return v
+}
 
 // Main initialises and runs the CLI application.
 // This is the main entry point for the CLI.
@@ -38,7 +64,7 @@ func Main() {
 	// Initialise CLI runtime with services
 	if err := Init(Options{
 		AppName: AppName,
-		Version: AppVersion,
+		Version: SemVer(),
 		Services: []framework.Option{
 			framework.WithName("i18n", NewI18nService(I18nOptions{})),
 			framework.WithName("log", NewLogService(log.Options{

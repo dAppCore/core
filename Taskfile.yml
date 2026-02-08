@@ -1,14 +1,33 @@
 version: '3'
 
 vars:
-  VERSION:
-    sh: git describe --tags --exact-match 2>/dev/null || echo "dev"
-  # Base ldflags for version injection
-  LDFLAGS_BASE: "-X github.com/host-uk/core/pkg/cli.AppVersion={{.VERSION}}"
+  # SemVer 2.0.0 build variables
+  SEMVER_TAG:
+    sh: git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0"
+  SEMVER_VERSION:
+    sh: echo "{{.SEMVER_TAG}}" | sed 's/^v//'
+  SEMVER_COMMITS:
+    sh: git rev-list {{.SEMVER_TAG}}..HEAD --count 2>/dev/null || echo "0"
+  SEMVER_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  SEMVER_DATE:
+    sh: date -u +%Y%m%d
+  SEMVER_PRERELEASE:
+    sh: '[ "{{.SEMVER_COMMITS}}" = "0" ] && echo "" || echo "dev.{{.SEMVER_COMMITS}}"'
+  # ldflags
+  PKG: "github.com/host-uk/core/pkg/cli"
+  LDFLAGS_BASE: >-
+    -X {{.PKG}}.AppVersion={{.SEMVER_VERSION}}
+    -X {{.PKG}}.BuildCommit={{.SEMVER_COMMIT}}
+    -X {{.PKG}}.BuildDate={{.SEMVER_DATE}}
+    -X {{.PKG}}.BuildPreRelease={{.SEMVER_PRERELEASE}}
   # Development build: includes debug info
   LDFLAGS: "{{.LDFLAGS_BASE}}"
   # Release build: strips debug info and symbol table for smaller binary
   LDFLAGS_RELEASE: "-s -w {{.LDFLAGS_BASE}}"
+  # Compat alias
+  VERSION:
+    sh: git describe --tags --exact-match 2>/dev/null || echo "dev"
 
 tasks:
   # --- CLI Management ---

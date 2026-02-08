@@ -21,6 +21,7 @@
 //   - qa: Quality assurance workflows
 //   - monitor: Security monitoring aggregation
 //   - gitea: Gitea instance management (repos, issues, PRs, mirrors)
+//   - forge: Forgejo instance management (repos, issues, PRs, migration, orgs, labels)
 //   - unifi: UniFi network management (sites, devices, clients)
 
 package variants
@@ -36,6 +37,7 @@ import (
 	_ "github.com/host-uk/core/internal/cmd/dev"
 	_ "github.com/host-uk/core/internal/cmd/docs"
 	_ "github.com/host-uk/core/internal/cmd/doctor"
+	_ "github.com/host-uk/core/internal/cmd/forge"
 	_ "github.com/host-uk/core/internal/cmd/gitcmd"
 	_ "github.com/host-uk/core/internal/cmd/gitea"
 	_ "github.com/host-uk/core/internal/cmd/go"

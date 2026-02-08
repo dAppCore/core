@@ -1,0 +1,83 @@
+# Example: C++ Build Configuration
+# CMake + Conan 2 project using host-uk/build system
+
+version: 1
+
+project:
+  name: my-cpp-project
+  type: cpp
+  description: "A C++ application"
+
+cpp:
+  standard: 17
+  build_type: Release
+  static: false
+
+  # Conan package manager
+  conan:
+    version: "2.21.0"
+    requires:
+      - zlib/1.3.1
+      - boost/1.85.0
+      - openssl/3.2.0
+    tool_requires:
+      - cmake/3.31.9
+    options:
+      boost/*:without_test: true
+    registry:
+      url: http://forge.snider.dev:4000/api/packages/host-uk/conan
+      remote: conan_build
+
+  # CMake settings
+  cmake:
+    minimum_version: "3.16"
+    variables:
+      USE_CCACHE: "ON"
+    presets:
+      - conan-release
+      - conan-debug
+
+  # Optional project-specific build options
+  options:
+    testnet: false
+
+# Cross-compilation targets
+targets:
+  - os: linux
+    arch: x86_64
+    profile: gcc-linux-x86_64
+  - os: linux
+    arch: arm64
+    profile: gcc-linux-armv8
+  - os: darwin
+    arch: arm64
+    profile: apple-clang-armv8
+  - os: darwin
+    arch: x86_64
+    profile: apple-clang-x86_64
+  - os: windows
+    arch: x86_64
+    profile: msvc-194-x86_64
+
+# Packaging
+package:
+  generators:
+    - TGZ
+    - ZIP
+  vendor: host-uk
+  contact: developers@lethean.io
+  website: https://lt.hn
+
+# Docker output
+docker:
+  dockerfile: .core/build/docker/Dockerfile
+  platforms:
+    - linux/amd64
+    - linux/arm64
+  tags:
+    - latest
+    - "{{.Version}}"
+  build_args:
+    BUILD_THREADS: auto
+    BUILD_STATIC: "0"
+    BUILD_TYPE: Release

@@ -141,6 +141,9 @@ func TestFindArtifacts_Bad(t *testing.T) {
 	})
 
 	t.Run("returns error when dist directory is unreadable", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can read any directory")
+		}
 		dir := t.TempDir()
 		distDir := filepath.Join(dir, "dist")
 		require.NoError(t, os.MkdirAll(distDir, 0755))

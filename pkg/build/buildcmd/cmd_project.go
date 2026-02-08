@@ -380,6 +380,8 @@ func getBuilder(projectType build.ProjectType) (build.Builder, error) {
 		return builders.NewLinuxKitBuilder(), nil
 	case build.ProjectTypeTaskfile:
 		return builders.NewTaskfileBuilder(), nil
+	case build.ProjectTypeCPP:
+		return builders.NewCPPBuilder(), nil
 	case build.ProjectTypeNode:
 		return nil, fmt.Errorf("%s", i18n.T("cmd.build.error.node_not_implemented"))
 	case build.ProjectTypePHP:
