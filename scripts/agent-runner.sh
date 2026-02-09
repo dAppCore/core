@@ -114,6 +114,14 @@ case "$RUNNER" in
             "$PROMPT" \
             > "$LOG_FILE" 2>&1
         ;;
+    gemini)
+        MODEL_FLAG=""
+        if [ -n "$MODEL" ] && [ "$MODEL" != "sonnet" ]; then
+            MODEL_FLAG="-m $MODEL"
+        fi
+        echo "$PROMPT" | gemini -p - -y $MODEL_FLAG \
+            > "$LOG_FILE" 2>&1
+        ;;
     *)
         echo "$PROMPT" | claude -p \
             --model "$MODEL" \
