@@ -18,6 +18,8 @@ tasks
 /core
 /i18n-validate
 cmd/bugseti/bugseti
+internal/core-ide/core-ide
+.angular/
 
 patch_cov.*
 go.work.sum
