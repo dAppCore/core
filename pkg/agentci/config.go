@@ -6,6 +6,7 @@ import (
 
 	"github.com/host-uk/core/pkg/config"
 	"github.com/host-uk/core/pkg/jobrunner/handlers"
+	"github.com/host-uk/core/pkg/log"
 )
 
 // AgentConfig represents a single agent machine in the config file.
@@ -33,7 +34,7 @@ func LoadAgents(cfg *config.Config) (map[string]handlers.AgentTarget, error) {
 			continue
 		}
 		if ac.Host == "" {
-			return nil, fmt.Errorf("agent %q: host is required", name)
+			return nil, log.E("agentci.LoadAgents", fmt.Sprintf("agent %q: host is required", name), nil)
 		}
 		queueDir := ac.QueueDir
 		if queueDir == "" {
@@ -80,10 +81,10 @@ func SaveAgent(cfg *config.Config, name string, ac AgentConfig) error {
 func RemoveAgent(cfg *config.Config, name string) error {
 	var agents map[string]AgentConfig
 	if err := cfg.Get("agentci.agents", &agents); err != nil {
-		return fmt.Errorf("no agents configured")
+		return log.E("agentci.RemoveAgent", "no agents configured", err)
 	}
 	if _, ok := agents[name]; !ok {
-		return fmt.Errorf("agent %q not found", name)
+		return log.E("agentci.RemoveAgent", fmt.Sprintf("agent %q not found", name), nil)
 	}
 	delete(agents, name)
 	return cfg.Set("agentci.agents", agents)

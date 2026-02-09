@@ -6,7 +6,7 @@ import (
 )
 
 // PipelineSignal is the structural snapshot of a child issue/PR.
-// Never contains comment bodies or free text — structural signals only.
+// Carries structural state plus issue title/body for dispatch prompts.
 type PipelineSignal struct {
 	EpicNumber      int
 	ChildNumber     int

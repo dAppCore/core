@@ -75,6 +75,7 @@ FORGEJO_USER=$(jq -r '.forgejo_user // empty' "$TICKET_FILE")
 if [ -z "$FORGEJO_USER" ]; then
     FORGEJO_USER="$(hostname -s)-$(whoami)"
 fi
+# TODO: Replace token-in-URL with git credential helper or SSH clone via charmbracelet/keygen.
 CLONE_URL="https://${FORGEJO_USER}:${FORGE_TOKEN}@${FORGE_URL#https://}/${REPO_OWNER}/${REPO_NAME}.git"
 
 if [ -d "$REPO_DIR/.git" ]; then

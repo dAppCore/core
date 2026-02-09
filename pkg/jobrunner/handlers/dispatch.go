@@ -79,7 +79,7 @@ func (h *DispatchHandler) Execute(ctx context.Context, signal *jobrunner.Pipelin
 
 	agent, ok := h.agents[signal.Assignee]
 	if !ok {
-		return nil, fmt.Errorf("unknown agent: %s", signal.Assignee)
+		return nil, log.E("dispatch.Execute", fmt.Sprintf("unknown agent: %s", signal.Assignee), nil)
 	}
 
 	// Determine target branch (default to repo default).
@@ -166,8 +166,10 @@ func (h *DispatchHandler) Execute(ctx context.Context, signal *jobrunner.Pipelin
 }
 
 // scpTicket writes ticket data to a remote path via SSH.
+// TODO: Replace exec ssh+cat with charmbracelet/ssh for native Go SSH.
 func (h *DispatchHandler) scpTicket(ctx context.Context, host, remotePath string, data []byte) error {
 	// Use ssh + cat instead of scp for piping stdin.
+	// TODO: Use charmbracelet/keygen for key management, native Go SSH client for transport.
 	cmd := exec.CommandContext(ctx, "ssh",
 		"-o", "StrictHostKeyChecking=accept-new",
 		"-o", "ConnectTimeout=10",
@@ -184,6 +186,7 @@ func (h *DispatchHandler) scpTicket(ctx context.Context, host, remotePath string
 }
 
 // ticketExists checks if a ticket file already exists in queue, active, or done.
+// TODO: Replace exec ssh with native Go SSH client (charmbracelet/ssh).
 func (h *DispatchHandler) ticketExists(agent AgentTarget, ticketName string) bool {
 	cmd := exec.Command("ssh",
 		"-o", "StrictHostKeyChecking=accept-new",

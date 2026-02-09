@@ -29,7 +29,7 @@ func (c *Client) MergePullRequest(owner, repo string, index int64, method string
 		return log.E("forge.MergePullRequest", "failed to merge pull request", err)
 	}
 	if !merged {
-		return fmt.Errorf("forge.MergePullRequest: merge returned false for %s/%s#%d", owner, repo, index)
+		return log.E("forge.MergePullRequest", fmt.Sprintf("merge returned false for %s/%s#%d", owner, repo, index), nil)
 	}
 	return nil
 }
@@ -41,13 +41,13 @@ func (c *Client) SetPRDraft(owner, repo string, index int64, draft bool) error {
 	payload := map[string]bool{"draft": draft}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("forge.SetPRDraft: marshal: %w", err)
+		return log.E("forge.SetPRDraft", "marshal payload", err)
 	}
 
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/pulls/%d", c.url, owner, repo, index)
 	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("forge.SetPRDraft: create request: %w", err)
+		return log.E("forge.SetPRDraft", "create request", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "token "+c.token)
@@ -59,7 +59,7 @@ func (c *Client) SetPRDraft(owner, repo string, index int64, draft bool) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("forge.SetPRDraft: unexpected status %d", resp.StatusCode)
+		return log.E("forge.SetPRDraft", fmt.Sprintf("unexpected status %d", resp.StatusCode), nil)
 	}
 	return nil
 }

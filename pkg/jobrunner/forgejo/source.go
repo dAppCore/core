@@ -82,7 +82,7 @@ func (s *ForgejoSource) pollRepo(_ context.Context, owner, repo string) ([]*jobr
 	// Fetch epic issues (label=epic, state=open).
 	issues, err := s.forge.ListIssues(owner, repo, forge.ListIssuesOpts{State: "open"})
 	if err != nil {
-		return nil, fmt.Errorf("fetch issues: %w", err)
+		return nil, log.E("forgejo.pollRepo", "fetch issues", err)
 	}
 
 	// Filter to epics only.
@@ -106,7 +106,7 @@ func (s *ForgejoSource) pollRepo(_ context.Context, owner, repo string) ([]*jobr
 	// Fetch all open PRs (and also merged/closed to catch MERGED state).
 	prs, err := s.forge.ListPullRequests(owner, repo, "all")
 	if err != nil {
-		return nil, fmt.Errorf("fetch PRs: %w", err)
+		return nil, log.E("forgejo.pollRepo", "fetch PRs", err)
 	}
 
 	var signals []*jobrunner.PipelineSignal
@@ -167,7 +167,7 @@ type epicInfo struct {
 func splitRepo(full string) (string, string, error) {
 	parts := strings.SplitN(full, "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("expected owner/repo format, got %q", full)
+		return "", "", log.E("forgejo.splitRepo", fmt.Sprintf("expected owner/repo format, got %q", full), nil)
 	}
 	return parts[0], parts[1], nil
 }

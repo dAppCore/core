@@ -52,6 +52,7 @@ func agentAddCmd() *cli.Command {
 			}
 
 			// Test SSH connectivity.
+			// TODO: Replace exec ssh with charmbracelet/ssh native Go client + keygen.
 			fmt.Printf("Testing SSH to %s... ", host)
 			out, err := exec.Command("ssh",
 				"-o", "StrictHostKeyChecking=accept-new",
@@ -115,6 +116,7 @@ func agentListCmd() *cli.Command {
 				}
 
 				// Quick SSH check for queue depth.
+				// TODO: Replace exec ssh with charmbracelet/ssh native Go client.
 				queue := dimStyle.Render("-")
 				out, err := exec.Command("ssh",
 					"-o", "StrictHostKeyChecking=accept-new",
@@ -180,6 +182,7 @@ func agentStatusCmd() *cli.Command {
 				fi
 			`
 
+			// TODO: Replace exec ssh with charmbracelet/ssh native Go client.
 			sshCmd := exec.Command("ssh",
 				"-o", "StrictHostKeyChecking=accept-new",
 				"-o", "ConnectTimeout=10",
@@ -215,6 +218,7 @@ func agentLogsCmd() *cli.Command {
 				return fmt.Errorf("agent %q not found", name)
 			}
 
+			// TODO: Replace exec ssh with charmbracelet/ssh native Go client.
 			tailArgs := []string{
 				"-o", "StrictHostKeyChecking=accept-new",
 				"-o", "ConnectTimeout=10",
