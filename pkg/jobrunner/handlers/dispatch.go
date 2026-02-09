@@ -18,6 +18,8 @@ import (
 type AgentTarget struct {
 	Host     string // SSH destination (e.g., "claude@192.168.0.201")
 	QueueDir string // Remote queue directory (e.g., "~/ai-work/queue")
+	Model    string // AI model: sonnet, haiku, opus (default: sonnet)
+	Runner   string // Runner binary: claude, codex (default: claude)
 }
 
 // DispatchTicket is the JSON payload written to the agent's queue.
@@ -33,6 +35,8 @@ type DispatchTicket struct {
 	ForgeURL     string `json:"forge_url"`
 	ForgeToken   string `json:"forge_token"`
 	ForgeUser    string `json:"forgejo_user"`
+	Model        string `json:"model,omitempty"`
+	Runner       string `json:"runner,omitempty"`
 	CreatedAt    string `json:"created_at"`
 }
 
@@ -93,6 +97,8 @@ func (h *DispatchHandler) Execute(ctx context.Context, signal *jobrunner.Pipelin
 		ForgeURL:     h.forgeURL,
 		ForgeToken:   h.token,
 		ForgeUser:    signal.Assignee,
+		Model:        agent.Model,
+		Runner:       agent.Runner,
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
 	}
 

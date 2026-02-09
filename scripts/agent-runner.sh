@@ -101,15 +101,30 @@ The repo is cloned at the current directory on branch '${TARGET_BRANCH}'.
 Create a feature branch from '${TARGET_BRANCH}', make minimal targeted changes, commit referencing #${ISSUE_NUM}, and push.
 Then create a PR targeting '${TARGET_BRANCH}' using the forgejo MCP tools or git push."
 
-# --- 9. Run Claude ---
+# --- 9. Run AI agent ---
+MODEL=$(jq -r '.model // "sonnet"' "$TICKET_FILE")
+RUNNER=$(jq -r '.runner // "claude"' "$TICKET_FILE")
 LOG_FILE="$LOG_DIR/${REPO_OWNER}-${REPO_NAME}-${ISSUE_NUM}.log"
-echo "$(date -Iseconds) Running claude..."
-echo "$PROMPT" | claude -p \
-    --dangerously-skip-permissions \
-    --output-format text \
-    > "$LOG_FILE" 2>&1
+
+echo "$(date -Iseconds) Running ${RUNNER} (model: ${MODEL})..."
+
+case "$RUNNER" in
+    codex)
+        codex --approval-mode full-auto \
+            --quiet \
+            "$PROMPT" \
+            > "$LOG_FILE" 2>&1
+        ;;
+    *)
+        echo "$PROMPT" | claude -p \
+            --model "$MODEL" \
+            --dangerously-skip-permissions \
+            --output-format text \
+            > "$LOG_FILE" 2>&1
+        ;;
+esac
 EXIT_CODE=$?
-echo "$(date -Iseconds) Claude exited with code: $EXIT_CODE"
+echo "$(date -Iseconds) ${RUNNER} exited with code: $EXIT_CODE"
 
 # --- 10. Move to done ---
 mv "$TICKET_FILE" "$DONE_DIR/"

@@ -10,10 +10,12 @@ import (
 
 // AgentConfig represents a single agent machine in the config file.
 type AgentConfig struct {
-	Host       string `yaml:"host" mapstructure:"host"`
-	QueueDir   string `yaml:"queue_dir" mapstructure:"queue_dir"`
+	Host        string `yaml:"host" mapstructure:"host"`
+	QueueDir    string `yaml:"queue_dir" mapstructure:"queue_dir"`
 	ForgejoUser string `yaml:"forgejo_user" mapstructure:"forgejo_user"`
-	Active     bool   `yaml:"active" mapstructure:"active"`
+	Model       string `yaml:"model" mapstructure:"model"`   // claude model: sonnet, haiku, opus (default: sonnet)
+	Runner      string `yaml:"runner" mapstructure:"runner"` // runner binary: claude, codex (default: claude)
+	Active      bool   `yaml:"active" mapstructure:"active"`
 }
 
 // LoadAgents reads agent targets from config and returns a map suitable for the dispatch handler.
@@ -37,9 +39,19 @@ func LoadAgents(cfg *config.Config) (map[string]handlers.AgentTarget, error) {
 		if queueDir == "" {
 			queueDir = "/home/claude/ai-work/queue"
 		}
+		model := ac.Model
+		if model == "" {
+			model = "sonnet"
+		}
+		runner := ac.Runner
+		if runner == "" {
+			runner = "claude"
+		}
 		targets[name] = handlers.AgentTarget{
 			Host:     ac.Host,
 			QueueDir: queueDir,
+			Model:    model,
+			Runner:   runner,
 		}
 	}
 
@@ -49,12 +61,19 @@ func LoadAgents(cfg *config.Config) (map[string]handlers.AgentTarget, error) {
 // SaveAgent writes an agent config entry to the config file.
 func SaveAgent(cfg *config.Config, name string, ac AgentConfig) error {
 	key := fmt.Sprintf("agentci.agents.%s", name)
-	return cfg.Set(key, map[string]any{
+	data := map[string]any{
 		"host":         ac.Host,
 		"queue_dir":    ac.QueueDir,
 		"forgejo_user": ac.ForgejoUser,
 		"active":       ac.Active,
-	})
+	}
+	if ac.Model != "" {
+		data["model"] = ac.Model
+	}
+	if ac.Runner != "" {
+		data["runner"] = ac.Runner
+	}
+	return cfg.Set(key, data)
 }
 
 // RemoveAgent removes an agent from the config file.
