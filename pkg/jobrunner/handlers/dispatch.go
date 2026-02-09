@@ -32,6 +32,7 @@ type DispatchTicket struct {
 	EpicNumber   int    `json:"epic_number"`
 	ForgeURL     string `json:"forge_url"`
 	ForgeToken   string `json:"forge_token"`
+	ForgeUser    string `json:"forgejo_user"`
 	CreatedAt    string `json:"created_at"`
 }
 
@@ -91,6 +92,7 @@ func (h *DispatchHandler) Execute(ctx context.Context, signal *jobrunner.Pipelin
 		EpicNumber:   signal.EpicNumber,
 		ForgeURL:     h.forgeURL,
 		ForgeToken:   h.token,
+		ForgeUser:    signal.Assignee,
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
 	}
 

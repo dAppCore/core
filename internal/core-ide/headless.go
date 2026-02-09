@@ -11,7 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/host-uk/core/pkg/agentci"
 	"github.com/host-uk/core/pkg/cli"
+	"github.com/host-uk/core/pkg/config"
 	"github.com/host-uk/core/pkg/forge"
 	"github.com/host-uk/core/pkg/jobrunner"
 	forgejosource "github.com/host-uk/core/pkg/jobrunner/forgejo"
@@ -65,10 +67,16 @@ func startHeadless() {
 	enableAutoMerge := handlers.NewEnableAutoMergeHandler(forgeClient)
 	tickParent := handlers.NewTickParentHandler(forgeClient)
 
-	// Agent dispatch — maps Forgejo usernames to SSH targets.
-	agentTargets := map[string]handlers.AgentTarget{
-		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "/home/claude/ai-work/queue"},
+	// Agent dispatch — load targets from ~/.core/config.yaml
+	cfg, cfgErr := config.New()
+	var agentTargets map[string]handlers.AgentTarget
+	if cfgErr == nil {
+		agentTargets, _ = agentci.LoadAgents(cfg)
 	}
+	if agentTargets == nil {
+		agentTargets = map[string]handlers.AgentTarget{}
+	}
+	log.Printf("Loaded %d agent targets", len(agentTargets))
 	dispatch := handlers.NewDispatchHandler(forgeClient, forgeURL, forgeToken, agentTargets)
 
 	// Build poller

@@ -71,7 +71,11 @@ JOB_DIR="$WORK_DIR/jobs/${REPO_OWNER}-${REPO_NAME}-${ISSUE_NUM}"
 REPO_DIR="$JOB_DIR/$REPO_NAME"
 mkdir -p "$JOB_DIR"
 
-CLONE_URL="https://darbs-claude:${FORGE_TOKEN}@${FORGE_URL#https://}/${REPO_OWNER}/${REPO_NAME}.git"
+FORGEJO_USER=$(jq -r '.forgejo_user // empty' "$TICKET_FILE")
+if [ -z "$FORGEJO_USER" ]; then
+    FORGEJO_USER="$(hostname -s)-$(whoami)"
+fi
+CLONE_URL="https://${FORGEJO_USER}:${FORGE_TOKEN}@${FORGE_URL#https://}/${REPO_OWNER}/${REPO_NAME}.git"
 
 if [ -d "$REPO_DIR/.git" ]; then
     echo "$(date -Iseconds) Updating existing clone..."
