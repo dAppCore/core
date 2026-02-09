@@ -1,0 +1,10 @@
+name: Agent Verification
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  verify:
+    uses: host-uk/.github/.github/workflows/agent-verify.yml@main
+    secrets: inherit

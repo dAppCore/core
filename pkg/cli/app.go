@@ -24,9 +24,9 @@ const (
 //	  -X github.com/host-uk/core/pkg/cli.BuildDate=2026-02-06 \
 //	  -X github.com/host-uk/core/pkg/cli.BuildPreRelease=dev.8"
 var (
-	AppVersion     = "0.0.0"
-	BuildCommit    = "unknown"
-	BuildDate      = "unknown"
+	AppVersion      = "0.0.0"
+	BuildCommit     = "unknown"
+	BuildDate       = "unknown"
 	BuildPreRelease = ""
 )
 

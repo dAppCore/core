@@ -21,14 +21,14 @@ import (
 // For full GUI features, use the core-gui package.
 type Service struct {
 	server         *mcp.Server
-	workspaceRoot  string            // Root directory for file operations (empty = unrestricted)
-	medium         io.Medium         // Filesystem medium for sandboxed operations
-	subsystems     []Subsystem       // Additional subsystems registered via WithSubsystem
-	logger         *log.Logger       // Logger for tool execution auditing
-	processService *process.Service  // Process management service (optional)
-	wsHub          *ws.Hub           // WebSocket hub for real-time streaming (optional)
-	wsServer       *http.Server      // WebSocket HTTP server (optional)
-	wsAddr         string            // WebSocket server address
+	workspaceRoot  string           // Root directory for file operations (empty = unrestricted)
+	medium         io.Medium        // Filesystem medium for sandboxed operations
+	subsystems     []Subsystem      // Additional subsystems registered via WithSubsystem
+	logger         *log.Logger      // Logger for tool execution auditing
+	processService *process.Service // Process management service (optional)
+	wsHub          *ws.Hub          // WebSocket hub for real-time streaming (optional)
+	wsServer       *http.Server     // WebSocket HTTP server (optional)
+	wsAddr         string           // WebSocket server address
 }
 
 // Option configures a Service.

@@ -79,8 +79,8 @@ func (b *MCPBridge) startHTTPServer() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"status":      "ok",
-			"mcp":         true,
+			"status":       "ok",
+			"mcp":          true,
 			"claudeBridge": b.claudeBridge.Connected(),
 		})
 	})

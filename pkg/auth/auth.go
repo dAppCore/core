@@ -66,7 +66,7 @@ type User struct {
 // Challenge is a PGP-encrypted nonce sent to a client during authentication.
 type Challenge struct {
 	Nonce     []byte    `json:"nonce"`
-	Encrypted string    `json:"encrypted"`  // PGP-encrypted nonce (armored)
+	Encrypted string    `json:"encrypted"` // PGP-encrypted nonce (armored)
 	ExpiresAt time.Time `json:"expires_at"`
 }
 

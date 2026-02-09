@@ -431,8 +431,8 @@ type dataFile struct {
 }
 
 func (d *dataFile) Stat() (fs.FileInfo, error) { return &dataFileInfo{file: d}, nil }
-func (d *dataFile) Read(_ []byte) (int, error)  { return 0, goio.EOF }
-func (d *dataFile) Close() error                { return nil }
+func (d *dataFile) Read(_ []byte) (int, error) { return 0, goio.EOF }
+func (d *dataFile) Close() error               { return nil }
 
 // dataFileInfo implements fs.FileInfo for a dataFile.
 type dataFileInfo struct{ file *dataFile }
@@ -496,11 +496,13 @@ var _ fs.ReadDirFS = (*Node)(nil)
 // Unexported helper: ensure ReadStream result also satisfies fs.File
 // (for cases where callers do a type assertion).
 var _ goio.ReadCloser = goio.NopCloser(nil)
+
 // Ensure nodeWriter satisfies goio.WriteCloser.
 var _ goio.WriteCloser = (*nodeWriter)(nil)
 
 // Ensure dirFile satisfies fs.File.
 var _ fs.File = (*dirFile)(nil)
+
 // Ensure dataFileReader satisfies fs.File.
 var _ fs.File = (*dataFileReader)(nil)
 

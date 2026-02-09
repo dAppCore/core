@@ -239,9 +239,9 @@ func TestHashSigil_Good(t *testing.T) {
 	data := []byte("hash me")
 
 	tests := []struct {
-		name     string
+		name      string
 		sigilName string
-		size     int
+		size      int
 	}{
 		{"md5", "md5", md5.Size},
 		{"sha1", "sha1", sha1.Size},

@@ -208,7 +208,11 @@ func shortID(id string) string {
 	return id
 }
 
-func formatDur(d interface{ Hours() float64; Minutes() float64; Seconds() float64 }) string {
+func formatDur(d interface {
+	Hours() float64
+	Minutes() float64
+	Seconds() float64
+}) string {
 	type dur interface {
 		Hours() float64
 		Minutes() float64

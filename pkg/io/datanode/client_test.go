@@ -335,7 +335,7 @@ func TestOverwrite_Good(t *testing.T) {
 func TestExists_Good(t *testing.T) {
 	m := New()
 
-	assert.True(t, m.Exists(""))  // root
+	assert.True(t, m.Exists("")) // root
 	assert.False(t, m.Exists("x"))
 
 	require.NoError(t, m.Write("x", "y"))

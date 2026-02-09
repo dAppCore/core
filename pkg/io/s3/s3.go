@@ -567,7 +567,7 @@ type dirEntry struct {
 func (de *dirEntry) Name() string               { return de.name }
 func (de *dirEntry) IsDir() bool                { return de.isDir }
 func (de *dirEntry) Type() fs.FileMode          { return de.mode.Type() }
-func (de *dirEntry) Info() (fs.FileInfo, error)  { return de.info, nil }
+func (de *dirEntry) Info() (fs.FileInfo, error) { return de.info, nil }
 
 // s3File implements fs.File for S3 objects.
 type s3File struct {

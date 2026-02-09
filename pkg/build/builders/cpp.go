@@ -226,14 +226,14 @@ func (b *CPPBuilder) findBinaries(fs io.Medium, projectDir string, target build.
 func (b *CPPBuilder) targetToProfile(target build.Target) string {
 	key := target.OS + "/" + target.Arch
 	profiles := map[string]string{
-		"linux/amd64":   "gcc-linux-x86_64",
-		"linux/x86_64":  "gcc-linux-x86_64",
-		"linux/arm64":   "gcc-linux-armv8",
-		"linux/armv8":   "gcc-linux-armv8",
-		"darwin/arm64":  "apple-clang-armv8",
-		"darwin/armv8":  "apple-clang-armv8",
-		"darwin/amd64":  "apple-clang-x86_64",
-		"darwin/x86_64": "apple-clang-x86_64",
+		"linux/amd64":    "gcc-linux-x86_64",
+		"linux/x86_64":   "gcc-linux-x86_64",
+		"linux/arm64":    "gcc-linux-armv8",
+		"linux/armv8":    "gcc-linux-armv8",
+		"darwin/arm64":   "apple-clang-armv8",
+		"darwin/armv8":   "apple-clang-armv8",
+		"darwin/amd64":   "apple-clang-x86_64",
+		"darwin/x86_64":  "apple-clang-x86_64",
 		"windows/amd64":  "msvc-194-x86_64",
 		"windows/x86_64": "msvc-194-x86_64",
 	}

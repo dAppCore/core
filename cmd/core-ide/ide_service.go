@@ -81,4 +81,3 @@ func (s *IDEService) ShowWindow(name string) {
 		w.Focus()
 	}
 }
-

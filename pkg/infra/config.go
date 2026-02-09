@@ -12,19 +12,19 @@ import (
 
 // Config is the top-level infrastructure configuration parsed from infra.yaml.
 type Config struct {
-	Hosts        map[string]*Host `yaml:"hosts"`
-	LoadBalancer LoadBalancer     `yaml:"load_balancer"`
-	Network      Network          `yaml:"network"`
-	DNS          DNS              `yaml:"dns"`
-	SSL          SSL              `yaml:"ssl"`
-	Database     Database         `yaml:"database"`
-	Cache        Cache            `yaml:"cache"`
+	Hosts        map[string]*Host      `yaml:"hosts"`
+	LoadBalancer LoadBalancer          `yaml:"load_balancer"`
+	Network      Network               `yaml:"network"`
+	DNS          DNS                   `yaml:"dns"`
+	SSL          SSL                   `yaml:"ssl"`
+	Database     Database              `yaml:"database"`
+	Cache        Cache                 `yaml:"cache"`
 	Containers   map[string]*Container `yaml:"containers"`
-	S3           S3Config         `yaml:"s3"`
-	CDN          CDN              `yaml:"cdn"`
-	CICD         CICD             `yaml:"cicd"`
-	Monitoring   Monitoring       `yaml:"monitoring"`
-	Backups      Backups          `yaml:"backups"`
+	S3           S3Config              `yaml:"s3"`
+	CDN          CDN                   `yaml:"cdn"`
+	CICD         CICD                  `yaml:"cicd"`
+	Monitoring   Monitoring            `yaml:"monitoring"`
+	Backups      Backups               `yaml:"backups"`
 }
 
 // Host represents a server in the infrastructure.
@@ -47,16 +47,16 @@ type SSHConf struct {
 
 // LoadBalancer represents a Hetzner managed load balancer.
 type LoadBalancer struct {
-	Name      string     `yaml:"name"`
-	FQDN      string     `yaml:"fqdn"`
-	Provider  string     `yaml:"provider"`
-	Type      string     `yaml:"type"`
-	Location  string     `yaml:"location"`
-	Algorithm string     `yaml:"algorithm"`
-	Backends  []Backend  `yaml:"backends"`
+	Name      string      `yaml:"name"`
+	FQDN      string      `yaml:"fqdn"`
+	Provider  string      `yaml:"provider"`
+	Type      string      `yaml:"type"`
+	Location  string      `yaml:"location"`
+	Algorithm string      `yaml:"algorithm"`
+	Backends  []Backend   `yaml:"backends"`
 	Health    HealthCheck `yaml:"health_check"`
-	Listeners []Listener `yaml:"listeners"`
-	SSL       LBCert     `yaml:"ssl"`
+	Listeners []Listener  `yaml:"listeners"`
+	SSL       LBCert      `yaml:"ssl"`
 }
 
 // Backend is a load balancer backend target.
@@ -94,9 +94,9 @@ type Network struct {
 
 // DNS holds DNS provider configuration and zone records.
 type DNS struct {
-	Provider    string            `yaml:"provider"`
-	Nameservers []string          `yaml:"nameservers"`
-	Zones       map[string]*Zone  `yaml:"zones"`
+	Provider    string           `yaml:"provider"`
+	Nameservers []string         `yaml:"nameservers"`
+	Zones       map[string]*Zone `yaml:"zones"`
 }
 
 // Zone is a DNS zone with its records.
@@ -203,8 +203,8 @@ type CICD struct {
 
 // Monitoring describes monitoring configuration.
 type Monitoring struct {
-	HealthEndpoints []HealthEndpoint  `yaml:"health_endpoints"`
-	Alerts          map[string]int    `yaml:"alerts"`
+	HealthEndpoints []HealthEndpoint `yaml:"health_endpoints"`
+	Alerts          map[string]int   `yaml:"alerts"`
 }
 
 // HealthEndpoint is a URL to monitor.

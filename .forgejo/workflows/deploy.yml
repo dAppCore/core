@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: gitea.snider.dev
+  REGISTRY: dappco.re/osi
   IMAGE_APP: host-uk/app
   IMAGE_WEB: host-uk/web
   IMAGE_CORE: host-uk/core
