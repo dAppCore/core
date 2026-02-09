@@ -14,7 +14,7 @@ import (
 )
 
 func TestPublishDraft_Match_Good(t *testing.T) {
-	h := NewPublishDraftHandler(nil, "")
+	h := NewPublishDraftHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		IsDraft:     true,
 		PRState:     "OPEN",
@@ -24,7 +24,7 @@ func TestPublishDraft_Match_Good(t *testing.T) {
 }
 
 func TestPublishDraft_Match_Bad_NotDraft(t *testing.T) {
-	h := NewPublishDraftHandler(nil, "")
+	h := NewPublishDraftHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		IsDraft:     false,
 		PRState:     "OPEN",
@@ -34,7 +34,7 @@ func TestPublishDraft_Match_Bad_NotDraft(t *testing.T) {
 }
 
 func TestPublishDraft_Match_Bad_ChecksFailing(t *testing.T) {
-	h := NewPublishDraftHandler(nil, "")
+	h := NewPublishDraftHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		IsDraft:     true,
 		PRState:     "OPEN",
@@ -48,17 +48,19 @@ func TestPublishDraft_Execute_Good(t *testing.T) {
 	var capturedPath string
 	var capturedBody string
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedMethod = r.Method
 		capturedPath = r.URL.Path
 		b, _ := io.ReadAll(r.Body)
 		capturedBody = string(b)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"draft":false}`))
-	}))
+		_, _ = w.Write([]byte(`{}`))
+	})))
 	defer srv.Close()
 
-	h := NewPublishDraftHandler(srv.Client(), srv.URL)
+	client := newTestForgeClient(t, srv.URL)
+
+	h := NewPublishDraftHandler(client)
 	sig := &jobrunner.PipelineSignal{
 		RepoOwner: "host-uk",
 		RepoName:  "core-php",
@@ -71,7 +73,7 @@ func TestPublishDraft_Execute_Good(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.MethodPatch, capturedMethod)
-	assert.Equal(t, "/repos/host-uk/core-php/pulls/42", capturedPath)
+	assert.Equal(t, "/api/v1/repos/host-uk/core-php/pulls/42", capturedPath)
 	assert.Contains(t, capturedBody, `"draft":false`)
 
 	assert.True(t, result.Success)

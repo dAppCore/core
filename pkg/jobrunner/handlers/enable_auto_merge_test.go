@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"context"
-	"os/exec"
-	"strings"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestEnableAutoMerge_Match_Good(t *testing.T) {
-	h := NewEnableAutoMergeHandler()
+	h := NewEnableAutoMergeHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:         "OPEN",
 		IsDraft:         false,
@@ -26,7 +27,7 @@ func TestEnableAutoMerge_Match_Good(t *testing.T) {
 }
 
 func TestEnableAutoMerge_Match_Bad_Draft(t *testing.T) {
-	h := NewEnableAutoMergeHandler()
+	h := NewEnableAutoMergeHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:         "OPEN",
 		IsDraft:         true,
@@ -39,7 +40,7 @@ func TestEnableAutoMerge_Match_Bad_Draft(t *testing.T) {
 }
 
 func TestEnableAutoMerge_Match_Bad_UnresolvedThreads(t *testing.T) {
-	h := NewEnableAutoMergeHandler()
+	h := NewEnableAutoMergeHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:         "OPEN",
 		IsDraft:         false,
@@ -52,17 +53,19 @@ func TestEnableAutoMerge_Match_Bad_UnresolvedThreads(t *testing.T) {
 }
 
 func TestEnableAutoMerge_Execute_Good(t *testing.T) {
-	// Save and restore the original execCommand.
-	original := execCommand
-	defer func() { execCommand = original }()
+	var capturedPath string
+	var capturedMethod string
 
-	var capturedArgs []string
-	execCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		capturedArgs = append([]string{name}, args...)
-		return exec.CommandContext(ctx, "echo", append([]string{name}, args...)...)
-	}
+	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedMethod = r.Method
+		capturedPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	})))
+	defer srv.Close()
 
-	h := NewEnableAutoMergeHandler()
+	client := newTestForgeClient(t, srv.URL)
+
+	h := NewEnableAutoMergeHandler(client)
 	sig := &jobrunner.PipelineSignal{
 		RepoOwner: "host-uk",
 		RepoName:  "core-php",
@@ -74,11 +77,29 @@ func TestEnableAutoMerge_Execute_Good(t *testing.T) {
 
 	assert.True(t, result.Success)
 	assert.Equal(t, "enable_auto_merge", result.Action)
+	assert.Equal(t, http.MethodPost, capturedMethod)
+	assert.Equal(t, "/api/v1/repos/host-uk/core-php/pulls/55/merge", capturedPath)
+}
 
-	joined := strings.Join(capturedArgs, " ")
-	assert.Contains(t, joined, "--auto")
-	assert.Contains(t, joined, "--squash")
-	assert.Contains(t, joined, "55")
-	assert.Contains(t, joined, "-R")
-	assert.Contains(t, joined, "host-uk/core-php")
+func TestEnableAutoMerge_Execute_Bad_MergeFailed(t *testing.T) {
+	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "merge conflict"})
+	})))
+	defer srv.Close()
+
+	client := newTestForgeClient(t, srv.URL)
+
+	h := NewEnableAutoMergeHandler(client)
+	sig := &jobrunner.PipelineSignal{
+		RepoOwner: "host-uk",
+		RepoName:  "core-php",
+		PRNumber:  55,
+	}
+
+	result, err := h.Execute(context.Background(), sig)
+	require.NoError(t, err)
+
+	assert.False(t, result.Success)
+	assert.Contains(t, result.Error, "merge failed")
 }

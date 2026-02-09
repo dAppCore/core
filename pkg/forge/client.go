@@ -16,8 +16,9 @@ import (
 
 // Client wraps the Forgejo SDK client with config-based auth.
 type Client struct {
-	api *forgejo.Client
-	url string
+	api   *forgejo.Client
+	url   string
+	token string
 }
 
 // New creates a new Forgejo API client for the given URL and token.
@@ -27,7 +28,7 @@ func New(url, token string) (*Client, error) {
 		return nil, log.E("forge.New", "failed to create client", err)
 	}
 
-	return &Client{api: api, url: url}, nil
+	return &Client{api: api, url: url, token: token}, nil
 }
 
 // API exposes the underlying SDK client for direct access.

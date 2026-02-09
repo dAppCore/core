@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,8 +13,8 @@ import (
 	"github.com/host-uk/core/pkg/jobrunner"
 )
 
-func TestResolveThreads_Match_Good(t *testing.T) {
-	h := NewResolveThreadsHandler(nil, "")
+func TestDismissReviews_Match_Good(t *testing.T) {
+	h := NewDismissReviewsHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:         "OPEN",
 		ThreadsTotal:    4,
@@ -24,8 +23,8 @@ func TestResolveThreads_Match_Good(t *testing.T) {
 	assert.True(t, h.Match(sig))
 }
 
-func TestResolveThreads_Match_Bad_AllResolved(t *testing.T) {
-	h := NewResolveThreadsHandler(nil, "")
+func TestDismissReviews_Match_Bad_AllResolved(t *testing.T) {
+	h := NewDismissReviewsHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState:         "OPEN",
 		ThreadsTotal:    3,
@@ -34,41 +33,41 @@ func TestResolveThreads_Match_Bad_AllResolved(t *testing.T) {
 	assert.False(t, h.Match(sig))
 }
 
-func TestResolveThreads_Execute_Good(t *testing.T) {
+func TestDismissReviews_Execute_Good(t *testing.T) {
 	callCount := 0
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, _ := io.ReadAll(r.Body)
-		var gqlReq graphqlRequest
-		_ = json.Unmarshal(b, &gqlReq)
-
+	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
+		w.Header().Set("Content-Type", "application/json")
 
-		if callCount == 1 {
-			// First call: fetch threads query.
-			resp := threadsResponse{}
-			resp.Data.Repository.PullRequest.ReviewThreads.Nodes = []struct {
-				ID         string `json:"id"`
-				IsResolved bool   `json:"isResolved"`
-			}{
-				{ID: "thread-1", IsResolved: false},
-				{ID: "thread-2", IsResolved: true},
-				{ID: "thread-3", IsResolved: false},
+		// ListPullReviews (GET)
+		if r.Method == http.MethodGet {
+			reviews := []map[string]any{
+				{
+					"id": 1, "state": "REQUEST_CHANGES", "dismissed": false, "stale": true,
+					"body": "fix this", "commit_id": "abc123",
+				},
+				{
+					"id": 2, "state": "APPROVED", "dismissed": false, "stale": false,
+					"body": "looks good", "commit_id": "abc123",
+				},
+				{
+					"id": 3, "state": "REQUEST_CHANGES", "dismissed": false, "stale": true,
+					"body": "needs work", "commit_id": "abc123",
+				},
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(reviews)
 			return
 		}
 
-		// Subsequent calls: resolve mutation.
-		resp := resolveResponse{}
-		resp.Data.ResolveReviewThread.Thread.ID = gqlReq.Variables["threadId"].(string)
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
+		// DismissPullReview (POST to dismissals endpoint)
+		w.WriteHeader(http.StatusOK)
+	})))
 	defer srv.Close()
 
-	h := NewResolveThreadsHandler(srv.Client(), srv.URL)
+	client := newTestForgeClient(t, srv.URL)
+
+	h := NewDismissReviewsHandler(client)
 	sig := &jobrunner.PipelineSignal{
 		RepoOwner:       "host-uk",
 		RepoName:        "core-admin",
@@ -82,11 +81,11 @@ func TestResolveThreads_Execute_Good(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, result.Success)
-	assert.Equal(t, "resolve_threads", result.Action)
+	assert.Equal(t, "dismiss_reviews", result.Action)
 	assert.Equal(t, "host-uk", result.RepoOwner)
 	assert.Equal(t, "core-admin", result.RepoName)
 	assert.Equal(t, 33, result.PRNumber)
 
-	// 1 query + 2 mutations (thread-1 and thread-3 are unresolved).
+	// 1 list + 2 dismiss (reviews #1 and #3 are stale REQUEST_CHANGES)
 	assert.Equal(t, 3, callCount)
 }

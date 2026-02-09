@@ -66,6 +66,9 @@ func initCommands() {
 
 	// Add metrics subcommand (core ai metrics)
 	addMetricsCommand(aiCmd)
+
+	// Add agent management commands (core ai agent ...)
+	AddAgentCommands(aiCmd)
 }
 
 // AddAICommands registers the 'ai' command and all subcommands.

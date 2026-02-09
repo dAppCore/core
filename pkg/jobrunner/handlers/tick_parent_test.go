@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
-	"fmt"
-	"os/exec"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -14,7 +16,7 @@ import (
 )
 
 func TestTickParent_Match_Good(t *testing.T) {
-	h := NewTickParentHandler()
+	h := NewTickParentHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState: "MERGED",
 	}
@@ -22,7 +24,7 @@ func TestTickParent_Match_Good(t *testing.T) {
 }
 
 func TestTickParent_Match_Bad_Open(t *testing.T) {
-	h := NewTickParentHandler()
+	h := NewTickParentHandler(nil)
 	sig := &jobrunner.PipelineSignal{
 		PRState: "OPEN",
 	}
@@ -30,32 +32,51 @@ func TestTickParent_Match_Bad_Open(t *testing.T) {
 }
 
 func TestTickParent_Execute_Good(t *testing.T) {
-	// Save and restore the original execCommand.
-	original := execCommand
-	defer func() { execCommand = original }()
-
 	epicBody := "## Tasks\n- [x] #1\n- [ ] #7\n- [ ] #8\n"
-	var callCount int
-	var editArgs []string
-	var closeArgs []string
+	var editBody string
+	var closeCalled bool
 
-	execCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		callCount++
-		if callCount == 1 {
-			// First call: gh issue view — return the epic body.
-			return exec.CommandContext(ctx, "echo", "-n", epicBody)
-		}
-		if callCount == 2 {
-			// Second call: gh issue edit — capture args and succeed.
-			editArgs = append([]string{name}, args...)
-			return exec.CommandContext(ctx, "echo", "ok")
-		}
-		// Third call: gh issue close — capture args and succeed.
-		closeArgs = append([]string{name}, args...)
-		return exec.CommandContext(ctx, "echo", "ok")
-	}
+	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		method := r.Method
+		w.Header().Set("Content-Type", "application/json")
 
-	h := NewTickParentHandler()
+		switch {
+		// GET issue (fetch epic)
+		case method == http.MethodGet && strings.Contains(path, "/issues/42"):
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"number": 42,
+				"body":   epicBody,
+				"title":  "Epic",
+			})
+
+		// PATCH issue (edit epic body)
+		case method == http.MethodPatch && strings.Contains(path, "/issues/42"):
+			b, _ := io.ReadAll(r.Body)
+			editBody = string(b)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"number": 42,
+				"body":   editBody,
+				"title":  "Epic",
+			})
+
+		// PATCH issue (close child — state: closed)
+		case method == http.MethodPatch && strings.Contains(path, "/issues/7"):
+			closeCalled = true
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"number": 7,
+				"state":  "closed",
+			})
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})))
+	defer srv.Close()
+
+	client := newTestForgeClient(t, srv.URL)
+
+	h := NewTickParentHandler(client)
 	sig := &jobrunner.PipelineSignal{
 		RepoOwner:   "host-uk",
 		RepoName:    "core-php",
@@ -70,21 +91,8 @@ func TestTickParent_Execute_Good(t *testing.T) {
 
 	assert.True(t, result.Success)
 	assert.Equal(t, "tick_parent", result.Action)
-	assert.Equal(t, 3, callCount, "expected three exec calls: view + edit + close")
 
-	// Verify the edit args contain the checked checkbox.
-	editJoined := strings.Join(editArgs, " ")
-	assert.Contains(t, editJoined, "issue")
-	assert.Contains(t, editJoined, "edit")
-	assert.Contains(t, editJoined, "42")
-	assert.Contains(t, editJoined, fmt.Sprintf("-R %s", sig.RepoFullName()))
-	assert.Contains(t, editJoined, "- [x] #7")
-
-	// Verify the close args target the child issue.
-	closeJoined := strings.Join(closeArgs, " ")
-	assert.Contains(t, closeJoined, "issue")
-	assert.Contains(t, closeJoined, "close")
-	assert.Contains(t, closeJoined, "7")
-	assert.Contains(t, closeJoined, "-R")
-	assert.Contains(t, closeJoined, "host-uk/core-php")
+	// Verify the edit body contains the checked checkbox.
+	assert.Contains(t, editBody, "- [x] #7")
+	assert.True(t, closeCalled, "expected child issue to be closed")
 }

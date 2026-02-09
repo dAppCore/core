@@ -6,7 +6,7 @@ import (
 )
 
 // PipelineSignal is the structural snapshot of a child issue/PR.
-// Never contains comment bodies or free text — structural signals only.
+// Carries structural state plus issue title/body for dispatch prompts.
 type PipelineSignal struct {
 	EpicNumber      int
 	ChildNumber     int
@@ -22,6 +22,10 @@ type PipelineSignal struct {
 	LastCommitSHA   string
 	LastCommitAt    time.Time
 	LastReviewAt    time.Time
+	NeedsCoding     bool   // true if child has no PR (work not started)
+	Assignee        string // issue assignee username (for dispatch)
+	IssueTitle      string // child issue title (for dispatch prompt)
+	IssueBody       string // child issue body (for dispatch prompt)
 }
 
 // RepoFullName returns "owner/repo".
