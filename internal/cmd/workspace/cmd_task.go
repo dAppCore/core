@@ -24,11 +24,11 @@ import (
 )
 
 var (
-	taskEpic    int
-	taskIssue   int
-	taskRepos   []string
-	taskForce   bool
-	taskBranch  string
+	taskEpic   int
+	taskIssue  int
+	taskRepos  []string
+	taskForce  bool
+	taskBranch string
 )
 
 func addTaskCommands(parent *cobra.Command) {

@@ -220,6 +220,29 @@ tasks:
       - go build -tags nowatcher -o ../../bin/core-app .
       - ../../bin/core-app
 
+  # --- BugSETI (Wails v3 System Tray) ---
+  bugseti:dev:
+    desc: "Build and run BugSETI (production binary with embedded frontend)"
+    dir: cmd/bugseti
+    cmds:
+      - cd frontend && npm install && npm run build
+      - go build -buildvcs=false -o ../../bin/bugseti .
+      - ../../bin/bugseti
+
+  bugseti:build:
+    desc: "Build BugSETI production binary"
+    dir: cmd/bugseti
+    cmds:
+      - cd frontend && npm install && npm run build
+      - go build -trimpath -buildvcs=false -ldflags="-w -s" -o ../../bin/bugseti .
+
+  bugseti:frontend:
+    desc: "Build BugSETI frontend only"
+    dir: cmd/bugseti/frontend
+    cmds:
+      - npm install
+      - npm run build
+
   # --- Multi-repo (when in workspace) ---
   dev:health:
     desc: "Check health of all repos"

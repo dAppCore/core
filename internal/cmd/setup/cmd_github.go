@@ -25,7 +25,6 @@ import (
 	"github.com/host-uk/core/pkg/cli"
 	"github.com/host-uk/core/pkg/i18n"
 	coreio "github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/log"
 	"github.com/host-uk/core/pkg/repos"
 	"github.com/spf13/cobra"
 )
@@ -76,7 +75,6 @@ func runGitHubSetup() error {
 
 	// Check gh is authenticated
 	if !cli.GhAuthenticated() {
-		cli.LogSecurity("GitHub setup failed: not authenticated", "action", "setup github", "user", log.Username())
 		return errors.New(i18n.T("cmd.setup.github.error.not_authenticated"))
 	}
 

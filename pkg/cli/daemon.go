@@ -74,14 +74,13 @@ func IsStderrTTY() bool {
 
 // PIDFile manages a process ID file for single-instance enforcement.
 type PIDFile struct {
-	medium io.Medium
-	path   string
-	mu     sync.Mutex
+	path string
+	mu   sync.Mutex
 }
 
 // NewPIDFile creates a PID file manager.
-func NewPIDFile(m io.Medium, path string) *PIDFile {
-	return &PIDFile{medium: m, path: path}
+func NewPIDFile(path string) *PIDFile {
+	return &PIDFile{path: path}
 }
 
 // Acquire writes the current PID to the file.
@@ -91,7 +90,7 @@ func (p *PIDFile) Acquire() error {
 	defer p.mu.Unlock()
 
 	// Check if PID file exists
-	if data, err := p.medium.Read(p.path); err == nil {
+	if data, err := io.Local.Read(p.path); err == nil {
 		pid, err := strconv.Atoi(data)
 		if err == nil && pid > 0 {
 			// Check if process is still running
@@ -102,19 +101,19 @@ func (p *PIDFile) Acquire() error {
 			}
 		}
 		// Stale PID file, remove it
-		_ = p.medium.Delete(p.path)
+		_ = io.Local.Delete(p.path)
 	}
 
 	// Ensure directory exists
 	if dir := filepath.Dir(p.path); dir != "." {
-		if err := p.medium.EnsureDir(dir); err != nil {
+		if err := io.Local.EnsureDir(dir); err != nil {
 			return fmt.Errorf("failed to create PID directory: %w", err)
 		}
 	}
 
 	// Write current PID
 	pid := os.Getpid()
-	if err := p.medium.Write(p.path, strconv.Itoa(pid)); err != nil {
+	if err := io.Local.Write(p.path, strconv.Itoa(pid)); err != nil {
 		return fmt.Errorf("failed to write PID file: %w", err)
 	}
 
@@ -125,7 +124,7 @@ func (p *PIDFile) Acquire() error {
 func (p *PIDFile) Release() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.medium.Delete(p.path)
+	return io.Local.Delete(p.path)
 }
 
 // Path returns the PID file path.
@@ -219,7 +218,7 @@ func (h *HealthServer) Start() error {
 
 	go func() {
 		if err := h.server.Serve(listener); err != http.ErrServerClosed {
-			LogError("health server error", "err", err)
+			LogError(fmt.Sprintf("health server error: %v", err))
 		}
 	}()
 
@@ -247,10 +246,6 @@ func (h *HealthServer) Addr() string {
 
 // DaemonOptions configures daemon mode execution.
 type DaemonOptions struct {
-	// Medium is the storage backend for PID files.
-	// Defaults to io.Local if not set.
-	Medium io.Medium
-
 	// PIDFile path for single-instance enforcement.
 	// Leave empty to skip PID file management.
 	PIDFile string
@@ -287,9 +282,6 @@ func NewDaemon(opts DaemonOptions) *Daemon {
 	if opts.ShutdownTimeout == 0 {
 		opts.ShutdownTimeout = 30 * time.Second
 	}
-	if opts.Medium == nil {
-		opts.Medium = io.Local
-	}
 
 	d := &Daemon{
 		opts:   opts,
@@ -297,7 +289,7 @@ func NewDaemon(opts DaemonOptions) *Daemon {
 	}
 
 	if opts.PIDFile != "" {
-		d.pid = NewPIDFile(opts.Medium, opts.PIDFile)
+		d.pid = NewPIDFile(opts.PIDFile)
 	}
 
 	if opts.HealthAddr != "" {

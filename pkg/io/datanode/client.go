@@ -552,10 +552,12 @@ type dirEntry struct {
 	name string
 }
 
-func (d *dirEntry) Name() string               { return d.name }
-func (d *dirEntry) IsDir() bool                { return true }
-func (d *dirEntry) Type() fs.FileMode          { return fs.ModeDir }
-func (d *dirEntry) Info() (fs.FileInfo, error)  { return &fileInfo{name: d.name, isDir: true, mode: fs.ModeDir | 0755}, nil }
+func (d *dirEntry) Name() string      { return d.name }
+func (d *dirEntry) IsDir() bool       { return true }
+func (d *dirEntry) Type() fs.FileMode { return fs.ModeDir }
+func (d *dirEntry) Info() (fs.FileInfo, error) {
+	return &fileInfo{name: d.name, isDir: true, mode: fs.ModeDir | 0755}, nil
+}
 
 type fileInfo struct {
 	name    string

@@ -3,19 +3,15 @@ package agentic
 
 import (
 	"bytes"
-	goio "io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/host-uk/core/pkg/ai"
+	errors "github.com/host-uk/core/pkg/framework/core"
 	"github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/log"
 )
-
-const maxContextBytes = 5000
 
 // FileContent represents the content of a file for AI context.
 type FileContent struct {
@@ -39,8 +35,6 @@ type TaskContext struct {
 	RecentCommits string `json:"recent_commits"`
 	// RelatedCode contains code snippets related to the task.
 	RelatedCode []FileContent `json:"related_code"`
-	// RAGContext contains relevant documentation from the vector database.
-	RAGContext string `json:"rag_context,omitempty"`
 }
 
 // BuildTaskContext gathers context for AI collaboration on a task.
@@ -48,13 +42,13 @@ func BuildTaskContext(task *Task, dir string) (*TaskContext, error) {
 	const op = "agentic.BuildTaskContext"
 
 	if task == nil {
-		return nil, log.E(op, "task is required", nil)
+		return nil, errors.E(op, "task is required", nil)
 	}
 
 	if dir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return nil, log.E(op, "failed to get working directory", err)
+			return nil, errors.E(op, "failed to get working directory", err)
 		}
 		dir = cwd
 	}
@@ -86,13 +80,6 @@ func BuildTaskContext(task *Task, dir string) (*TaskContext, error) {
 	}
 	ctx.RelatedCode = relatedCode
 
-	// Query RAG for relevant documentation (graceful degradation)
-	ragCtx := ai.QueryRAGForTask(ai.TaskInfo{
-		Title:       task.Title,
-		Description: task.Description,
-	})
-	ctx.RAGContext = ragCtx
-
 	return ctx, nil
 }
 
@@ -101,31 +88,24 @@ func GatherRelatedFiles(task *Task, dir string) ([]FileContent, error) {
 	const op = "agentic.GatherRelatedFiles"
 
 	if task == nil {
-		return nil, log.E(op, "task is required", nil)
+		return nil, errors.E(op, "task is required", nil)
 	}
 
 	var files []FileContent
 
 	// Read files explicitly mentioned in the task
 	for _, relPath := range task.Files {
-		fullPath := relPath
-		if !filepath.IsAbs(relPath) {
-			fullPath = filepath.Join(dir, relPath)
-		}
+		fullPath := filepath.Join(dir, relPath)
 
-		content, truncated, err := readAndTruncate(fullPath)
+		content, err := io.Local.Read(fullPath)
 		if err != nil {
+			// Skip files that don't exist
 			continue
-		}
-
-		contentStr := string(content)
-		if truncated {
-			contentStr += "\n... (truncated)"
 		}
 
 		files = append(files, FileContent{
 			Path:     relPath,
-			Content:  contentStr,
+			Content:  content,
 			Language: detectLanguage(relPath),
 		})
 	}
@@ -138,7 +118,7 @@ func findRelatedCode(task *Task, dir string) ([]FileContent, error) {
 	const op = "agentic.findRelatedCode"
 
 	if task == nil {
-		return nil, log.E(op, "task is required", nil)
+		return nil, errors.E(op, "task is required", nil)
 	}
 
 	// Extract keywords from title and description
@@ -174,24 +154,20 @@ func findRelatedCode(task *Task, dir string) ([]FileContent, error) {
 				break
 			}
 
-			fullPath := line
-			if !filepath.IsAbs(line) {
-				fullPath = filepath.Join(dir, line)
-			}
-
-			content, truncated, err := readAndTruncate(fullPath)
+			fullPath := filepath.Join(dir, line)
+			content, err := io.Local.Read(fullPath)
 			if err != nil {
 				continue
 			}
 
-			contentStr := string(content)
-			if truncated {
-				contentStr += "\n... (truncated)"
+			// Truncate large files
+			if len(content) > 5000 {
+				content = content[:5000] + "\n... (truncated)"
 			}
 
 			files = append(files, FileContent{
 				Path:     line,
-				Content:  contentStr,
+				Content:  content,
 				Language: detectLanguage(line),
 			})
 		}
@@ -286,30 +262,6 @@ func detectLanguage(path string) string {
 	return "text"
 }
 
-// readAndTruncate reads up to maxContextBytes from a file.
-func readAndTruncate(path string) ([]byte, bool, error) {
-	f, err := io.Local.ReadStream(path)
-	if err != nil {
-		return nil, false, err
-	}
-	defer func() { _ = f.Close() }()
-
-	// Read up to maxContextBytes + 1 to detect truncation
-	reader := goio.LimitReader(f, maxContextBytes+1)
-	content, err := goio.ReadAll(reader)
-	if err != nil {
-		return nil, false, err
-	}
-
-	truncated := false
-	if len(content) > maxContextBytes {
-		content = content[:maxContextBytes]
-		truncated = true
-	}
-
-	return content, truncated, nil
-}
-
 // runGitCommand runs a git command and returns the output.
 func runGitCommand(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
@@ -377,13 +329,6 @@ func (tc *TaskContext) FormatContext() string {
 			sb.WriteString(f.Content)
 			sb.WriteString("\n```\n\n")
 		}
-	}
-
-	// Relevant documentation from RAG
-	if tc.RAGContext != "" {
-		sb.WriteString("## Relevant Documentation\n")
-		sb.WriteString(tc.RAGContext)
-		sb.WriteString("\n\n")
 	}
 
 	return sb.String()

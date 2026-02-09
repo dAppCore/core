@@ -1,26 +1,25 @@
 package agentic
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/config"
+	errors "github.com/host-uk/core/pkg/framework/core"
 	"github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/log"
+	"gopkg.in/yaml.v3"
 )
 
 // Config holds the configuration for connecting to the core-agentic service.
 type Config struct {
 	// BaseURL is the URL of the core-agentic API server.
-	BaseURL string `yaml:"base_url" json:"base_url" mapstructure:"base_url"`
+	BaseURL string `yaml:"base_url" json:"base_url"`
 	// Token is the authentication token for API requests.
-	Token string `yaml:"token" json:"token" mapstructure:"token"`
+	Token string `yaml:"token" json:"token"`
 	// DefaultProject is the project to use when none is specified.
-	DefaultProject string `yaml:"default_project" json:"default_project" mapstructure:"default_project"`
+	DefaultProject string `yaml:"default_project" json:"default_project"`
 	// AgentID is the identifier for this agent (optional, used for claiming tasks).
-	AgentID string `yaml:"agent_id" json:"agent_id" mapstructure:"agent_id"`
+	AgentID string `yaml:"agent_id" json:"agent_id"`
 }
 
 // configFileName is the name of the YAML config file.
@@ -33,9 +32,10 @@ const envFileName = ".env"
 const DefaultBaseURL = "https://api.core-agentic.dev"
 
 // LoadConfig loads the agentic configuration from the specified directory.
-// It uses the centralized config service.
+// It first checks for a .env file, then falls back to ~/.core/agentic.yaml.
+// If dir is empty, it checks the current directory first.
 //
-// Environment variables take precedence (prefix: AGENTIC_):
+// Environment variables take precedence:
 //   - AGENTIC_BASE_URL: API base URL
 //   - AGENTIC_TOKEN: Authentication token
 //   - AGENTIC_PROJECT: Default project
@@ -58,13 +58,15 @@ func LoadConfig(dir string) (*Config, error) {
 	}
 
 	// Try loading from current directory .env
-	cwd, err := os.Getwd()
-	if err == nil {
-		envPath := filepath.Join(cwd, envFileName)
-		if err := loadEnvFile(envPath, cfg); err == nil {
-			applyEnvOverrides(cfg)
-			if cfg.Token != "" {
-				return cfg, nil
+	if dir == "" {
+		cwd, err := os.Getwd()
+		if err == nil {
+			envPath := filepath.Join(cwd, envFileName)
+			if err := loadEnvFile(envPath, cfg); err == nil {
+				applyEnvOverrides(cfg)
+				if cfg.Token != "" {
+					return cfg, nil
+				}
 			}
 		}
 	}
@@ -72,19 +74,12 @@ func LoadConfig(dir string) (*Config, error) {
 	// Try loading from ~/.core/agentic.yaml
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, log.E("agentic.LoadConfig", "failed to get home directory", err)
+		return nil, errors.E("agentic.LoadConfig", "failed to get home directory", err)
 	}
 
 	configPath := filepath.Join(homeDir, ".core", configFileName)
-	if io.Local.IsFile(configPath) {
-		// Use centralized config service to load the YAML file
-		c, err := config.New(config.WithPath(configPath))
-		if err != nil {
-			return nil, log.E("agentic.LoadConfig", "failed to initialize config", err)
-		}
-		if err := c.Get("", cfg); err != nil {
-			return nil, log.E("agentic.LoadConfig", "failed to load config", err)
-		}
+	if err := loadYAMLConfig(configPath, cfg); err != nil && !os.IsNotExist(err) {
+		return nil, errors.E("agentic.LoadConfig", "failed to load config", err)
 	}
 
 	// Apply environment variable overrides
@@ -92,25 +87,21 @@ func LoadConfig(dir string) (*Config, error) {
 
 	// Validate configuration
 	if cfg.Token == "" {
-		log.Security("agentic authentication failed: no token configured", "user", log.Username())
-		return nil, log.E("agentic.LoadConfig", "no authentication token configured", nil)
+		return nil, errors.E("agentic.LoadConfig", "no authentication token configured", nil)
 	}
 
-	log.Security("agentic configuration loaded", "user", log.Username(), "baseURL", cfg.BaseURL)
 	return cfg, nil
 }
 
 // loadEnvFile reads a .env file and extracts agentic configuration.
 func loadEnvFile(path string, cfg *Config) error {
-	file, err := os.Open(path)
+	content, err := io.Local.Read(path)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = file.Close() }()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
 
 		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -141,7 +132,17 @@ func loadEnvFile(path string, cfg *Config) error {
 		}
 	}
 
-	return scanner.Err()
+	return nil
+}
+
+// loadYAMLConfig reads configuration from a YAML file.
+func loadYAMLConfig(path string, cfg *Config) error {
+	content, err := io.Local.Read(path)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal([]byte(content), cfg)
 }
 
 // applyEnvOverrides applies environment variable overrides to the config.
@@ -162,25 +163,35 @@ func applyEnvOverrides(cfg *Config) {
 
 // SaveConfig saves the configuration to ~/.core/agentic.yaml.
 func SaveConfig(cfg *Config) error {
-	path, err := ConfigPath()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return errors.E("agentic.SaveConfig", "failed to get home directory", err)
 	}
 
-	data := make(map[string]any)
-	data["base_url"] = cfg.BaseURL
-	data["token"] = cfg.Token
-	data["default_project"] = cfg.DefaultProject
-	data["agent_id"] = cfg.AgentID
+	configDir := filepath.Join(homeDir, ".core")
+	if err := io.Local.EnsureDir(configDir); err != nil {
+		return errors.E("agentic.SaveConfig", "failed to create config directory", err)
+	}
 
-	return config.Save(io.Local, path, data)
+	configPath := filepath.Join(configDir, configFileName)
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return errors.E("agentic.SaveConfig", "failed to marshal config", err)
+	}
+
+	if err := io.Local.Write(configPath, string(data)); err != nil {
+		return errors.E("agentic.SaveConfig", "failed to write config file", err)
+	}
+
+	return nil
 }
 
 // ConfigPath returns the path to the config file in the user's home directory.
 func ConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", log.E("agentic.ConfigPath", "failed to get home directory", err)
+		return "", errors.E("agentic.ConfigPath", "failed to get home directory", err)
 	}
 	return filepath.Join(homeDir, ".core", configFileName), nil
 }

@@ -16,8 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var templateManager = container.NewTemplateManager(io.Local)
-
 // addVMTemplatesCommand adds the 'templates' command under vm.
 func addVMTemplatesCommand(parent *cobra.Command) {
 	templatesCmd := &cobra.Command{
@@ -71,7 +69,7 @@ func addTemplatesVarsCommand(parent *cobra.Command) {
 }
 
 func listTemplates() error {
-	templates := templateManager.ListTemplates()
+	templates := container.ListTemplates()
 
 	if len(templates) == 0 {
 		fmt.Println(i18n.T("cmd.vm.templates.no_templates"))
@@ -102,7 +100,7 @@ func listTemplates() error {
 }
 
 func showTemplate(name string) error {
-	content, err := templateManager.GetTemplate(name)
+	content, err := container.GetTemplate(name)
 	if err != nil {
 		return err
 	}
@@ -114,7 +112,7 @@ func showTemplate(name string) error {
 }
 
 func showTemplateVars(name string) error {
-	content, err := templateManager.GetTemplate(name)
+	content, err := container.GetTemplate(name)
 	if err != nil {
 		return err
 	}
@@ -151,7 +149,7 @@ func showTemplateVars(name string) error {
 // RunFromTemplate builds and runs a LinuxKit image from a template.
 func RunFromTemplate(templateName string, vars map[string]string, runOpts container.RunOptions) error {
 	// Apply template with variables
-	content, err := templateManager.ApplyTemplate(templateName, vars)
+	content, err := container.ApplyTemplate(templateName, vars)
 	if err != nil {
 		return fmt.Errorf(i18n.T("common.error.failed", map[string]any{"Action": "apply template"})+": %w", err)
 	}

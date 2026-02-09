@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/host-uk/core/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +53,7 @@ changelog:
 `
 		dir := setupConfigTestDir(t, content)
 
-		cfg, err := LoadConfig(io.Local, dir)
+		cfg, err := LoadConfig(dir)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
@@ -77,7 +76,7 @@ changelog:
 	t.Run("returns defaults when config file missing", func(t *testing.T) {
 		dir := t.TempDir()
 
-		cfg, err := LoadConfig(io.Local, dir)
+		cfg, err := LoadConfig(dir)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
@@ -97,7 +96,7 @@ project:
 `
 		dir := setupConfigTestDir(t, content)
 
-		cfg, err := LoadConfig(io.Local, dir)
+		cfg, err := LoadConfig(dir)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
@@ -114,7 +113,7 @@ project:
 	t.Run("sets project directory on load", func(t *testing.T) {
 		dir := setupConfigTestDir(t, "version: 1")
 
-		cfg, err := LoadConfig(io.Local, dir)
+		cfg, err := LoadConfig(dir)
 		require.NoError(t, err)
 		assert.Equal(t, dir, cfg.projectDir)
 	})
@@ -129,7 +128,7 @@ project:
 `
 		dir := setupConfigTestDir(t, content)
 
-		cfg, err := LoadConfig(io.Local, dir)
+		cfg, err := LoadConfig(dir)
 		assert.Error(t, err)
 		assert.Nil(t, cfg)
 		assert.Contains(t, err.Error(), "failed to parse config file")
@@ -146,7 +145,7 @@ project:
 		err = os.Mkdir(configPath, 0755)
 		require.NoError(t, err)
 
-		cfg, err := LoadConfig(io.Local, dir)
+		cfg, err := LoadConfig(dir)
 		assert.Error(t, err)
 		assert.Nil(t, cfg)
 		assert.Contains(t, err.Error(), "failed to read config file")
@@ -205,17 +204,17 @@ func TestConfigPath_Good(t *testing.T) {
 func TestConfigExists_Good(t *testing.T) {
 	t.Run("returns true when config exists", func(t *testing.T) {
 		dir := setupConfigTestDir(t, "version: 1")
-		assert.True(t, ConfigExists(io.Local, dir))
+		assert.True(t, ConfigExists(dir))
 	})
 
 	t.Run("returns false when config missing", func(t *testing.T) {
 		dir := t.TempDir()
-		assert.False(t, ConfigExists(io.Local, dir))
+		assert.False(t, ConfigExists(dir))
 	})
 
 	t.Run("returns false when .core dir missing", func(t *testing.T) {
 		dir := t.TempDir()
-		assert.False(t, ConfigExists(io.Local, dir))
+		assert.False(t, ConfigExists(dir))
 	})
 }
 
@@ -227,14 +226,14 @@ func TestWriteConfig_Good(t *testing.T) {
 		cfg.Project.Name = "testapp"
 		cfg.Project.Repository = "owner/testapp"
 
-		err := WriteConfig(io.Local, cfg, dir)
+		err := WriteConfig(cfg, dir)
 		require.NoError(t, err)
 
 		// Verify file exists
-		assert.True(t, ConfigExists(io.Local, dir))
+		assert.True(t, ConfigExists(dir))
 
 		// Reload and verify
-		loaded, err := LoadConfig(io.Local, dir)
+		loaded, err := LoadConfig(dir)
 		require.NoError(t, err)
 		assert.Equal(t, "testapp", loaded.Project.Name)
 		assert.Equal(t, "owner/testapp", loaded.Project.Repository)
@@ -244,7 +243,7 @@ func TestWriteConfig_Good(t *testing.T) {
 		dir := t.TempDir()
 
 		cfg := DefaultConfig()
-		err := WriteConfig(io.Local, cfg, dir)
+		err := WriteConfig(cfg, dir)
 		require.NoError(t, err)
 
 		// Check directory was created
@@ -321,7 +320,7 @@ func TestWriteConfig_Bad(t *testing.T) {
 		defer func() { _ = os.Chmod(coreDir, 0755) }()
 
 		cfg := DefaultConfig()
-		err = WriteConfig(io.Local, cfg, dir)
+		err = WriteConfig(cfg, dir)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to write config file")
 	})
@@ -332,7 +331,7 @@ func TestWriteConfig_Bad(t *testing.T) {
 		}
 		// Use a path that doesn't exist and can't be created
 		cfg := DefaultConfig()
-		err := WriteConfig(io.Local, cfg, "/nonexistent/path/that/cannot/be/created")
+		err := WriteConfig(cfg, "/nonexistent/path/that/cannot/be/created")
 		assert.Error(t, err)
 	})
 }

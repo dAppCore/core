@@ -1,7 +1,8 @@
 // cmd_agent.go manages persistent agent context within task workspaces.
 //
 // Each agent gets a directory at:
-//   .core/workspace/p{epic}/i{issue}/agents/{provider}/{agent-name}/
+//
+//	.core/workspace/p{epic}/i{issue}/agents/{provider}/{agent-name}/
 //
 // This directory persists across invocations, allowing agents to build
 // understanding over time — QA agents accumulate findings, reviewers
@@ -34,7 +35,7 @@ import (
 
 var (
 	agentProvider string
-	agentName    string
+	agentName     string
 )
 
 func addAgentCommands(parent *cobra.Command) {

@@ -1,6 +1,5 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ChatComponent } from '../chat/chat.component';
 import { BuildComponent } from '../build/build.component';
 import { DashboardComponent } from '../dashboard/dashboard.component';
@@ -11,7 +10,7 @@ type Panel = 'chat' | 'build' | 'dashboard' | 'jellyfin';
 @Component({
   selector: 'app-main',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, RouterOutlet, ChatComponent, BuildComponent, DashboardComponent, JellyfinComponent],
+  imports: [CommonModule, ChatComponent, BuildComponent, DashboardComponent, JellyfinComponent],
   template: `
     <div class="ide">
       <nav class="ide__sidebar">

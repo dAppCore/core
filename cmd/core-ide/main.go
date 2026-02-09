@@ -9,7 +9,9 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net/http"
 	"runtime"
+	"strings"
 
 	"github.com/host-uk/core/cmd/core-ide/icons"
 	"github.com/host-uk/core/pkg/mcp/ide"
@@ -41,6 +43,9 @@ func main() {
 	chatService := NewChatService(ideSub)
 	buildService := NewBuildService(ideSub)
 
+	// Create MCP bridge (SERVER: HTTP tool server + CLIENT: WebSocket relay)
+	mcpBridge := NewMCPBridge(hub, 9877)
+
 	app := application.New(application.Options{
 		Name:        "Core IDE",
 		Description: "Host UK Platform IDE - AI Agent Sessions, Build Monitoring & Dashboard",
@@ -48,9 +53,10 @@ func main() {
 			application.NewService(ideService),
 			application.NewService(chatService),
 			application.NewService(buildService),
+			application.NewService(mcpBridge),
 		},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(staticAssets),
+			Handler: spaHandler(staticAssets),
 		},
 		Mac: application.MacOptions{
 			ActivationPolicy: application.ActivationPolicyAccessory,
@@ -63,7 +69,8 @@ func main() {
 
 	log.Println("Starting Core IDE...")
 	log.Println("  - System tray active")
-	log.Println("  - Bridge connecting to Laravel core-agentic...")
+	log.Println("  - MCP bridge (SERVER) on :9877")
+	log.Println("  - Claude bridge (CLIENT) → MCP core on :9876")
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
@@ -148,4 +155,19 @@ func setupSystemTray(app *application.App, ideService *IDEService) {
 	})
 
 	systray.SetMenu(trayMenu)
+}
+
+// spaHandler wraps an fs.FS to serve static files with SPA fallback.
+func spaHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		if _, err := fs.Stat(fsys, path); err != nil {
+			r.URL.Path = "/"
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 }

@@ -1,0 +1,36 @@
+# Ansible inventory for Host UK production
+# Used by: core deploy ansible <playbook> -i playbooks/inventory.yml
+all:
+  vars:
+    ansible_user: root
+    ansible_ssh_private_key_file: ~/.ssh/hostuk
+
+  children:
+    bastion:
+      hosts:
+        noc:
+          ansible_host: 77.42.42.205
+          private_ip: 10.0.0.4
+
+    app_servers:
+      hosts:
+        de:
+          ansible_host: 116.202.82.115
+          galera_node_name: de
+          galera_node_address: 116.202.82.115
+        de2:
+          ansible_host: 88.99.195.41
+          galera_node_name: de2
+          galera_node_address: 88.99.195.41
+      vars:
+        galera_cluster_name: hostuk-galera
+        galera_sst_method: mariabackup
+        db_name: hostuk
+        db_user: hostuk
+        redis_maxmemory: 512mb
+
+    builders:
+      hosts:
+        build:
+          ansible_host: 46.224.93.62
+          private_ip: 10.0.0.5

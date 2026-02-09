@@ -27,7 +27,7 @@ func NewLinuxKitManager(m io.Medium) (*LinuxKitManager, error) {
 		return nil, fmt.Errorf("failed to determine state path: %w", err)
 	}
 
-	state, err := LoadState(m, statePath)
+	state, err := LoadState(statePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load state: %w", err)
 	}
@@ -90,7 +90,7 @@ func (m *LinuxKitManager) Run(ctx context.Context, image string, opts RunOptions
 	}
 
 	// Ensure logs directory exists
-	if err := EnsureLogsDir(m.medium); err != nil {
+	if err := EnsureLogsDir(); err != nil {
 		return nil, fmt.Errorf("failed to create logs directory: %w", err)
 	}
 

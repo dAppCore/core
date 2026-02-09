@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 
 	"github.com/host-uk/core/pkg/mcp/ide"
 	"github.com/host-uk/core/pkg/ws"
@@ -26,9 +25,7 @@ func NewIDEService(ideSub *ide.Subsystem, hub *ws.Hub) *IDEService {
 func (s *IDEService) ServiceName() string { return "IDEService" }
 
 // ServiceStartup is called when the Wails application starts.
-func (s *IDEService) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
-	// Start WebSocket HTTP server for the Angular frontend
-	go s.startWSServer()
+func (s *IDEService) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
 	log.Println("IDEService started")
 	return nil
 }
@@ -82,21 +79,5 @@ func (s *IDEService) ShowWindow(name string) {
 	if w, ok := s.app.Window.Get(name); ok {
 		w.Show()
 		w.Focus()
-	}
-}
-
-// startWSServer starts the WebSocket HTTP server for the Angular frontend.
-func (s *IDEService) startWSServer() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", s.hub.HandleWebSocket)
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	})
-
-	addr := "127.0.0.1:9877"
-	log.Printf("IDE WebSocket server listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Printf("IDE WebSocket server error: %v", err)
 	}
 }
