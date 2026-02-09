@@ -110,8 +110,7 @@ echo "$(date -Iseconds) Running ${RUNNER} (model: ${MODEL})..."
 
 case "$RUNNER" in
     codex)
-        codex --approval-mode full-auto \
-            --quiet \
+        codex exec --full-auto \
             "$PROMPT" \
             > "$LOG_FILE" 2>&1
         ;;
