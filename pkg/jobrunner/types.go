@@ -22,6 +22,10 @@ type PipelineSignal struct {
 	LastCommitSHA   string
 	LastCommitAt    time.Time
 	LastReviewAt    time.Time
+	NeedsCoding     bool   // true if child has no PR (work not started)
+	Assignee        string // issue assignee username (for dispatch)
+	IssueTitle      string // child issue title (for dispatch prompt)
+	IssueBody       string // child issue body (for dispatch prompt)
 }
 
 // RepoFullName returns "owner/repo".

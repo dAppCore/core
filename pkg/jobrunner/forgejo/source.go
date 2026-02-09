@@ -115,7 +115,27 @@ func (s *ForgejoSource) pollRepo(_ context.Context, owner, repo string) ([]*jobr
 		unchecked, _ := parseEpicChildren(epic.Body)
 		for _, childNum := range unchecked {
 			pr := findLinkedPR(prs, childNum)
+
 			if pr == nil {
+				// No PR yet — check if the child issue is assigned (needs coding).
+				childIssue, err := s.forge.GetIssue(owner, repo, int64(childNum))
+				if err != nil {
+					log.Error("fetch child issue failed", "repo", owner+"/"+repo, "issue", childNum, "err", err)
+					continue
+				}
+				if len(childIssue.Assignees) > 0 && childIssue.Assignees[0].UserName != "" {
+					sig := &jobrunner.PipelineSignal{
+						EpicNumber:  epic.Number,
+						ChildNumber: childNum,
+						RepoOwner:   owner,
+						RepoName:    repo,
+						NeedsCoding: true,
+						Assignee:    childIssue.Assignees[0].UserName,
+						IssueTitle:  childIssue.Title,
+						IssueBody:   childIssue.Body,
+					}
+					signals = append(signals, sig)
+				}
 				continue
 			}
 

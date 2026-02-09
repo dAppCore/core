@@ -42,7 +42,8 @@ func startHeadless() {
 	}
 
 	// Forge client
-	forgeClient, err := forge.NewFromConfig("", "")
+	forgeURL, forgeToken, _ := forge.ResolveConfig("", "")
+	forgeClient, err := forge.New(forgeURL, forgeToken)
 	if err != nil {
 		log.Fatalf("Failed to create forge client: %v", err)
 	}
@@ -64,6 +65,12 @@ func startHeadless() {
 	enableAutoMerge := handlers.NewEnableAutoMergeHandler(forgeClient)
 	tickParent := handlers.NewTickParentHandler(forgeClient)
 
+	// Agent dispatch — maps Forgejo usernames to SSH targets.
+	agentTargets := map[string]handlers.AgentTarget{
+		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "/home/claude/ai-work/queue"},
+	}
+	dispatch := handlers.NewDispatchHandler(forgeClient, forgeURL, forgeToken, agentTargets)
+
 	// Build poller
 	poller := jobrunner.NewPoller(jobrunner.PollerConfig{
 		Sources: []jobrunner.JobSource{source},
@@ -73,6 +80,7 @@ func startHeadless() {
 			dismissReviews,
 			enableAutoMerge,
 			tickParent,
+			dispatch, // Last — only matches NeedsCoding signals
 		},
 		Journal:      journal,
 		PollInterval: 60 * time.Second,
