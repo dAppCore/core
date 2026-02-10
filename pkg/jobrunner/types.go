@@ -26,6 +26,10 @@ type PipelineSignal struct {
 	Assignee        string // issue assignee username (for dispatch)
 	IssueTitle      string // child issue title (for dispatch prompt)
 	IssueBody       string // child issue body (for dispatch prompt)
+	Type            string // signal type (e.g., "agent_completion")
+	Success         bool   // agent completion success flag
+	Error           string // agent error message
+	Message         string // agent completion message
 }
 
 // RepoFullName returns "owner/repo".

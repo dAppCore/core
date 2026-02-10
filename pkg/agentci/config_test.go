@@ -5,7 +5,6 @@ import (
 
 	"github.com/host-uk/core/pkg/config"
 	"github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/jobrunner/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,11 +32,11 @@ agentci:
       runner: claude
       active: true
 `)
-	targets, err := LoadAgents(cfg)
+	agents, err := LoadAgents(cfg)
 	require.NoError(t, err)
-	require.Len(t, targets, 1)
+	require.Len(t, agents, 1)
 
-	agent := targets["darbs-claude"]
+	agent := agents["darbs-claude"]
 	assert.Equal(t, "claude@192.168.0.201", agent.Host)
 	assert.Equal(t, "/home/claude/ai-work/queue", agent.QueueDir)
 	assert.Equal(t, "sonnet", agent.Model)
@@ -58,11 +57,11 @@ agentci:
       runner: codex
       active: true
 `)
-	targets, err := LoadAgents(cfg)
+	agents, err := LoadAgents(cfg)
 	require.NoError(t, err)
-	assert.Len(t, targets, 2)
-	assert.Contains(t, targets, "darbs-claude")
-	assert.Contains(t, targets, "local-codex")
+	assert.Len(t, agents, 2)
+	assert.Contains(t, agents, "darbs-claude")
+	assert.Contains(t, agents, "local-codex")
 }
 
 func TestLoadAgents_Good_SkipsInactive(t *testing.T) {
@@ -76,10 +75,28 @@ agentci:
       host: claude@10.0.0.2
       active: false
 `)
-	targets, err := LoadAgents(cfg)
+	agents, err := LoadAgents(cfg)
 	require.NoError(t, err)
-	assert.Len(t, targets, 1)
-	assert.Contains(t, targets, "active-agent")
+	// Both are returned, but only active-agent has defaults applied.
+	assert.Len(t, agents, 2)
+	assert.Contains(t, agents, "active-agent")
+}
+
+func TestLoadActiveAgents_Good(t *testing.T) {
+	cfg := newTestConfig(t, `
+agentci:
+  agents:
+    active-agent:
+      host: claude@10.0.0.1
+      active: true
+    offline-agent:
+      host: claude@10.0.0.2
+      active: false
+`)
+	active, err := LoadActiveAgents(cfg)
+	require.NoError(t, err)
+	assert.Len(t, active, 1)
+	assert.Contains(t, active, "active-agent")
 }
 
 func TestLoadAgents_Good_Defaults(t *testing.T) {
@@ -90,11 +107,11 @@ agentci:
       host: claude@10.0.0.1
       active: true
 `)
-	targets, err := LoadAgents(cfg)
+	agents, err := LoadAgents(cfg)
 	require.NoError(t, err)
-	require.Len(t, targets, 1)
+	require.Len(t, agents, 1)
 
-	agent := targets["minimal"]
+	agent := agents["minimal"]
 	assert.Equal(t, "/home/claude/ai-work/queue", agent.QueueDir)
 	assert.Equal(t, "sonnet", agent.Model)
 	assert.Equal(t, "claude", agent.Runner)
@@ -102,9 +119,9 @@ agentci:
 
 func TestLoadAgents_Good_NoConfig(t *testing.T) {
 	cfg := newTestConfig(t, "")
-	targets, err := LoadAgents(cfg)
+	agents, err := LoadAgents(cfg)
 	require.NoError(t, err)
-	assert.Empty(t, targets)
+	assert.Empty(t, agents)
 }
 
 func TestLoadAgents_Bad_MissingHost(t *testing.T) {
@@ -120,24 +137,49 @@ agentci:
 	assert.Contains(t, err.Error(), "host is required")
 }
 
-func TestLoadAgents_Good_ReturnsAgentTargets(t *testing.T) {
+func TestLoadAgents_Good_WithDualRun(t *testing.T) {
 	cfg := newTestConfig(t, `
 agentci:
   agents:
     gemini-agent:
       host: localhost
       runner: gemini
-      model: ""
+      model: gemini-2.0-flash
+      verify_model: gemini-1.5-pro
+      dual_run: true
       active: true
 `)
-	targets, err := LoadAgents(cfg)
+	agents, err := LoadAgents(cfg)
 	require.NoError(t, err)
 
-	agent := targets["gemini-agent"]
-	// Verify it returns the handlers.AgentTarget type.
-	var _ handlers.AgentTarget = agent
+	agent := agents["gemini-agent"]
 	assert.Equal(t, "gemini", agent.Runner)
-	assert.Equal(t, "sonnet", agent.Model) // default when empty
+	assert.Equal(t, "gemini-2.0-flash", agent.Model)
+	assert.Equal(t, "gemini-1.5-pro", agent.VerifyModel)
+	assert.True(t, agent.DualRun)
+}
+
+func TestLoadClothoConfig_Good(t *testing.T) {
+	cfg := newTestConfig(t, `
+agentci:
+  clotho:
+    strategy: clotho-verified
+    validation_threshold: 0.9
+    signing_key_path: /etc/core/keys/clotho.pub
+`)
+	cc, err := LoadClothoConfig(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "clotho-verified", cc.Strategy)
+	assert.Equal(t, 0.9, cc.ValidationThreshold)
+	assert.Equal(t, "/etc/core/keys/clotho.pub", cc.SigningKeyPath)
+}
+
+func TestLoadClothoConfig_Good_Defaults(t *testing.T) {
+	cfg := newTestConfig(t, "")
+	cc, err := LoadClothoConfig(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "direct", cc.Strategy)
+	assert.Equal(t, 0.85, cc.ValidationThreshold)
 }
 
 func TestSaveAgent_Good(t *testing.T) {
@@ -153,12 +195,29 @@ func TestSaveAgent_Good(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Verify we can load it back.
 	agents, err := ListAgents(cfg)
 	require.NoError(t, err)
 	require.Contains(t, agents, "new-agent")
 	assert.Equal(t, "claude@10.0.0.5", agents["new-agent"].Host)
 	assert.Equal(t, "haiku", agents["new-agent"].Model)
+}
+
+func TestSaveAgent_Good_WithDualRun(t *testing.T) {
+	cfg := newTestConfig(t, "")
+
+	err := SaveAgent(cfg, "verified-agent", AgentConfig{
+		Host:        "claude@10.0.0.5",
+		Model:       "gemini-2.0-flash",
+		VerifyModel: "gemini-1.5-pro",
+		DualRun:     true,
+		Active:      true,
+	})
+	require.NoError(t, err)
+
+	agents, err := ListAgents(cfg)
+	require.NoError(t, err)
+	require.Contains(t, agents, "verified-agent")
+	assert.True(t, agents["verified-agent"].DualRun)
 }
 
 func TestSaveAgent_Good_OmitsEmptyOptionals(t *testing.T) {
@@ -243,7 +302,6 @@ func TestListAgents_Good_Empty(t *testing.T) {
 func TestRoundTrip_SaveThenLoad(t *testing.T) {
 	cfg := newTestConfig(t, "")
 
-	// Save two agents.
 	err := SaveAgent(cfg, "alpha", AgentConfig{
 		Host:        "claude@alpha",
 		QueueDir:    "/home/claude/work/queue",
@@ -262,11 +320,10 @@ func TestRoundTrip_SaveThenLoad(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Load as AgentTargets (what the dispatch handler uses).
-	targets, err := LoadAgents(cfg)
+	agents, err := LoadActiveAgents(cfg)
 	require.NoError(t, err)
-	assert.Len(t, targets, 2)
-	assert.Equal(t, "claude@alpha", targets["alpha"].Host)
-	assert.Equal(t, "opus", targets["alpha"].Model)
-	assert.Equal(t, "codex", targets["beta"].Runner)
+	assert.Len(t, agents, 2)
+	assert.Equal(t, "claude@alpha", agents["alpha"].Host)
+	assert.Equal(t, "opus", agents["alpha"].Model)
+	assert.Equal(t, "codex", agents["beta"].Runner)
 }

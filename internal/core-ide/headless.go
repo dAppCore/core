@@ -67,17 +67,23 @@ func startHeadless() {
 	enableAutoMerge := handlers.NewEnableAutoMergeHandler(forgeClient)
 	tickParent := handlers.NewTickParentHandler(forgeClient)
 
-	// Agent dispatch — load targets from ~/.core/config.yaml
+	// Agent dispatch — Clotho integration
 	cfg, cfgErr := config.New()
-	var agentTargets map[string]handlers.AgentTarget
+	var agentTargets map[string]agentci.AgentConfig
+	var clothoCfg agentci.ClothoConfig
+
 	if cfgErr == nil {
-		agentTargets, _ = agentci.LoadAgents(cfg)
+		agentTargets, _ = agentci.LoadActiveAgents(cfg)
+		clothoCfg, _ = agentci.LoadClothoConfig(cfg)
 	}
 	if agentTargets == nil {
-		agentTargets = map[string]handlers.AgentTarget{}
+		agentTargets = map[string]agentci.AgentConfig{}
 	}
-	log.Printf("Loaded %d agent targets", len(agentTargets))
-	dispatch := handlers.NewDispatchHandler(forgeClient, forgeURL, forgeToken, agentTargets)
+
+	spinner := agentci.NewSpinner(clothoCfg, agentTargets)
+	log.Printf("Loaded %d agent targets. Strategy: %s", len(agentTargets), clothoCfg.Strategy)
+
+	dispatch := handlers.NewDispatchHandler(forgeClient, forgeURL, forgeToken, spinner)
 
 	// Build poller
 	poller := jobrunner.NewPoller(jobrunner.PollerConfig{

@@ -7,17 +7,24 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/host-uk/core/pkg/agentci"
 	"github.com/host-uk/core/pkg/jobrunner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// newTestSpinner creates a Spinner with the given agents for testing.
+func newTestSpinner(agents map[string]agentci.AgentConfig) *agentci.Spinner {
+	return agentci.NewSpinner(agentci.ClothoConfig{Strategy: "direct"}, agents)
+}
+
 // --- Match tests ---
 
 func TestDispatch_Match_Good_NeedsCoding(t *testing.T) {
-	h := NewDispatchHandler(nil, "", "", map[string]AgentTarget{
-		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue"},
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{
+		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue", Active: true},
 	})
+	h := NewDispatchHandler(nil, "", "", spinner)
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: true,
 		Assignee:    "darbs-claude",
@@ -26,10 +33,11 @@ func TestDispatch_Match_Good_NeedsCoding(t *testing.T) {
 }
 
 func TestDispatch_Match_Good_MultipleAgents(t *testing.T) {
-	h := NewDispatchHandler(nil, "", "", map[string]AgentTarget{
-		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue"},
-		"local-codex":  {Host: "localhost", QueueDir: "~/ai-work/queue"},
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{
+		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue", Active: true},
+		"local-codex":  {Host: "localhost", QueueDir: "~/ai-work/queue", Active: true},
 	})
+	h := NewDispatchHandler(nil, "", "", spinner)
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: true,
 		Assignee:    "local-codex",
@@ -38,9 +46,10 @@ func TestDispatch_Match_Good_MultipleAgents(t *testing.T) {
 }
 
 func TestDispatch_Match_Bad_HasPR(t *testing.T) {
-	h := NewDispatchHandler(nil, "", "", map[string]AgentTarget{
-		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue"},
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{
+		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue", Active: true},
 	})
+	h := NewDispatchHandler(nil, "", "", spinner)
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: false,
 		PRNumber:    7,
@@ -50,9 +59,10 @@ func TestDispatch_Match_Bad_HasPR(t *testing.T) {
 }
 
 func TestDispatch_Match_Bad_UnknownAgent(t *testing.T) {
-	h := NewDispatchHandler(nil, "", "", map[string]AgentTarget{
-		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue"},
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{
+		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue", Active: true},
 	})
+	h := NewDispatchHandler(nil, "", "", spinner)
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: true,
 		Assignee:    "unknown-user",
@@ -61,9 +71,10 @@ func TestDispatch_Match_Bad_UnknownAgent(t *testing.T) {
 }
 
 func TestDispatch_Match_Bad_NotAssigned(t *testing.T) {
-	h := NewDispatchHandler(nil, "", "", map[string]AgentTarget{
-		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue"},
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{
+		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue", Active: true},
 	})
+	h := NewDispatchHandler(nil, "", "", spinner)
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: true,
 		Assignee:    "",
@@ -72,7 +83,8 @@ func TestDispatch_Match_Bad_NotAssigned(t *testing.T) {
 }
 
 func TestDispatch_Match_Bad_EmptyAgentMap(t *testing.T) {
-	h := NewDispatchHandler(nil, "", "", map[string]AgentTarget{})
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{})
+	h := NewDispatchHandler(nil, "", "", spinner)
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: true,
 		Assignee:    "darbs-claude",
@@ -83,13 +95,12 @@ func TestDispatch_Match_Bad_EmptyAgentMap(t *testing.T) {
 // --- Name test ---
 
 func TestDispatch_Name_Good(t *testing.T) {
-	h := NewDispatchHandler(nil, "", "", nil)
+	spinner := newTestSpinner(nil)
+	h := NewDispatchHandler(nil, "", "", spinner)
 	assert.Equal(t, "dispatch", h.Name())
 }
 
 // --- Execute tests ---
-// Execute calls SSH/SCP which can't be tested in unit tests without the remote.
-// These tests verify the ticket construction and error paths that don't need SSH.
 
 func TestDispatch_Execute_Bad_UnknownAgent(t *testing.T) {
 	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -98,9 +109,10 @@ func TestDispatch_Execute_Bad_UnknownAgent(t *testing.T) {
 	defer srv.Close()
 
 	client := newTestForgeClient(t, srv.URL)
-	h := NewDispatchHandler(client, srv.URL, "test-token", map[string]AgentTarget{
-		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue"},
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{
+		"darbs-claude": {Host: "claude@192.168.0.201", QueueDir: "~/ai-work/queue", Active: true},
 	})
+	h := NewDispatchHandler(client, srv.URL, "test-token", spinner)
 
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: true,
@@ -116,7 +128,6 @@ func TestDispatch_Execute_Bad_UnknownAgent(t *testing.T) {
 }
 
 func TestDispatch_TicketJSON_Good(t *testing.T) {
-	// Verify DispatchTicket serializes correctly with all fields.
 	ticket := DispatchTicket{
 		ID:           "host-uk-core-5-1234567890",
 		RepoOwner:    "host-uk",
@@ -127,17 +138,16 @@ func TestDispatch_TicketJSON_Good(t *testing.T) {
 		TargetBranch: "new",
 		EpicNumber:   3,
 		ForgeURL:     "https://forge.lthn.ai",
-		ForgeToken:   "test-token-123",
 		ForgeUser:    "darbs-claude",
 		Model:        "sonnet",
 		Runner:       "claude",
+		DualRun:      false,
 		CreatedAt:    "2026-02-09T12:00:00Z",
 	}
 
 	data, err := json.MarshalIndent(ticket, "", "  ")
 	require.NoError(t, err)
 
-	// Verify JSON field names.
 	var decoded map[string]any
 	err = json.Unmarshal(data, &decoded)
 	require.NoError(t, err)
@@ -151,10 +161,34 @@ func TestDispatch_TicketJSON_Good(t *testing.T) {
 	assert.Equal(t, "new", decoded["target_branch"])
 	assert.Equal(t, float64(3), decoded["epic_number"])
 	assert.Equal(t, "https://forge.lthn.ai", decoded["forge_url"])
-	assert.Equal(t, "test-token-123", decoded["forge_token"])
 	assert.Equal(t, "darbs-claude", decoded["forgejo_user"])
 	assert.Equal(t, "sonnet", decoded["model"])
 	assert.Equal(t, "claude", decoded["runner"])
+	// Token should NOT be present in the ticket.
+	_, hasToken := decoded["forge_token"]
+	assert.False(t, hasToken, "forge_token must not be in ticket JSON")
+}
+
+func TestDispatch_TicketJSON_Good_DualRun(t *testing.T) {
+	ticket := DispatchTicket{
+		ID:          "test-dual",
+		RepoOwner:   "host-uk",
+		RepoName:    "core",
+		IssueNumber: 1,
+		ForgeURL:    "https://forge.lthn.ai",
+		Model:       "gemini-2.0-flash",
+		VerifyModel: "gemini-1.5-pro",
+		DualRun:     true,
+	}
+
+	data, err := json.Marshal(ticket)
+	require.NoError(t, err)
+
+	var roundtrip DispatchTicket
+	err = json.Unmarshal(data, &roundtrip)
+	require.NoError(t, err)
+	assert.True(t, roundtrip.DualRun)
+	assert.Equal(t, "gemini-1.5-pro", roundtrip.VerifyModel)
 }
 
 func TestDispatch_TicketJSON_Good_OmitsEmptyModelRunner(t *testing.T) {
@@ -165,13 +199,11 @@ func TestDispatch_TicketJSON_Good_OmitsEmptyModelRunner(t *testing.T) {
 		IssueNumber:  1,
 		TargetBranch: "new",
 		ForgeURL:     "https://forge.lthn.ai",
-		ForgeToken:   "tok",
 	}
 
 	data, err := json.MarshalIndent(ticket, "", "  ")
 	require.NoError(t, err)
 
-	// Model and runner should be omitted when empty (omitempty tag).
 	var decoded map[string]any
 	err = json.Unmarshal(data, &decoded)
 	require.NoError(t, err)
@@ -203,7 +235,6 @@ func TestDispatch_TicketJSON_Good_ModelRunnerVariants(t *testing.T) {
 				IssueNumber:  1,
 				TargetBranch: "new",
 				ForgeURL:     "https://forge.lthn.ai",
-				ForgeToken:   "tok",
 				Model:        tt.model,
 				Runner:       tt.runner,
 			}
@@ -221,30 +252,53 @@ func TestDispatch_TicketJSON_Good_ModelRunnerVariants(t *testing.T) {
 }
 
 func TestDispatch_Execute_Good_PostsComment(t *testing.T) {
-	// This test verifies that Execute attempts to post a comment to the issue.
-	// SSH/SCP will fail (no remote), but we can verify the comment API call
-	// by checking if the Forgejo API was hit.
 	var commentPosted bool
 	var commentBody string
 
 	srv := httptest.NewServer(withVersion(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.URL.Path == "/api/v1/repos/host-uk/core/issues/5/comments" {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/repos/host-uk/core/labels":
+			json.NewEncoder(w).Encode([]any{})
+			return
+
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/repos/host-uk/core/labels":
+			json.NewEncoder(w).Encode(map[string]any{"id": 1, "name": "in-progress", "color": "#1d76db"})
+			return
+
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/repos/host-uk/core/issues/5":
+			json.NewEncoder(w).Encode(map[string]any{"id": 5, "number": 5, "labels": []any{}, "title": "Test"})
+			return
+
+		case r.Method == http.MethodPatch && r.URL.Path == "/api/v1/repos/host-uk/core/issues/5":
+			json.NewEncoder(w).Encode(map[string]any{"id": 5, "number": 5})
+			return
+
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/repos/host-uk/core/issues/5/labels":
+			json.NewEncoder(w).Encode([]any{map[string]any{"id": 1, "name": "in-progress"}})
+			return
+
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/repos/host-uk/core/issues/5/comments":
 			commentPosted = true
 			var body map[string]string
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			commentBody = body["body"]
+			json.NewEncoder(w).Encode(map[string]any{"id": 1, "body": body["body"]})
+			return
 		}
+
 		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]any{})
 	})))
 	defer srv.Close()
 
 	client := newTestForgeClient(t, srv.URL)
 
-	// Use localhost as agent host — ticketExists and scpTicket will fail
-	// via SSH but we're testing the flow up to the SCP step.
-	h := NewDispatchHandler(client, srv.URL, "test-token", map[string]AgentTarget{
-		"darbs-claude": {Host: "localhost", QueueDir: "/tmp/nonexistent-queue"},
+	spinner := newTestSpinner(map[string]agentci.AgentConfig{
+		"darbs-claude": {Host: "localhost", QueueDir: "/tmp/nonexistent-queue", Active: true},
 	})
+	h := NewDispatchHandler(client, srv.URL, "test-token", spinner)
 
 	sig := &jobrunner.PipelineSignal{
 		NeedsCoding: true,
@@ -260,9 +314,6 @@ func TestDispatch_Execute_Good_PostsComment(t *testing.T) {
 	result, err := h.Execute(context.Background(), sig)
 	require.NoError(t, err)
 
-	// SSH may fail (no remote), so check for either:
-	// 1. Success (if SSH happened to work, e.g. localhost)
-	// 2. SCP error with correct metadata
 	assert.Equal(t, "dispatch", result.Action)
 	assert.Equal(t, "host-uk", result.RepoOwner)
 	assert.Equal(t, "core", result.RepoName)
@@ -270,7 +321,6 @@ func TestDispatch_Execute_Good_PostsComment(t *testing.T) {
 	assert.Equal(t, 5, result.ChildNumber)
 
 	if result.Success {
-		// If SCP succeeded, comment should have been posted.
 		assert.True(t, commentPosted)
 		assert.Contains(t, commentBody, "darbs-claude")
 	}
