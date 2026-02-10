@@ -103,7 +103,9 @@ func NewQueueService(config *ConfigService) *QueueService {
 		seen:   make(map[string]bool),
 	}
 	heap.Init(&q.issues)
+	q.mu.Lock()
 	q.load() // Load persisted queue
+	q.mu.Unlock()
 	return q
 }
 
