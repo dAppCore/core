@@ -75,6 +75,17 @@ func (c *Client) EditIssue(owner, repo string, number int64, opts forgejo.EditIs
 	return issue, nil
 }
 
+// AssignIssue assigns an issue to the specified users.
+func (c *Client) AssignIssue(owner, repo string, number int64, assignees []string) error {
+	_, _, err := c.api.EditIssue(owner, repo, number, forgejo.EditIssueOption{
+		Assignees: assignees,
+	})
+	if err != nil {
+		return log.E("forge.AssignIssue", "failed to assign issue", err)
+	}
+	return nil
+}
+
 // ListPullRequests returns pull requests for the given repository.
 func (c *Client) ListPullRequests(owner, repo string, state string) ([]*forgejo.PullRequest, error) {
 	st := forgejo.StateOpen

@@ -36,7 +36,7 @@ func loadConfig() (*config.Config, error) {
 func agentAddCmd() *cli.Command {
 	cmd := &cli.Command{
 		Use:   "add <name> <user@host>",
-		Short: "Add an agent to the config",
+		Short: "Add an agent to the config and verify SSH",
 		Args:  cli.ExactArgs(2),
 		RunE: func(cmd *cli.Command, args []string) error {
 			name := args[0]
@@ -50,14 +50,38 @@ func agentAddCmd() *cli.Command {
 			if queueDir == "" {
 				queueDir = "/home/claude/ai-work/queue"
 			}
+			model, _ := cmd.Flags().GetString("model")
+			dualRun, _ := cmd.Flags().GetBool("dual-run")
 
-			// Test SSH connectivity.
-			// TODO: Replace exec ssh with charmbracelet/ssh native Go client + keygen.
+			// Scan and add host key to known_hosts.
+			parts := strings.Split(host, "@")
+			hostname := parts[len(parts)-1]
+
+			fmt.Printf("Scanning host key for %s... ", hostname)
+			scanCmd := exec.Command("ssh-keyscan", "-H", hostname)
+			keys, err := scanCmd.Output()
+			if err != nil {
+				fmt.Println(errorStyle.Render("FAILED"))
+				return fmt.Errorf("failed to scan host keys: %w", err)
+			}
+
+			home, _ := os.UserHomeDir()
+			knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
+			f, err := os.OpenFile(knownHostsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				return fmt.Errorf("failed to open known_hosts: %w", err)
+			}
+			if _, err := f.Write(keys); err != nil {
+				f.Close()
+				return fmt.Errorf("failed to write known_hosts: %w", err)
+			}
+			f.Close()
+			fmt.Println(successStyle.Render("OK"))
+
+			// Test SSH with strict host key checking.
 			fmt.Printf("Testing SSH to %s... ", host)
-			out, err := exec.Command("ssh",
-				"-o", "StrictHostKeyChecking=accept-new",
-				"-o", "ConnectTimeout=10",
-				host, "echo ok").CombinedOutput()
+			testCmd := agentci.SecureSSHCommand(host, "echo ok")
+			out, err := testCmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(errorStyle.Render("FAILED"))
 				return fmt.Errorf("SSH failed: %s", strings.TrimSpace(string(out)))
@@ -73,6 +97,8 @@ func agentAddCmd() *cli.Command {
 				Host:        host,
 				QueueDir:    queueDir,
 				ForgejoUser: forgejoUser,
+				Model:       model,
+				DualRun:     dualRun,
 				Active:      true,
 			}
 			if err := agentci.SaveAgent(cfg, name, ac); err != nil {
@@ -85,6 +111,8 @@ func agentAddCmd() *cli.Command {
 	}
 	cmd.Flags().String("forgejo-user", "", "Forgejo username (defaults to agent name)")
 	cmd.Flags().String("queue-dir", "", "Remote queue directory (default: /home/claude/ai-work/queue)")
+	cmd.Flags().String("model", "sonnet", "Primary AI model")
+	cmd.Flags().Bool("dual-run", false, "Enable Clotho dual-run verification")
 	return cmd
 }
 
@@ -108,22 +136,21 @@ func agentListCmd() *cli.Command {
 				return nil
 			}
 
-			table := cli.NewTable("NAME", "HOST", "FORGEJO USER", "ACTIVE", "QUEUE")
+			table := cli.NewTable("NAME", "HOST", "MODEL", "DUAL", "ACTIVE", "QUEUE")
 			for name, ac := range agents {
 				active := dimStyle.Render("no")
 				if ac.Active {
 					active = successStyle.Render("yes")
 				}
+				dual := dimStyle.Render("no")
+				if ac.DualRun {
+					dual = successStyle.Render("yes")
+				}
 
 				// Quick SSH check for queue depth.
-				// TODO: Replace exec ssh with charmbracelet/ssh native Go client.
 				queue := dimStyle.Render("-")
-				out, err := exec.Command("ssh",
-					"-o", "StrictHostKeyChecking=accept-new",
-					"-o", "ConnectTimeout=5",
-					ac.Host,
-					fmt.Sprintf("ls %s/ticket-*.json 2>/dev/null | wc -l", ac.QueueDir),
-				).Output()
+				checkCmd := agentci.SecureSSHCommand(ac.Host, fmt.Sprintf("ls %s/ticket-*.json 2>/dev/null | wc -l", ac.QueueDir))
+				out, err := checkCmd.Output()
 				if err == nil {
 					n := strings.TrimSpace(string(out))
 					if n != "0" {
@@ -133,7 +160,7 @@ func agentListCmd() *cli.Command {
 					}
 				}
 
-				table.AddRow(name, ac.Host, ac.ForgejoUser, active, queue)
+				table.AddRow(name, ac.Host, ac.Model, dual, active, queue)
 			}
 			table.Render()
 			return nil
@@ -182,11 +209,7 @@ func agentStatusCmd() *cli.Command {
 				fi
 			`
 
-			// TODO: Replace exec ssh with charmbracelet/ssh native Go client.
-			sshCmd := exec.Command("ssh",
-				"-o", "StrictHostKeyChecking=accept-new",
-				"-o", "ConnectTimeout=10",
-				ac.Host, script)
+			sshCmd := agentci.SecureSSHCommand(ac.Host, script)
 			sshCmd.Stdout = os.Stdout
 			sshCmd.Stderr = os.Stderr
 			return sshCmd.Run()
@@ -218,19 +241,12 @@ func agentLogsCmd() *cli.Command {
 				return fmt.Errorf("agent %q not found", name)
 			}
 
-			// TODO: Replace exec ssh with charmbracelet/ssh native Go client.
-			tailArgs := []string{
-				"-o", "StrictHostKeyChecking=accept-new",
-				"-o", "ConnectTimeout=10",
-				ac.Host,
-			}
+			remoteCmd := fmt.Sprintf("tail -n %d ~/ai-work/logs/runner.log", lines)
 			if follow {
-				tailArgs = append(tailArgs, fmt.Sprintf("tail -f -n %d ~/ai-work/logs/runner.log", lines))
-			} else {
-				tailArgs = append(tailArgs, fmt.Sprintf("tail -n %d ~/ai-work/logs/runner.log", lines))
+				remoteCmd = fmt.Sprintf("tail -f -n %d ~/ai-work/logs/runner.log", lines)
 			}
 
-			sshCmd := exec.Command("ssh", tailArgs...)
+			sshCmd := agentci.SecureSSHCommand(ac.Host, remoteCmd)
 			sshCmd.Stdout = os.Stdout
 			sshCmd.Stderr = os.Stderr
 			sshCmd.Stdin = os.Stdin
@@ -307,7 +323,6 @@ func agentRemoveCmd() *cli.Command {
 
 // findSetupScript looks for agent-setup.sh in common locations.
 func findSetupScript() string {
-	// Relative to executable.
 	exe, _ := os.Executable()
 	if exe != "" {
 		dir := filepath.Dir(exe)
@@ -322,7 +337,6 @@ func findSetupScript() string {
 		}
 	}
 
-	// Working directory.
 	cwd, _ := os.Getwd()
 	if cwd != "" {
 		p := filepath.Join(cwd, "scripts", "agent-setup.sh")
@@ -333,4 +347,3 @@ func findSetupScript() string {
 
 	return ""
 }
-

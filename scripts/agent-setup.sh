@@ -8,7 +8,7 @@
 set -euo pipefail
 
 HOST="${1:?Usage: agent-setup.sh <user@host>}"
-SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+SSH_OPTS="-o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=10"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUNNER_SCRIPT="${SCRIPT_DIR}/agent-runner.sh"
 

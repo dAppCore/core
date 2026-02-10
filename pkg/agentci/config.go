@@ -1,62 +1,96 @@
-// Package agentci provides configuration and management for AgentCI dispatch targets.
+// Package agentci provides configuration, security, and orchestration for AgentCI dispatch targets.
 package agentci
 
 import (
 	"fmt"
 
 	"github.com/host-uk/core/pkg/config"
-	"github.com/host-uk/core/pkg/jobrunner/handlers"
-	"github.com/host-uk/core/pkg/log"
 )
 
 // AgentConfig represents a single agent machine in the config file.
 type AgentConfig struct {
-	Host        string `yaml:"host" mapstructure:"host"`
-	QueueDir    string `yaml:"queue_dir" mapstructure:"queue_dir"`
-	ForgejoUser string `yaml:"forgejo_user" mapstructure:"forgejo_user"`
-	Model       string `yaml:"model" mapstructure:"model"`   // claude model: sonnet, haiku, opus (default: sonnet)
-	Runner      string `yaml:"runner" mapstructure:"runner"` // runner binary: claude, codex (default: claude)
-	Active      bool   `yaml:"active" mapstructure:"active"`
+	Host          string   `yaml:"host" mapstructure:"host"`
+	QueueDir      string   `yaml:"queue_dir" mapstructure:"queue_dir"`
+	ForgejoUser   string   `yaml:"forgejo_user" mapstructure:"forgejo_user"`
+	Model         string   `yaml:"model" mapstructure:"model"`                   // primary AI model
+	Runner        string   `yaml:"runner" mapstructure:"runner"`                 // runner binary: claude, codex, gemini
+	VerifyModel   string   `yaml:"verify_model" mapstructure:"verify_model"`     // secondary model for dual-run
+	SecurityLevel string   `yaml:"security_level" mapstructure:"security_level"` // low, high
+	Roles         []string `yaml:"roles" mapstructure:"roles"`
+	DualRun       bool     `yaml:"dual_run" mapstructure:"dual_run"`
+	Active        bool     `yaml:"active" mapstructure:"active"`
 }
 
-// LoadAgents reads agent targets from config and returns a map suitable for the dispatch handler.
+// ClothoConfig controls the orchestration strategy.
+type ClothoConfig struct {
+	Strategy            string  `yaml:"strategy" mapstructure:"strategy"`                         // direct, clotho-verified
+	ValidationThreshold float64 `yaml:"validation_threshold" mapstructure:"validation_threshold"` // divergence limit (0.0-1.0)
+	SigningKeyPath      string  `yaml:"signing_key_path" mapstructure:"signing_key_path"`
+}
+
+// LoadAgents reads agent targets from config and returns a map of AgentConfig.
 // Returns an empty map (not an error) if no agents are configured.
-func LoadAgents(cfg *config.Config) (map[string]handlers.AgentTarget, error) {
+func LoadAgents(cfg *config.Config) (map[string]AgentConfig, error) {
 	var agents map[string]AgentConfig
 	if err := cfg.Get("agentci.agents", &agents); err != nil {
-		// No config is fine — just no agents.
-		return map[string]handlers.AgentTarget{}, nil
+		return map[string]AgentConfig{}, nil
 	}
 
-	targets := make(map[string]handlers.AgentTarget)
+	// Validate and apply defaults.
 	for name, ac := range agents {
 		if !ac.Active {
 			continue
 		}
 		if ac.Host == "" {
-			return nil, log.E("agentci.LoadAgents", fmt.Sprintf("agent %q: host is required", name), nil)
+			return nil, fmt.Errorf("agent %q: host is required", name)
 		}
-		queueDir := ac.QueueDir
-		if queueDir == "" {
-			queueDir = "/home/claude/ai-work/queue"
+		if ac.QueueDir == "" {
+			ac.QueueDir = "/home/claude/ai-work/queue"
 		}
-		model := ac.Model
-		if model == "" {
-			model = "sonnet"
+		if ac.Model == "" {
+			ac.Model = "sonnet"
 		}
-		runner := ac.Runner
-		if runner == "" {
-			runner = "claude"
+		if ac.Runner == "" {
+			ac.Runner = "claude"
 		}
-		targets[name] = handlers.AgentTarget{
-			Host:     ac.Host,
-			QueueDir: queueDir,
-			Model:    model,
-			Runner:   runner,
-		}
+		agents[name] = ac
 	}
 
-	return targets, nil
+	return agents, nil
+}
+
+// LoadActiveAgents returns only active agents.
+func LoadActiveAgents(cfg *config.Config) (map[string]AgentConfig, error) {
+	all, err := LoadAgents(cfg)
+	if err != nil {
+		return nil, err
+	}
+	active := make(map[string]AgentConfig)
+	for name, ac := range all {
+		if ac.Active {
+			active[name] = ac
+		}
+	}
+	return active, nil
+}
+
+// LoadClothoConfig loads the Clotho orchestrator settings.
+// Returns sensible defaults if no config is present.
+func LoadClothoConfig(cfg *config.Config) (ClothoConfig, error) {
+	var cc ClothoConfig
+	if err := cfg.Get("agentci.clotho", &cc); err != nil {
+		return ClothoConfig{
+			Strategy:            "direct",
+			ValidationThreshold: 0.85,
+		}, nil
+	}
+	if cc.Strategy == "" {
+		cc.Strategy = "direct"
+	}
+	if cc.ValidationThreshold == 0 {
+		cc.ValidationThreshold = 0.85
+	}
+	return cc, nil
 }
 
 // SaveAgent writes an agent config entry to the config file.
@@ -67,12 +101,22 @@ func SaveAgent(cfg *config.Config, name string, ac AgentConfig) error {
 		"queue_dir":    ac.QueueDir,
 		"forgejo_user": ac.ForgejoUser,
 		"active":       ac.Active,
+		"dual_run":     ac.DualRun,
 	}
 	if ac.Model != "" {
 		data["model"] = ac.Model
 	}
 	if ac.Runner != "" {
 		data["runner"] = ac.Runner
+	}
+	if ac.VerifyModel != "" {
+		data["verify_model"] = ac.VerifyModel
+	}
+	if ac.SecurityLevel != "" {
+		data["security_level"] = ac.SecurityLevel
+	}
+	if len(ac.Roles) > 0 {
+		data["roles"] = ac.Roles
 	}
 	return cfg.Set(key, data)
 }
@@ -81,10 +125,10 @@ func SaveAgent(cfg *config.Config, name string, ac AgentConfig) error {
 func RemoveAgent(cfg *config.Config, name string) error {
 	var agents map[string]AgentConfig
 	if err := cfg.Get("agentci.agents", &agents); err != nil {
-		return log.E("agentci.RemoveAgent", "no agents configured", err)
+		return fmt.Errorf("no agents configured")
 	}
 	if _, ok := agents[name]; !ok {
-		return log.E("agentci.RemoveAgent", fmt.Sprintf("agent %q not found", name), nil)
+		return fmt.Errorf("agent %q not found", name)
 	}
 	delete(agents, name)
 	return cfg.Set("agentci.agents", agents)

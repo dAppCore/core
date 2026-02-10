@@ -69,6 +69,12 @@ func initCommands() {
 
 	// Add agent management commands (core ai agent ...)
 	AddAgentCommands(aiCmd)
+
+	// Add rate limit management commands (core ai ratelimits ...)
+	AddRateLimitCommands(aiCmd)
+
+	// Add dispatch commands (core ai dispatch run/watch/status)
+	AddDispatchCommands(aiCmd)
 }
 
 // AddAICommands registers the 'ai' command and all subcommands.
