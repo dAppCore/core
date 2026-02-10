@@ -39,6 +39,11 @@ func main() {
 		log.Printf("Warning: Could not load config: %v", err)
 	}
 
+	// Check gh CLI availability
+	if err := bugseti.CheckGHCLI(); err != nil {
+		log.Fatalf("GitHub CLI check failed: %v", err)
+	}
+
 	// Initialize core services
 	notifyService := bugseti.NewNotifyService(configService)
 	statsService := bugseti.NewStatsService(configService)
