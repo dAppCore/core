@@ -259,21 +259,7 @@ func (s *SubmitService) pushToFork(workDir, forkOwner, branch string) error {
 		}
 
 		originURL := strings.TrimSpace(string(output))
-		// Replace original owner with fork owner
-		var forkURL string
-		if strings.HasPrefix(originURL, "https://") {
-			// https://github.com/owner/repo.git
-			parts := strings.Split(originURL, "/")
-			if len(parts) >= 4 {
-				parts[len(parts)-2] = forkOwner
-				forkURL = strings.Join(parts, "/")
-			}
-		} else {
-			// git@github.com:owner/repo.git
-			forkURL = strings.Replace(originURL, ":", fmt.Sprintf(":%s/", forkOwner), 1)
-			forkURL = strings.Replace(forkURL, strings.Split(forkURL, "/")[0]+"/", "", 1)
-			forkURL = fmt.Sprintf("git@github.com:%s/%s", forkOwner, filepath.Base(originURL))
-		}
+		forkURL := buildForkURL(originURL, forkOwner)
 
 		cmd = exec.CommandContext(ctx, "git", "remote", "add", forkRemote, forkURL)
 		cmd.Dir = workDir
@@ -349,6 +335,22 @@ func (s *SubmitService) generatePRBody(issue *Issue) string {
 	body.WriteString("*Submitted via [BugSETI](https://github.com/host-uk/core) - Distributed Bug Fixing*\n")
 
 	return body.String()
+}
+
+// buildForkURL constructs a fork remote URL from an origin URL by replacing
+// the owner segment with forkOwner.
+func buildForkURL(originURL, forkOwner string) string {
+	if strings.HasPrefix(originURL, "https://") {
+		// https://github.com/owner/repo.git
+		parts := strings.Split(originURL, "/")
+		if len(parts) >= 4 {
+			parts[len(parts)-2] = forkOwner
+			return strings.Join(parts, "/")
+		}
+		return originURL
+	}
+	// git@github.com:owner/repo.git
+	return fmt.Sprintf("git@github.com:%s/%s", forkOwner, filepath.Base(originURL))
 }
 
 // GetPRStatus checks the status of a submitted PR.
