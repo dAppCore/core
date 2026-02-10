@@ -7,12 +7,20 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/Snider/Borg/pkg/tim"
 	"github.com/host-uk/core/internal/bugseti"
 	"github.com/host-uk/core/pkg/io/datanode"
+)
+
+const (
+	// maxWorkspaces is the upper bound on cached workspace entries.
+	maxWorkspaces = 100
+	// workspaceTTL is how long a workspace stays in memory before eviction.
+	workspaceTTL = 24 * time.Hour
 )
 
 // WorkspaceService manages DataNode-backed workspaces for issues.
@@ -109,6 +117,7 @@ func (w *WorkspaceService) Capture(issue *bugseti.Issue, diskPath string) error 
 	}
 
 	w.mu.Lock()
+	w.cleanup()
 	w.workspaces[issue.ID] = &Workspace{
 		Issue:     issue,
 		Medium:    m,
@@ -238,6 +247,38 @@ func (w *WorkspaceService) SaveCrashReport(report *CrashReport) (string, error) 
 
 	log.Printf("Crash report saved: %s (%d bytes)", path, report.Size)
 	return path, nil
+}
+
+// cleanup evicts expired workspaces and enforces the max size cap.
+// Must be called with w.mu held for writing.
+func (w *WorkspaceService) cleanup() {
+	now := time.Now()
+
+	// First pass: evict entries older than TTL.
+	for id, ws := range w.workspaces {
+		if now.Sub(ws.CreatedAt) > workspaceTTL {
+			delete(w.workspaces, id)
+		}
+	}
+
+	// Second pass: if still over cap, evict oldest entries.
+	if len(w.workspaces) > maxWorkspaces {
+		type entry struct {
+			id        string
+			createdAt time.Time
+		}
+		entries := make([]entry, 0, len(w.workspaces))
+		for id, ws := range w.workspaces {
+			entries = append(entries, entry{id, ws.CreatedAt})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].createdAt.Before(entries[j].createdAt)
+		})
+		evict := len(w.workspaces) - maxWorkspaces
+		for i := 0; i < evict; i++ {
+			delete(w.workspaces, entries[i].id)
+		}
+	}
 }
 
 // Release removes a workspace from memory.
