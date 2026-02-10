@@ -149,7 +149,7 @@ func (c *ConfigService) saveUnsafe() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(c.path, data, 0644)
+	return os.WriteFile(c.path, data, 0600)
 }
 
 // mergeDefaults fills in default values for any unset fields.
