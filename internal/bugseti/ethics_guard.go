@@ -106,7 +106,23 @@ func loadEthicsGuard(ctx context.Context, rootHint string) *EthicsGuard {
 }
 
 func (g *EthicsGuard) SanitizeEnv(value string) string {
-	return sanitizeInline(value, maxEnvRunes)
+	return stripShellMeta(sanitizeInline(value, maxEnvRunes))
+}
+
+// stripShellMeta removes shell metacharacters that could allow command
+// injection when a value is interpolated inside a shell environment variable.
+func stripShellMeta(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '`', '$', ';', '|', '&', '(', ')', '{', '}', '<', '>', '!', '\\', '\'', '"', '\n', '\r':
+			continue
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func (g *EthicsGuard) SanitizeTitle(value string) string {
