@@ -61,6 +61,25 @@ func (s *Spinner) GetVerifierModel(agentName string) string {
 	return agent.VerifyModel
 }
 
+// FindByForgejoUser resolves a Forgejo username to the agent config key and config.
+// This decouples agent naming (mythological roles) from Forgejo identity.
+func (s *Spinner) FindByForgejoUser(forgejoUser string) (string, AgentConfig, bool) {
+	if forgejoUser == "" {
+		return "", AgentConfig{}, false
+	}
+	// Direct match on config key first.
+	if agent, ok := s.Agents[forgejoUser]; ok {
+		return forgejoUser, agent, true
+	}
+	// Search by ForgejoUser field.
+	for name, agent := range s.Agents {
+		if agent.ForgejoUser != "" && agent.ForgejoUser == forgejoUser {
+			return name, agent, true
+		}
+	}
+	return "", AgentConfig{}, false
+}
+
 // Weave compares primary and verifier outputs. Returns true if they converge.
 // This is a placeholder for future semantic diff logic.
 func (s *Spinner) Weave(ctx context.Context, primaryOutput, signedOutput []byte) (bool, error) {

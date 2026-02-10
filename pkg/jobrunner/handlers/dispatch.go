@@ -68,12 +68,12 @@ func (h *DispatchHandler) Name() string {
 }
 
 // Match returns true for signals where a child issue needs coding (no PR yet)
-// and the assignee is a known agent.
+// and the assignee is a known agent (by config key or Forgejo username).
 func (h *DispatchHandler) Match(signal *jobrunner.PipelineSignal) bool {
 	if !signal.NeedsCoding {
 		return false
 	}
-	_, ok := h.spinner.Agents[signal.Assignee]
+	_, _, ok := h.spinner.FindByForgejoUser(signal.Assignee)
 	return ok
 }
 
@@ -81,7 +81,7 @@ func (h *DispatchHandler) Match(signal *jobrunner.PipelineSignal) bool {
 func (h *DispatchHandler) Execute(ctx context.Context, signal *jobrunner.PipelineSignal) (*jobrunner.ActionResult, error) {
 	start := time.Now()
 
-	agent, ok := h.spinner.Agents[signal.Assignee]
+	agentName, agent, ok := h.spinner.FindByForgejoUser(signal.Assignee)
 	if !ok {
 		return nil, fmt.Errorf("unknown agent: %s", signal.Assignee)
 	}
@@ -133,10 +133,10 @@ func (h *DispatchHandler) Execute(ctx context.Context, signal *jobrunner.Pipelin
 	}
 
 	// Clotho planning — determine execution mode.
-	runMode := h.spinner.DeterminePlan(signal, signal.Assignee)
+	runMode := h.spinner.DeterminePlan(signal, agentName)
 	verifyModel := ""
 	if runMode == agentci.ModeDual {
-		verifyModel = h.spinner.GetVerifierModel(signal.Assignee)
+		verifyModel = h.spinner.GetVerifierModel(agentName)
 	}
 
 	// Build ticket.
