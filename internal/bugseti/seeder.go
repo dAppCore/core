@@ -11,11 +11,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
 // SeederService prepares context for issues using the seed-agent-developer skill.
 type SeederService struct {
+	mu     sync.Mutex
 	config *ConfigService
 }
 
@@ -33,6 +35,9 @@ func (s *SeederService) ServiceName() string {
 
 // SeedIssue prepares context for an issue by calling the seed-agent-developer skill.
 func (s *SeederService) SeedIssue(issue *Issue) (*IssueContext, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if issue == nil {
 		return nil, fmt.Errorf("issue is nil")
 	}
@@ -338,6 +343,14 @@ func sanitizeIssueContext(ctx *IssueContext, guard *EthicsGuard) *IssueContext {
 
 // GetWorkspaceDir returns the workspace directory for an issue.
 func (s *SeederService) GetWorkspaceDir(issue *Issue) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.getWorkspaceDir(issue)
+}
+
+// getWorkspaceDir is the lock-free implementation; caller must hold s.mu.
+func (s *SeederService) getWorkspaceDir(issue *Issue) string {
 	baseDir := s.config.GetWorkspaceDir()
 	if baseDir == "" {
 		baseDir = filepath.Join(os.TempDir(), "bugseti")
@@ -347,6 +360,9 @@ func (s *SeederService) GetWorkspaceDir(issue *Issue) string {
 
 // CleanupWorkspace removes the workspace for an issue.
 func (s *SeederService) CleanupWorkspace(issue *Issue) error {
-	workDir := s.GetWorkspaceDir(issue)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	workDir := s.getWorkspaceDir(issue)
 	return os.RemoveAll(workDir)
 }
