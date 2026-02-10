@@ -177,7 +177,9 @@ func (s *SubmitService) createBranch(workDir, branch string) error {
 	// Fetch latest from upstream
 	cmd := exec.CommandContext(ctx, "git", "fetch", "origin")
 	cmd.Dir = workDir
-	cmd.Run() // Ignore errors
+	if err := cmd.Run(); err != nil {
+		log.Printf("WARNING: git fetch origin failed in %s: %v (proceeding with potentially stale data)", workDir, err)
+	}
 
 	// Create and checkout new branch
 	cmd = exec.CommandContext(ctx, "git", "checkout", "-b", branch)
