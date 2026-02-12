@@ -17,10 +17,12 @@ import (
 )
 
 const (
-	// maxWorkspaces is the upper bound on cached workspace entries.
-	maxWorkspaces = 100
-	// workspaceTTL is how long a workspace stays in memory before eviction.
-	workspaceTTL = 24 * time.Hour
+	// defaultMaxWorkspaces is the fallback upper bound when config is unavailable.
+	defaultMaxWorkspaces = 100
+	// defaultWorkspaceTTL is the fallback TTL when config is unavailable.
+	defaultWorkspaceTTL = 24 * time.Hour
+	// sweepInterval is how often the background sweeper runs.
+	sweepInterval = 5 * time.Minute
 )
 
 // WorkspaceService manages DataNode-backed workspaces for issues.
@@ -28,8 +30,10 @@ const (
 // snapshotted, packaged as a TIM container, or shipped as a crash report.
 type WorkspaceService struct {
 	config     *bugseti.ConfigService
-	workspaces map[string]*Workspace // issue ID → workspace
+	workspaces map[string]*Workspace // issue ID -> workspace
 	mu         sync.RWMutex
+	done       chan struct{} // signals the background sweeper to stop
+	stopped    chan struct{} // closed when the sweeper goroutine exits
 }
 
 // Workspace tracks a DataNode-backed workspace for an issue.
@@ -55,16 +59,69 @@ type CrashReport struct {
 }
 
 // NewWorkspaceService creates a new WorkspaceService.
+// Call Start() to begin the background TTL sweeper.
 func NewWorkspaceService(config *bugseti.ConfigService) *WorkspaceService {
 	return &WorkspaceService{
 		config:     config,
 		workspaces: make(map[string]*Workspace),
+		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 	}
 }
 
 // ServiceName returns the service name for Wails.
 func (w *WorkspaceService) ServiceName() string {
 	return "WorkspaceService"
+}
+
+// Start launches the background sweeper goroutine that periodically
+// evicts expired workspaces. This prevents unbounded map growth even
+// when no new Capture calls arrive.
+func (w *WorkspaceService) Start() {
+	go func() {
+		defer close(w.stopped)
+		ticker := time.NewTicker(sweepInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				w.mu.Lock()
+				evicted := w.cleanup()
+				w.mu.Unlock()
+				if evicted > 0 {
+					log.Printf("Workspace sweeper: evicted %d stale entries, %d remaining", evicted, w.ActiveWorkspaces())
+				}
+			case <-w.done:
+				return
+			}
+		}
+	}()
+	log.Printf("Workspace sweeper started (interval=%s, ttl=%s, max=%d)",
+		sweepInterval, w.ttl(), w.maxCap())
+}
+
+// Stop signals the background sweeper to exit and waits for it to finish.
+func (w *WorkspaceService) Stop() {
+	close(w.done)
+	<-w.stopped
+	log.Printf("Workspace sweeper stopped")
+}
+
+// ttl returns the configured workspace TTL, falling back to the default.
+func (w *WorkspaceService) ttl() time.Duration {
+	if w.config != nil {
+		return w.config.GetWorkspaceTTL()
+	}
+	return defaultWorkspaceTTL
+}
+
+// maxCap returns the configured max workspace count, falling back to the default.
+func (w *WorkspaceService) maxCap() int {
+	if w.config != nil {
+		return w.config.GetMaxWorkspaces()
+	}
+	return defaultMaxWorkspaces
 }
 
 // Capture loads a filesystem workspace into a DataNode Medium.
@@ -251,18 +308,23 @@ func (w *WorkspaceService) SaveCrashReport(report *CrashReport) (string, error) 
 
 // cleanup evicts expired workspaces and enforces the max size cap.
 // Must be called with w.mu held for writing.
-func (w *WorkspaceService) cleanup() {
+// Returns the number of evicted entries.
+func (w *WorkspaceService) cleanup() int {
 	now := time.Now()
+	ttl := w.ttl()
+	cap := w.maxCap()
+	evicted := 0
 
 	// First pass: evict entries older than TTL.
 	for id, ws := range w.workspaces {
-		if now.Sub(ws.CreatedAt) > workspaceTTL {
+		if now.Sub(ws.CreatedAt) > ttl {
 			delete(w.workspaces, id)
+			evicted++
 		}
 	}
 
 	// Second pass: if still over cap, evict oldest entries.
-	if len(w.workspaces) > maxWorkspaces {
+	if len(w.workspaces) > cap {
 		type entry struct {
 			id        string
 			createdAt time.Time
@@ -274,11 +336,14 @@ func (w *WorkspaceService) cleanup() {
 		sort.Slice(entries, func(i, j int) bool {
 			return entries[i].createdAt.Before(entries[j].createdAt)
 		})
-		evict := len(w.workspaces) - maxWorkspaces
-		for i := 0; i < evict; i++ {
+		toEvict := len(w.workspaces) - cap
+		for i := 0; i < toEvict; i++ {
 			delete(w.workspaces, entries[i].id)
+			evicted++
 		}
 	}
+
+	return evicted
 }
 
 // Release removes a workspace from memory.

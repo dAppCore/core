@@ -52,6 +52,10 @@ type Config struct {
 	MaxConcurrentIssues int  `json:"maxConcurrentIssues"`
 	AutoSeedContext     bool `json:"autoSeedContext"`
 
+	// Workspace cache
+	MaxWorkspaces      int `json:"maxWorkspaces"`      // Upper bound on cached workspace entries (0 = default 100)
+	WorkspaceTTLMinutes int `json:"workspaceTtlMinutes"` // TTL for workspace entries in minutes (0 = default 1440 = 24h)
+
 	// Updates
 	UpdateChannel       string    `json:"updateChannel"`       // stable, beta, nightly
 	AutoUpdate          bool      `json:"autoUpdate"`          // Automatically install updates
@@ -99,6 +103,8 @@ func NewConfigService() *ConfigService {
 			AutoSeedContext:      true,
 			DataDir:              bugsetiDir,
 			MarketplaceMCPRoot:   "",
+			MaxWorkspaces:        100,
+			WorkspaceTTLMinutes:  1440, // 24 hours
 			UpdateChannel:        "stable",
 			AutoUpdate:           false,
 			UpdateCheckInterval:  6, // Check every 6 hours
@@ -168,6 +174,12 @@ func (c *ConfigService) mergeDefaults(config *Config) {
 	}
 	if config.DataDir == "" {
 		config.DataDir = c.config.DataDir
+	}
+	if config.MaxWorkspaces == 0 {
+		config.MaxWorkspaces = 100
+	}
+	if config.WorkspaceTTLMinutes == 0 {
+		config.WorkspaceTTLMinutes = 1440
 	}
 	if config.UpdateChannel == "" {
 		config.UpdateChannel = "stable"
@@ -404,6 +416,26 @@ func (c *ConfigService) SetAutoSeedEnabled(enabled bool) error {
 	defer c.mu.Unlock()
 	c.config.AutoSeedContext = enabled
 	return c.saveUnsafe()
+}
+
+// GetMaxWorkspaces returns the maximum number of cached workspaces.
+func (c *ConfigService) GetMaxWorkspaces() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.config.MaxWorkspaces <= 0 {
+		return 100
+	}
+	return c.config.MaxWorkspaces
+}
+
+// GetWorkspaceTTL returns the workspace TTL as a time.Duration.
+func (c *ConfigService) GetWorkspaceTTL() time.Duration {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.config.WorkspaceTTLMinutes <= 0 {
+		return 24 * time.Hour
+	}
+	return time.Duration(c.config.WorkspaceTTLMinutes) * time.Minute
 }
 
 // UpdateSettings holds update-related configuration.
