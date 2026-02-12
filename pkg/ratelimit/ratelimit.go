@@ -343,7 +343,7 @@ func (rl *RateLimiter) AllStats() map[string]ModelStats {
 
 // CountTokens calls the Google API to count tokens for a prompt.
 func CountTokens(apiKey, model, text string) (int, error) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:countTokens?key=%s", model, apiKey)
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:countTokens", model)
 
 	reqBody := map[string]any{
 		"contents": []any{
@@ -360,7 +360,14 @@ func CountTokens(apiKey, model, text string) (int, error) {
 		return 0, err
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", apiKey)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, err
 	}
