@@ -99,13 +99,17 @@ func (h *issueHeap) Pop() any {
 func NewQueueService(config *ConfigService) *QueueService {
 	q := &QueueService{
 		config: config,
-		issues: make(issueHeap, 0),
-		seen:   make(map[string]bool),
 	}
-	heap.Init(&q.issues)
+
+	// Hold the lock for the entire initialization sequence so that all
+	// shared state (issues, seen, current) is fully populated before
+	// any concurrent caller can observe the service.
 	q.mu.Lock()
-	q.load() // Load persisted queue
-	q.mu.Unlock()
+	defer q.mu.Unlock()
+
+	q.issues = make(issueHeap, 0)
+	q.seen = make(map[string]bool)
+	q.load() // Load persisted queue (overwrites issues/seen if file exists)
 	return q
 }
 
@@ -247,7 +251,7 @@ type queueState struct {
 	Seen    []string `json:"seen"`
 }
 
-// save persists the queue to disk.
+// save persists the queue to disk. Must be called with q.mu held.
 func (q *QueueService) save() {
 	dataDir := q.config.GetDataDir()
 	if dataDir == "" {
@@ -278,7 +282,7 @@ func (q *QueueService) save() {
 	}
 }
 
-// load restores the queue from disk.
+// load restores the queue from disk. Must be called with q.mu held.
 func (q *QueueService) load() {
 	dataDir := q.config.GetDataDir()
 	if dataDir == "" {
