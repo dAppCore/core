@@ -113,6 +113,123 @@ func TestJournal_Append_Good(t *testing.T) {
 	assert.Equal(t, 2, lines, "expected two JSONL lines after two appends")
 }
 
+func TestJournal_Append_Bad_PathTraversal(t *testing.T) {
+	dir := t.TempDir()
+
+	j, err := NewJournal(dir)
+	require.NoError(t, err)
+
+	ts := time.Now()
+
+	tests := []struct {
+		name      string
+		repoOwner string
+		repoName  string
+		wantErr   string
+	}{
+		{
+			name:      "dotdot owner",
+			repoOwner: "..",
+			repoName:  "core",
+			wantErr:   "invalid repo owner",
+		},
+		{
+			name:      "dotdot repo",
+			repoOwner: "host-uk",
+			repoName:  "../../etc/cron.d",
+			wantErr:   "invalid repo name",
+		},
+		{
+			name:      "slash in owner",
+			repoOwner: "../etc",
+			repoName:  "core",
+			wantErr:   "invalid repo owner",
+		},
+		{
+			name:      "absolute path in repo",
+			repoOwner: "host-uk",
+			repoName:  "/etc/passwd",
+			wantErr:   "invalid repo name",
+		},
+		{
+			name:      "empty owner",
+			repoOwner: "",
+			repoName:  "core",
+			wantErr:   "invalid repo owner",
+		},
+		{
+			name:      "empty repo",
+			repoOwner: "host-uk",
+			repoName:  "",
+			wantErr:   "invalid repo name",
+		},
+		{
+			name:      "dot only owner",
+			repoOwner: ".",
+			repoName:  "core",
+			wantErr:   "invalid repo owner",
+		},
+		{
+			name:      "spaces only owner",
+			repoOwner: "   ",
+			repoName:  "core",
+			wantErr:   "invalid repo owner",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			signal := &PipelineSignal{
+				RepoOwner: tc.repoOwner,
+				RepoName:  tc.repoName,
+			}
+			result := &ActionResult{
+				Action:    "merge",
+				Timestamp: ts,
+			}
+
+			err := j.Append(signal, result)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+func TestJournal_Append_Good_ValidNames(t *testing.T) {
+	dir := t.TempDir()
+
+	j, err := NewJournal(dir)
+	require.NoError(t, err)
+
+	ts := time.Date(2026, 2, 5, 14, 30, 0, 0, time.UTC)
+
+	// Verify valid names with dots, hyphens, underscores all work.
+	validNames := []struct {
+		owner string
+		repo  string
+	}{
+		{"host-uk", "core"},
+		{"my_org", "my_repo"},
+		{"org.name", "repo.v2"},
+		{"a", "b"},
+		{"Org-123", "Repo_456.go"},
+	}
+
+	for _, vn := range validNames {
+		signal := &PipelineSignal{
+			RepoOwner: vn.owner,
+			RepoName:  vn.repo,
+		}
+		result := &ActionResult{
+			Action:    "test",
+			Timestamp: ts,
+		}
+
+		err := j.Append(signal, result)
+		assert.NoError(t, err, "expected valid name pair %s/%s to succeed", vn.owner, vn.repo)
+	}
+}
+
 func TestJournal_Append_Bad_NilSignal(t *testing.T) {
 	dir := t.TempDir()
 
