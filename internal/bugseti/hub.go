@@ -2,9 +2,12 @@
 package bugseti
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -120,6 +123,83 @@ func generateClientID() string {
 		return fmt.Sprintf("fallback-%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b)
+}
+
+// doRequest builds and executes an HTTP request against the hub API.
+// It returns the raw *http.Response and any transport-level error.
+func (h *HubService) doRequest(method, path string, body interface{}) (*http.Response, error) {
+	hubURL := h.config.GetHubURL()
+	if hubURL == "" {
+		return nil, fmt.Errorf("hub URL not configured")
+	}
+
+	fullURL := hubURL + "/api/bugseti" + path
+
+	var bodyReader io.Reader
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("marshal request body: %w", err)
+		}
+		bodyReader = bytes.NewReader(data)
+	}
+
+	req, err := http.NewRequest(method, fullURL, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	token := h.config.GetHubToken()
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		h.mu.Lock()
+		h.connected = false
+		h.mu.Unlock()
+		return nil, err
+	}
+
+	h.mu.Lock()
+	h.connected = true
+	h.mu.Unlock()
+
+	return resp, nil
+}
+
+// doJSON executes an HTTP request and decodes the JSON response into dest.
+// It handles common error status codes with typed errors.
+func (h *HubService) doJSON(method, path string, body, dest interface{}) error {
+	resp, err := h.doRequest(method, path, body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch {
+	case resp.StatusCode == http.StatusUnauthorized:
+		return fmt.Errorf("unauthorised")
+	case resp.StatusCode == http.StatusConflict:
+		return &ConflictError{StatusCode: resp.StatusCode}
+	case resp.StatusCode == http.StatusNotFound:
+		return &NotFoundError{StatusCode: resp.StatusCode}
+	case resp.StatusCode >= 400:
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("hub error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	if dest != nil {
+		if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+			return fmt.Errorf("decode response: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // loadPendingOps is a no-op placeholder (disk persistence comes in Task 7).
