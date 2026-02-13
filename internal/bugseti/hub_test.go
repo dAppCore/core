@@ -491,3 +491,68 @@ func TestGetGlobalStats_Good(t *testing.T) {
 	assert.Equal(t, 25, stats.ActiveClaims)
 	assert.Equal(t, 150, stats.IssuesAvailable)
 }
+
+// ---- Task 7: Pending Operations Queue ----
+
+func TestPendingOps_Good_QueueAndDrain(t *testing.T) {
+	var callCount int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	// Manually queue a pending op (simulates a previous failed request).
+	h.queueOp("POST", "/heartbeat", map[string]string{"client_id": "test"})
+	assert.Equal(t, 1, h.PendingCount())
+
+	// Register() calls drainPendingOps() first, then sends its own request.
+	err := h.Register()
+	require.NoError(t, err)
+
+	// At least 2 calls: 1 from drain (the queued heartbeat) + 1 from Register itself.
+	assert.GreaterOrEqual(t, callCount, int32(2))
+	assert.Equal(t, 0, h.PendingCount())
+}
+
+func TestPendingOps_Good_PersistAndLoad(t *testing.T) {
+	cfg1 := testConfigService(t, nil, nil)
+	cfg1.config.HubURL = "https://hub.example.com"
+	cfg1.config.HubToken = "tok"
+	h1 := NewHubService(cfg1)
+
+	// Queue an op — this also calls savePendingOps.
+	h1.queueOp("POST", "/heartbeat", map[string]string{"client_id": "test"})
+	assert.Equal(t, 1, h1.PendingCount())
+
+	// Create a second HubService with the same data dir.
+	// NewHubService calls loadPendingOps() in its constructor.
+	cfg2 := testConfigService(t, nil, nil)
+	cfg2.config.DataDir = cfg1.config.DataDir // Share the same data dir.
+	cfg2.config.HubURL = "https://hub.example.com"
+	cfg2.config.HubToken = "tok"
+	h2 := NewHubService(cfg2)
+
+	assert.Equal(t, 1, h2.PendingCount())
+}
+
+func TestPendingCount_Good(t *testing.T) {
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = "https://hub.example.com"
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	assert.Equal(t, 0, h.PendingCount())
+
+	h.queueOp("POST", "/test1", nil)
+	assert.Equal(t, 1, h.PendingCount())
+
+	h.queueOp("POST", "/test2", map[string]string{"key": "val"})
+	assert.Equal(t, 2, h.PendingCount())
+}

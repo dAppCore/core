@@ -11,6 +11,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -31,7 +33,7 @@ type HubService struct {
 type PendingOp struct {
 	Method    string      `json:"method"`
 	Path      string      `json:"path"`
-	Body      interface{} `json:"body,omitempty"`
+	Body      json.RawMessage `json:"body,omitempty"`
 	CreatedAt time.Time   `json:"createdAt"`
 }
 
@@ -207,14 +209,120 @@ func (h *HubService) doJSON(method, path string, body, dest interface{}) error {
 	return nil
 }
 
-// loadPendingOps is a no-op placeholder (disk persistence comes in Task 7).
-func (h *HubService) loadPendingOps() {}
+// queueOp marshals body to JSON and appends a PendingOp to the queue.
+func (h *HubService) queueOp(method, path string, body interface{}) {
+	var raw json.RawMessage
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			log.Printf("BugSETI: queueOp marshal error: %v", err)
+			return
+		}
+		raw = data
+	}
 
-// savePendingOps is a no-op placeholder (disk persistence comes in Task 7).
-func (h *HubService) savePendingOps() {}
+	h.mu.Lock()
+	h.pending = append(h.pending, PendingOp{
+		Method:    method,
+		Path:      path,
+		Body:      raw,
+		CreatedAt: time.Now(),
+	})
+	h.mu.Unlock()
 
-// drainPendingOps replays queued operations (no-op until Task 7).
-func (h *HubService) drainPendingOps() {}
+	h.savePendingOps()
+}
+
+// drainPendingOps replays queued operations against the hub.
+// 5xx/transport errors are kept for retry; 4xx responses are dropped (stale).
+func (h *HubService) drainPendingOps() {
+	h.mu.Lock()
+	ops := h.pending
+	h.pending = make([]PendingOp, 0)
+	h.mu.Unlock()
+
+	if len(ops) == 0 {
+		return
+	}
+
+	var failed []PendingOp
+	for _, op := range ops {
+		var body interface{}
+		if len(op.Body) > 0 {
+			body = json.RawMessage(op.Body)
+		}
+
+		resp, err := h.doRequest(op.Method, op.Path, body)
+		if err != nil {
+			// Transport error — keep for retry.
+			failed = append(failed, op)
+			continue
+		}
+		resp.Body.Close()
+
+		if resp.StatusCode >= 500 {
+			// Server error — keep for retry.
+			failed = append(failed, op)
+		} // 4xx are dropped (stale).
+	}
+
+	if len(failed) > 0 {
+		h.mu.Lock()
+		h.pending = append(failed, h.pending...)
+		h.mu.Unlock()
+	}
+
+	h.savePendingOps()
+}
+
+// savePendingOps persists the pending operations queue to disk.
+func (h *HubService) savePendingOps() {
+	dataDir := h.config.GetDataDir()
+	if dataDir == "" {
+		return
+	}
+
+	h.mu.RLock()
+	data, err := json.Marshal(h.pending)
+	h.mu.RUnlock()
+	if err != nil {
+		log.Printf("BugSETI: savePendingOps marshal error: %v", err)
+		return
+	}
+
+	path := filepath.Join(dataDir, "hub_pending.json")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		log.Printf("BugSETI: savePendingOps write error: %v", err)
+	}
+}
+
+// loadPendingOps loads the pending operations queue from disk.
+// Errors are silently ignored (the file may not exist yet).
+func (h *HubService) loadPendingOps() {
+	dataDir := h.config.GetDataDir()
+	if dataDir == "" {
+		return
+	}
+
+	path := filepath.Join(dataDir, "hub_pending.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	var ops []PendingOp
+	if err := json.Unmarshal(data, &ops); err != nil {
+		return
+	}
+	h.pending = ops
+}
+
+// PendingCount returns the number of queued pending operations.
+func (h *HubService) PendingCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.pending)
+}
 
 // ---- Task 4: Auto-Register via Forge Token ----
 
