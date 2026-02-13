@@ -52,6 +52,7 @@ func main() {
 	queueService := bugseti.NewQueueService(configService)
 	seederService := bugseti.NewSeederService(configService, forgeClient.URL(), forgeClient.Token())
 	submitService := bugseti.NewSubmitService(configService, notifyService, statsService, forgeClient)
+	hubService := bugseti.NewHubService(configService)
 	versionService := bugseti.NewVersionService()
 	workspaceService := NewWorkspaceService(configService)
 
@@ -75,6 +76,7 @@ func main() {
 		application.NewService(submitService),
 		application.NewService(versionService),
 		application.NewService(workspaceService),
+		application.NewService(hubService),
 		application.NewService(trayService),
 	}
 
@@ -112,6 +114,19 @@ func main() {
 	log.Println("  - System tray active")
 	log.Println("  - Waiting for issues...")
 	log.Printf("  - Version: %s (%s)", bugseti.GetVersion(), bugseti.GetChannel())
+
+	// Attempt hub registration (non-blocking)
+	if hubURL := configService.GetHubURL(); hubURL != "" {
+		if err := hubService.AutoRegister(); err != nil {
+			log.Printf("  - Hub: auto-register skipped: %v", err)
+		} else if err := hubService.Register(); err != nil {
+			log.Printf("  - Hub: registration failed: %v", err)
+		} else {
+			log.Println("  - Hub: registered with portal")
+		}
+	} else {
+		log.Println("  - Hub: not configured (set hubUrl in config)")
+	}
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
