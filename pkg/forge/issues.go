@@ -8,9 +8,10 @@ import (
 
 // ListIssuesOpts configures issue listing.
 type ListIssuesOpts struct {
-	State string // "open", "closed", "all"
-	Page  int
-	Limit int
+	State  string   // "open", "closed", "all"
+	Labels []string // filter by label names
+	Page   int
+	Limit  int
 }
 
 // ListIssues returns issues for the given repository.
@@ -33,11 +34,14 @@ func (c *Client) ListIssues(owner, repo string, opts ListIssuesOpts) ([]*forgejo
 		page = 1
 	}
 
-	issues, _, err := c.api.ListRepoIssues(owner, repo, forgejo.ListIssueOption{
+	listOpt := forgejo.ListIssueOption{
 		ListOptions: forgejo.ListOptions{Page: page, PageSize: limit},
 		State:       state,
 		Type:        forgejo.IssueTypeIssue,
-	})
+		Labels:      opts.Labels,
+	}
+
+	issues, _, err := c.api.ListRepoIssues(owner, repo, listOpt)
 	if err != nil {
 		return nil, log.E("forge.ListIssues", "failed to list issues", err)
 	}
@@ -138,6 +142,30 @@ func (c *Client) CreateIssueComment(owner, repo string, issue int64, body string
 		return log.E("forge.CreateIssueComment", "failed to create comment", err)
 	}
 	return nil
+}
+
+// ListIssueComments returns comments for an issue.
+func (c *Client) ListIssueComments(owner, repo string, number int64) ([]*forgejo.Comment, error) {
+	var all []*forgejo.Comment
+	page := 1
+
+	for {
+		comments, resp, err := c.api.ListIssueComments(owner, repo, number, forgejo.ListIssueCommentOptions{
+			ListOptions: forgejo.ListOptions{Page: page, PageSize: 50},
+		})
+		if err != nil {
+			return nil, log.E("forge.ListIssueComments", "failed to list comments", err)
+		}
+
+		all = append(all, comments...)
+
+		if resp == nil || page >= resp.LastPage {
+			break
+		}
+		page++
+	}
+
+	return all, nil
 }
 
 // CloseIssue closes an issue by setting its state to closed.

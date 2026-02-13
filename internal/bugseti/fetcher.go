@@ -2,20 +2,20 @@
 package bugseti
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/host-uk/core/pkg/forge"
 )
 
 // FetcherService fetches issues from configured OSS repositories.
 type FetcherService struct {
 	config   *ConfigService
 	notify   *NotifyService
+	forge    *forge.Client
 	running  bool
 	mu       sync.RWMutex
 	stopCh   chan struct{}
@@ -23,10 +23,11 @@ type FetcherService struct {
 }
 
 // NewFetcherService creates a new FetcherService.
-func NewFetcherService(config *ConfigService, notify *NotifyService) *FetcherService {
+func NewFetcherService(config *ConfigService, notify *NotifyService, forgeClient *forge.Client) *FetcherService {
 	return &FetcherService{
 		config:   config,
 		notify:   notify,
+		forge:    forgeClient,
 		issuesCh: make(chan []*Issue, 10),
 	}
 }
@@ -133,68 +134,50 @@ func (f *FetcherService) fetchAll() {
 	}
 }
 
-// fetchFromRepo fetches issues from a single repository using GitHub CLI.
+// fetchFromRepo fetches issues from a single repository using the Forgejo API.
 func (f *FetcherService) fetchFromRepo(repo string) ([]*Issue, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	owner, repoName, err := splitRepo(repo)
+	if err != nil {
+		return nil, err
+	}
 
-	// Build query for good first issues
 	labels := f.config.GetLabels()
 	if len(labels) == 0 {
 		labels = []string{"good first issue", "help wanted", "beginner-friendly"}
 	}
 
-	labelQuery := strings.Join(labels, ",")
-
-	// Use gh CLI to fetch issues
-	cmd := exec.CommandContext(ctx, "gh", "issue", "list",
-		"--repo", repo,
-		"--label", labelQuery,
-		"--state", "open",
-		"--limit", "20",
-		"--json", "number,title,body,url,labels,createdAt,author")
-
-	output, err := cmd.Output()
+	forgeIssues, err := f.forge.ListIssues(owner, repoName, forge.ListIssuesOpts{
+		State:  "open",
+		Labels: labels,
+		Limit:  20,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("gh issue list failed: %w", err)
+		return nil, fmt.Errorf("forge list issues failed: %w", err)
 	}
 
-	var ghIssues []struct {
-		Number    int       `json:"number"`
-		Title     string    `json:"title"`
-		Body      string    `json:"body"`
-		URL       string    `json:"url"`
-		CreatedAt time.Time `json:"createdAt"`
-		Author    struct {
-			Login string `json:"login"`
-		} `json:"author"`
-		Labels []struct {
-			Name string `json:"name"`
-		} `json:"labels"`
-	}
+	issues := make([]*Issue, 0, len(forgeIssues))
+	for _, fi := range forgeIssues {
+		labelNames := make([]string, len(fi.Labels))
+		for i, l := range fi.Labels {
+			labelNames[i] = l.Name
+		}
 
-	if err := json.Unmarshal(output, &ghIssues); err != nil {
-		return nil, fmt.Errorf("failed to parse gh output: %w", err)
-	}
-
-	issues := make([]*Issue, 0, len(ghIssues))
-	for _, gi := range ghIssues {
-		labels := make([]string, len(gi.Labels))
-		for i, l := range gi.Labels {
-			labels[i] = l.Name
+		author := ""
+		if fi.Poster != nil {
+			author = fi.Poster.UserName
 		}
 
 		issues = append(issues, &Issue{
-			ID:        fmt.Sprintf("%s#%d", repo, gi.Number),
-			Number:    gi.Number,
+			ID:        fmt.Sprintf("%s#%d", repo, fi.Index),
+			Number:    int(fi.Index),
 			Repo:      repo,
-			Title:     gi.Title,
-			Body:      gi.Body,
-			URL:       gi.URL,
-			Labels:    labels,
-			Author:    gi.Author.Login,
-			CreatedAt: gi.CreatedAt,
-			Priority:  calculatePriority(labels),
+			Title:     fi.Title,
+			Body:      fi.Body,
+			URL:       fi.HTMLURL,
+			Labels:    labelNames,
+			Author:    author,
+			CreatedAt: fi.Created,
+			Priority:  calculatePriority(labelNames),
 		})
 	}
 
@@ -203,69 +186,66 @@ func (f *FetcherService) fetchFromRepo(repo string) ([]*Issue, error) {
 
 // FetchIssue fetches a single issue by repo and number.
 func (f *FetcherService) FetchIssue(repo string, number int) (*Issue, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "gh", "issue", "view",
-		"--repo", repo,
-		fmt.Sprintf("%d", number),
-		"--json", "number,title,body,url,labels,createdAt,author,comments")
-
-	output, err := cmd.Output()
+	owner, repoName, err := splitRepo(repo)
 	if err != nil {
-		return nil, fmt.Errorf("gh issue view failed: %w", err)
+		return nil, err
 	}
 
-	var ghIssue struct {
-		Number    int       `json:"number"`
-		Title     string    `json:"title"`
-		Body      string    `json:"body"`
-		URL       string    `json:"url"`
-		CreatedAt time.Time `json:"createdAt"`
-		Author    struct {
-			Login string `json:"login"`
-		} `json:"author"`
-		Labels []struct {
-			Name string `json:"name"`
-		} `json:"labels"`
-		Comments []struct {
-			Body   string `json:"body"`
-			Author struct {
-				Login string `json:"login"`
-			} `json:"author"`
-		} `json:"comments"`
+	fi, err := f.forge.GetIssue(owner, repoName, int64(number))
+	if err != nil {
+		return nil, fmt.Errorf("forge get issue failed: %w", err)
 	}
 
-	if err := json.Unmarshal(output, &ghIssue); err != nil {
-		return nil, fmt.Errorf("failed to parse gh output: %w", err)
+	labelNames := make([]string, len(fi.Labels))
+	for i, l := range fi.Labels {
+		labelNames[i] = l.Name
 	}
 
-	labels := make([]string, len(ghIssue.Labels))
-	for i, l := range ghIssue.Labels {
-		labels[i] = l.Name
+	author := ""
+	if fi.Poster != nil {
+		author = fi.Poster.UserName
 	}
 
-	comments := make([]Comment, len(ghIssue.Comments))
-	for i, c := range ghIssue.Comments {
-		comments[i] = Comment{
-			Author: c.Author.Login,
-			Body:   c.Body,
+	// Fetch comments
+	forgeComments, err := f.forge.ListIssueComments(owner, repoName, int64(number))
+	if err != nil {
+		log.Printf("Warning: could not fetch comments for %s#%d: %v", repo, number, err)
+	}
+
+	comments := make([]Comment, 0, len(forgeComments))
+	for _, c := range forgeComments {
+		commentAuthor := ""
+		if c.Poster != nil {
+			commentAuthor = c.Poster.UserName
 		}
+		comments = append(comments, Comment{
+			Author: commentAuthor,
+			Body:   c.Body,
+		})
 	}
 
 	return &Issue{
-		ID:        fmt.Sprintf("%s#%d", repo, ghIssue.Number),
-		Number:    ghIssue.Number,
+		ID:        fmt.Sprintf("%s#%d", repo, fi.Index),
+		Number:    int(fi.Index),
 		Repo:      repo,
-		Title:     ghIssue.Title,
-		Body:      ghIssue.Body,
-		URL:       ghIssue.URL,
-		Labels:    labels,
-		Author:    ghIssue.Author.Login,
-		CreatedAt: ghIssue.CreatedAt,
-		Priority:  calculatePriority(labels),
+		Title:     fi.Title,
+		Body:      fi.Body,
+		URL:       fi.HTMLURL,
+		Labels:    labelNames,
+		Author:    author,
+		CreatedAt: fi.Created,
+		Priority:  calculatePriority(labelNames),
 		Comments:  comments,
 	}, nil
+}
+
+// splitRepo splits "owner/repo" into owner and repo parts.
+func splitRepo(repo string) (string, string, error) {
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid repo format %q, expected owner/repo", repo)
+	}
+	return parts[0], parts[1], nil
 }
 
 // calculatePriority assigns a priority score based on labels.

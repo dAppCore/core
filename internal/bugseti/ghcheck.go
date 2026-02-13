@@ -1,30 +1,22 @@
 package bugseti
 
 import (
-	"fmt"
-	"os/exec"
+	"github.com/host-uk/core/pkg/forge"
 )
 
-// CheckGHCLI verifies that the gh CLI is installed and authenticated.
-// Returns nil if gh is available and logged in, or an error with
-// actionable instructions for the user.
-func CheckGHCLI() error {
-	// Check if gh is in PATH
-	if _, err := exec.LookPath("gh"); err != nil {
-		return fmt.Errorf("gh CLI not found in PATH: %w\n\n"+
-			"BugSETI requires the GitHub CLI (gh) to fetch issues and submit PRs.\n"+
-			"Install it from: https://cli.github.com\n\n"+
-			"  macOS:   brew install gh\n"+
-			"  Linux:   https://github.com/cli/cli/blob/trunk/docs/install_linux.md\n"+
-			"  Windows: winget install --id GitHub.cli", err)
+// CheckForge verifies that the Forgejo API is configured and reachable.
+// Returns nil if a token is configured and the API responds, or an error
+// with actionable instructions for the user.
+func CheckForge() (*forge.Client, error) {
+	client, err := forge.NewFromConfig("", "")
+	if err != nil {
+		return nil, err
 	}
 
-	// Check if gh is authenticated
-	cmd := exec.Command("gh", "auth", "status")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("gh CLI is not authenticated: %w\n%s\n\n"+
-			"Run 'gh auth login' to authenticate with GitHub.", err, out)
+	// Verify the token works by fetching the current user
+	if _, err := client.GetCurrentUser(); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return client, nil
 }

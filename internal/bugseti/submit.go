@@ -4,13 +4,15 @@ package bugseti
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
+
+	forgejo "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
+
+	"github.com/host-uk/core/pkg/forge"
 )
 
 // SubmitService handles the PR submission flow.
@@ -18,14 +20,16 @@ type SubmitService struct {
 	config *ConfigService
 	notify *NotifyService
 	stats  *StatsService
+	forge  *forge.Client
 }
 
 // NewSubmitService creates a new SubmitService.
-func NewSubmitService(config *ConfigService, notify *NotifyService, stats *StatsService) *SubmitService {
+func NewSubmitService(config *ConfigService, notify *NotifyService, stats *StatsService, forgeClient *forge.Client) *SubmitService {
 	return &SubmitService{
 		config: config,
 		notify: notify,
 		stats:  stats,
+		forge:  forgeClient,
 	}
 }
 
@@ -55,7 +59,7 @@ type PRResult struct {
 }
 
 // Submit creates a pull request for the given issue.
-// Flow: Fork -> Branch -> Commit -> PR
+// Flow: Fork -> Branch -> Commit -> Push -> PR
 func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 	if submission == nil || submission.Issue == nil {
 		return nil, fmt.Errorf("invalid submission")
@@ -70,8 +74,13 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 	guard := getEthicsGuardWithRoot(context.Background(), s.config.GetMarketplaceMCPRoot())
 	issueTitle := guard.SanitizeTitle(issue.Title)
 
+	owner, repoName, err := splitRepo(issue.Repo)
+	if err != nil {
+		return &PRResult{Success: false, Error: err.Error()}, err
+	}
+
 	// Step 1: Ensure we have a fork
-	forkOwner, err := s.ensureFork(issue.Repo)
+	forkOwner, err := s.ensureFork(owner, repoName)
 	if err != nil {
 		return &PRResult{Success: false, Error: fmt.Sprintf("fork failed: %v", err)}, err
 	}
@@ -97,7 +106,7 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 	}
 
 	// Step 4: Push to fork
-	if err := s.pushToFork(workDir, forkOwner, branch); err != nil {
+	if err := s.pushToFork(workDir, forkOwner, repoName, branch); err != nil {
 		return &PRResult{Success: false, Error: fmt.Sprintf("push failed: %v", err)}, err
 	}
 
@@ -114,7 +123,7 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 	}
 	prBody = guard.SanitizeBody(prBody)
 
-	prURL, prNumber, err := s.createPR(issue.Repo, forkOwner, branch, prTitle, prBody)
+	prURL, prNumber, err := s.createPR(owner, repoName, forkOwner, branch, prTitle, prBody)
 	if err != nil {
 		return &PRResult{Success: false, Error: fmt.Sprintf("PR creation failed: %v", err)}, err
 	}
@@ -133,38 +142,30 @@ func (s *SubmitService) Submit(submission *PRSubmission) (*PRResult, error) {
 	}, nil
 }
 
-// ensureFork ensures a fork exists for the repo.
-func (s *SubmitService) ensureFork(repo string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	// Check if fork exists
-	parts := strings.Split(repo, "/")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid repo format: %s", repo)
-	}
-
+// ensureFork ensures a fork exists for the repo, returns the fork owner's username.
+func (s *SubmitService) ensureFork(owner, repo string) (string, error) {
 	// Get current user
-	cmd := exec.CommandContext(ctx, "gh", "api", "user", "--jq", ".login")
-	output, err := cmd.Output()
+	user, err := s.forge.GetCurrentUser()
 	if err != nil {
-		return "", fmt.Errorf("failed to get user: %w", err)
+		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
-	username := strings.TrimSpace(string(output))
+	username := user.UserName
 
-	// Check if fork exists
-	forkRepo := fmt.Sprintf("%s/%s", username, parts[1])
-	cmd = exec.CommandContext(ctx, "gh", "repo", "view", forkRepo, "--json", "name")
-	if err := cmd.Run(); err != nil {
-		// Fork doesn't exist, create it
-		log.Printf("Creating fork of %s...", repo)
-		cmd = exec.CommandContext(ctx, "gh", "repo", "fork", repo, "--clone=false")
-		if err := cmd.Run(); err != nil {
-			return "", fmt.Errorf("failed to create fork: %w", err)
-		}
-		// Wait a bit for GitHub to process
-		time.Sleep(2 * time.Second)
+	// Check if fork already exists
+	_, err = s.forge.GetRepo(username, repo)
+	if err == nil {
+		return username, nil
 	}
+
+	// Fork doesn't exist, create it
+	log.Printf("Creating fork of %s/%s...", owner, repo)
+	_, err = s.forge.ForkRepo(owner, repo, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create fork: %w", err)
+	}
+
+	// Wait for Forgejo to process the fork
+	time.Sleep(2 * time.Second)
 
 	return username, nil
 }
@@ -241,7 +242,7 @@ func (s *SubmitService) commitChanges(workDir string, files []string, message st
 }
 
 // pushToFork pushes the branch to the user's fork.
-func (s *SubmitService) pushToFork(workDir, forkOwner, branch string) error {
+func (s *SubmitService) pushToFork(workDir, forkOwner, repoName, branch string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -250,16 +251,13 @@ func (s *SubmitService) pushToFork(workDir, forkOwner, branch string) error {
 	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", forkRemote)
 	cmd.Dir = workDir
 	if err := cmd.Run(); err != nil {
-		// Get the origin URL and construct fork URL
-		cmd = exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
-		cmd.Dir = workDir
-		output, err := cmd.Output()
-		if err != nil {
-			return fmt.Errorf("failed to get origin URL: %w", err)
-		}
+		// Construct fork URL using the forge instance URL
+		forkURL := fmt.Sprintf("%s/%s/%s.git", strings.TrimRight(s.forge.URL(), "/"), forkOwner, repoName)
 
-		originURL := strings.TrimSpace(string(output))
-		forkURL := buildForkURL(originURL, forkOwner)
+		// Embed token for HTTPS push auth
+		if s.forge.Token() != "" {
+			forkURL = strings.Replace(forkURL, "://", fmt.Sprintf("://bugseti:%s@", s.forge.Token()), 1)
+		}
 
 		cmd = exec.CommandContext(ctx, "git", "remote", "add", forkRemote, forkURL)
 		cmd.Dir = workDir
@@ -280,36 +278,19 @@ func (s *SubmitService) pushToFork(workDir, forkOwner, branch string) error {
 	return nil
 }
 
-// createPR creates a pull request using GitHub CLI.
-func (s *SubmitService) createPR(repo, forkOwner, branch, title, body string) (string, int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Create PR
-	cmd := exec.CommandContext(ctx, "gh", "pr", "create",
-		"--repo", repo,
-		"--head", fmt.Sprintf("%s:%s", forkOwner, branch),
-		"--title", title,
-		"--body", body,
-		"--json", "url,number")
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return "", 0, fmt.Errorf("failed to create PR: %s: %w", stderr.String(), err)
+// createPR creates a pull request using the Forgejo API.
+func (s *SubmitService) createPR(owner, repo, forkOwner, branch, title, body string) (string, int, error) {
+	pr, err := s.forge.CreatePullRequest(owner, repo, forgejo.CreatePullRequestOption{
+		Head:  fmt.Sprintf("%s:%s", forkOwner, branch),
+		Base:  "main",
+		Title: title,
+		Body:  body,
+	})
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to create PR: %w", err)
 	}
 
-	var result struct {
-		URL    string `json:"url"`
-		Number int    `json:"number"`
-	}
-	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
-		return "", 0, fmt.Errorf("failed to parse PR response: %w", err)
-	}
-
-	return result.URL, result.Number, nil
+	return pr.HTMLURL, int(pr.Index), nil
 }
 
 // generatePRBody creates a default PR body for an issue.
@@ -332,76 +313,44 @@ func (s *SubmitService) generatePRBody(issue *Issue) string {
 	body.WriteString("<!-- Describe how you tested your changes -->\n\n")
 
 	body.WriteString("---\n\n")
-	body.WriteString("*Submitted via [BugSETI](https://github.com/host-uk/core) - Distributed Bug Fixing*\n")
+	body.WriteString("*Submitted via [BugSETI](https://bugseti.app) - Distributed Bug Fixing*\n")
 
 	return body.String()
 }
 
-// buildForkURL constructs a fork remote URL from an origin URL by replacing
-// the owner segment with forkOwner.
-func buildForkURL(originURL, forkOwner string) string {
-	if strings.HasPrefix(originURL, "https://") {
-		// https://github.com/owner/repo.git
-		parts := strings.Split(originURL, "/")
-		if len(parts) >= 4 {
-			parts[len(parts)-2] = forkOwner
-			return strings.Join(parts, "/")
-		}
-		return originURL
-	}
-	// git@github.com:owner/repo.git
-	return fmt.Sprintf("git@github.com:%s/%s", forkOwner, filepath.Base(originURL))
-}
-
 // GetPRStatus checks the status of a submitted PR.
 func (s *SubmitService) GetPRStatus(repo string, prNumber int) (*PRStatus, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	owner, repoName, err := splitRepo(repo)
+	if err != nil {
+		return nil, err
+	}
 
-	cmd := exec.CommandContext(ctx, "gh", "pr", "view",
-		"--repo", repo,
-		fmt.Sprintf("%d", prNumber),
-		"--json", "state,mergeable,reviews,statusCheckRollup")
-
-	output, err := cmd.Output()
+	pr, err := s.forge.GetPullRequest(owner, repoName, int64(prNumber))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PR status: %w", err)
 	}
 
-	var result struct {
-		State             string `json:"state"`
-		Mergeable         string `json:"mergeable"`
-		StatusCheckRollup []struct {
-			State string `json:"state"`
-		} `json:"statusCheckRollup"`
-		Reviews []struct {
-			State string `json:"state"`
-		} `json:"reviews"`
-	}
-
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse PR status: %w", err)
-	}
-
 	status := &PRStatus{
-		State:     result.State,
-		Mergeable: result.Mergeable == "MERGEABLE",
+		State:     string(pr.State),
+		Mergeable: pr.Mergeable,
 	}
 
-	// Check CI status
-	status.CIPassing = true
-	for _, check := range result.StatusCheckRollup {
-		if check.State != "SUCCESS" && check.State != "NEUTRAL" {
-			status.CIPassing = false
-			break
+	// Check CI status via combined commit status
+	if pr.Head != nil {
+		combined, err := s.forge.GetCombinedStatus(owner, repoName, pr.Head.Sha)
+		if err == nil && combined != nil {
+			status.CIPassing = combined.State == forgejo.StatusSuccess
 		}
 	}
 
 	// Check review status
-	for _, review := range result.Reviews {
-		if review.State == "APPROVED" {
-			status.Approved = true
-			break
+	reviews, err := s.forge.ListPRReviews(owner, repoName, int64(prNumber))
+	if err == nil {
+		for _, review := range reviews {
+			if review.State == forgejo.ReviewStateApproved {
+				status.Approved = true
+				break
+			}
 		}
 	}
 

@@ -2,7 +2,7 @@
 // BugSETI - "Distributed Bug Fixing like SETI@home but for code"
 //
 // The application runs as a system tray app that:
-// - Pulls OSS issues from GitHub
+// - Pulls OSS issues from Forgejo
 // - Uses AI to prepare context for each issue
 // - Presents issues to users for fixing
 // - Automates PR submission
@@ -39,18 +39,19 @@ func main() {
 		log.Printf("Warning: Could not load config: %v", err)
 	}
 
-	// Check gh CLI availability
-	if err := bugseti.CheckGHCLI(); err != nil {
-		log.Fatalf("GitHub CLI check failed: %v", err)
+	// Check Forgejo API availability
+	forgeClient, err := bugseti.CheckForge()
+	if err != nil {
+		log.Fatalf("Forgejo check failed: %v\n\nConfigure with: core forge config --url URL --token TOKEN", err)
 	}
 
 	// Initialize core services
 	notifyService := bugseti.NewNotifyService(configService)
 	statsService := bugseti.NewStatsService(configService)
-	fetcherService := bugseti.NewFetcherService(configService, notifyService)
+	fetcherService := bugseti.NewFetcherService(configService, notifyService, forgeClient)
 	queueService := bugseti.NewQueueService(configService)
-	seederService := bugseti.NewSeederService(configService)
-	submitService := bugseti.NewSubmitService(configService, notifyService, statsService)
+	seederService := bugseti.NewSeederService(configService, forgeClient.URL(), forgeClient.Token())
+	submitService := bugseti.NewSubmitService(configService, notifyService, statsService, forgeClient)
 	versionService := bugseti.NewVersionService()
 	workspaceService := NewWorkspaceService(configService)
 

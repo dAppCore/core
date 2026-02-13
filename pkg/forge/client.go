@@ -36,3 +36,38 @@ func (c *Client) API() *forgejo.Client { return c.api }
 
 // URL returns the Forgejo instance URL.
 func (c *Client) URL() string { return c.url }
+
+// Token returns the Forgejo API token.
+func (c *Client) Token() string { return c.token }
+
+// GetCurrentUser returns the authenticated user's information.
+func (c *Client) GetCurrentUser() (*forgejo.User, error) {
+	user, _, err := c.api.GetMyUserInfo()
+	if err != nil {
+		return nil, log.E("forge.GetCurrentUser", "failed to get current user", err)
+	}
+	return user, nil
+}
+
+// ForkRepo forks a repository. If org is non-empty, forks into that organisation.
+func (c *Client) ForkRepo(owner, repo string, org string) (*forgejo.Repository, error) {
+	opts := forgejo.CreateForkOption{}
+	if org != "" {
+		opts.Organization = &org
+	}
+
+	fork, _, err := c.api.CreateFork(owner, repo, opts)
+	if err != nil {
+		return nil, log.E("forge.ForkRepo", "failed to fork repository", err)
+	}
+	return fork, nil
+}
+
+// CreatePullRequest creates a pull request on the given repository.
+func (c *Client) CreatePullRequest(owner, repo string, opts forgejo.CreatePullRequestOption) (*forgejo.PullRequest, error) {
+	pr, _, err := c.api.CreatePullRequest(owner, repo, opts)
+	if err != nil {
+		return nil, log.E("forge.CreatePullRequest", "failed to create pull request", err)
+	}
+	return pr, nil
+}

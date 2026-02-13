@@ -48,7 +48,7 @@ func TestHelperProcess(t *testing.T) {
 func TestNewFetcherService_Good(t *testing.T) {
 	cfg := testConfigService(t, nil, nil)
 	notify := NewNotifyService(cfg)
-	f := NewFetcherService(cfg, notify)
+	f := NewFetcherService(cfg, notify, nil)
 
 	require.NotNil(t, f)
 	assert.Equal(t, "FetcherService", f.ServiceName())
@@ -61,7 +61,7 @@ func TestNewFetcherService_Good(t *testing.T) {
 func TestStartPause_Good(t *testing.T) {
 	cfg := testConfigService(t, nil, nil)
 	notify := NewNotifyService(cfg)
-	f := NewFetcherService(cfg, notify)
+	f := NewFetcherService(cfg, notify, nil)
 
 	require.NoError(t, f.Start())
 	assert.True(t, f.IsRunning())
@@ -232,7 +232,7 @@ func TestFetchFromRepo_Bad_GhNotInstalled(t *testing.T) {
 func TestFetchAll_Bad_NoRepos(t *testing.T) {
 	cfg := testConfigService(t, nil, nil)
 	notify := NewNotifyService(cfg)
-	f := NewFetcherService(cfg, notify)
+	f := NewFetcherService(cfg, notify, nil)
 
 	// fetchAll with no repos should not panic and should not send to channel.
 	f.fetchAll()
@@ -251,7 +251,7 @@ func TestFetchAll_Bad_NoRepos(t *testing.T) {
 func TestChannelBackpressure_Ugly(t *testing.T) {
 	cfg := testConfigService(t, nil, nil)
 	notify := NewNotifyService(cfg)
-	f := NewFetcherService(cfg, notify)
+	f := NewFetcherService(cfg, notify, nil)
 
 	// Fill the channel to capacity (buffer size is 10).
 	for i := 0; i < 10; i++ {
@@ -387,7 +387,7 @@ func TestFetchIssue_Good_Parse(t *testing.T) {
 func TestIssuesChannel_Good(t *testing.T) {
 	cfg := testConfigService(t, nil, nil)
 	notify := NewNotifyService(cfg)
-	f := NewFetcherService(cfg, notify)
+	f := NewFetcherService(cfg, notify, nil)
 
 	ch := f.Issues()
 	require.NotNil(t, ch)

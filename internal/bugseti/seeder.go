@@ -17,14 +17,18 @@ import (
 
 // SeederService prepares context for issues using the seed-agent-developer skill.
 type SeederService struct {
-	mu     sync.Mutex
-	config *ConfigService
+	mu       sync.Mutex
+	config   *ConfigService
+	forgeURL   string
+	forgeToken string
 }
 
 // NewSeederService creates a new SeederService.
-func NewSeederService(config *ConfigService) *SeederService {
+func NewSeederService(config *ConfigService, forgeURL, forgeToken string) *SeederService {
 	return &SeederService{
-		config: config,
+		config:     config,
+		forgeURL:   forgeURL,
+		forgeToken: forgeToken,
 	}
 }
 
@@ -81,7 +85,18 @@ func (s *SeederService) prepareWorkspace(issue *Issue) (string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, "gh", "repo", "clone", issue.Repo, workDir, "--", "--depth=1")
+		cloneURL := fmt.Sprintf("%s/%s.git", strings.TrimRight(s.forgeURL, "/"), issue.Repo)
+		cmd := exec.CommandContext(ctx, "git", "clone", "--depth=1", cloneURL, workDir)
+		cmd.Env = append(os.Environ(),
+			fmt.Sprintf("GIT_ASKPASS=echo"),
+			fmt.Sprintf("GIT_TERMINAL_PROMPT=0"),
+		)
+		if s.forgeToken != "" {
+			// Use token auth via URL for HTTPS clones
+			cloneURL = fmt.Sprintf("%s/%s.git", strings.TrimRight(s.forgeURL, "/"), issue.Repo)
+			cloneURL = strings.Replace(cloneURL, "://", fmt.Sprintf("://bugseti:%s@", s.forgeToken), 1)
+			cmd = exec.CommandContext(ctx, "git", "clone", "--depth=1", cloneURL, workDir)
+		}
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {

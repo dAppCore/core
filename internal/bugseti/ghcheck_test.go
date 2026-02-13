@@ -1,37 +1,23 @@
 package bugseti
 
 import (
-	"os/exec"
-	"strings"
+	"os"
 	"testing"
 )
 
-func TestCheckGHCLI_Good(t *testing.T) {
-	// Only run if gh is actually available (CI-friendly skip)
-	if _, err := exec.LookPath("gh"); err != nil {
-		t.Skip("gh CLI not installed, skipping")
+func TestCheckForge_Bad_MissingConfig(t *testing.T) {
+	// Clear any env-based forge config to ensure CheckForge fails
+	t.Setenv("FORGE_TOKEN", "")
+	t.Setenv("FORGE_URL", "")
+
+	// Point HOME to a temp dir so no config file is found
+	t.Setenv("HOME", t.TempDir())
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	}
 
-	err := CheckGHCLI()
-	// We can't guarantee auth status in all environments,
-	// but if gh is present the function should at least not panic.
-	if err != nil {
-		t.Logf("CheckGHCLI returned error (may be expected if not authenticated): %v", err)
-	}
-}
-
-func TestCheckGHCLI_Bad_MissingBinary(t *testing.T) {
-	// Save and clear PATH to simulate missing gh
-	t.Setenv("PATH", t.TempDir())
-
-	err := CheckGHCLI()
+	_, err := CheckForge()
 	if err == nil {
-		t.Fatal("expected error when gh is not in PATH")
-	}
-	if !strings.Contains(err.Error(), "gh CLI not found") {
-		t.Errorf("error should mention 'gh CLI not found', got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "https://cli.github.com") {
-		t.Errorf("error should include install URL, got: %v", err)
+		t.Fatal("expected error when forge is not configured")
 	}
 }

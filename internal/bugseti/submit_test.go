@@ -5,22 +5,9 @@ import (
 	"testing"
 )
 
-// helpers to build minimal service dependencies without touching disk
-
-func testConfigService(t *testing.T) *ConfigService {
-	t.Helper()
-	dir := t.TempDir()
-	return &ConfigService{
-		path: dir + "/config.json",
-		config: &Config{
-			DataDir: dir,
-		},
-	}
-}
-
 func testSubmitService(t *testing.T) *SubmitService {
 	t.Helper()
-	cfg := testConfigService(t)
+	cfg := testConfigService(t, nil, nil)
 	notify := &NotifyService{enabled: false, config: cfg}
 	stats := &StatsService{
 		config: cfg,
@@ -29,7 +16,7 @@ func testSubmitService(t *testing.T) *SubmitService {
 			DailyActivity:    make(map[string]*DayStats),
 		},
 	}
-	return NewSubmitService(cfg, notify, stats)
+	return NewSubmitService(cfg, notify, stats, nil)
 }
 
 // --- NewSubmitService / ServiceName ---
@@ -86,53 +73,6 @@ func TestSubmit_Bad_EmptyWorkDir(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "work directory not specified") {
 		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-// --- buildForkURL ---
-
-func TestBuildForkURL_Good_HTTPS(t *testing.T) {
-	origin := "https://github.com/upstream-owner/my-repo.git"
-	got := buildForkURL(origin, "myfork")
-	want := "https://github.com/myfork/my-repo.git"
-	if got != want {
-		t.Fatalf("HTTPS fork URL:\n  got:  %s\n  want: %s", got, want)
-	}
-}
-
-func TestBuildForkURL_Good_HTTPSNoGitSuffix(t *testing.T) {
-	origin := "https://github.com/upstream-owner/my-repo"
-	got := buildForkURL(origin, "myfork")
-	want := "https://github.com/myfork/my-repo"
-	if got != want {
-		t.Fatalf("HTTPS fork URL without .git:\n  got:  %s\n  want: %s", got, want)
-	}
-}
-
-func TestBuildForkURL_Good_SSH(t *testing.T) {
-	origin := "git@github.com:upstream-owner/my-repo.git"
-	got := buildForkURL(origin, "myfork")
-	want := "git@github.com:myfork/my-repo.git"
-	if got != want {
-		t.Fatalf("SSH fork URL:\n  got:  %s\n  want: %s", got, want)
-	}
-}
-
-func TestBuildForkURL_Good_SSHNoGitSuffix(t *testing.T) {
-	origin := "git@github.com:upstream-owner/my-repo"
-	got := buildForkURL(origin, "myfork")
-	want := "git@github.com:myfork/my-repo"
-	if got != want {
-		t.Fatalf("SSH fork URL without .git:\n  got:  %s\n  want: %s", got, want)
-	}
-}
-
-func TestBuildForkURL_Bad_ShortHTTPS(t *testing.T) {
-	// URL with fewer than 4 parts after split returns unchanged
-	origin := "https://x"
-	got := buildForkURL(origin, "fork")
-	if got != origin {
-		t.Fatalf("expected unchanged URL for short HTTPS, got: %s", got)
 	}
 }
 
@@ -226,7 +166,7 @@ func TestPRSubmission_Good_Defaults(t *testing.T) {
 func TestPRResult_Good_Success(t *testing.T) {
 	r := &PRResult{
 		Success:   true,
-		PRURL:     "https://github.com/o/r/pull/1",
+		PRURL:     "https://forge.lthn.ai/o/r/pulls/1",
 		PRNumber:  1,
 		ForkOwner: "me",
 	}
@@ -255,13 +195,13 @@ func TestPRResult_Good_Failure(t *testing.T) {
 
 func TestPRStatus_Good(t *testing.T) {
 	s := &PRStatus{
-		State:     "OPEN",
+		State:     "open",
 		Mergeable: true,
 		CIPassing: true,
 		Approved:  false,
 	}
-	if s.State != "OPEN" {
-		t.Fatalf("expected OPEN, got %s", s.State)
+	if s.State != "open" {
+		t.Fatalf("expected open, got %s", s.State)
 	}
 	if !s.Mergeable {
 		t.Fatal("expected mergeable")
@@ -271,11 +211,20 @@ func TestPRStatus_Good(t *testing.T) {
 	}
 }
 
-// --- ensureFork validation ---
+// --- splitRepo ---
 
-func TestEnsureFork_Bad_InvalidRepoFormat(t *testing.T) {
-	s := testSubmitService(t)
-	_, err := s.ensureFork("invalidrepo")
+func TestSplitRepo_Good(t *testing.T) {
+	owner, repo, err := splitRepo("myorg/myrepo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if owner != "myorg" || repo != "myrepo" {
+		t.Fatalf("expected myorg/myrepo, got %s/%s", owner, repo)
+	}
+}
+
+func TestSplitRepo_Bad(t *testing.T) {
+	_, _, err := splitRepo("invalidrepo")
 	if err == nil {
 		t.Fatal("expected error for invalid repo format")
 	}

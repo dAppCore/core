@@ -19,7 +19,11 @@ type ConfigService struct {
 
 // Config holds all BugSETI configuration.
 type Config struct {
-	// Authentication
+	// Authentication — Forgejo API (resolved via pkg/forge config if empty)
+	ForgeURL   string `json:"forgeUrl,omitempty"`
+	ForgeToken string `json:"forgeToken,omitempty"`
+
+	// Deprecated: use ForgeToken. Kept for migration.
 	GitHubToken string `json:"githubToken,omitempty"`
 
 	// Repositories
@@ -526,6 +530,20 @@ func (c *ConfigService) SetLastUpdateCheck(t time.Time) error {
 	defer c.mu.Unlock()
 	c.config.LastUpdateCheck = t
 	return c.saveUnsafe()
+}
+
+// GetForgeURL returns the configured Forge URL (may be empty to use pkg/forge defaults).
+func (c *ConfigService) GetForgeURL() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.ForgeURL
+}
+
+// GetForgeToken returns the configured Forge token (may be empty to use pkg/forge defaults).
+func (c *ConfigService) GetForgeToken() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.ForgeToken
 }
 
 // ShouldCheckForUpdates returns true if it's time to check for updates.
