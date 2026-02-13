@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/host-uk/core/pkg/forge"
 )
 
 // HubService coordinates with the agentic portal for issue assignment and leaderboard.
@@ -207,3 +210,80 @@ func (h *HubService) loadPendingOps() {}
 
 // savePendingOps is a no-op placeholder (disk persistence comes in Task 7).
 func (h *HubService) savePendingOps() {}
+
+// drainPendingOps replays queued operations (no-op until Task 7).
+func (h *HubService) drainPendingOps() {}
+
+// AutoRegister exchanges a Forge API token for a hub API key.
+// If a hub token is already configured, this is a no-op.
+func (h *HubService) AutoRegister() error {
+	// Skip if already registered.
+	if h.config.GetHubToken() != "" {
+		return nil
+	}
+
+	hubURL := h.config.GetHubURL()
+	if hubURL == "" {
+		return fmt.Errorf("hub URL not configured")
+	}
+
+	// Resolve forge credentials from config/env.
+	forgeURL := h.config.GetForgeURL()
+	forgeToken := h.config.GetForgeToken()
+	if forgeToken == "" {
+		resolvedURL, resolvedToken, err := forge.ResolveConfig(forgeURL, "")
+		if err != nil {
+			return fmt.Errorf("resolve forge config: %w", err)
+		}
+		forgeURL = resolvedURL
+		forgeToken = resolvedToken
+	}
+
+	if forgeToken == "" {
+		return fmt.Errorf("no forge token available (set FORGE_TOKEN or run: core forge config --token TOKEN)")
+	}
+
+	// Build request body.
+	payload := map[string]string{
+		"forge_url":   forgeURL,
+		"forge_token": forgeToken,
+		"client_id":   h.config.GetClientID(),
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal auto-register body: %w", err)
+	}
+
+	// POST directly (no bearer token yet).
+	resp, err := h.client.Post(hubURL+"/api/bugseti/auth/forge", "application/json", bytes.NewReader(data))
+	if err != nil {
+		h.mu.Lock()
+		h.connected = false
+		h.mu.Unlock()
+		return fmt.Errorf("auto-register request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	h.mu.Lock()
+	h.connected = true
+	h.mu.Unlock()
+
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("auto-register failed %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		APIKey string `json:"api_key"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("decode auto-register response: %w", err)
+	}
+
+	if err := h.config.SetHubToken(result.APIKey); err != nil {
+		return fmt.Errorf("cache hub token: %w", err)
+	}
+
+	log.Printf("BugSETI: auto-registered with hub, token cached")
+	return nil
+}

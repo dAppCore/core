@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,4 +108,69 @@ func TestDoRequest_Bad_NetworkError(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.Error(t, err)
 	assert.False(t, h.IsConnected())
+}
+
+// ---- AutoRegister ----
+
+func TestAutoRegister_Good(t *testing.T) {
+	var gotBody map[string]string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/bugseti/auth/forge", r.URL.Path)
+		assert.Equal(t, "POST", r.Method)
+
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"api_key":"ak_test_12345"}`))
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.ForgeURL = "https://forge.example.com"
+	cfg.config.ForgeToken = "forge-tok-abc"
+	h := NewHubService(cfg)
+
+	err := h.AutoRegister()
+	require.NoError(t, err)
+
+	// Verify token was cached.
+	assert.Equal(t, "ak_test_12345", h.config.GetHubToken())
+
+	// Verify request body.
+	assert.Equal(t, "https://forge.example.com", gotBody["forge_url"])
+	assert.Equal(t, "forge-tok-abc", gotBody["forge_token"])
+	assert.NotEmpty(t, gotBody["client_id"])
+}
+
+func TestAutoRegister_Bad_NoForgeToken(t *testing.T) {
+	// Isolate from user's real ~/.core/config.yaml and env vars.
+	origHome := os.Getenv("HOME")
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("FORGE_TOKEN", "")
+	t.Setenv("FORGE_URL", "")
+	defer os.Setenv("HOME", origHome)
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = "https://hub.example.com"
+	// No forge token set, and env/config are empty in test.
+	h := NewHubService(cfg)
+
+	err := h.AutoRegister()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no forge token available")
+}
+
+func TestAutoRegister_Good_SkipsIfAlreadyRegistered(t *testing.T) {
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = "https://hub.example.com"
+	cfg.config.HubToken = "existing-token"
+	h := NewHubService(cfg)
+
+	err := h.AutoRegister()
+	require.NoError(t, err)
+
+	// Token should remain unchanged.
+	assert.Equal(t, "existing-token", h.config.GetHubToken())
 }
