@@ -23,6 +23,12 @@ type Config struct {
 	ForgeURL   string `json:"forgeUrl,omitempty"`
 	ForgeToken string `json:"forgeToken,omitempty"`
 
+	// Hub coordination (agentic portal)
+	HubURL     string `json:"hubUrl,omitempty"`
+	HubToken   string `json:"hubToken,omitempty"`
+	ClientID   string `json:"clientId,omitempty"`
+	ClientName string `json:"clientName,omitempty"`
+
 	// Deprecated: use ForgeToken. Kept for migration.
 	GitHubToken string `json:"githubToken,omitempty"`
 
@@ -544,6 +550,82 @@ func (c *ConfigService) GetForgeToken() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.config.ForgeToken
+}
+
+// SetForgeURL sets the Forge URL.
+func (c *ConfigService) SetForgeURL(url string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.config.ForgeURL = url
+	return c.saveUnsafe()
+}
+
+// SetForgeToken sets the Forge token.
+func (c *ConfigService) SetForgeToken(token string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.config.ForgeToken = token
+	return c.saveUnsafe()
+}
+
+// GetHubURL returns the configured Hub URL.
+func (c *ConfigService) GetHubURL() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.HubURL
+}
+
+// SetHubURL sets the Hub URL.
+func (c *ConfigService) SetHubURL(url string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.config.HubURL = url
+	return c.saveUnsafe()
+}
+
+// GetHubToken returns the configured Hub token.
+func (c *ConfigService) GetHubToken() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.HubToken
+}
+
+// SetHubToken sets the Hub token.
+func (c *ConfigService) SetHubToken(token string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.config.HubToken = token
+	return c.saveUnsafe()
+}
+
+// GetClientID returns the configured client ID.
+func (c *ConfigService) GetClientID() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.ClientID
+}
+
+// SetClientID sets the client ID.
+func (c *ConfigService) SetClientID(id string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.config.ClientID = id
+	return c.saveUnsafe()
+}
+
+// GetClientName returns the configured client name.
+func (c *ConfigService) GetClientName() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.ClientName
+}
+
+// SetClientName sets the client name.
+func (c *ConfigService) SetClientName(name string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.config.ClientName = name
+	return c.saveUnsafe()
 }
 
 // ShouldCheckForUpdates returns true if it's time to check for updates.
