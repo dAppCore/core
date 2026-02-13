@@ -10,6 +10,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"runtime"
 	"sync"
 	"time"
 
@@ -286,4 +288,112 @@ func (h *HubService) AutoRegister() error {
 
 	log.Printf("BugSETI: auto-registered with hub, token cached")
 	return nil
+}
+
+// Register registers this client with the hub.
+func (h *HubService) Register() error {
+	h.drainPendingOps()
+
+	name := h.config.GetClientName()
+	clientID := h.config.GetClientID()
+	if name == "" {
+		if len(clientID) >= 8 {
+			name = "BugSETI-" + clientID[:8]
+		} else {
+			name = "BugSETI-" + clientID
+		}
+	}
+
+	body := map[string]string{
+		"client_id": clientID,
+		"name":      name,
+		"version":   GetVersion(),
+		"os":        runtime.GOOS,
+		"arch":      runtime.GOARCH,
+	}
+
+	return h.doJSON("POST", "/register", body, nil)
+}
+
+// Heartbeat sends a heartbeat to the hub.
+func (h *HubService) Heartbeat() error {
+	body := map[string]string{
+		"client_id": h.config.GetClientID(),
+	}
+	return h.doJSON("POST", "/heartbeat", body, nil)
+}
+
+// ClaimIssue claims an issue on the hub, returning the claim details.
+// Returns a ConflictError if the issue is already claimed by another client.
+func (h *HubService) ClaimIssue(issue *Issue) (*HubClaim, error) {
+	h.drainPendingOps()
+
+	body := map[string]interface{}{
+		"client_id":    h.config.GetClientID(),
+		"issue_id":     issue.ID,
+		"repo":         issue.Repo,
+		"issue_number": issue.Number,
+		"title":        issue.Title,
+		"url":          issue.URL,
+	}
+
+	var claim HubClaim
+	if err := h.doJSON("POST", "/issues/claim", body, &claim); err != nil {
+		return nil, err
+	}
+	return &claim, nil
+}
+
+// UpdateStatus updates the status of a claimed issue on the hub.
+func (h *HubService) UpdateStatus(issueID, status, prURL string, prNumber int) error {
+	body := map[string]interface{}{
+		"client_id": h.config.GetClientID(),
+		"status":    status,
+	}
+	if prURL != "" {
+		body["pr_url"] = prURL
+	}
+	if prNumber > 0 {
+		body["pr_number"] = prNumber
+	}
+
+	path := "/issues/" + url.PathEscape(issueID) + "/status"
+	return h.doJSON("PATCH", path, body, nil)
+}
+
+// ReleaseClaim releases a previously claimed issue back to the pool.
+func (h *HubService) ReleaseClaim(issueID string) error {
+	body := map[string]string{
+		"client_id": h.config.GetClientID(),
+	}
+
+	path := "/issues/" + url.PathEscape(issueID) + "/claim"
+	return h.doJSON("DELETE", path, body, nil)
+}
+
+// SyncStats uploads local statistics to the hub.
+func (h *HubService) SyncStats(stats *Stats) error {
+	// Build repos_contributed as a flat string slice from the map keys.
+	repos := make([]string, 0, len(stats.ReposContributed))
+	for k := range stats.ReposContributed {
+		repos = append(repos, k)
+	}
+
+	body := map[string]interface{}{
+		"client_id": h.config.GetClientID(),
+		"stats": map[string]interface{}{
+			"issues_attempted":   stats.IssuesAttempted,
+			"issues_completed":   stats.IssuesCompleted,
+			"issues_skipped":     stats.IssuesSkipped,
+			"prs_submitted":      stats.PRsSubmitted,
+			"prs_merged":         stats.PRsMerged,
+			"prs_rejected":       stats.PRsRejected,
+			"current_streak":     stats.CurrentStreak,
+			"longest_streak":     stats.LongestStreak,
+			"total_time_minutes": int(stats.TotalTimeSpent.Minutes()),
+			"repos_contributed":  repos,
+		},
+	}
+
+	return h.doJSON("POST", "/stats/sync", body, nil)
 }

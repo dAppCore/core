@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -173,4 +174,207 @@ func TestAutoRegister_Good_SkipsIfAlreadyRegistered(t *testing.T) {
 
 	// Token should remain unchanged.
 	assert.Equal(t, "existing-token", h.config.GetHubToken())
+}
+
+// ---- Write Operations ----
+
+func TestRegister_Good(t *testing.T) {
+	var gotPath string
+	var gotMethod string
+	var gotBody map[string]string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	cfg.config.ClientName = "MyBugSETI"
+	h := NewHubService(cfg)
+
+	err := h.Register()
+	require.NoError(t, err)
+	assert.Equal(t, "/api/bugseti/register", gotPath)
+	assert.Equal(t, "POST", gotMethod)
+	assert.Equal(t, "MyBugSETI", gotBody["name"])
+	assert.NotEmpty(t, gotBody["client_id"])
+	assert.NotEmpty(t, gotBody["version"])
+	assert.NotEmpty(t, gotBody["os"])
+	assert.NotEmpty(t, gotBody["arch"])
+}
+
+func TestHeartbeat_Good(t *testing.T) {
+	var gotPath string
+	var gotMethod string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	err := h.Heartbeat()
+	require.NoError(t, err)
+	assert.Equal(t, "/api/bugseti/heartbeat", gotPath)
+	assert.Equal(t, "POST", gotMethod)
+}
+
+func TestClaimIssue_Good(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	expires := now.Add(30 * time.Minute)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/bugseti/issues/claim", r.URL.Path)
+		assert.Equal(t, "POST", r.Method)
+
+		var body map[string]interface{}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, "issue-42", body["issue_id"])
+		assert.Equal(t, "org/repo", body["repo"])
+		assert.Equal(t, float64(42), body["issue_number"])
+		assert.Equal(t, "Fix the bug", body["title"])
+
+		w.WriteHeader(http.StatusOK)
+		resp := HubClaim{
+			ID:        "claim-1",
+			IssueURL:  "https://github.com/org/repo/issues/42",
+			ClientID:  "test",
+			ClaimedAt: now,
+			ExpiresAt: expires,
+			Status:    "claimed",
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	issue := &Issue{
+		ID:     "issue-42",
+		Number: 42,
+		Repo:   "org/repo",
+		Title:  "Fix the bug",
+		URL:    "https://github.com/org/repo/issues/42",
+	}
+
+	claim, err := h.ClaimIssue(issue)
+	require.NoError(t, err)
+	require.NotNil(t, claim)
+	assert.Equal(t, "claim-1", claim.ID)
+	assert.Equal(t, "claimed", claim.Status)
+}
+
+func TestClaimIssue_Bad_Conflict(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	issue := &Issue{ID: "issue-99", Number: 99, Repo: "org/repo", Title: "Already claimed"}
+
+	claim, err := h.ClaimIssue(issue)
+	assert.Nil(t, claim)
+	require.Error(t, err)
+
+	var conflictErr *ConflictError
+	assert.ErrorAs(t, err, &conflictErr)
+}
+
+func TestUpdateStatus_Good(t *testing.T) {
+	var gotPath string
+	var gotMethod string
+	var gotBody map[string]interface{}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	err := h.UpdateStatus("issue-42", "completed", "https://github.com/org/repo/pull/10", 10)
+	require.NoError(t, err)
+	assert.Equal(t, "PATCH", gotMethod)
+	assert.Equal(t, "/api/bugseti/issues/issue-42/status", gotPath)
+	assert.Equal(t, "completed", gotBody["status"])
+	assert.Equal(t, "https://github.com/org/repo/pull/10", gotBody["pr_url"])
+	assert.Equal(t, float64(10), gotBody["pr_number"])
+}
+
+func TestSyncStats_Good(t *testing.T) {
+	var gotBody map[string]interface{}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/bugseti/stats/sync", r.URL.Path)
+		assert.Equal(t, "POST", r.Method)
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	stats := &Stats{
+		IssuesAttempted: 10,
+		IssuesCompleted: 7,
+		IssuesSkipped:   3,
+		PRsSubmitted:    6,
+		PRsMerged:       5,
+		PRsRejected:     1,
+		CurrentStreak:   3,
+		LongestStreak:   5,
+		TotalTimeSpent:  90 * time.Minute,
+		ReposContributed: map[string]*RepoStats{
+			"org/repo-a": {Name: "org/repo-a"},
+			"org/repo-b": {Name: "org/repo-b"},
+		},
+	}
+
+	err := h.SyncStats(stats)
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, gotBody["client_id"])
+	statsMap, ok := gotBody["stats"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, float64(10), statsMap["issues_attempted"])
+	assert.Equal(t, float64(7), statsMap["issues_completed"])
+	assert.Equal(t, float64(3), statsMap["issues_skipped"])
+	assert.Equal(t, float64(6), statsMap["prs_submitted"])
+	assert.Equal(t, float64(5), statsMap["prs_merged"])
+	assert.Equal(t, float64(1), statsMap["prs_rejected"])
+	assert.Equal(t, float64(3), statsMap["current_streak"])
+	assert.Equal(t, float64(5), statsMap["longest_streak"])
+	assert.Equal(t, float64(90), statsMap["total_time_minutes"])
+
+	reposRaw, ok := statsMap["repos_contributed"].([]interface{})
+	require.True(t, ok)
+	assert.Len(t, reposRaw, 2)
 }
