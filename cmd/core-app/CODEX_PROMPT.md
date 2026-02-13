@@ -94,7 +94,7 @@ go build -tags nowatcher -o ../../bin/core-app .
 ## CRITICAL WARNINGS
 
 - **DO NOT push to GitHub** — GitHub remotes have been removed deliberately. The host-uk org is flagged.
-- **DO NOT add GitHub as a remote** — Forge (forge.lthn.ai / git.lthn.ai) is the source of truth.
+- **DO NOT add GitHub as a remote** — Forge (forge.lthn.io / git.lthn.ai) is the source of truth.
 - **DO NOT modify files outside `cmd/core-app/`** — This is a workspace module, keep changes scoped.
 - **DO NOT remove the `-tags nowatcher` build flag** — It will fail without libwatcher-c.
 - **DO NOT change the PHP-ZTS path** — It must be the ZTS variant, not the default Homebrew PHP.

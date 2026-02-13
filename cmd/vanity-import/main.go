@@ -2,7 +2,7 @@
 //
 // When a Go tool requests ?go-get=1, this server responds with HTML
 // containing <meta name="go-import"> tags that map dappco.re module
-// paths to their Git repositories on forge.lthn.ai.
+// paths to their Git repositories on forge.lthn.io.
 //
 // For browser requests (no ?go-get=1), it redirects to the Forgejo
 // repository web UI.
@@ -22,7 +22,7 @@ var modules = map[string]string{
 }
 
 const (
-	forgeBase   = "https://forge.lthn.ai"
+	forgeBase   = "https://forge.lthn.io"
 	vanityHost  = "dappco.re"
 	defaultAddr = ":8080"
 )

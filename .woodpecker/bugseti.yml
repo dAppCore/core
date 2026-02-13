@@ -41,7 +41,7 @@ steps:
     settings:
       api_key:
         from_secret: forgejo_token
-      base_url: https://forge.lthn.ai
+      base_url: https://forge.lthn.io
       files:
         - bin/bugseti-linux-amd64.tar.gz
         - bin/bugseti-linux-amd64.tar.gz.sha256
