@@ -216,6 +216,8 @@ func (h *HubService) savePendingOps() {}
 // drainPendingOps replays queued operations (no-op until Task 7).
 func (h *HubService) drainPendingOps() {}
 
+// ---- Task 4: Auto-Register via Forge Token ----
+
 // AutoRegister exchanges a Forge API token for a hub API key.
 // If a hub token is already configured, this is a no-op.
 func (h *HubService) AutoRegister() error {
@@ -289,6 +291,8 @@ func (h *HubService) AutoRegister() error {
 	log.Printf("BugSETI: auto-registered with hub, token cached")
 	return nil
 }
+
+// ---- Task 5: Write Operations ----
 
 // Register registers this client with the hub.
 func (h *HubService) Register() error {
@@ -382,18 +386,83 @@ func (h *HubService) SyncStats(stats *Stats) error {
 	body := map[string]interface{}{
 		"client_id": h.config.GetClientID(),
 		"stats": map[string]interface{}{
-			"issues_attempted":   stats.IssuesAttempted,
-			"issues_completed":   stats.IssuesCompleted,
-			"issues_skipped":     stats.IssuesSkipped,
-			"prs_submitted":      stats.PRsSubmitted,
-			"prs_merged":         stats.PRsMerged,
-			"prs_rejected":       stats.PRsRejected,
-			"current_streak":     stats.CurrentStreak,
-			"longest_streak":     stats.LongestStreak,
+			"issues_attempted":  stats.IssuesAttempted,
+			"issues_completed":  stats.IssuesCompleted,
+			"issues_skipped":    stats.IssuesSkipped,
+			"prs_submitted":     stats.PRsSubmitted,
+			"prs_merged":        stats.PRsMerged,
+			"prs_rejected":      stats.PRsRejected,
+			"current_streak":    stats.CurrentStreak,
+			"longest_streak":    stats.LongestStreak,
 			"total_time_minutes": int(stats.TotalTimeSpent.Minutes()),
-			"repos_contributed":  repos,
+			"repos_contributed": repos,
 		},
 	}
 
 	return h.doJSON("POST", "/stats/sync", body, nil)
+}
+
+// ---- Task 6: Read Operations ----
+
+// IsIssueClaimed checks whether an issue is currently claimed on the hub.
+// Returns the claim if it exists, or (nil, nil) if the issue is not claimed (404).
+func (h *HubService) IsIssueClaimed(issueID string) (*HubClaim, error) {
+	path := "/issues/" + url.PathEscape(issueID)
+
+	var claim HubClaim
+	if err := h.doJSON("GET", path, nil, &claim); err != nil {
+		if _, ok := err.(*NotFoundError); ok {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &claim, nil
+}
+
+// ListClaims returns claimed issues, optionally filtered by status and/or repo.
+func (h *HubService) ListClaims(status, repo string) ([]*HubClaim, error) {
+	params := url.Values{}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if repo != "" {
+		params.Set("repo", repo)
+	}
+
+	path := "/issues/claimed"
+	if encoded := params.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	var claims []*HubClaim
+	if err := h.doJSON("GET", path, nil, &claims); err != nil {
+		return nil, err
+	}
+	return claims, nil
+}
+
+// leaderboardResponse wraps the hub leaderboard JSON envelope.
+type leaderboardResponse struct {
+	Entries           []LeaderboardEntry `json:"entries"`
+	TotalParticipants int                `json:"totalParticipants"`
+}
+
+// GetLeaderboard fetches the top N leaderboard entries from the hub.
+func (h *HubService) GetLeaderboard(limit int) ([]LeaderboardEntry, int, error) {
+	path := fmt.Sprintf("/leaderboard?limit=%d", limit)
+
+	var resp leaderboardResponse
+	if err := h.doJSON("GET", path, nil, &resp); err != nil {
+		return nil, 0, err
+	}
+	return resp.Entries, resp.TotalParticipants, nil
+}
+
+// GetGlobalStats fetches aggregate statistics from the hub.
+func (h *HubService) GetGlobalStats() (*GlobalStats, error) {
+	var stats GlobalStats
+	if err := h.doJSON("GET", "/stats", nil, &stats); err != nil {
+		return nil, err
+	}
+	return &stats, nil
 }

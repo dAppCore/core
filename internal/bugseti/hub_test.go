@@ -111,7 +111,7 @@ func TestDoRequest_Bad_NetworkError(t *testing.T) {
 	assert.False(t, h.IsConnected())
 }
 
-// ---- AutoRegister ----
+// ---- Task 4: AutoRegister ----
 
 func TestAutoRegister_Good(t *testing.T) {
 	var gotBody map[string]string
@@ -176,7 +176,7 @@ func TestAutoRegister_Good_SkipsIfAlreadyRegistered(t *testing.T) {
 	assert.Equal(t, "existing-token", h.config.GetHubToken())
 }
 
-// ---- Write Operations ----
+// ---- Task 5: Write Operations ----
 
 func TestRegister_Good(t *testing.T) {
 	var gotPath string
@@ -377,4 +377,117 @@ func TestSyncStats_Good(t *testing.T) {
 	reposRaw, ok := statsMap["repos_contributed"].([]interface{})
 	require.True(t, ok)
 	assert.Len(t, reposRaw, 2)
+}
+
+// ---- Task 6: Read Operations ----
+
+func TestIsIssueClaimed_Good_Claimed(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/bugseti/issues/issue-42", r.URL.Path)
+		assert.Equal(t, "GET", r.Method)
+
+		w.WriteHeader(http.StatusOK)
+		claim := HubClaim{
+			ID:        "claim-1",
+			IssueURL:  "https://github.com/org/repo/issues/42",
+			ClientID:  "client-abc",
+			ClaimedAt: now,
+			Status:    "claimed",
+		}
+		_ = json.NewEncoder(w).Encode(claim)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	claim, err := h.IsIssueClaimed("issue-42")
+	require.NoError(t, err)
+	require.NotNil(t, claim)
+	assert.Equal(t, "claim-1", claim.ID)
+	assert.Equal(t, "claimed", claim.Status)
+}
+
+func TestIsIssueClaimed_Good_NotClaimed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	claim, err := h.IsIssueClaimed("issue-999")
+	assert.NoError(t, err)
+	assert.Nil(t, claim)
+}
+
+func TestGetLeaderboard_Good(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/bugseti/leaderboard", r.URL.Path)
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "10", r.URL.Query().Get("limit"))
+
+		resp := leaderboardResponse{
+			Entries: []LeaderboardEntry{
+				{ClientID: "a", ClientName: "Alice", Score: 100, PRsMerged: 10, Rank: 1},
+				{ClientID: "b", ClientName: "Bob", Score: 80, PRsMerged: 8, Rank: 2},
+			},
+			TotalParticipants: 42,
+		}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	entries, total, err := h.GetLeaderboard(10)
+	require.NoError(t, err)
+	assert.Equal(t, 42, total)
+	require.Len(t, entries, 2)
+	assert.Equal(t, "Alice", entries[0].ClientName)
+	assert.Equal(t, 1, entries[0].Rank)
+	assert.Equal(t, "Bob", entries[1].ClientName)
+}
+
+func TestGetGlobalStats_Good(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/bugseti/stats", r.URL.Path)
+		assert.Equal(t, "GET", r.Method)
+
+		stats := GlobalStats{
+			TotalClients:    100,
+			TotalClaims:     500,
+			TotalPRsMerged:  300,
+			ActiveClaims:    25,
+			IssuesAvailable: 150,
+		}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(stats)
+	}))
+	defer srv.Close()
+
+	cfg := testConfigService(t, nil, nil)
+	cfg.config.HubURL = srv.URL
+	cfg.config.HubToken = "tok"
+	h := NewHubService(cfg)
+
+	stats, err := h.GetGlobalStats()
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+	assert.Equal(t, 100, stats.TotalClients)
+	assert.Equal(t, 500, stats.TotalClaims)
+	assert.Equal(t, 300, stats.TotalPRsMerged)
+	assert.Equal(t, 25, stats.ActiveClaims)
+	assert.Equal(t, 150, stats.IssuesAvailable)
 }
