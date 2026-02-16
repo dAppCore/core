@@ -3,19 +3,42 @@
 package mlx
 
 // Linear is a fully-connected layer: y = x @ W.T + bias.
+// For quantized models, set Scales/Biases/GroupSize/Bits to use QuantizedMatmul.
 type Linear struct {
-	Weight *Array `weight:"weight"`
-	Bias   *Array `weight:"bias"`
+	Weight    *Array `weight:"weight"`
+	Scales    *Array `weight:"scales"`
+	Biases    *Array `weight:"biases"`
+	Bias      *Array `weight:"bias"`
+	GroupSize int
+	Bits      int
 }
 
-// NewLinear creates a Linear layer with optional bias.
+// NewLinear creates a dense Linear layer with optional bias.
 func NewLinear(weight, bias *Array) *Linear {
 	return &Linear{Weight: weight, Bias: bias}
 }
 
+// NewQuantizedLinear creates a quantized Linear layer.
+func NewQuantizedLinear(weight, scales, biases, bias *Array, groupSize, bits int) *Linear {
+	return &Linear{
+		Weight:    weight,
+		Scales:    scales,
+		Biases:    biases,
+		Bias:      bias,
+		GroupSize: groupSize,
+		Bits:      bits,
+	}
+}
+
 // Forward computes the linear transformation.
+// Uses QuantizedMatmul when quantization parameters are present.
 func (l *Linear) Forward(x *Array) *Array {
-	out := Matmul(x, Transpose(l.Weight))
+	var out *Array
+	if l.Scales != nil {
+		out = QuantizedMatmul(x, l.Weight, l.Scales, l.Biases, true, l.GroupSize, l.Bits)
+	} else {
+		out = Matmul(x, Transpose(l.Weight))
+	}
 	if l.Bias != nil && l.Bias.Valid() {
 		out = Add(out, l.Bias)
 	}
@@ -23,13 +46,33 @@ func (l *Linear) Forward(x *Array) *Array {
 }
 
 // Embedding is a lookup table for token embeddings.
+// For quantized models, set Scales/Biases/GroupSize/Bits to dequantize before lookup.
 type Embedding struct {
-	Weight *Array `weight:"weight"`
+	Weight    *Array `weight:"weight"`
+	Scales    *Array `weight:"scales"`
+	Biases    *Array `weight:"biases"`
+	GroupSize int
+	Bits      int
 }
 
 // Forward looks up embeddings for the given token indices.
 func (e *Embedding) Forward(indices *Array) *Array {
+	if e.Scales != nil {
+		w := Dequantize(e.Weight, e.Scales, e.Biases, e.GroupSize, e.Bits)
+		return Take(w, indices, 0)
+	}
 	return Take(e.Weight, indices, 0)
+}
+
+// AsLinear returns a Linear layer using the embedding weights (for tied output).
+func (e *Embedding) AsLinear() *Linear {
+	return &Linear{
+		Weight:    e.Weight,
+		Scales:    e.Scales,
+		Biases:    e.Biases,
+		GroupSize: e.GroupSize,
+		Bits:      e.Bits,
+	}
 }
 
 // RMSNormModule is an RMS normalization layer wrapping the fused kernel.

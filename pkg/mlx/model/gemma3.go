@@ -6,6 +6,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
@@ -14,6 +15,12 @@ import (
 	"forge.lthn.ai/core/cli/pkg/mlx/cache"
 	"forge.lthn.ai/core/cli/pkg/mlx/tokenizer"
 )
+
+// QuantizationConfig holds quantization parameters from config.json.
+type QuantizationConfig struct {
+	GroupSize int `json:"group_size"`
+	Bits      int `json:"bits"`
+}
 
 // TextConfig holds Gemma 3 text model configuration.
 type TextConfig struct {
@@ -31,7 +38,8 @@ type TextConfig struct {
 	SlidingWindow         int32   `json:"sliding_window"`
 	SlidingWindowPattern  int32   `json:"sliding_window_pattern"`
 
-	Scale float32 `json:"-"` // Computed: 1/sqrt(head_dim)
+	Quantization *QuantizationConfig `json:"-"` // Parsed separately from top-level
+	Scale        float32             `json:"-"` // Computed: 1/sqrt(head_dim)
 }
 
 // GemmaModel is the Gemma 3 text model.
@@ -117,8 +125,9 @@ func geluApprox(x *mlx.Array) *mlx.Array {
 func parseConfig(data []byte) (*TextConfig, error) {
 	// Try parsing text_config from multimodal wrapper
 	var wrapper struct {
-		TextConfig TextConfig `json:"text_config"`
-		ModelType  string     `json:"model_type"`
+		TextConfig   TextConfig          `json:"text_config"`
+		ModelType    string              `json:"model_type"`
+		Quantization *QuantizationConfig `json:"quantization"`
 	}
 	if err := json.Unmarshal(data, &wrapper); err != nil {
 		return nil, err
@@ -132,6 +141,9 @@ func parseConfig(data []byte) (*TextConfig, error) {
 			return nil, err
 		}
 	}
+
+	// Quantization is always top-level
+	cfg.Quantization = wrapper.Quantization
 
 	// Compute defaults
 	if cfg.HeadDim == 0 && cfg.NumAttentionHeads > 0 {
@@ -195,16 +207,40 @@ func LoadGemma3(modelPath string) (*GemmaModel, error) {
 		}
 	}
 
+	// Helper to resolve weight with language_model. prefix fallback
+	w := func(name string) *mlx.Array { return resolveWeight(weights, name) }
+
+	// Helper to create linear layer (quantized or dense)
+	q := cfg.Quantization
+	if q != nil {
+		slog.Info("mlx: using quantized inference", "bits", q.Bits, "group_size", q.GroupSize)
+	}
+	linear := func(prefix string) *mlx.Linear {
+		weight := w(prefix + ".weight")
+		scales := w(prefix + ".scales")
+		biases := w(prefix + ".biases")
+		if scales != nil && q != nil {
+			return mlx.NewQuantizedLinear(weight, scales, biases, nil, q.GroupSize, q.Bits)
+		}
+		return mlx.NewLinear(weight, nil)
+	}
+
+	// Create embedding (quantized or dense)
+	embed := &mlx.Embedding{Weight: w("model.embed_tokens.weight")}
+	if embedScales := w("model.embed_tokens.scales"); embedScales != nil && q != nil {
+		embed.Scales = embedScales
+		embed.Biases = w("model.embed_tokens.biases")
+		embed.GroupSize = q.GroupSize
+		embed.Bits = q.Bits
+	}
+
 	m := &GemmaModel{
-		EmbedTokens: &mlx.Embedding{Weight: resolveWeight(weights, "model.embed_tokens.weight")},
+		EmbedTokens: embed,
 		Layers:      make([]*DecoderLayer, cfg.NumHiddenLayers),
-		Norm:        &mlx.RMSNormModule{Weight: resolveWeight(weights, "model.norm.weight")},
+		Norm:        &mlx.RMSNormModule{Weight: w("model.norm.weight")},
 		Tok:         tok,
 		Cfg:         cfg,
 	}
-
-	// Helper to resolve weight with language_model. prefix fallback
-	w := func(name string) *mlx.Array { return resolveWeight(weights, name) }
 
 	// Initialize layers
 	for i := int32(0); i < cfg.NumHiddenLayers; i++ {
@@ -215,29 +251,36 @@ func LoadGemma3(modelPath string) (*GemmaModel, error) {
 			PreFFNorm:    &mlx.RMSNormModule{Weight: w(prefix + ".pre_feedforward_layernorm.weight")},
 			PostFFNorm:   &mlx.RMSNormModule{Weight: w(prefix + ".post_feedforward_layernorm.weight")},
 			Attention: &Attention{
-				QProj: mlx.NewLinear(w(prefix+".self_attn.q_proj.weight"), nil),
-				KProj: mlx.NewLinear(w(prefix+".self_attn.k_proj.weight"), nil),
-				VProj: mlx.NewLinear(w(prefix+".self_attn.v_proj.weight"), nil),
-				OProj: mlx.NewLinear(w(prefix+".self_attn.o_proj.weight"), nil),
+				QProj: linear(prefix + ".self_attn.q_proj"),
+				KProj: linear(prefix + ".self_attn.k_proj"),
+				VProj: linear(prefix + ".self_attn.v_proj"),
+				OProj: linear(prefix + ".self_attn.o_proj"),
 				QNorm: &mlx.RMSNormModule{Weight: w(prefix + ".self_attn.q_norm.weight")},
 				KNorm: &mlx.RMSNormModule{Weight: w(prefix + ".self_attn.k_norm.weight")},
 			},
 			MLP: &MLP{
-				GateProj: mlx.NewLinear(w(prefix+".mlp.gate_proj.weight"), nil),
-				UpProj:   mlx.NewLinear(w(prefix+".mlp.up_proj.weight"), nil),
-				DownProj: mlx.NewLinear(w(prefix+".mlp.down_proj.weight"), nil),
+				GateProj: linear(prefix + ".mlp.gate_proj"),
+				UpProj:   linear(prefix + ".mlp.up_proj"),
+				DownProj: linear(prefix + ".mlp.down_proj"),
 			},
 			LayerIdx:  i,
 			IsSliding: isLayerSliding(i, cfg.SlidingWindowPattern),
 		}
 	}
 
-	// Tied embeddings — check for separate lm_head first
-	lmHead := w("lm_head.weight")
-	if lmHead == nil {
-		lmHead = m.EmbedTokens.Weight // tied
+	// Output head — check for separate lm_head first, else tie to embeddings
+	lmHeadWeight := w("lm_head.weight")
+	if lmHeadWeight != nil {
+		lmHeadScales := w("lm_head.scales")
+		if lmHeadScales != nil && q != nil {
+			m.Output = mlx.NewQuantizedLinear(lmHeadWeight, lmHeadScales, w("lm_head.biases"), nil, q.GroupSize, q.Bits)
+		} else {
+			m.Output = mlx.NewLinear(lmHeadWeight, nil)
+		}
+	} else {
+		// Tied embeddings — reuse embed_tokens weights (with quantization if present)
+		m.Output = m.EmbedTokens.AsLinear()
 	}
-	m.Output = mlx.NewLinear(lmHead, nil)
 
 	// Materialize all weights
 	var allArrays []*mlx.Array

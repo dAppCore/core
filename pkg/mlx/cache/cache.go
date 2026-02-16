@@ -35,6 +35,14 @@ func NewKVCache() *KVCache {
 func (c *KVCache) Update(k, v *mlx.Array, seqLen int) (*mlx.Array, *mlx.Array) {
 	prev := c.offset
 	shape := k.Shape()
+	if len(shape) < 4 {
+		// K/V must be [B, H, L, D] — if not, pass through unchanged
+		if c.keys == nil {
+			c.keys, c.values = k, v
+		}
+		c.offset += seqLen
+		return c.keys, c.values
+	}
 	B, H, Dk := shape[0], shape[1], shape[3]
 	Dv := v.Shape()[3]
 
@@ -103,6 +111,13 @@ func (c *RotatingKVCache) Update(k, v *mlx.Array, seqLen int) (*mlx.Array, *mlx.
 
 func (c *RotatingKVCache) updateInPlace(k, v *mlx.Array) (*mlx.Array, *mlx.Array) {
 	shape := k.Shape()
+	if len(shape) < 4 {
+		if c.keys == nil {
+			c.keys, c.values = k, v
+		}
+		c.offset++
+		return c.keys, c.values
+	}
 	B, H, Dk := shape[0], shape[1], shape[3]
 	Dv := v.Shape()[3]
 
@@ -139,6 +154,14 @@ func (c *RotatingKVCache) updateInPlace(k, v *mlx.Array) (*mlx.Array, *mlx.Array
 
 func (c *RotatingKVCache) updateConcat(k, v *mlx.Array, seqLen int) (*mlx.Array, *mlx.Array) {
 	shape := k.Shape()
+	if len(shape) < 4 {
+		// K/V must be [B, H, L, D] — if not, pass through unchanged
+		if c.keys == nil {
+			c.keys, c.values = k, v
+		}
+		c.offset += seqLen
+		return c.keys, c.values
+	}
 	B, H, Dk := shape[0], shape[1], shape[3]
 	Dv := v.Shape()[3]
 

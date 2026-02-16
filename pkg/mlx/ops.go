@@ -304,6 +304,18 @@ func Argpartition(a *Array, kth, axis int) *Array {
 	return out
 }
 
+// Dequantize restores a quantized array to full precision.
+func Dequantize(w, scales, biases *Array, groupSize, bits int) *Array {
+	out := New("DEQUANTIZE", w, scales, biases)
+	gs := C.mlx_optional_int{value: C.int(groupSize), has_value: C._Bool(true)}
+	b := C.mlx_optional_int{value: C.int(bits), has_value: C._Bool(true)}
+	mode := C.CString("default")
+	defer C.free(unsafe.Pointer(mode))
+	noDtype := C.mlx_optional_dtype{has_value: C._Bool(false)}
+	C.mlx_dequantize(&out.ctx, w.ctx, scales.ctx, biases.ctx, gs, b, mode, noDtype, DefaultStream().ctx)
+	return out
+}
+
 // PutAlongAxis places values into array at indices along axis.
 func PutAlongAxis(a, indices, values *Array, axis int) *Array {
 	out := New("PUT_ALONG_AXIS", a, indices, values)
