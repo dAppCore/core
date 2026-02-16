@@ -3,7 +3,7 @@
 package ai
 
 import (
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 )
 
 // Style aliases from shared package

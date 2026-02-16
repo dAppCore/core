@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	core "github.com/host-uk/core/pkg/framework/core"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
 	"github.com/stretchr/testify/assert"
 )
 

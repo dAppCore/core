@@ -11,7 +11,7 @@ package gitea
 import (
 	"code.gitea.io/sdk/gitea"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // Client wraps the Gitea SDK client with config-based auth.

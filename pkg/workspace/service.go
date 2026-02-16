@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	core "github.com/host-uk/core/pkg/framework/core"
-	"github.com/host-uk/core/pkg/io"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Service implements the core.Workspace interface.

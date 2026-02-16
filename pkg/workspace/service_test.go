@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/host-uk/core/pkg/crypt/openpgp"
-	core "github.com/host-uk/core/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/crypt/openpgp"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
 	"github.com/stretchr/testify/assert"
 )
 

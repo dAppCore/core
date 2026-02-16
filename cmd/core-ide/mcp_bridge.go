@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/host-uk/core/pkg/ws"
+	"forge.lthn.ai/core/cli/pkg/ws"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

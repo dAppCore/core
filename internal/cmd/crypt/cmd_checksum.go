@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/crypt"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/crypt"
 )
 
 // Checksum command flags

@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/infra"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/infra"
 	"github.com/spf13/cobra"
 )
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/host-uk/core/internal/cmd/sdk/generators"
+	"forge.lthn.ai/core/cli/internal/cmd/sdk/generators"
 )
 
 // Config holds SDK generation configuration from .core/release.yaml.

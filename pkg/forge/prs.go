@@ -8,7 +8,7 @@ import (
 
 	forgejo "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // MergePullRequest merges a pull request with the given method ("squash", "rebase", "merge").

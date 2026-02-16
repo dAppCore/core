@@ -6,10 +6,10 @@ import (
 	"context"
 	"os"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/framework/core"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/release"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/release"
 )
 
 // Flag variables for release command

@@ -16,8 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // AddDispatchCommands registers the 'dispatch' subcommand group under 'ai'.

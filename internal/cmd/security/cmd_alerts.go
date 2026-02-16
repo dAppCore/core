@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 func addAlertsCommand(parent *cli.Command) {

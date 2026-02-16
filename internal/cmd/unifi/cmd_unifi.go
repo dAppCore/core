@@ -10,7 +10,7 @@
 package unifi
 
 import (
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 )
 
 func init() {

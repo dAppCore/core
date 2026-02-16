@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	core "github.com/host-uk/core/pkg/framework/core"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
 )
 
 // coinGeckoBaseURL is the base URL for the CoinGecko API.

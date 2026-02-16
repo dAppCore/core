@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 func runTest(verbose, coverage, short bool, pkg, run string, race, jsonOutput bool) error {

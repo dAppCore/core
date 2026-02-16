@@ -16,9 +16,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/host-uk/core/cmd/bugseti/icons"
-	"github.com/host-uk/core/internal/bugseti"
-	"github.com/host-uk/core/internal/bugseti/updater"
+	"forge.lthn.ai/core/cli/cmd/bugseti/icons"
+	"forge.lthn.ai/core/cli/internal/bugseti"
+	"forge.lthn.ai/core/cli/internal/bugseti/updater"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )

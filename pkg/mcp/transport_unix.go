@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // ServeUnix starts a Unix domain socket server for the MCP service.

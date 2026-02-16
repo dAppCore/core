@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/host-uk/core/internal/cmd/updater"
+	"forge.lthn.ai/core/cli/internal/cmd/updater"
 )
 
 func ExampleNewUpdateService() {

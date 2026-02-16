@@ -5,7 +5,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/host-uk/core/internal/bugseti"
+	"forge.lthn.ai/core/cli/internal/bugseti"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

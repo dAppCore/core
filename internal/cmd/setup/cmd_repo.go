@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/i18n"
-	coreio "github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 )
 
 // runRepoSetup sets up the current repository with .core/ configuration.

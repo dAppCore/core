@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/host-uk/core/pkg/log"
-	"github.com/host-uk/core/pkg/webview"
+	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/webview"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

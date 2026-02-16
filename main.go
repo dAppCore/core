@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 
 	// Build variants import commands via self-registration.
 	// See internal/variants/ for available variants: full, ci, php, minimal.
-	_ "github.com/host-uk/core/internal/variants"
+	_ "forge.lthn.ai/core/cli/internal/variants"
 )
 
 func main() {

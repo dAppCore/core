@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	core "github.com/host-uk/core/pkg/framework/core"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
 )
 
 // ghIssue represents a GitHub issue or pull request as returned by the gh CLI.

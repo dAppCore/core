@@ -3,7 +3,7 @@ package log
 import (
 	"context"
 
-	"github.com/host-uk/core/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/framework"
 )
 
 // Service wraps Logger for Core framework integration.

@@ -3,10 +3,10 @@ package collect
 import (
 	"fmt"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/collect"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/collect"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 func init() {

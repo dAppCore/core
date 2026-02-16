@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/host-uk/core/pkg/cache"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/cache"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 func TestCache(t *testing.T) {

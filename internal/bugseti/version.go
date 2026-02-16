@@ -7,7 +7,7 @@ import (
 )
 
 // Version information - these are set at build time via ldflags
-// Example: go build -ldflags "-X github.com/host-uk/core/internal/bugseti.Version=1.0.0"
+// Example: go build -ldflags "-X forge.lthn.ai/core/cli/internal/bugseti.Version=1.0.0"
 var (
 	// Version is the semantic version (e.g., "1.0.0", "1.0.0-beta.1", "nightly-20260205")
 	Version = "dev"

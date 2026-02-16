@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/Snider/Borg/pkg/compress"
-	io_interface "github.com/host-uk/core/pkg/io"
+	io_interface "forge.lthn.ai/core/cli/pkg/io"
 )
 
 // ArchiveFormat specifies the compression format for archives.

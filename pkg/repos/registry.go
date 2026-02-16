@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 	"gopkg.in/yaml.v3"
 )
 

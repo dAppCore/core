@@ -1,10 +1,10 @@
 package plugin
 
 import (
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/plugin"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/plugin"
 )
 
 func addRemoveCommand(parent *cli.Command) {

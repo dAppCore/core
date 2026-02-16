@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // GitHubSource downloads images from GitHub Releases.

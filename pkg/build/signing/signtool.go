@@ -3,7 +3,7 @@ package signing
 import (
 	"context"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // WindowsSigner signs binaries using Windows signtool (placeholder).

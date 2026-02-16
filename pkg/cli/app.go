@@ -5,10 +5,10 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/host-uk/core/pkg/crypt/openpgp"
-	"github.com/host-uk/core/pkg/framework"
-	"github.com/host-uk/core/pkg/log"
-	"github.com/host-uk/core/pkg/workspace"
+	"forge.lthn.ai/core/cli/pkg/crypt/openpgp"
+	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -19,10 +19,10 @@ const (
 
 // Build-time variables set via ldflags (SemVer 2.0.0):
 //
-//	go build -ldflags="-X github.com/host-uk/core/pkg/cli.AppVersion=1.2.0 \
-//	  -X github.com/host-uk/core/pkg/cli.BuildCommit=df94c24 \
-//	  -X github.com/host-uk/core/pkg/cli.BuildDate=2026-02-06 \
-//	  -X github.com/host-uk/core/pkg/cli.BuildPreRelease=dev.8"
+//	go build -ldflags="-X forge.lthn.ai/core/cli/pkg/cli.AppVersion=1.2.0 \
+//	  -X forge.lthn.ai/core/cli/pkg/cli.BuildCommit=df94c24 \
+//	  -X forge.lthn.ai/core/cli/pkg/cli.BuildDate=2026-02-06 \
+//	  -X forge.lthn.ai/core/cli/pkg/cli.BuildPreRelease=dev.8"
 var (
 	AppVersion      = "0.0.0"
 	BuildCommit     = "unknown"

@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/host-uk/core/pkg/agentci"
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/agentci"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

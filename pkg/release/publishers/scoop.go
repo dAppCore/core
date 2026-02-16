@@ -12,8 +12,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/host-uk/core/pkg/build"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 //go:embed templates/scoop/*.tmpl

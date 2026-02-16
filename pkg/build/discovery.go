@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Marker files for project type detection.

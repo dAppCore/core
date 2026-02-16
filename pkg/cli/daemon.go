@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 	"golang.org/x/term"
 )
 

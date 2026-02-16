@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	coreio "github.com/host-uk/core/pkg/io"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 )
 
 // commonSpecPaths are checked in order when no spec is configured.

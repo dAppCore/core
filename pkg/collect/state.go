@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	core "github.com/host-uk/core/pkg/framework/core"
-	"github.com/host-uk/core/pkg/io"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // State tracks collection progress for incremental runs.

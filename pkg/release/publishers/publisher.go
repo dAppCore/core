@@ -4,8 +4,8 @@ package publishers
 import (
 	"context"
 
-	"github.com/host-uk/core/pkg/build"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Release represents a release to be published.

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Signer defines the interface for code signing implementations.

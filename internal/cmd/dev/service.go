@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/host-uk/core/pkg/agentic"
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/framework"
-	"github.com/host-uk/core/pkg/git"
+	"forge.lthn.ai/core/cli/pkg/agentic"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/git"
 )
 
 // Tasks for dev service

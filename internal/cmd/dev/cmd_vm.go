@@ -6,10 +6,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/devops"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/devops"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // addVMCommands adds the dev environment VM commands to the dev parent command.

@@ -3,7 +3,7 @@ package mcp
 import (
 	"testing"
 
-	"github.com/host-uk/core/pkg/ws"
+	"forge.lthn.ai/core/cli/pkg/ws"
 )
 
 // TestWSToolsRegistered_Good verifies that WebSocket tools are registered when hub is available.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 // RunMode determines the execution strategy for a dispatched task.

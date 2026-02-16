@@ -3,7 +3,7 @@ package gitea
 import (
 	"code.gitea.io/sdk/gitea"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // ListIssuesOpts configures issue listing.

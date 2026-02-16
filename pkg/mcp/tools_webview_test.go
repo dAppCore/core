@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/host-uk/core/pkg/webview"
+	"forge.lthn.ai/core/cli/pkg/webview"
 )
 
 // TestWebviewToolsRegistered_Good verifies that webview tools are registered with the MCP server.

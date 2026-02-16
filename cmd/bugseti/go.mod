@@ -1,20 +1,20 @@
-module github.com/host-uk/core/cmd/bugseti
+module forge.lthn.ai/core/cli/cmd/bugseti
 
 go 1.25.5
 
 require (
 	github.com/Snider/Borg v0.2.0
-	github.com/host-uk/core v0.0.0
-	github.com/host-uk/core/internal/bugseti v0.0.0
-	github.com/host-uk/core/internal/bugseti/updater v0.0.0
+	forge.lthn.ai/core/cli v0.0.0
+	forge.lthn.ai/core/cli/internal/bugseti v0.0.0
+	forge.lthn.ai/core/cli/internal/bugseti/updater v0.0.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.64
 )
 
-replace github.com/host-uk/core => ../..
+replace forge.lthn.ai/core/cli => ../..
 
-replace github.com/host-uk/core/internal/bugseti => ../../internal/bugseti
+replace forge.lthn.ai/core/cli/internal/bugseti => ../../internal/bugseti
 
-replace github.com/host-uk/core/internal/bugseti/updater => ../../internal/bugseti/updater
+replace forge.lthn.ai/core/cli/internal/bugseti/updater => ../../internal/bugseti/updater
 
 require (
 	dario.cat/mergo v1.0.2 // indirect

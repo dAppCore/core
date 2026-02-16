@@ -14,12 +14,12 @@ package variants
 
 import (
 	// Core IDE GUI
-	_ "github.com/host-uk/core/internal/core-ide"
+	_ "forge.lthn.ai/core/cli/internal/core-ide"
 
 	// CLI commands available via IPC
-	_ "github.com/host-uk/core/internal/cmd/ai"
-	_ "github.com/host-uk/core/internal/cmd/deploy"
-	_ "github.com/host-uk/core/internal/cmd/dev"
-	_ "github.com/host-uk/core/internal/cmd/php"
-	_ "github.com/host-uk/core/internal/cmd/rag"
+	_ "forge.lthn.ai/core/cli/internal/cmd/ai"
+	_ "forge.lthn.ai/core/cli/internal/cmd/deploy"
+	_ "forge.lthn.ai/core/cli/internal/cmd/dev"
+	_ "forge.lthn.ai/core/cli/internal/cmd/php"
+	_ "forge.lthn.ai/core/cli/internal/cmd/rag"
 )

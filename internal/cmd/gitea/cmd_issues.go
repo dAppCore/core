@@ -6,8 +6,8 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 
-	"github.com/host-uk/core/pkg/cli"
-	gt "github.com/host-uk/core/pkg/gitea"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	gt "forge.lthn.ai/core/cli/pkg/gitea"
 )
 
 // Issues command flags.

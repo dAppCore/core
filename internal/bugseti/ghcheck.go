@@ -1,7 +1,7 @@
 package bugseti
 
 import (
-	"github.com/host-uk/core/pkg/forge"
+	"forge.lthn.ai/core/cli/pkg/forge"
 )
 
 // CheckForge verifies that the Forgejo API is configured and reachable.

@@ -2,8 +2,8 @@
 package pkgcmd
 
 import (
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 	"github.com/spf13/cobra"
 )
 

@@ -1,6 +1,6 @@
 package config
 
-import "github.com/host-uk/core/pkg/cli"
+import "forge.lthn.ai/core/cli/pkg/cli"
 
 func init() {
 	cli.RegisterCommands(AddConfigCommands)

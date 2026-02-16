@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	core "github.com/host-uk/core/pkg/framework/core"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
 )
 
 // RateLimiter tracks per-source rate limiting to avoid overwhelming APIs.

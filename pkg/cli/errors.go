@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────

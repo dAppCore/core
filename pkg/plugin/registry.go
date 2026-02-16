@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	core "github.com/host-uk/core/pkg/framework/core"
-	"github.com/host-uk/core/pkg/io"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 const registryFilename = "registry.json"

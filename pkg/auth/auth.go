@@ -32,11 +32,11 @@ import (
 	"sync"
 	"time"
 
-	coreerr "github.com/host-uk/core/pkg/framework/core"
+	coreerr "forge.lthn.ai/core/cli/pkg/framework/core"
 
-	"github.com/host-uk/core/pkg/crypt/lthn"
-	"github.com/host-uk/core/pkg/crypt/pgp"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/crypt/lthn"
+	"forge.lthn.ai/core/cli/pkg/crypt/pgp"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Default durations for challenge and session lifetimes.

@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/Snider/Borg/pkg/tim"
-	"github.com/host-uk/core/internal/bugseti"
-	"github.com/host-uk/core/pkg/io/datanode"
+	"forge.lthn.ai/core/cli/internal/bugseti"
+	"forge.lthn.ai/core/cli/pkg/io/datanode"
 )
 
 const (

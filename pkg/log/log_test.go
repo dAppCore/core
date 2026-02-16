@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 func TestLogger_Levels(t *testing.T) {

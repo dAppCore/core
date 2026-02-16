@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/host-uk/core/pkg/build/signing"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/build/signing"
+	"forge.lthn.ai/core/cli/pkg/io"
 	"gopkg.in/yaml.v3"
 )
 

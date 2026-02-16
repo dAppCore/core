@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // LinuxKitManager implements the Manager interface for LinuxKit VMs.

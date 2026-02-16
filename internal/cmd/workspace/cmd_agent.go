@@ -28,8 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/host-uk/core/pkg/cli"
-	coreio "github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 	"github.com/spf13/cobra"
 )
 

@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 )
 
 func addPathCommand(parent *cli.Command) {

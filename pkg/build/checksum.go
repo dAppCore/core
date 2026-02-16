@@ -8,7 +8,7 @@ import (
 	"io"
 	"path/filepath"
 
-	io_interface "github.com/host-uk/core/pkg/io"
+	io_interface "forge.lthn.ai/core/cli/pkg/io"
 	"sort"
 	"strings"
 )

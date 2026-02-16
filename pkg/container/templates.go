@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 //go:embed templates/*.yml

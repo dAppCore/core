@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // PollerConfig configures a Poller.

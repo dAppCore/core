@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/host-uk/core/pkg/build"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // CPPBuilder implements the Builder interface for C++ projects using CMake + Conan.

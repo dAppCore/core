@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/host-uk/core/pkg/cli"  // Added
-	"github.com/host-uk/core/pkg/i18n" // Added
-	coreio "github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/cli"  // Added
+	"forge.lthn.ai/core/cli/pkg/i18n" // Added
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 	// Added
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -115,10 +115,10 @@ package {{.ServiceName}}
 
 import (
 	// Import the internal implementation with an alias.
-	impl "github.com/host-uk/core/{{.ServiceName}}"
+	impl "forge.lthn.ai/core/cli/{{.ServiceName}}"
 
 	// Import the core contracts to re-export the interface.
-	"github.com/host-uk/core/core"
+	"forge.lthn.ai/core/cli/core"
 )
 
 {{range .Symbols}}

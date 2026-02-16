@@ -13,9 +13,9 @@
 package ai
 
 import (
-	ragcmd "github.com/host-uk/core/internal/cmd/rag"
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
+	ragcmd "forge.lthn.ai/core/cli/internal/cmd/rag"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 func init() {

@@ -3,8 +3,8 @@ package forge
 import (
 	"fmt"
 
-	"github.com/host-uk/core/pkg/cli"
-	fg "github.com/host-uk/core/pkg/forge"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	fg "forge.lthn.ai/core/cli/pkg/forge"
 )
 
 // Auth command flags.

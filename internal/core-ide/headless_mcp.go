@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 // startHeadlessMCP starts a minimal MCP HTTP server for headless mode.

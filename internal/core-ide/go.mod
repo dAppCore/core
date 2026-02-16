@@ -1,4 +1,4 @@
-module github.com/host-uk/core/internal/core-ide
+module forge.lthn.ai/core/cli/internal/core-ide
 
 go 1.25.5
 
@@ -32,8 +32,8 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3
-	github.com/host-uk/core v0.0.0
-	github.com/host-uk/core-gui v0.0.0
+	forge.lthn.ai/core/cli v0.0.0
+	forge.lthn.ai/core/cli-gui v0.0.0
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/kevinburke/ssh_config v1.4.0 // indirect
@@ -57,6 +57,6 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-replace github.com/host-uk/core => ../..
+replace forge.lthn.ai/core/cli => ../..
 
-replace github.com/host-uk/core-gui => ../../../core-gui
+replace forge.lthn.ai/core/cli-gui => ../../../core-gui

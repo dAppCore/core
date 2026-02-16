@@ -3,7 +3,7 @@ package workspace
 import (
 	"strings"
 
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 	"github.com/spf13/cobra"
 )
 

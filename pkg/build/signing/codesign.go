@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // MacOSSigner signs binaries using macOS codesign.

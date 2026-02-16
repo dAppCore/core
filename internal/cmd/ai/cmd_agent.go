@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/agentci"
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/config"
+	"forge.lthn.ai/core/cli/pkg/agentci"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/config"
 )
 
 // AddAgentCommands registers the 'agent' subcommand group under 'ai'.

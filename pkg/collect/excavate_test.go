@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 

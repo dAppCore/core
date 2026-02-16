@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	coreio "github.com/host-uk/core/pkg/io"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Node is an in-memory filesystem that implements coreio.Node (and therefore

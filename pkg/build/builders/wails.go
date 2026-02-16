@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/build"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // WailsBuilder implements the Builder interface for Wails v3 projects.

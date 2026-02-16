@@ -6,7 +6,7 @@ import (
 
 	uf "github.com/unpoller/unifi/v5"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // Client wraps the unpoller UniFi client with config-based auth.

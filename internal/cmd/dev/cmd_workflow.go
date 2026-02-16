@@ -5,9 +5,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Workflow command flags

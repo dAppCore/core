@@ -4,16 +4,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCalculateBlockCoverage(t *testing.T) {
 	// Create a dummy coverage profile
 	content := `mode: set
-github.com/host-uk/core/pkg/foo.go:1.2,3.4 5 1
-github.com/host-uk/core/pkg/foo.go:5.6,7.8 2 0
-github.com/host-uk/core/pkg/bar.go:10.1,12.20 10 5
+forge.lthn.ai/core/cli/pkg/foo.go:1.2,3.4 5 1
+forge.lthn.ai/core/cli/pkg/foo.go:5.6,7.8 2 0
+forge.lthn.ai/core/cli/pkg/bar.go:10.1,12.20 10 5
 `
 	tmpfile, err := os.CreateTemp("", "test-coverage-*.out")
 	assert.NoError(t, err)
@@ -49,8 +49,8 @@ github.com/host-uk/core/pkg/bar.go:10.1,12.20 10 5
 
 	// Test malformed file
 	contentMalformed := `mode: set
-github.com/host-uk/core/pkg/foo.go:1.2,3.4 5
-github.com/host-uk/core/pkg/foo.go:1.2,3.4 5 notanumber
+forge.lthn.ai/core/cli/pkg/foo.go:1.2,3.4 5
+forge.lthn.ai/core/cli/pkg/foo.go:1.2,3.4 5 notanumber
 `
 	tmpfileMalformed, _ := os.CreateTemp("", "test-coverage-malformed-*.out")
 	defer os.Remove(tmpfileMalformed.Name())
@@ -63,7 +63,7 @@ github.com/host-uk/core/pkg/foo.go:1.2,3.4 5 notanumber
 
 	// Test malformed file - missing fields
 	contentMalformed2 := `mode: set
-github.com/host-uk/core/pkg/foo.go:1.2,3.4 5
+forge.lthn.ai/core/cli/pkg/foo.go:1.2,3.4 5
 `
 	tmpfileMalformed2, _ := os.CreateTemp("", "test-coverage-malformed2-*.out")
 	defer os.Remove(tmpfileMalformed2.Name())
@@ -84,13 +84,13 @@ github.com/host-uk/core/pkg/foo.go:1.2,3.4 5
 }
 
 func TestParseOverallCoverage(t *testing.T) {
-	output := `ok  	github.com/host-uk/core/pkg/foo	0.100s	coverage: 50.0% of statements
-ok  	github.com/host-uk/core/pkg/bar	0.200s	coverage: 100.0% of statements
+	output := `ok  	forge.lthn.ai/core/cli/pkg/foo	0.100s	coverage: 50.0% of statements
+ok  	forge.lthn.ai/core/cli/pkg/bar	0.200s	coverage: 100.0% of statements
 `
 	pct := parseOverallCoverage(output)
 	assert.Equal(t, 75.0, pct)
 
-	outputNoCov := "ok  	github.com/host-uk/core/pkg/foo	0.100s"
+	outputNoCov := "ok  	forge.lthn.ai/core/cli/pkg/foo	0.100s"
 	pct = parseOverallCoverage(outputNoCov)
 	assert.Equal(t, 0.0, pct)
 }

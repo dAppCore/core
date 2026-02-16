@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/host-uk/core/pkg/forge"
+	"forge.lthn.ai/core/cli/pkg/forge"
 )
 
 // forgejoVersionResponse is the JSON response for /api/v1/version.

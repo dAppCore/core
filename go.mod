@@ -1,4 +1,4 @@
-module github.com/host-uk/core
+module forge.lthn.ai/core/cli
 
 go 1.25.5
 
@@ -6,7 +6,6 @@ require (
 	code.gitea.io/sdk/gitea v0.23.2
 	github.com/Snider/Borg v0.2.0
 	github.com/getkin/kin-openapi v0.133.0
-	github.com/host-uk/core/internal/core-ide v0.0.0-20260204004957-989b7e1e6555
 	github.com/kluctl/go-embed-python v0.0.0-3.13.1-20241219-1
 	github.com/leaanthony/debme v1.2.1
 	github.com/leaanthony/gosod v1.0.4

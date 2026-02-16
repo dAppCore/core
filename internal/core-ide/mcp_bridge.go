@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/host-uk/core-gui/pkg/webview"
-	"github.com/host-uk/core-gui/pkg/ws"
+	"forge.lthn.ai/core/cli-gui/pkg/webview"
+	"forge.lthn.ai/core/cli-gui/pkg/ws"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

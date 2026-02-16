@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/host-uk/core/pkg/agentci"
-	"github.com/host-uk/core/pkg/forge"
-	"github.com/host-uk/core/pkg/jobrunner"
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/agentci"
+	"forge.lthn.ai/core/cli/pkg/forge"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 const (

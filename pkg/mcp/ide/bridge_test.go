@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/host-uk/core/pkg/ws"
+	"forge.lthn.ai/core/cli/pkg/ws"
 )
 
 var testUpgrader = websocket.Upgrader{

@@ -1,9 +1,9 @@
 package unifi
 
 import (
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/log"
-	uf "github.com/host-uk/core/pkg/unifi"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/log"
+	uf "forge.lthn.ai/core/cli/pkg/unifi"
 )
 
 // addSitesCommand adds the 'sites' subcommand for listing UniFi sites.

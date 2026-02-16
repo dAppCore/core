@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 )
 
 // Options configures the development server.

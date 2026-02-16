@@ -1,10 +1,10 @@
-module github.com/host-uk/core/cmd/core-ide
+module forge.lthn.ai/core/cli/cmd/core-ide
 
 go 1.25.5
 
 require (
 	github.com/gorilla/websocket v1.5.3
-	github.com/host-uk/core v0.0.0
+	forge.lthn.ai/core/cli v0.0.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.64
 )
 
@@ -54,4 +54,4 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-replace github.com/host-uk/core => ../..
+replace forge.lthn.ai/core/cli => ../..

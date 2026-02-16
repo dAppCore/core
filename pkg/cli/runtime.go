@@ -20,7 +20,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/host-uk/core/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/framework"
 	"github.com/spf13/cobra"
 )
 

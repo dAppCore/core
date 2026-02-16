@@ -3,7 +3,7 @@ package forge
 import (
 	forgejo "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // ListOrgRepos returns all repositories for the given organisation.

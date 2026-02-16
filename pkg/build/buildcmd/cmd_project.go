@@ -14,11 +14,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/host-uk/core/pkg/build"
-	"github.com/host-uk/core/pkg/build/builders"
-	"github.com/host-uk/core/pkg/build/signing"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/build/builders"
+	"forge.lthn.ai/core/cli/pkg/build/signing"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // runProjectBuild handles the main `core build` command with auto-detection.

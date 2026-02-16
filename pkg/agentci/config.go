@@ -4,7 +4,7 @@ package agentci
 import (
 	"fmt"
 
-	"github.com/host-uk/core/pkg/config"
+	"forge.lthn.ai/core/cli/pkg/config"
 )
 
 // AgentConfig represents a single agent machine in the config file.

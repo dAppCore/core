@@ -3,8 +3,8 @@ package plugin
 import (
 	"encoding/json"
 
-	core "github.com/host-uk/core/pkg/framework/core"
-	"github.com/host-uk/core/pkg/io"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Manifest represents a plugin.json manifest file.

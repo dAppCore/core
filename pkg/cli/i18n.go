@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/host-uk/core/pkg/framework"
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 // I18nService wraps i18n as a Core service.

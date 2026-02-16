@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	errors "github.com/host-uk/core/pkg/framework/core"
-	"github.com/host-uk/core/pkg/io"
+	errors "forge.lthn.ai/core/cli/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // FileContent represents the content of a file for AI context.

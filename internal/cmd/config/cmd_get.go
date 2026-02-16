@@ -3,8 +3,8 @@ package config
 import (
 	"fmt"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/config"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/config"
 )
 
 func addGetCommand(parent *cli.Command) {

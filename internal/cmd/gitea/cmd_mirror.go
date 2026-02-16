@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/host-uk/core/pkg/cli"
-	gt "github.com/host-uk/core/pkg/gitea"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	gt "forge.lthn.ai/core/cli/pkg/gitea"
 )
 
 // Mirror command flags.

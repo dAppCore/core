@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/host-uk/core/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/framework"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

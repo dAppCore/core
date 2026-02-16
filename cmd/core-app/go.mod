@@ -1,4 +1,4 @@
-module github.com/host-uk/core/cmd/core-app
+module forge.lthn.ai/core/cli/cmd/core-app
 
 go 1.25.5
 
@@ -64,4 +64,4 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-replace github.com/host-uk/core => ../..
+replace forge.lthn.ai/core/cli => ../..

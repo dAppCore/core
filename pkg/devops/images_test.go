@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/host-uk/core/pkg/devops/sources"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/devops/sources"
+	"forge.lthn.ai/core/cli/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

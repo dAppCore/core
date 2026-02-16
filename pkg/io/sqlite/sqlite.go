@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	coreerr "github.com/host-uk/core/pkg/framework/core"
+	coreerr "forge.lthn.ai/core/cli/pkg/framework/core"
 
 	_ "modernc.org/sqlite" // Pure Go SQLite driver
 )

@@ -3,7 +3,7 @@ package agentic
 import (
 	"slices"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // AllowanceService enforces agent quota limits. It provides pre-dispatch checks,

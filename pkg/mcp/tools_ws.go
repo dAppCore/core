@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/host-uk/core/pkg/log"
-	"github.com/host-uk/core/pkg/ws"
+	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/ws"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

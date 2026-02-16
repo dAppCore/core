@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/build"
-	"github.com/host-uk/core/pkg/build/builders"
-	"github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/release/publishers"
+	"forge.lthn.ai/core/cli/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/build/builders"
+	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/release/publishers"
 )
 
 // Release represents a release with its version, artifacts, and changelog.

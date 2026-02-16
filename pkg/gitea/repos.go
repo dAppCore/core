@@ -3,7 +3,7 @@ package gitea
 import (
 	"code.gitea.io/sdk/gitea"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // ListOrgRepos returns all repositories for the given organisation.

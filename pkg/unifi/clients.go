@@ -3,7 +3,7 @@ package unifi
 import (
 	uf "github.com/unpoller/unifi/v5"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // ClientFilter controls which clients are returned.

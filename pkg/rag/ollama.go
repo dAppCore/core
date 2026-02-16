@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 	"github.com/ollama/ollama/api"
 )
 

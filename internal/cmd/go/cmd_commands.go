@@ -14,7 +14,7 @@
 // Sets MACOSX_DEPLOYMENT_TARGET to suppress linker warnings on macOS.
 package gocmd
 
-import "github.com/host-uk/core/pkg/cli"
+import "forge.lthn.ai/core/cli/pkg/cli"
 
 func init() {
 	cli.RegisterCommands(AddGoCommands)

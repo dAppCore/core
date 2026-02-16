@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 // Blank prints an empty line.

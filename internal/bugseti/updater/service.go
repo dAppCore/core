@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/host-uk/core/internal/bugseti"
+	"forge.lthn.ai/core/cli/internal/bugseti"
 )
 
 // Service provides update functionality and Wails bindings.

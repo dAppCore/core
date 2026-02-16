@@ -9,7 +9,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
-	core "github.com/host-uk/core/pkg/framework/core"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
 )
 
 // Service implements the core.Crypt interface using OpenPGP.

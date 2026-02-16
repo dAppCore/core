@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/host-uk/core/internal/cmd/qa"
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/internal/cmd/qa"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 // QA command flags - comprehensive options for all agents

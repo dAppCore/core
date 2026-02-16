@@ -13,11 +13,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/internal/cmd/workspace"
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
-	coreio "github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/repos"
+	"forge.lthn.ai/core/cli/internal/cmd/workspace"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/repos"
 )
 
 // runRegistrySetup loads a registry from path and runs setup.

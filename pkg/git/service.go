@@ -3,7 +3,7 @@ package git
 import (
 	"context"
 
-	"github.com/host-uk/core/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/framework"
 )
 
 // Queries for git service

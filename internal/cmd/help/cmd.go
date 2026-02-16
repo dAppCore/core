@@ -3,8 +3,8 @@ package help
 import (
 	"fmt"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/help"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/help"
 )
 
 func init() {

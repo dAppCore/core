@@ -7,8 +7,8 @@ import (
 )
 
 func TestShortenPackageName(t *testing.T) {
-	assert.Equal(t, "pkg/foo", shortenPackageName("github.com/host-uk/core/pkg/foo"))
-	assert.Equal(t, "core-php", shortenPackageName("github.com/host-uk/core-php"))
+	assert.Equal(t, "pkg/foo", shortenPackageName("forge.lthn.ai/core/cli/pkg/foo"))
+	assert.Equal(t, "core-php", shortenPackageName("forge.lthn.ai/core/cli-php"))
 	assert.Equal(t, "bar", shortenPackageName("github.com/other/bar"))
 }
 
@@ -19,16 +19,16 @@ func TestFormatCoverageTest(t *testing.T) {
 }
 
 func TestParseTestOutput(t *testing.T) {
-	output := `ok  	github.com/host-uk/core/pkg/foo	0.100s	coverage: 50.0% of statements
-FAIL	github.com/host-uk/core/pkg/bar
-?   	github.com/host-uk/core/pkg/baz	[no test files]
+	output := `ok  	forge.lthn.ai/core/cli/pkg/foo	0.100s	coverage: 50.0% of statements
+FAIL	forge.lthn.ai/core/cli/pkg/bar
+?   	forge.lthn.ai/core/cli/pkg/baz	[no test files]
 `
 	results := parseTestOutput(output)
 	assert.Equal(t, 1, results.passed)
 	assert.Equal(t, 1, results.failed)
 	assert.Equal(t, 1, results.skipped)
 	assert.Equal(t, 1, len(results.failedPkgs))
-	assert.Equal(t, "github.com/host-uk/core/pkg/bar", results.failedPkgs[0])
+	assert.Equal(t, "forge.lthn.ai/core/cli/pkg/bar", results.failedPkgs[0])
 	assert.Equal(t, 1, len(results.packages))
 	assert.Equal(t, 50.0, results.packages[0].coverage)
 }
@@ -37,8 +37,8 @@ func TestPrintCoverageSummarySafe(t *testing.T) {
 	// This tests the bug fix for long package names causing negative Repeat count
 	results := testResults{
 		packages: []packageCoverage{
-			{name: "github.com/host-uk/core/pkg/short", coverage: 100, hasCov: true},
-			{name: "github.com/host-uk/core/pkg/a-very-very-very-very-very-long-package-name-that-might-cause-issues", coverage: 80, hasCov: true},
+			{name: "forge.lthn.ai/core/cli/pkg/short", coverage: 100, hasCov: true},
+			{name: "forge.lthn.ai/core/cli/pkg/a-very-very-very-very-very-long-package-name-that-might-cause-issues", coverage: 80, hasCov: true},
 		},
 		passed:   2,
 		totalCov: 180,

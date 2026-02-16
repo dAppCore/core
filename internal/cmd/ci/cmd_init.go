@@ -3,9 +3,9 @@ package ci
 import (
 	"os"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/release"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/release"
 )
 
 func runCIReleaseInit() error {

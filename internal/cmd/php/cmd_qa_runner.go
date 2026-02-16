@@ -6,10 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/framework"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/process"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/process"
 )
 
 // QARunner orchestrates PHP QA checks using pkg/process.

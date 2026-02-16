@@ -16,8 +16,8 @@ package variants
 
 import (
 	// Commands via self-registration
-	_ "github.com/host-uk/core/internal/cmd/ci"
-	_ "github.com/host-uk/core/internal/cmd/doctor"
-	_ "github.com/host-uk/core/internal/cmd/sdk"
-	_ "github.com/host-uk/core/pkg/build/buildcmd"
+	_ "forge.lthn.ai/core/cli/internal/cmd/ci"
+	_ "forge.lthn.ai/core/cli/internal/cmd/doctor"
+	_ "forge.lthn.ai/core/cli/internal/cmd/sdk"
+	_ "forge.lthn.ai/core/cli/pkg/build/buildcmd"
 )

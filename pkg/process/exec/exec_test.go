@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/host-uk/core/pkg/process/exec"
+	"forge.lthn.ai/core/cli/pkg/process/exec"
 )
 
 // mockLogger captures log calls for testing

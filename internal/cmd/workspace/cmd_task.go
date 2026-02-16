@@ -17,9 +17,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/host-uk/core/pkg/cli"
-	coreio "github.com/host-uk/core/pkg/io"
-	"github.com/host-uk/core/pkg/repos"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/repos"
 	"github.com/spf13/cobra"
 )
 

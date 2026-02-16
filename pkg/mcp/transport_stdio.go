@@ -3,7 +3,7 @@ package mcp
 import (
 	"context"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

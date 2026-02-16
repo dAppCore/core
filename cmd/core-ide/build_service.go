@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/host-uk/core/pkg/mcp/ide"
+	"forge.lthn.ai/core/cli/pkg/mcp/ide"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

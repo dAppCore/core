@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 	"gopkg.in/yaml.v3"
 )
 

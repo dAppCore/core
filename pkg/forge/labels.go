@@ -6,7 +6,7 @@ import (
 
 	forgejo "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // ListOrgLabels returns all labels for repos in the given organisation.

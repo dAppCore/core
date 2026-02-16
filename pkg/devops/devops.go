@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/host-uk/core/pkg/container"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/container"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 const (

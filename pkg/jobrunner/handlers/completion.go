@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/host-uk/core/pkg/forge"
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/forge"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 const (

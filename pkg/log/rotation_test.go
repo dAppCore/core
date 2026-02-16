@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 func TestRotatingWriter_Basic(t *testing.T) {

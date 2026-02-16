@@ -13,9 +13,9 @@
 package gitcmd
 
 import (
-	"github.com/host-uk/core/internal/cmd/dev"
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/internal/cmd/dev"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 func init() {

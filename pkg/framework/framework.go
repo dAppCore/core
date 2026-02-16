@@ -3,7 +3,7 @@
 //
 // Usage:
 //
-//	import "github.com/host-uk/core/pkg/framework"
+//	import "forge.lthn.ai/core/cli/pkg/framework"
 //
 //	app, _ := framework.New(
 //	    framework.WithServiceLock(),
@@ -11,7 +11,7 @@
 package framework
 
 import (
-	"github.com/host-uk/core/pkg/framework/core"
+	"forge.lthn.ai/core/cli/pkg/framework/core"
 )
 
 // Re-export core types for cleaner imports

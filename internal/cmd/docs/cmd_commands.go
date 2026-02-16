@@ -8,7 +8,7 @@
 // to a central location for unified documentation builds.
 package docs
 
-import "github.com/host-uk/core/pkg/cli"
+import "forge.lthn.ai/core/cli/pkg/cli"
 
 func init() {
 	cli.RegisterCommands(AddDocsCommands)

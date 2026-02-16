@@ -10,7 +10,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // Executor runs Ansible playbooks.

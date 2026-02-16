@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/host-uk/core/pkg/config"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/config"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // Config holds global devops configuration from ~/.core/config.yaml.

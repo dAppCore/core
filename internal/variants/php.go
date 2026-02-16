@@ -14,6 +14,6 @@ package variants
 
 import (
 	// Commands via self-registration
-	_ "github.com/host-uk/core/internal/cmd/doctor"
-	_ "github.com/host-uk/core/internal/cmd/php"
+	_ "forge.lthn.ai/core/cli/internal/cmd/doctor"
+	_ "forge.lthn.ai/core/cli/internal/cmd/php"
 )

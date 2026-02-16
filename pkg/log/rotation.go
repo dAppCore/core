@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	coreio "github.com/host-uk/core/pkg/io"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 )
 
 // RotatingWriter implements io.WriteCloser and provides log rotation.

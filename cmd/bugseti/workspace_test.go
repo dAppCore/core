@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/host-uk/core/internal/bugseti"
+	"forge.lthn.ai/core/cli/internal/bugseti"
 )
 
 func TestCleanup_TTL(t *testing.T) {

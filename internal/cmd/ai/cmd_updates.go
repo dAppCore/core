@@ -6,10 +6,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/host-uk/core/pkg/agentic"
-	"github.com/host-uk/core/pkg/ai"
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/agentic"
+	"forge.lthn.ai/core/cli/pkg/ai"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 // task:update command flags

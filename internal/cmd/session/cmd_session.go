@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/session"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/session"
 )
 
 func init() {

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/host-uk/core/pkg/container"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/container"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/io"
 	"github.com/spf13/cobra"
 )
 

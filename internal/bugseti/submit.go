@@ -12,7 +12,7 @@ import (
 
 	forgejo "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 
-	"github.com/host-uk/core/pkg/forge"
+	"forge.lthn.ai/core/cli/pkg/forge"
 )
 
 // SubmitService handles the PR submission flow.

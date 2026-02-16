@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	coreio "github.com/host-uk/core/pkg/io"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 )
 
 // PHPGenerator generates PHP SDKs from OpenAPI specs.

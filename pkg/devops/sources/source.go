@@ -4,7 +4,7 @@ package sources
 import (
 	"context"
 
-	"github.com/host-uk/core/pkg/io"
+	"forge.lthn.ai/core/cli/pkg/io"
 )
 
 // ImageSource defines the interface for downloading dev images.

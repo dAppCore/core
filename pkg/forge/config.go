@@ -3,8 +3,8 @@ package forge
 import (
 	"os"
 
-	"github.com/host-uk/core/pkg/config"
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/config"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 const (

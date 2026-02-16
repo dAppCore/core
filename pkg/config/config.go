@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	core "github.com/host-uk/core/pkg/framework/core"
-	coreio "github.com/host-uk/core/pkg/io"
+	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	coreio "forge.lthn.ai/core/cli/pkg/io"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )

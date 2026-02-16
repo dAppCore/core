@@ -4,9 +4,9 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/git"
-	"github.com/host-uk/core/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/git"
+	"forge.lthn.ai/core/cli/pkg/i18n"
 )
 
 // Pull command flags

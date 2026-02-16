@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/host-uk/core/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/cli"
 )
 
 func addSetCommand(parent *cli.Command) {

@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/host-uk/core/pkg/deploy/python"
+	"forge.lthn.ai/core/cli/pkg/deploy/python"
 )
 
 // Client wraps the Python CoolifyClient for Go usage.

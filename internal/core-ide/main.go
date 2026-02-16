@@ -7,7 +7,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/host-uk/core/internal/core-ide/icons"
+	"forge.lthn.ai/core/cli/internal/core-ide/icons"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
