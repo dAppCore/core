@@ -138,7 +138,7 @@ func QuantizedMatmul(x, w, scales, biases *Array, transpose bool, groupSize, bit
 	out := New("QMATMUL", x, w, scales, biases)
 	gs := C.mlx_optional_int{value: C.int(groupSize), has_value: C._Bool(true)}
 	b := C.mlx_optional_int{value: C.int(bits), has_value: C._Bool(true)}
-	mode := C.CString("default")
+	mode := C.CString("affine")
 	defer C.free(unsafe.Pointer(mode))
 	C.mlx_quantized_matmul(
 		&out.ctx, x.ctx, w.ctx, scales.ctx, biases.ctx,
@@ -309,7 +309,7 @@ func Dequantize(w, scales, biases *Array, groupSize, bits int) *Array {
 	out := New("DEQUANTIZE", w, scales, biases)
 	gs := C.mlx_optional_int{value: C.int(groupSize), has_value: C._Bool(true)}
 	b := C.mlx_optional_int{value: C.int(bits), has_value: C._Bool(true)}
-	mode := C.CString("default")
+	mode := C.CString("affine")
 	defer C.free(unsafe.Pointer(mode))
 	noDtype := C.mlx_optional_dtype{has_value: C._Bool(false)}
 	C.mlx_dequantize(&out.ctx, w.ctx, scales.ctx, biases.ctx, gs, b, mode, noDtype, DefaultStream().ctx)

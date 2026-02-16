@@ -148,11 +148,10 @@ func parseConfig(data []byte) (*TextConfig, error) {
 	// Quantization is always top-level
 	cfg.Quantization = wrapper.Quantization
 
-	// Compute defaults
-	if cfg.HeadDim == 0 && cfg.NumAttentionHeads > 0 {
-		cfg.HeadDim = cfg.HiddenSize / cfg.NumAttentionHeads
+	// Compute scale (head_dim may be inferred later from weights if not in config)
+	if cfg.HeadDim > 0 {
+		cfg.Scale = float32(1.0 / math.Sqrt(float64(cfg.HeadDim)))
 	}
-	cfg.Scale = float32(1.0 / math.Sqrt(float64(cfg.HeadDim)))
 	if cfg.RopeTheta == 0 {
 		cfg.RopeTheta = 1000000
 	}
@@ -212,6 +211,20 @@ func LoadGemma3(modelPath string) (*GemmaModel, error) {
 
 	// Helper to resolve weight with language_model. prefix fallback
 	w := func(name string) *mlx.Array { return resolveWeight(weights, name) }
+
+	// Infer head_dim from q_proj weight shape when not in config.
+	// Gemma 3 uses head_dim=256 which differs from hidden_size/num_heads.
+	if cfg.HeadDim == 0 {
+		qWeight := w("model.layers.0.self_attn.q_proj.weight")
+		if qWeight != nil {
+			qShape := qWeight.Shape()
+			if len(qShape) > 0 {
+				cfg.HeadDim = qShape[0] / cfg.NumAttentionHeads
+				cfg.Scale = float32(1.0 / math.Sqrt(float64(cfg.HeadDim)))
+				slog.Info("mlx: inferred head_dim from q_proj weight", "head_dim", cfg.HeadDim)
+			}
+		}
+	}
 
 	// Helper to create linear layer (quantized or dense)
 	q := cfg.Quantization
