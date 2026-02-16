@@ -11,6 +11,7 @@ import "C"
 import (
 	"encoding/binary"
 	"reflect"
+	"runtime"
 	"strings"
 	"unsafe"
 )
@@ -28,6 +29,9 @@ type Array struct {
 }
 
 // New creates a named Array tracking its input dependencies for cleanup.
+// A runtime finalizer is set so Go GC can release the C handle when
+// the Array becomes unreachable — critical because Go GC cannot see
+// Metal/C memory pressure.
 func New(name string, inputs ...*Array) *Array {
 	t := &Array{
 		desc: tensorDesc{
@@ -40,7 +44,16 @@ func New(name string, inputs ...*Array) *Array {
 			input.desc.numRefs++
 		}
 	}
+	runtime.SetFinalizer(t, finalizeArray)
 	return t
+}
+
+// finalizeArray is called by Go GC to release the underlying C array handle.
+func finalizeArray(t *Array) {
+	if t != nil && t.ctx.ctx != nil {
+		C.mlx_array_free(t.ctx)
+		t.ctx.ctx = nil
+	}
 }
 
 type scalarTypes interface {
@@ -50,7 +63,7 @@ type scalarTypes interface {
 // FromValue creates a scalar Array from a Go value.
 func FromValue[T scalarTypes](t T) *Array {
 	Init()
-	tt := New("")
+	tt := New("") // finalizer set by New
 	switch v := any(t).(type) {
 	case bool:
 		tt.ctx = C.mlx_array_new_bool(C.bool(v))
