@@ -20,6 +20,11 @@
 //   - test: Test runner with coverage
 //   - qa: Quality assurance workflows
 //   - monitor: Security monitoring aggregation
+//   - forge: Forgejo instance management
+//   - prod: Production infrastructure
+//   - mcp: MCP server management
+//   - daemon: Background service daemon
+//   - session: Session management
 
 package variants
 
@@ -30,20 +35,25 @@ import (
 	_ "github.com/host-uk/core/internal/cmd/collect"
 	_ "github.com/host-uk/core/internal/cmd/config"
 	_ "github.com/host-uk/core/internal/cmd/crypt"
+	_ "github.com/host-uk/core/internal/cmd/daemon"
 	_ "github.com/host-uk/core/internal/cmd/deploy"
 	_ "github.com/host-uk/core/internal/cmd/dev"
 	_ "github.com/host-uk/core/internal/cmd/docs"
 	_ "github.com/host-uk/core/internal/cmd/doctor"
+	_ "github.com/host-uk/core/internal/cmd/forge"
 	_ "github.com/host-uk/core/internal/cmd/gitcmd"
 	_ "github.com/host-uk/core/internal/cmd/go"
 	_ "github.com/host-uk/core/internal/cmd/help"
+	_ "github.com/host-uk/core/internal/cmd/mcpcmd"
 	_ "github.com/host-uk/core/internal/cmd/monitor"
 	_ "github.com/host-uk/core/internal/cmd/php"
 	_ "github.com/host-uk/core/internal/cmd/pkgcmd"
 	_ "github.com/host-uk/core/internal/cmd/plugin"
+	_ "github.com/host-uk/core/internal/cmd/prod"
 	_ "github.com/host-uk/core/internal/cmd/qa"
 	_ "github.com/host-uk/core/internal/cmd/sdk"
 	_ "github.com/host-uk/core/internal/cmd/security"
+	_ "github.com/host-uk/core/internal/cmd/session"
 	_ "github.com/host-uk/core/internal/cmd/setup"
 	_ "github.com/host-uk/core/internal/cmd/test"
 	_ "github.com/host-uk/core/internal/cmd/updater"
