@@ -3,7 +3,7 @@ package forge
 import (
 	forgejo "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // ListMyOrgs returns all organisations for the authenticated user.

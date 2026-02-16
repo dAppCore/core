@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"forge.lthn.ai/core/cli/pkg/config"
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/config"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Config holds global devops configuration from ~/.core/config.yaml.

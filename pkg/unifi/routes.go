@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // Route represents a single entry in the UniFi gateway routing table.

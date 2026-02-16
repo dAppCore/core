@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

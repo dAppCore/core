@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // NetworkConf represents a UniFi network configuration entry.

@@ -4,7 +4,7 @@ package sources
 import (
 	"context"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // ImageSource defines the interface for downloading dev images.

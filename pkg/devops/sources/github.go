@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // GitHubSource downloads images from GitHub Releases.

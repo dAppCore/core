@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/go/pkg/framework"
 )
 
 // Global default service (follows i18n pattern).

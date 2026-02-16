@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	core "forge.lthn.ai/core/cli/pkg/framework/core"
-	"forge.lthn.ai/core/cli/pkg/io"
+	core "forge.lthn.ai/core/go/pkg/framework/core"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Installer handles plugin installation from GitHub.

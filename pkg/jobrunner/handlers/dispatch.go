@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/agentci"
-	"forge.lthn.ai/core/cli/pkg/forge"
-	"forge.lthn.ai/core/cli/pkg/jobrunner"
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/agentci"
+	"forge.lthn.ai/core/go/pkg/forge"
+	"forge.lthn.ai/core/go/pkg/jobrunner"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 const (

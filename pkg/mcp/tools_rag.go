@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	ragcmd "forge.lthn.ai/core/go/internal/cmd/rag"
 	"forge.lthn.ai/core/go/pkg/log"
 	"forge.lthn.ai/core/go/pkg/rag"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -112,7 +111,7 @@ func (s *Service) ragQuery(ctx context.Context, req *mcp.CallToolRequest, input 
 	}
 
 	// Call the RAG query function
-	results, err := ragcmd.QueryDocs(ctx, input.Question, collection, topK)
+	results, err := rag.QueryDocs(ctx, input.Question, collection, topK)
 	if err != nil {
 		log.Error("mcp: rag query failed", "question", input.Question, "collection", collection, "err", err)
 		return nil, RAGQueryOutput{}, fmt.Errorf("failed to query RAG: %w", err)
@@ -165,7 +164,7 @@ func (s *Service) ragIngest(ctx context.Context, req *mcp.CallToolRequest, input
 	var chunks int
 	if info.IsDir() {
 		// Ingest directory
-		err = ragcmd.IngestDirectory(ctx, input.Path, collection, input.Recreate)
+		err = rag.IngestDirectory(ctx, input.Path, collection, input.Recreate)
 		if err != nil {
 			log.Error("mcp: rag ingest directory failed", "path", input.Path, "collection", collection, "err", err)
 			return nil, RAGIngestOutput{}, fmt.Errorf("failed to ingest directory: %w", err)
@@ -173,7 +172,7 @@ func (s *Service) ragIngest(ctx context.Context, req *mcp.CallToolRequest, input
 		message = fmt.Sprintf("Successfully ingested directory %s into collection %s", input.Path, collection)
 	} else {
 		// Ingest single file
-		chunks, err = ragcmd.IngestFile(ctx, input.Path, collection)
+		chunks, err = rag.IngestSingleFile(ctx, input.Path, collection)
 		if err != nil {
 			log.Error("mcp: rag ingest file failed", "path", input.Path, "collection", collection, "err", err)
 			return nil, RAGIngestOutput{}, fmt.Errorf("failed to ingest file: %w", err)

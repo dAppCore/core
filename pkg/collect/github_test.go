@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 	"github.com/stretchr/testify/assert"
 )
 

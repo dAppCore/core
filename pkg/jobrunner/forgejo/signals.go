@@ -6,7 +6,7 @@ import (
 
 	forgejosdk "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 
-	"forge.lthn.ai/core/cli/pkg/jobrunner"
+	"forge.lthn.ai/core/go/pkg/jobrunner"
 )
 
 // epicChildRe matches checklist items: - [ ] #42 or - [x] #42

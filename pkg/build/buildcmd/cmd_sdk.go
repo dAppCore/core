@@ -11,8 +11,8 @@ import (
 	"os"
 	"strings"
 
-	"forge.lthn.ai/core/cli/internal/cmd/sdk"
-	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/go/pkg/sdk"
+	"forge.lthn.ai/core/go/pkg/i18n"
 )
 
 // runBuildSDK handles the `core build sdk` command.

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/forge"
-	"forge.lthn.ai/core/cli/pkg/jobrunner"
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/forge"
+	"forge.lthn.ai/core/go/pkg/jobrunner"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // Config configures a ForgejoSource.

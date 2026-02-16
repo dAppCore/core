@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"forge.lthn.ai/core/cli/pkg/forge"
-	"forge.lthn.ai/core/cli/pkg/jobrunner"
+	"forge.lthn.ai/core/go/pkg/forge"
+	"forge.lthn.ai/core/go/pkg/jobrunner"
 )
 
 // withVersion wraps an HTTP handler to serve the Forgejo /api/v1/version

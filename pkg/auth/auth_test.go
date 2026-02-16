@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"forge.lthn.ai/core/cli/pkg/crypt/lthn"
-	"forge.lthn.ai/core/cli/pkg/crypt/pgp"
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/crypt/lthn"
+	"forge.lthn.ai/core/go/pkg/crypt/pgp"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // helper creates a fresh Authenticator backed by MockMedium.

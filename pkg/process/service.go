@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/go/pkg/framework"
 )
 
 // Default buffer size for process output (1MB).

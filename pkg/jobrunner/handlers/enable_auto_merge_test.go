@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"forge.lthn.ai/core/cli/pkg/jobrunner"
+	"forge.lthn.ai/core/go/pkg/jobrunner"
 )
 
 func TestEnableAutoMerge_Match_Good(t *testing.T) {

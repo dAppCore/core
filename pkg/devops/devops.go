@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/container"
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/container"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 const (

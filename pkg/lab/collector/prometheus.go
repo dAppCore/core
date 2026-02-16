@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/lab"
+	"forge.lthn.ai/core/go/pkg/lab"
 )
 
 type Prometheus struct {

@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"io"
 
-	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	core "forge.lthn.ai/core/go/pkg/framework/core"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/scrypt"

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 	"gopkg.in/yaml.v3"
 )
 

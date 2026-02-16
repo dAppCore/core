@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Marker files for project type detection.

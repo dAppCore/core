@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/lab"
+	"forge.lthn.ai/core/go/pkg/lab"
 )
 
 //go:embed templates/*

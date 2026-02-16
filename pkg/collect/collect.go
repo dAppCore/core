@@ -8,7 +8,7 @@ import (
 	"context"
 	"path/filepath"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Collector is the interface all collection sources implement.

@@ -11,9 +11,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"forge.lthn.ai/core/cli/pkg/mlx"
-	"forge.lthn.ai/core/cli/pkg/mlx/cache"
-	"forge.lthn.ai/core/cli/pkg/mlx/tokenizer"
+	"forge.lthn.ai/core/go/pkg/mlx"
+	"forge.lthn.ai/core/go/pkg/mlx/cache"
+	"forge.lthn.ai/core/go/pkg/mlx/tokenizer"
 )
 
 // QuantizationConfig holds quantization parameters from config.json.

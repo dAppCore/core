@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Artifact represents a build output that can be signed.

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/devops/sources"
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/devops/sources"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // ImageManager handles image downloads and updates.

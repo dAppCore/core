@@ -7,8 +7,8 @@ import (
 
 	forgejosdk "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 
-	"forge.lthn.ai/core/cli/pkg/forge"
-	"forge.lthn.ai/core/cli/pkg/jobrunner"
+	"forge.lthn.ai/core/go/pkg/forge"
+	"forge.lthn.ai/core/go/pkg/jobrunner"
 )
 
 // DismissReviewsHandler dismisses stale "request changes" reviews on a PR.

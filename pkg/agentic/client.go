@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // Client is the API client for the core-agentic service.

@@ -1,0 +1,90 @@
+package generators
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	coreio "forge.lthn.ai/core/go/pkg/io"
+	"forge.lthn.ai/core/go/pkg/log"
+)
+
+// GoGenerator generates Go SDKs from OpenAPI specs.
+type GoGenerator struct{}
+
+// NewGoGenerator creates a new Go generator.
+func NewGoGenerator() *GoGenerator {
+	return &GoGenerator{}
+}
+
+// Language returns the generator's target language identifier.
+func (g *GoGenerator) Language() string {
+	return "go"
+}
+
+// Available checks if generator dependencies are installed.
+func (g *GoGenerator) Available() bool {
+	_, err := exec.LookPath("oapi-codegen")
+	return err == nil
+}
+
+// Install returns instructions for installing the generator.
+func (g *GoGenerator) Install() string {
+	return "go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest"
+}
+
+// Generate creates SDK from OpenAPI spec.
+func (g *GoGenerator) Generate(ctx context.Context, opts Options) error {
+	if err := coreio.Local.EnsureDir(opts.OutputDir); err != nil {
+		return log.E("go.Generate", "failed to create output dir", err)
+	}
+
+	if g.Available() {
+		return g.generateNative(ctx, opts)
+	}
+	return g.generateDocker(ctx, opts)
+}
+
+func (g *GoGenerator) generateNative(ctx context.Context, opts Options) error {
+	outputFile := filepath.Join(opts.OutputDir, "client.go")
+
+	cmd := exec.CommandContext(ctx, "oapi-codegen",
+		"-package", opts.PackageName,
+		"-generate", "types,client",
+		"-o", outputFile,
+		opts.SpecPath,
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return log.E("go.generateNative", "oapi-codegen failed", err)
+	}
+
+	goMod := fmt.Sprintf("module %s\n\ngo 1.21\n", opts.PackageName)
+	return coreio.Local.Write(filepath.Join(opts.OutputDir, "go.mod"), goMod)
+}
+
+func (g *GoGenerator) generateDocker(ctx context.Context, opts Options) error {
+	specDir := filepath.Dir(opts.SpecPath)
+	specName := filepath.Base(opts.SpecPath)
+
+	args := []string{"run", "--rm"}
+	args = append(args, dockerUserArgs()...)
+	args = append(args,
+		"-v", specDir+":/spec",
+		"-v", opts.OutputDir+":/out",
+		"openapitools/openapi-generator-cli", "generate",
+		"-i", "/spec/"+specName,
+		"-g", "go",
+		"-o", "/out",
+		"--additional-properties=packageName="+opts.PackageName,
+	)
+
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}

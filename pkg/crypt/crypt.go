@@ -1,7 +1,7 @@
 package crypt
 
 import (
-	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	core "forge.lthn.ai/core/go/pkg/framework/core"
 )
 
 // Encrypt encrypts data with a passphrase using ChaCha20-Poly1305.

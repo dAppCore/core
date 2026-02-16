@@ -11,8 +11,8 @@ package unifi
 import (
 	"os"
 
-	"forge.lthn.ai/core/cli/pkg/config"
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/config"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 const (

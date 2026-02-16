@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Signer defines the interface for code signing implementations.

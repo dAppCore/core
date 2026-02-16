@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"forge.lthn.ai/core/cli/internal/cmd/sdk"
+	"forge.lthn.ai/core/go/pkg/sdk"
 )
 
 // SDKRelease holds the result of an SDK release.

@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/build"
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/build"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // DockerBuilder builds Docker images.

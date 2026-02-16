@@ -3,8 +3,8 @@ package config
 import (
 	"context"
 
-	core "forge.lthn.ai/core/cli/pkg/framework/core"
-	"forge.lthn.ai/core/cli/pkg/io"
+	core "forge.lthn.ai/core/go/pkg/framework/core"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Service wraps Config as a framework service with lifecycle support.

@@ -3,7 +3,7 @@ package unifi
 import (
 	uf "github.com/unpoller/unifi/v5"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // GetSites returns all sites from the UniFi controller.

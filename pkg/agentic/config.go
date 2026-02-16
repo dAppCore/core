@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	errors "forge.lthn.ai/core/cli/pkg/framework/core"
-	"forge.lthn.ai/core/cli/pkg/io"
+	errors "forge.lthn.ai/core/go/pkg/framework/core"
+	"forge.lthn.ai/core/go/pkg/io"
 	"gopkg.in/yaml.v3"
 )
 

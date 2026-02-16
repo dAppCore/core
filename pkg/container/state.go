@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"forge.lthn.ai/core/cli/pkg/io"
+	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // State manages persistent container state.

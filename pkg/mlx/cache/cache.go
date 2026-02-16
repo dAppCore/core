@@ -3,7 +3,7 @@
 // Package cache provides KV cache implementations for transformer inference.
 package cache
 
-import "forge.lthn.ai/core/cli/pkg/mlx"
+import "forge.lthn.ai/core/go/pkg/mlx"
 
 // Cache manages key-value pairs for transformer attention layers.
 type Cache interface {

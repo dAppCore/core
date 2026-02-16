@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/forge"
-	"forge.lthn.ai/core/cli/pkg/jobrunner"
+	"forge.lthn.ai/core/go/pkg/forge"
+	"forge.lthn.ai/core/go/pkg/jobrunner"
 )
 
 // SendFixCommandHandler posts a comment on a PR asking for conflict or

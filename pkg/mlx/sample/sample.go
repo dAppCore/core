@@ -6,7 +6,7 @@ package sample
 import (
 	"math"
 
-	"forge.lthn.ai/core/cli/pkg/mlx"
+	"forge.lthn.ai/core/go/pkg/mlx"
 )
 
 // Sampler transforms logits into a sampled token index.

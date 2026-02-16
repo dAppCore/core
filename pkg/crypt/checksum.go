@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	core "forge.lthn.ai/core/cli/pkg/framework/core"
+	core "forge.lthn.ai/core/go/pkg/framework/core"
 )
 
 // SHA256File computes the SHA-256 checksum of a file and returns it as a hex string.

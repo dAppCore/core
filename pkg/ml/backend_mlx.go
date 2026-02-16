@@ -9,11 +9,11 @@ import (
 	"runtime"
 	"sync"
 
-	"forge.lthn.ai/core/cli/pkg/mlx"
-	"forge.lthn.ai/core/cli/pkg/mlx/cache"
-	"forge.lthn.ai/core/cli/pkg/mlx/model"
-	"forge.lthn.ai/core/cli/pkg/mlx/sample"
-	"forge.lthn.ai/core/cli/pkg/mlx/tokenizer"
+	"forge.lthn.ai/core/go/pkg/mlx"
+	"forge.lthn.ai/core/go/pkg/mlx/cache"
+	"forge.lthn.ai/core/go/pkg/mlx/model"
+	"forge.lthn.ai/core/go/pkg/mlx/sample"
+	"forge.lthn.ai/core/go/pkg/mlx/tokenizer"
 )
 
 // MLXBackend implements Backend for native Metal inference via mlx-c.

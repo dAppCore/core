@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/lab"
+	"forge.lthn.ai/core/go/pkg/lab"
 )
 
 type Forgejo struct {
