@@ -10,6 +10,7 @@ import "C"
 
 import (
 	"iter"
+	"runtime"
 	"unsafe"
 )
 
@@ -43,7 +44,9 @@ func LoadSafetensors(path string) iter.Seq2[string, *Array] {
 			}
 
 			name := C.GoString(key)
-			if !yield(name, &Array{ctx: value, desc: tensorDesc{name: name, numRefs: 1000}}) {
+			arr := &Array{ctx: value, name: name}
+			runtime.SetFinalizer(arr, finalizeArray)
+			if !yield(name, arr) {
 				break
 			}
 		}
