@@ -96,7 +96,56 @@ func New(opts ...Option) (*Service, error) {
 	}
 
 	s.registerTools(s.server)
+
+	// Register subsystem tools.
+	for _, sub := range s.subsystems {
+		sub.RegisterTools(s.server)
+	}
+
 	return s, nil
+}
+
+// Subsystems returns the registered subsystems.
+func (s *Service) Subsystems() []Subsystem {
+	return s.subsystems
+}
+
+// Shutdown gracefully shuts down all subsystems that support it.
+func (s *Service) Shutdown(ctx context.Context) error {
+	for _, sub := range s.subsystems {
+		if sh, ok := sub.(SubsystemWithShutdown); ok {
+			if err := sh.Shutdown(ctx); err != nil {
+				return fmt.Errorf("shutdown %s: %w", sub.Name(), err)
+			}
+		}
+	}
+	return nil
+}
+
+// WithProcessService configures the process management service.
+func WithProcessService(ps *process.Service) Option {
+	return func(s *Service) error {
+		s.processService = ps
+		return nil
+	}
+}
+
+// WithWSHub configures the WebSocket hub for real-time streaming.
+func WithWSHub(hub *ws.Hub) Option {
+	return func(s *Service) error {
+		s.wsHub = hub
+		return nil
+	}
+}
+
+// WSHub returns the WebSocket hub.
+func (s *Service) WSHub() *ws.Hub {
+	return s.wsHub
+}
+
+// ProcessService returns the process service.
+func (s *Service) ProcessService() *process.Service {
+	return s.processService
 }
 
 // registerTools adds file operation tools to the MCP server.
