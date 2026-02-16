@@ -79,9 +79,12 @@ type usageInfo struct {
 }
 
 func runServe(cmd *cli.Command, args []string) error {
-	// Create a backend — use HTTP backend pointing to configured API URL.
-	// On macOS with MLX build tag, this will use the native MLX backend instead.
-	backend := ml.NewHTTPBackend(apiURL, modelName)
+	// Try native MLX backend first (macOS arm64 with mlx tag + model-path set),
+	// fall back to HTTP proxy backend.
+	backend, err := createServeBackend()
+	if err != nil {
+		return err
+	}
 
 	mux := http.NewServeMux()
 
