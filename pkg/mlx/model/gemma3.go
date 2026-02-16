@@ -95,6 +95,9 @@ type MLP struct {
 	DownProj *mlx.Linear
 }
 
+// debugOnce is a temporary flag for shape debugging (remove after fix).
+var debugOnce = true
+
 // compiledGELU is a singleton for the compiled GELU function.
 var compiledGELU *mlx.CompiledFunc
 
@@ -355,6 +358,13 @@ func (a *Attention) forward(x *mlx.Array, c cache.Cache, B, L int32, isSliding b
 	q := a.QProj.Forward(x)
 	k := a.KProj.Forward(x)
 	v := a.VProj.Forward(x)
+
+	if debugOnce {
+		slog.Info("mlx: debug", "x_shape", x.Shape(), "q_shape", q.Shape(), "k_shape", k.Shape(), "v_shape", v.Shape(),
+			"B", B, "L", L, "num_heads", cfg.NumAttentionHeads, "num_kv_heads", cfg.NumKeyValueHeads, "head_dim", cfg.HeadDim,
+			"q_scales", a.QProj.Scales != nil)
+		debugOnce = false
+	}
 
 	// Reshape to [B, num_heads, L, head_dim]
 	q = mlx.AsStrided(q, []int32{B, cfg.NumAttentionHeads, L, cfg.HeadDim},

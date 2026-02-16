@@ -23,12 +23,14 @@ package mlx
 #cgo darwin LDFLAGS: -framework Foundation -framework Metal -framework Accelerate
 #cgo darwin LDFLAGS: -Wl,-rpath,${SRCDIR}/dist/lib
 
+#include <stdio.h>
 #include <stdlib.h>
 #include "mlx/c/mlx.h"
 
 static const char *last_mlx_error = NULL;
 
 static void mlx_go_error_handler(const char *msg, void *data) {
+    fprintf(stderr, "MLX ERROR: %s\n", msg);
     last_mlx_error = msg;
 }
 
