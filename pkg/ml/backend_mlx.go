@@ -87,6 +87,8 @@ func (b *MLXBackend) Generate(ctx context.Context, prompt string, opts GenOpts) 
 		}
 
 		logits := b.model.Forward(input, b.caches)
+		// Take last position: [B, L, V] → [B, V]
+		logits = lastPosition(logits)
 		next := sampler.Sample(logits)
 		mlx.Materialize(next)
 
@@ -99,6 +101,19 @@ func (b *MLXBackend) Generate(ctx context.Context, prompt string, opts GenOpts) 
 	}
 
 	return b.tok.Decode(output), nil
+}
+
+// lastPosition extracts the last sequence position from [B, L, V] logits → [B, V].
+func lastPosition(logits *mlx.Array) *mlx.Array {
+	shape := logits.Shape()
+	if len(shape) == 3 && shape[1] > 1 {
+		L := shape[1]
+		logits = mlx.Slice(logits, []int32{0, L - 1, 0}, []int32{shape[0], L, shape[2]})
+		logits = mlx.Reshape(logits, shape[0], shape[2])
+	} else if len(shape) == 3 && shape[1] == 1 {
+		logits = mlx.Reshape(logits, shape[0], shape[2])
+	}
+	return logits
 }
 
 // Chat formats messages and generates a response.
@@ -148,6 +163,7 @@ func (b *MLXBackend) Chat(ctx context.Context, messages []Message, opts GenOpts)
 		}
 
 		logits := b.model.Forward(input, b.caches)
+		logits = lastPosition(logits)
 		next := sampler.Sample(logits)
 		mlx.Materialize(next)
 

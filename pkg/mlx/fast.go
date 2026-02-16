@@ -48,7 +48,7 @@ func RoPE(x *Array, dims int, traditional bool, base float32, scale float32, off
 
 // ScaledDotProductAttention computes attention using a fused Metal kernel.
 func ScaledDotProductAttention(query, key, value *Array, scale float32, causal bool) *Array {
-	mode := "none"
+	mode := ""
 	if causal {
 		mode = "causal"
 	}
@@ -67,7 +67,7 @@ func ScaledDotProductAttention(query, key, value *Array, scale float32, causal b
 
 // ScaledDotProductAttentionWithMask computes attention with an explicit mask.
 func ScaledDotProductAttentionWithMask(query, key, value, mask *Array, scale float32) *Array {
-	cMode := C.CString("none")
+	cMode := C.CString("array")
 	defer C.free(unsafe.Pointer(cMode))
 
 	sinksArr := C.mlx_array_new()
