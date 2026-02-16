@@ -135,7 +135,7 @@ func Zeros(shape []int32, dtype DType) *Array {
 		cShape[i] = C.int(s)
 	}
 	tt := New("ZEROS")
-	C.mlx_zeros(&tt.ctx, unsafe.SliceData(cShape), C.int(len(cShape)), C.mlx_dtype(dtype), DefaultStream().ctx)
+	C.mlx_zeros(&tt.ctx, unsafe.SliceData(cShape), C.size_t(len(cShape)), C.mlx_dtype(dtype), DefaultStream().ctx)
 	return tt
 }
 

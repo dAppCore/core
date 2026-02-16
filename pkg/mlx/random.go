@@ -11,13 +11,13 @@ import "C"
 // Returns indices sampled according to the log-probability distribution along the last axis.
 func RandomCategorical(logprobs *Array) *Array {
 	out := New("RANDOM_CATEGORICAL", logprobs)
-	// shape for output: same as input but last dim removed
-	C.mlx_random_categorical_shape(
+	key := C.mlx_array_new()
+	defer C.mlx_array_free(key)
+	C.mlx_random_categorical(
 		&out.ctx,
 		logprobs.ctx,
-		C.int(-1),   // axis
-		nil, C.int(0), // empty shape = infer from input
-		nil,            // key (use default)
+		C.int(-1), // axis
+		key,       // null key = use default RNG
 		DefaultStream().ctx,
 	)
 	return out
@@ -32,12 +32,14 @@ func RandomUniform(low, high float32, shape []int32, dtype DType) *Array {
 	}
 	lo := FromValue(low)
 	hi := FromValue(high)
+	key := C.mlx_array_new()
+	defer C.mlx_array_free(key)
 	C.mlx_random_uniform(
 		&out.ctx,
 		lo.ctx, hi.ctx,
-		&cShape[0], C.int(len(cShape)),
+		&cShape[0], C.size_t(len(cShape)),
 		C.mlx_dtype(dtype),
-		nil, // key
+		key,
 		DefaultStream().ctx,
 	)
 	return out

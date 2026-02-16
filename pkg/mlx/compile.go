@@ -42,7 +42,7 @@ func goCompiledFunc(outputs *C.mlx_vector_array, inputs C.mlx_vector_array, payl
 	goInputs := make([]*Array, nInputs)
 	for i := 0; i < nInputs; i++ {
 		a := New("INPUT")
-		C.mlx_vector_array_get(&a.ctx, inputs, C.int(i))
+		C.mlx_vector_array_get(&a.ctx, inputs, C.size_t(i))
 		goInputs[i] = a
 	}
 

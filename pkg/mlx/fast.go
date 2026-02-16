@@ -26,8 +26,9 @@ func LayerNorm(x, weight, bias *Array, eps float32) *Array {
 
 // RoPE applies Rotary Position Embeddings using a fused Metal kernel.
 func RoPE(x *Array, dims int, traditional bool, base float32, scale float32, offset int) *Array {
-	freqs := New("")
-	out := New("FAST_ROPE", x, freqs)
+	out := New("FAST_ROPE", x)
+	freqs := C.mlx_array_new()
+	defer C.mlx_array_free(freqs)
 	C.mlx_fast_rope(
 		&out.ctx,
 		x.ctx,
@@ -39,43 +40,40 @@ func RoPE(x *Array, dims int, traditional bool, base float32, scale float32, off
 		},
 		C.float(scale),
 		C.int(offset),
-		freqs.ctx,
+		freqs,
 		DefaultStream().ctx,
 	)
 	return out
 }
 
 // ScaledDotProductAttention computes attention using a fused Metal kernel.
-// mask can be nil for causal masking, or set causal=true for auto causal mask.
 func ScaledDotProductAttention(query, key, value *Array, scale float32, causal bool) *Array {
-	var mask, sinks *Array
+	mode := "none"
 	if causal {
-		mask = New("")
-		sinks = New("")
-	} else {
-		mask = New("")
-		sinks = New("")
-	}
-
-	mode := "causal"
-	if !causal {
-		mode = "none"
+		mode = "causal"
 	}
 	cMode := C.CString(mode)
 	defer C.free(unsafe.Pointer(cMode))
 
-	out := New("FAST_SDPA", query, key, value, mask, sinks)
-	C.mlx_fast_scaled_dot_product_attention(&out.ctx, query.ctx, key.ctx, value.ctx, C.float(scale), cMode, mask.ctx, sinks.ctx, DefaultStream().ctx)
+	maskArr := C.mlx_array_new()
+	defer C.mlx_array_free(maskArr)
+	sinksArr := C.mlx_array_new()
+	defer C.mlx_array_free(sinksArr)
+
+	out := New("FAST_SDPA", query, key, value)
+	C.mlx_fast_scaled_dot_product_attention(&out.ctx, query.ctx, key.ctx, value.ctx, C.float(scale), cMode, maskArr, sinksArr, DefaultStream().ctx)
 	return out
 }
 
 // ScaledDotProductAttentionWithMask computes attention with an explicit mask.
 func ScaledDotProductAttentionWithMask(query, key, value, mask *Array, scale float32) *Array {
-	sinks := New("")
 	cMode := C.CString("none")
 	defer C.free(unsafe.Pointer(cMode))
 
-	out := New("FAST_SDPA", query, key, value, mask, sinks)
-	C.mlx_fast_scaled_dot_product_attention(&out.ctx, query.ctx, key.ctx, value.ctx, C.float(scale), cMode, mask.ctx, sinks.ctx, DefaultStream().ctx)
+	sinksArr := C.mlx_array_new()
+	defer C.mlx_array_free(sinksArr)
+
+	out := New("FAST_SDPA", query, key, value, mask)
+	C.mlx_fast_scaled_dot_product_attention(&out.ctx, query.ctx, key.ctx, value.ctx, C.float(scale), cMode, mask.ctx, sinksArr, DefaultStream().ctx)
 	return out
 }

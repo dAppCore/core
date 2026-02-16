@@ -8,6 +8,8 @@ package mlx
 */
 import "C"
 
+import "unsafe"
+
 // --- Element-wise arithmetic ---
 
 // Add returns element-wise a + b.
@@ -134,9 +136,13 @@ func Matmul(a, b *Array) *Array {
 // QuantizedMatmul performs quantized matrix multiplication.
 func QuantizedMatmul(x, w, scales, biases *Array, transpose bool, groupSize, bits int) *Array {
 	out := New("QMATMUL", x, w, scales, biases)
+	gs := C.mlx_optional_int{value: C.int(groupSize), has_value: C._Bool(true)}
+	b := C.mlx_optional_int{value: C.int(bits), has_value: C._Bool(true)}
+	mode := C.CString("default")
+	defer C.free(unsafe.Pointer(mode))
 	C.mlx_quantized_matmul(
 		&out.ctx, x.ctx, w.ctx, scales.ctx, biases.ctx,
-		C._Bool(transpose), C.int(groupSize), C.int(bits),
+		C._Bool(transpose), gs, b, mode,
 		DefaultStream().ctx,
 	)
 	return out
@@ -148,21 +154,21 @@ func QuantizedMatmul(x, w, scales, biases *Array, transpose bool, groupSize, bit
 func Softmax(a *Array) *Array {
 	out := New("SOFTMAX", a)
 	axis := []C.int{C.int(-1)}
-	C.mlx_softmax(&out.ctx, a.ctx, &axis[0], C.int(1), C._Bool(false), DefaultStream().ctx)
+	C.mlx_softmax_axes(&out.ctx, a.ctx, &axis[0], C.size_t(1), C._Bool(false), DefaultStream().ctx)
 	return out
 }
 
 // Argmax returns the index of the maximum value along an axis.
 func Argmax(a *Array, axis int, keepDims bool) *Array {
 	out := New("ARGMAX", a)
-	C.mlx_argmax(&out.ctx, a.ctx, C.int(axis), C._Bool(keepDims), DefaultStream().ctx)
+	C.mlx_argmax_axis(&out.ctx, a.ctx, C.int(axis), C._Bool(keepDims), DefaultStream().ctx)
 	return out
 }
 
 // TopK returns the top k values along the last axis.
 func TopK(a *Array, k int) *Array {
 	out := New("TOPK", a)
-	C.mlx_topk(&out.ctx, a.ctx, C.int(k), C.int(-1), DefaultStream().ctx)
+	C.mlx_topk_axis(&out.ctx, a.ctx, C.int(k), C.int(-1), DefaultStream().ctx)
 	return out
 }
 
@@ -170,7 +176,7 @@ func TopK(a *Array, k int) *Array {
 func Sum(a *Array, axis int, keepDims bool) *Array {
 	out := New("SUM", a)
 	axes := []C.int{C.int(axis)}
-	C.mlx_sum(&out.ctx, a.ctx, &axes[0], C.int(1), C._Bool(keepDims), DefaultStream().ctx)
+	C.mlx_sum_axes(&out.ctx, a.ctx, &axes[0], C.size_t(1), C._Bool(keepDims), DefaultStream().ctx)
 	return out
 }
 
@@ -178,7 +184,7 @@ func Sum(a *Array, axis int, keepDims bool) *Array {
 func Mean(a *Array, axis int, keepDims bool) *Array {
 	out := New("MEAN", a)
 	axes := []C.int{C.int(axis)}
-	C.mlx_mean(&out.ctx, a.ctx, &axes[0], C.int(1), C._Bool(keepDims), DefaultStream().ctx)
+	C.mlx_mean_axes(&out.ctx, a.ctx, &axes[0], C.size_t(1), C._Bool(keepDims), DefaultStream().ctx)
 	return out
 }
 
@@ -191,7 +197,7 @@ func Reshape(a *Array, shape ...int32) *Array {
 	for i, s := range shape {
 		cShape[i] = C.int(s)
 	}
-	C.mlx_reshape(&out.ctx, a.ctx, &cShape[0], C.int(len(cShape)), DefaultStream().ctx)
+	C.mlx_reshape(&out.ctx, a.ctx, &cShape[0], C.size_t(len(cShape)), DefaultStream().ctx)
 	return out
 }
 
@@ -199,13 +205,13 @@ func Reshape(a *Array, shape ...int32) *Array {
 func Transpose(a *Array, axes ...int) *Array {
 	out := New("TRANSPOSE", a)
 	if len(axes) == 0 {
-		C.mlx_transpose_all(&out.ctx, a.ctx, DefaultStream().ctx)
+		C.mlx_transpose(&out.ctx, a.ctx, DefaultStream().ctx)
 	} else {
 		cAxes := make([]C.int, len(axes))
 		for i, ax := range axes {
 			cAxes[i] = C.int(ax)
 		}
-		C.mlx_transpose(&out.ctx, a.ctx, &cAxes[0], C.int(len(cAxes)), DefaultStream().ctx)
+		C.mlx_transpose_axes(&out.ctx, a.ctx, &cAxes[0], C.size_t(len(cAxes)), DefaultStream().ctx)
 	}
 	return out
 }
@@ -213,8 +219,7 @@ func Transpose(a *Array, axes ...int) *Array {
 // ExpandDims inserts a new axis at the given position.
 func ExpandDims(a *Array, axis int) *Array {
 	out := New("EXPAND_DIMS", a)
-	axes := []C.int{C.int(axis)}
-	C.mlx_expand_dims(&out.ctx, a.ctx, &axes[0], C.int(1), DefaultStream().ctx)
+	C.mlx_expand_dims(&out.ctx, a.ctx, C.int(axis), DefaultStream().ctx)
 	return out
 }
 
@@ -225,7 +230,7 @@ func Squeeze(a *Array, axes ...int) *Array {
 	for i, ax := range axes {
 		cAxes[i] = C.int(ax)
 	}
-	C.mlx_squeeze(&out.ctx, a.ctx, &cAxes[0], C.int(len(cAxes)), DefaultStream().ctx)
+	C.mlx_squeeze_axes(&out.ctx, a.ctx, &cAxes[0], C.size_t(len(cAxes)), DefaultStream().ctx)
 	return out
 }
 
@@ -241,7 +246,7 @@ func Concatenate(arrays []*Array, axis int) *Array {
 	}
 
 	out := New("CONCAT", inputs...)
-	C.mlx_concatenate(&out.ctx, vector, C.int(axis), DefaultStream().ctx)
+	C.mlx_concatenate_axis(&out.ctx, vector, C.int(axis), DefaultStream().ctx)
 	return out
 }
 
@@ -252,7 +257,7 @@ func BroadcastTo(a *Array, shape []int32) *Array {
 	for i, s := range shape {
 		cShape[i] = C.int(s)
 	}
-	C.mlx_broadcast_to(&out.ctx, a.ctx, &cShape[0], C.int(len(cShape)), DefaultStream().ctx)
+	C.mlx_broadcast_to(&out.ctx, a.ctx, &cShape[0], C.size_t(len(cShape)), DefaultStream().ctx)
 	return out
 }
 
@@ -270,11 +275,11 @@ func AsStrided(a *Array, shape []int32, strides []int64, offset int64) *Array {
 	for i, s := range shape {
 		cShape[i] = C.int(s)
 	}
-	cStrides := make([]C.size_t, len(strides))
+	cStrides := make([]C.int64_t, len(strides))
 	for i, s := range strides {
-		cStrides[i] = C.size_t(s)
+		cStrides[i] = C.int64_t(s)
 	}
-	C.mlx_as_strided(&out.ctx, a.ctx, &cShape[0], C.int(len(cShape)), &cStrides[0], C.int(len(cStrides)), C.size_t(offset), DefaultStream().ctx)
+	C.mlx_as_strided(&out.ctx, a.ctx, &cShape[0], C.size_t(len(cShape)), &cStrides[0], C.size_t(len(cStrides)), C.size_t(offset), DefaultStream().ctx)
 	return out
 }
 
@@ -295,7 +300,7 @@ func Where(condition, a, b *Array) *Array {
 // Argpartition partially sorts and returns indices for top-k selection.
 func Argpartition(a *Array, kth, axis int) *Array {
 	out := New("ARGPARTITION", a)
-	C.mlx_argpartition(&out.ctx, a.ctx, C.int(kth), C.int(axis), DefaultStream().ctx)
+	C.mlx_argpartition_axis(&out.ctx, a.ctx, C.int(kth), C.int(axis), DefaultStream().ctx)
 	return out
 }
 
