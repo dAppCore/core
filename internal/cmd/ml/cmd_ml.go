@@ -11,6 +11,17 @@
 //   - core ml agent: Run the scoring agent daemon
 //   - core ml worker: Run a distributed worker node
 //   - core ml serve: Start OpenAI-compatible inference server
+//   - core ml inventory: Show DuckDB table inventory with stats
+//   - core ml query: Run ad-hoc SQL against DuckDB
+//   - core ml metrics: Push golden set stats to InfluxDB
+//   - core ml ingest: Ingest benchmark scores and training logs to InfluxDB
+//   - core ml normalize: Deduplicate seeds into expansion prompts
+//   - core ml seed-influx: Migrate golden set from DuckDB to InfluxDB
+//   - core ml consolidate: Pull and merge response JSONL files from M3
+//   - core ml import-all: Import all LEM data into DuckDB
+//   - core ml approve: Filter scored expansions into training JSONL
+//   - core ml publish: Upload Parquet dataset to HuggingFace Hub
+//   - core ml coverage: Analyze seed coverage by region and domain
 package ml
 
 import (
@@ -40,6 +51,17 @@ func AddMLCommands(root *cli.Command) {
 	mlCmd.AddCommand(agentCmd)
 	mlCmd.AddCommand(workerCmd)
 	mlCmd.AddCommand(serveCmd)
+	mlCmd.AddCommand(inventoryCmd)
+	mlCmd.AddCommand(queryCmd)
+	mlCmd.AddCommand(metricsCmd)
+	mlCmd.AddCommand(ingestCmd)
+	mlCmd.AddCommand(normalizeCmd)
+	mlCmd.AddCommand(seedInfluxCmd)
+	mlCmd.AddCommand(consolidateCmd)
+	mlCmd.AddCommand(importCmd)
+	mlCmd.AddCommand(approveCmd)
+	mlCmd.AddCommand(publishCmd)
+	mlCmd.AddCommand(coverageCmd)
 	root.AddCommand(mlCmd)
 }
 

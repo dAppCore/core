@@ -45,6 +45,23 @@ func (db *DB) Close() error {
 	return db.conn.Close()
 }
 
+// Path returns the database file path.
+func (db *DB) Path() string {
+	return db.path
+}
+
+// Exec executes a query without returning rows.
+func (db *DB) Exec(query string, args ...interface{}) error {
+	_, err := db.conn.Exec(query, args...)
+	return err
+}
+
+// QueryRowScan executes a query expected to return at most one row and scans
+// the result into dest. It is a convenience wrapper around sql.DB.QueryRow.
+func (db *DB) QueryRowScan(query string, dest interface{}, args ...interface{}) error {
+	return db.conn.QueryRow(query, args...).Scan(dest)
+}
+
 // GoldenSetRow represents one row from the golden_set table.
 type GoldenSetRow struct {
 	Idx       int
