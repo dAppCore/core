@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"forge.lthn.ai/core/cli/pkg/mcp/ide"
-	"forge.lthn.ai/core/cli/pkg/ws"
+	"forge.lthn.ai/core/go/pkg/mcp/ide"
+	"forge.lthn.ai/core/go/pkg/ws"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

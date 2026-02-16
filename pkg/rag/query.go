@@ -6,7 +6,7 @@ import (
 	"html"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // QueryConfig holds query configuration.

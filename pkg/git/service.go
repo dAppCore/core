@@ -3,7 +3,7 @@ package git
 import (
 	"context"
 
-	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/go/pkg/framework"
 )
 
 // Queries for git service

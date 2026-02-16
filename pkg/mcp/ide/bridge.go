@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"forge.lthn.ai/core/go/pkg/ws"
 	"github.com/gorilla/websocket"
-	"forge.lthn.ai/core/cli/pkg/ws"
 )
 
 // BridgeMessage is the wire format between the IDE and Laravel.

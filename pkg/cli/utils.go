@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/i18n"
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/i18n"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // GhAuthenticated checks if the GitHub CLI is authenticated.

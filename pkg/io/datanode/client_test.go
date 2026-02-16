@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	coreio "forge.lthn.ai/core/cli/pkg/io"
+	coreio "forge.lthn.ai/core/go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

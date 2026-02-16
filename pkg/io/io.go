@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	coreerr "forge.lthn.ai/core/cli/pkg/framework/core"
-	"forge.lthn.ai/core/cli/pkg/io/local"
+	coreerr "forge.lthn.ai/core/go/pkg/framework/core"
+	"forge.lthn.ai/core/go/pkg/io/local"
 )
 
 // Medium defines the standard interface for a storage backend.

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/log"
-	"forge.lthn.ai/core/cli/pkg/process"
+	"forge.lthn.ai/core/go/pkg/log"
+	"forge.lthn.ai/core/go/pkg/process"
 )
 
 // LlamaBackend manages a llama-server process and delegates HTTP calls to it.

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/log"
-	"forge.lthn.ai/core/cli/pkg/ml"
+	"forge.lthn.ai/core/go/pkg/log"
+	"forge.lthn.ai/core/go/pkg/ml"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -58,11 +58,11 @@ func (m *MLSubsystem) RegisterTools(server *mcp.Server) {
 
 // MLGenerateInput contains parameters for text generation.
 type MLGenerateInput struct {
-	Prompt      string  `json:"prompt"`                 // The prompt to generate from
-	Backend     string  `json:"backend,omitempty"`      // Backend name (default: service default)
-	Model       string  `json:"model,omitempty"`        // Model override
-	Temperature float64 `json:"temperature,omitempty"`  // Sampling temperature
-	MaxTokens   int     `json:"max_tokens,omitempty"`   // Maximum tokens to generate
+	Prompt      string  `json:"prompt"`                // The prompt to generate from
+	Backend     string  `json:"backend,omitempty"`     // Backend name (default: service default)
+	Model       string  `json:"model,omitempty"`       // Model override
+	Temperature float64 `json:"temperature,omitempty"` // Sampling temperature
+	MaxTokens   int     `json:"max_tokens,omitempty"`  // Maximum tokens to generate
 }
 
 // MLGenerateOutput contains the generation result.
@@ -74,9 +74,9 @@ type MLGenerateOutput struct {
 
 // MLScoreInput contains parameters for scoring a response.
 type MLScoreInput struct {
-	Prompt   string `json:"prompt"`             // The original prompt
-	Response string `json:"response"`           // The model response to score
-	Suites   string `json:"suites,omitempty"`   // Comma-separated suites (default: heuristic)
+	Prompt   string `json:"prompt"`           // The original prompt
+	Response string `json:"response"`         // The model response to score
+	Suites   string `json:"suites,omitempty"` // Comma-separated suites (default: heuristic)
 }
 
 // MLScoreOutput contains the scoring result.

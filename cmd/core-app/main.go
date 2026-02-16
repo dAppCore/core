@@ -11,7 +11,7 @@ import (
 	"log"
 	"runtime"
 
-	"forge.lthn.ai/core/cli/cmd/core-app/icons"
+	"forge.lthn.ai/core/go/cmd/core-app/icons"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

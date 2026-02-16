@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // IngestConfig holds ingestion configuration.

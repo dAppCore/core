@@ -33,7 +33,7 @@ func DefaultCIConfig() *CIConfig {
 	return &CIConfig{
 		Tap:            "host-uk/tap",
 		Formula:        "core",
-		ScoopBucket:    "https://github.com/host-uk/scoop-bucket.git",
+		ScoopBucket:    "https://https://forge.lthn.ai/core/scoop-bucket.git",
 		ChocolateyPkg:  "core-cli",
 		Repository:     "host-uk/core",
 		DefaultVersion: "dev",

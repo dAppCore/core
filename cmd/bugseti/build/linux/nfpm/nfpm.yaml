@@ -12,7 +12,7 @@ description: |
   it pulls OSS issues from GitHub, AI prepares context,
   you fix bugs, and it auto-submits PRs.
 vendor: "Lethean"
-homepage: "https://forge.lthn.ai/core/cli"
+homepage: "https://forge.lthn.ai/core/go"
 license: "MIT"
 
 contents:

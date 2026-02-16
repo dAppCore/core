@@ -13,9 +13,9 @@ import (
 	"runtime"
 	"strings"
 
-	"forge.lthn.ai/core/cli/cmd/core-ide/icons"
-	"forge.lthn.ai/core/cli/pkg/mcp/ide"
 	"forge.lthn.ai/core/cli/pkg/ws"
+	"forge.lthn.ai/core/go/cmd/core-ide/icons"
+	"forge.lthn.ai/core/go/pkg/mcp/ide"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

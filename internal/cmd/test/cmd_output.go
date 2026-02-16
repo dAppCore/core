@@ -173,7 +173,7 @@ func shortenPackageName(name string) string {
 	// Remove common prefixes
 	prefixes := []string{
 		"forge.lthn.ai/core/cli/",
-		"github.com/host-uk/",
+		"forge.lthn.ai/core/gui/",
 	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(name, prefix) {

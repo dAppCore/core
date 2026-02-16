@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/ai"
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/ai"
+	"forge.lthn.ai/core/go/pkg/log"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

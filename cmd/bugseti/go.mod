@@ -1,23 +1,23 @@
-module forge.lthn.ai/core/cli/cmd/bugseti
+module forge.lthn.ai/core/go/cmd/bugseti
 
 go 1.25.5
 
 require (
-	forge.lthn.ai/core/cli v0.0.0
-	forge.lthn.ai/core/cli/internal/bugseti v0.0.0
-	forge.lthn.ai/core/cli/internal/bugseti/updater v0.0.0
+	forge.lthn.ai/core/go v0.0.0
+	forge.lthn.ai/core/go/internal/bugseti v0.0.0
+	forge.lthn.ai/core/go/internal/bugseti/updater v0.0.0
 	github.com/Snider/Borg v0.2.0
-	forge.lthn.ai/core/cli v0.0.0
-	forge.lthn.ai/core/cli/internal/bugseti v0.0.0
-	forge.lthn.ai/core/cli/internal/bugseti/updater v0.0.0
+	forge.lthn.ai/core/go v0.0.0
+	forge.lthn.ai/core/go/internal/bugseti v0.0.0
+	forge.lthn.ai/core/go/internal/bugseti/updater v0.0.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.64
 )
 
-replace forge.lthn.ai/core/cli => ../..
+replace forge.lthn.ai/core/go => ../..
 
-replace forge.lthn.ai/core/cli/internal/bugseti => ../../internal/bugseti
+replace forge.lthn.ai/core/go/internal/bugseti => ../../internal/bugseti
 
-replace forge.lthn.ai/core/cli/internal/bugseti/updater => ../../internal/bugseti/updater
+replace forge.lthn.ai/core/go/internal/bugseti/updater => ../../internal/bugseti/updater
 
 require (
 	codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2 v2.2.0 // indirect

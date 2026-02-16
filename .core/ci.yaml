@@ -6,7 +6,7 @@ tap: host-uk/tap
 formula: core
 
 # Scoop (Windows)
-scoop_bucket: https://github.com/host-uk/scoop-bucket.git
+scoop_bucket: https://https://forge.lthn.ai/core/scoop-bucket.git
 
 # Chocolatey (Windows)
 chocolatey_pkg: core-cli

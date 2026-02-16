@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"forge.lthn.ai/core/cli/pkg/framework"
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/framework"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // LogLevel aliases for backwards compatibility.

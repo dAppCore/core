@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"forge.lthn.ai/core/cli/pkg/framework"
+	"forge.lthn.ai/core/go/pkg/framework"
 )
 
 // Service manages ML inference backends and scoring with Core lifecycle.

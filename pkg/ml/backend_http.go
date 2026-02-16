@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"forge.lthn.ai/core/cli/pkg/log"
+	"forge.lthn.ai/core/go/pkg/log"
 )
 
 // HTTPBackend talks to an OpenAI-compatible chat completions API.

@@ -2,7 +2,4 @@ go 1.25.5
 
 use (
 	.
-	./internal/bugseti
-	./internal/bugseti/updater
-	./internal/core-ide
 )

@@ -3,7 +3,7 @@ package ide
 import (
 	"context"
 
-	"forge.lthn.ai/core/cli/pkg/ws"
+	"forge.lthn.ai/core/go/pkg/ws"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

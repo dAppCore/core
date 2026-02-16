@@ -16,9 +16,9 @@ import (
 	"runtime"
 	"strings"
 
-	"forge.lthn.ai/core/cli/cmd/bugseti/icons"
-	"forge.lthn.ai/core/cli/internal/bugseti"
-	"forge.lthn.ai/core/cli/internal/bugseti/updater"
+	"forge.lthn.ai/core/go/cmd/bugseti/icons"
+	"forge.lthn.ai/core/go/internal/bugseti"
+	"forge.lthn.ai/core/go/internal/bugseti/updater"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )

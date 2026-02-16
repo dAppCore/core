@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
-	coreerr "forge.lthn.ai/core/cli/pkg/framework/core"
+	coreerr "forge.lthn.ai/core/go/pkg/framework/core"
 )
 
 // s3API is the subset of the S3 client API used by this package.
