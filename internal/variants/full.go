@@ -44,6 +44,7 @@ import (
 	_ "forge.lthn.ai/core/cli/internal/cmd/gitcmd"
 	_ "forge.lthn.ai/core/cli/internal/cmd/go"
 	_ "forge.lthn.ai/core/cli/internal/cmd/help"
+	_ "forge.lthn.ai/core/cli/internal/cmd/lab"
 	_ "forge.lthn.ai/core/cli/internal/cmd/mcpcmd"
 	_ "forge.lthn.ai/core/cli/internal/cmd/ml"
 	_ "forge.lthn.ai/core/cli/internal/cmd/monitor"

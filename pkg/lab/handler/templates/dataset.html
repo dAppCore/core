@@ -1,0 +1,392 @@
+{{template "head" "Dataset"}}
+{{template "nav" "dataset"}}
+
+<style>
+.ds-layout{display:flex;gap:1.5rem;min-height:calc(100vh - 120px)}
+.ds-sidebar{width:200px;flex-shrink:0}
+.ds-sidebar .sidebar-title{font-size:.6875rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;padding:0 .75rem}
+.ds-sidebar a{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-radius:6px;color:var(--muted);font-size:.8125rem;transition:all .2s;text-decoration:none;margin-bottom:2px}
+.ds-sidebar a:hover{color:var(--text);background:var(--bg)}
+.ds-sidebar a.active{color:var(--text);background:var(--bg);border-left:3px solid var(--accent)}
+.ds-sidebar .count{font-size:.6875rem;color:var(--muted);font-family:"SF Mono",Consolas,monospace;margin-left:auto}
+.ds-main{flex:1;min-width:0}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat-card{padding:1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.stat-card h3{font-size:.6875rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.375rem}
+.stat-card .value{font-size:1.5rem;font-weight:700;line-height:1.2}
+.stat-card .sub{font-size:.75rem;color:var(--muted);margin-top:.25rem}
+.ds-table-section{margin-bottom:2rem}
+.ds-table-section h3{font-size:.875rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.625rem}
+@media(max-width:768px){.ds-layout{flex-direction:column}.ds-sidebar{width:100%;display:flex;gap:.5rem;flex-wrap:wrap}.ds-sidebar .sidebar-title{width:100%}.ds-sidebar a{flex:0 0 auto}}
+</style>
+
+<div class="ds-layout">
+
+{{/* -- Sidebar -- */}}
+<div class="ds-sidebar">
+  <div class="sidebar-title">Dataset</div>
+  <a href="/dataset"{{if not .SelectedView}} class="active"{{end}}>Overview</a>
+  <a href="/dataset?view=golden"{{if eq .SelectedView "golden"}} class="active"{{end}}>
+    Golden Set
+    {{if .GoldenSet.Available}}<span class="count">{{fmtInt .GoldenSet.TotalExamples}}</span>{{end}}
+  </a>
+  <a href="/dataset?view=seeds"{{if eq .SelectedView "seeds"}} class="active"{{end}}>
+    Seeds
+    {{if .Dataset.Available}}<span class="count">{{fmtInt (tableRows .Dataset.Tables "seeds")}}</span>{{end}}
+  </a>
+  <a href="/dataset?view=domains"{{if eq .SelectedView "domains"}} class="active"{{end}}>Domains</a>
+  <a href="/dataset?view=voices"{{if eq .SelectedView "voices"}} class="active"{{end}}>Voices</a>
+  <a href="/dataset?view=expansion"{{if eq .SelectedView "expansion"}} class="active"{{end}}>
+    Expansion
+    {{if .Dataset.Available}}<span class="count">{{fmtInt (tableRows .Dataset.Tables "expansion_prompts")}}</span>{{end}}
+  </a>
+  <a href="/dataset?view=export"{{if eq .SelectedView "export"}} class="active"{{end}}>Export</a>
+</div>
+
+{{/* -- Main content -- */}}
+<div class="ds-main">
+
+{{if not .SelectedView}}
+{{/* -- Overview -- */}}
+<h2 class="section-title">LEM Dataset</h2>
+
+<div class="stat-grid">
+  {{if .GoldenSet.Available}}
+  <a href="/dataset?view=golden" style="text-decoration:none;color:inherit">
+  <div class="stat-card">
+    <h3>Golden Set</h3>
+    <div class="value">{{fmtInt .GoldenSet.TotalExamples}}</div>
+    <div class="progress-bar"><div class="fill" style="width:{{pct .GoldenSet.CompletionPct}}%;background:var(--green)"></div></div>
+    <div class="sub">{{pct .GoldenSet.CompletionPct}}% of {{fmtInt .GoldenSet.TargetTotal}} target</div>
+  </div>
+  </a>
+  {{end}}
+
+  {{if .Dataset.Available}}
+  <a href="/dataset?view=seeds" style="text-decoration:none;color:inherit">
+  <div class="stat-card">
+    <h3>Seeds</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "seeds")}}</div>
+    <div class="sub">Source prompts for generation</div>
+  </div>
+  </a>
+
+  <a href="/dataset?view=expansion" style="text-decoration:none;color:inherit">
+  <div class="stat-card">
+    <h3>Expansion Prompts</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "expansion_prompts")}}</div>
+    <div class="sub">Ready for model expansion</div>
+  </div>
+  </a>
+
+  <div class="stat-card">
+    <h3>Training Examples</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "training_examples")}}</div>
+    <div class="sub">Chat-format JSONL splits</div>
+  </div>
+  {{end}}
+
+  {{if .GoldenSet.Available}}
+  <a href="/dataset?view=domains" style="text-decoration:none;color:inherit">
+  <div class="stat-card">
+    <h3>Domains</h3>
+    <div class="value">{{.GoldenSet.Domains}}</div>
+    <div class="sub">Topic categories</div>
+  </div>
+  </a>
+
+  <a href="/dataset?view=voices" style="text-decoration:none;color:inherit">
+  <div class="stat-card">
+    <h3>Voices</h3>
+    <div class="value">{{.GoldenSet.Voices}}</div>
+    <div class="sub">Persona types</div>
+  </div>
+  </a>
+
+  <div class="stat-card">
+    <h3>Avg Generation</h3>
+    <div class="value">{{pct .GoldenSet.AvgGenTime}}s</div>
+    <div class="sub">{{pct .GoldenSet.AvgResponseChars}} avg chars</div>
+  </div>
+  {{end}}
+</div>
+
+{{if .Dataset.Available}}
+<h2 class="section-title">DuckDB Tables</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>Table</th><th style="text-align:right">Rows</th><th style="width:50%">Size</th></tr></thead>
+    <tbody>
+    {{$total := totalRows .Dataset.Tables}}
+    {{range .Dataset.Tables}}
+    <tr>
+      <td><code>{{.Name}}</code></td>
+      <td style="text-align:right">{{fmtInt .Rows}}</td>
+      <td>
+        <div class="progress-bar" style="height:6px"><div class="fill" style="width:{{pct (pctOf .Rows $total)}}%"></div></div>
+      </td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+{{else if eq .SelectedView "golden"}}
+{{/* -- Golden Set detail -- */}}
+<h2 class="section-title">Golden Set</h2>
+
+{{if not .GoldenSet.Available}}
+<div class="card empty"><p>No golden set data available.</p></div>
+{{else}}
+<div class="stat-grid">
+  <div class="stat-card">
+    <h3>Total Examples</h3>
+    <div class="value">{{fmtInt .GoldenSet.TotalExamples}}</div>
+    <div class="progress-bar"><div class="fill" style="width:{{pct .GoldenSet.CompletionPct}}%;background:var(--green)"></div></div>
+    <div class="sub">{{pct .GoldenSet.CompletionPct}}% of {{fmtInt .GoldenSet.TargetTotal}}</div>
+  </div>
+  <div class="stat-card">
+    <h3>Domains</h3>
+    <div class="value">{{.GoldenSet.Domains}}</div>
+    <div class="sub">Unique topic domains</div>
+  </div>
+  <div class="stat-card">
+    <h3>Voices</h3>
+    <div class="value">{{.GoldenSet.Voices}}</div>
+    <div class="sub">Persona voice types</div>
+  </div>
+  <div class="stat-card">
+    <h3>Avg Generation</h3>
+    <div class="value">{{pct .GoldenSet.AvgGenTime}}s</div>
+    <div class="sub">{{pct .GoldenSet.AvgResponseChars}} avg chars</div>
+  </div>
+</div>
+
+{{if .GoldenSet.Workers}}
+<div class="ds-table-section">
+  <h3>Workers</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Worker</th><th style="text-align:right">Generations</th></tr></thead>
+      <tbody>
+      {{range .GoldenSet.Workers}}
+      <tr>
+        <td><code>{{.Worker}}</code></td>
+        <td style="text-align:right">{{fmtInt .Count}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{end}}
+{{end}}
+
+{{else if eq .SelectedView "seeds"}}
+{{/* -- Seeds -- */}}
+<h2 class="section-title">Seeds</h2>
+<div class="stat-grid">
+  {{if .Dataset.Available}}
+  <div class="stat-card">
+    <h3>Total Seeds</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "seeds")}}</div>
+    <div class="sub">Source prompts in DuckDB</div>
+  </div>
+  <div class="stat-card">
+    <h3>Prompts Generated</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "prompts")}}</div>
+    <div class="sub">Processed from seeds</div>
+  </div>
+  {{else}}
+  <div class="stat-card">
+    <h3>Seeds</h3>
+    <div class="value">87,338</div>
+    <div class="sub">Push stats via <code>dataset_stats</code></div>
+  </div>
+  {{end}}
+</div>
+<div class="card">
+  <p style="color:var(--muted);padding:1rem">Seed browser coming soon. Use <code>lem export --seeds</code> to explore locally.</p>
+</div>
+
+{{else if eq .SelectedView "domains"}}
+{{/* -- Domains -- */}}
+<h2 class="section-title">Domains</h2>
+
+{{if and .GoldenSet.Available .GoldenSet.DomainStats}}
+<div class="stat-grid">
+  <div class="stat-card">
+    <h3>Total Domains</h3>
+    <div class="value">{{.GoldenSet.Domains}}</div>
+    <div class="sub">Unique topic categories</div>
+  </div>
+  <div class="stat-card">
+    <h3>Total Examples</h3>
+    <div class="value">{{fmtInt .GoldenSet.TotalExamples}}</div>
+    <div class="sub">Across all domains</div>
+  </div>
+</div>
+
+<div class="ds-table-section">
+  <h3>Distribution (top 25)</h3>
+  <div class="card" style="overflow-x:auto;padding:1rem">
+    {{domainChart .GoldenSet.DomainStats}}
+  </div>
+</div>
+
+<div class="ds-table-section">
+  <h3>All Domains</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Domain</th><th style="text-align:right">Count</th><th style="text-align:right">Avg Gen Time</th><th style="width:40%">Coverage</th></tr></thead>
+      <tbody>
+      {{range .GoldenSet.DomainStats}}
+      <tr>
+        <td><code>{{.Domain}}</code></td>
+        <td style="text-align:right">{{.Count}}</td>
+        <td style="text-align:right">{{pct .AvgGenTime}}s</td>
+        <td>
+          <div class="progress-bar" style="height:6px"><div class="fill" style="width:{{pct (pctOf .Count $.GoldenSet.TotalExamples)}}%"></div></div>
+        </td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{else}}
+<div class="card empty"><p>No domain data available.</p></div>
+{{end}}
+
+{{else if eq .SelectedView "voices"}}
+{{/* -- Voices -- */}}
+<h2 class="section-title">Voices</h2>
+
+{{if and .GoldenSet.Available .GoldenSet.VoiceStats}}
+<div class="stat-grid">
+  <div class="stat-card">
+    <h3>Total Voices</h3>
+    <div class="value">{{.GoldenSet.Voices}}</div>
+    <div class="sub">Persona types</div>
+  </div>
+  <div class="stat-card">
+    <h3>Total Examples</h3>
+    <div class="value">{{fmtInt .GoldenSet.TotalExamples}}</div>
+    <div class="sub">Across all voices</div>
+  </div>
+</div>
+
+<div class="ds-table-section">
+  <h3>Distribution</h3>
+  <div class="card" style="overflow-x:auto;padding:1rem">
+    {{voiceChart .GoldenSet.VoiceStats}}
+  </div>
+</div>
+
+<div class="ds-table-section">
+  <h3>Voice Details</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Voice</th><th style="text-align:right">Count</th><th style="text-align:right">Avg Chars</th><th style="text-align:right">Avg Gen Time</th></tr></thead>
+      <tbody>
+      {{range .GoldenSet.VoiceStats}}
+      <tr>
+        <td><code>{{.Voice}}</code></td>
+        <td style="text-align:right">{{.Count}}</td>
+        <td style="text-align:right">{{pct .AvgChars}}</td>
+        <td style="text-align:right">{{pct .AvgGenTime}}s</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{else}}
+<div class="card empty"><p>No voice data available.</p></div>
+{{end}}
+
+{{else if eq .SelectedView "expansion"}}
+{{/* -- Expansion -- */}}
+<h2 class="section-title">Expansion</h2>
+<div class="stat-grid">
+  {{if .Dataset.Available}}
+  <div class="stat-card">
+    <h3>Expansion Prompts</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "expansion_prompts")}}</div>
+    <div class="sub">Deduped, ready for generation</div>
+  </div>
+  <div class="stat-card">
+    <h3>Gemini Responses</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "gemini_responses")}}</div>
+    <div class="sub">Reference responses for scoring</div>
+  </div>
+  <div class="stat-card">
+    <h3>Benchmark Questions</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "benchmark_questions")}}</div>
+    <div class="sub">Capability test set</div>
+  </div>
+  <div class="stat-card">
+    <h3>Benchmark Results</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "benchmark_results")}}</div>
+    <div class="sub">Scored responses</div>
+  </div>
+  {{else}}
+  <div class="stat-card">
+    <h3>Expansion Prompts</h3>
+    <div class="value">46,331</div>
+    <div class="sub">Push stats via <code>dataset_stats</code></div>
+  </div>
+  {{end}}
+</div>
+<div class="card">
+  <p style="color:var(--muted);padding:1rem">Expansion pipeline: use <code>lem expand</code> to generate responses from trained models, then <code>lem score</code> to filter by quality.</p>
+</div>
+
+{{else if eq .SelectedView "export"}}
+{{/* -- Export -- */}}
+<h2 class="section-title">Export</h2>
+<div class="stat-grid">
+  {{if .Dataset.Available}}
+  <div class="stat-card">
+    <h3>Training Examples</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "training_examples")}}</div>
+    <div class="sub">Chat-format JSONL</div>
+  </div>
+  <div class="stat-card">
+    <h3>Validations</h3>
+    <div class="value">{{fmtInt (tableRows .Dataset.Tables "validations")}}</div>
+    <div class="sub">Quality checks</div>
+  </div>
+  {{end}}
+</div>
+<div class="card">
+  <p style="color:var(--muted);padding:1rem">Export formats:</p>
+  <table>
+    <thead><tr><th>Format</th><th>Command</th><th>Use</th></tr></thead>
+    <tbody>
+    <tr>
+      <td><code>JSONL (MLX)</code></td>
+      <td><code>lem export --format jsonl</code></td>
+      <td>MLX LoRA training (train/valid/test splits)</td>
+    </tr>
+    <tr>
+      <td><code>Parquet</code></td>
+      <td><code>lem export --format parquet</code></td>
+      <td>HuggingFace dataset upload</td>
+    </tr>
+    <tr>
+      <td><code>CSV</code></td>
+      <td><code>lem export --format csv</code></td>
+      <td>Spreadsheet analysis</td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+
+{{end}}
+
+</div>
+</div>
+
+{{template "footer"}}

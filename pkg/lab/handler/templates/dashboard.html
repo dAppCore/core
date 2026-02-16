@@ -1,0 +1,115 @@
+{{template "head" "Dashboard"}}
+{{template "nav" "dashboard"}}
+
+<style>
+.stat-row{display:flex;align-items:center;gap:.5rem;margin-top:.5rem}
+.stat-label{font-size:.6875rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;width:2.5rem;flex-shrink:0}
+.stat-row .progress-bar{flex:1;margin:0;height:6px}
+.stat-val{font-size:.75rem;color:var(--text);white-space:nowrap;min-width:4.5rem;text-align:right}
+.stat-row .fill-warn{background:var(--yellow)}
+.stat-row .fill-crit{background:var(--red)}
+.machine-card{min-width:280px}
+.machine-card .sub{margin-top:.5rem}
+</style>
+
+<div class="grid">
+  {{range .Machines}}
+  <div class="card machine-card">
+    <h3>{{.Name}}</h3>
+    <div class="value {{statusClass (lower (printf "%s" .Status))}}">
+      <span class="status-dot"></span>
+      <span class="label">{{.Status}}</span>
+    </div>
+    {{if eq (printf "%s" .Status) "ok"}}
+    <div class="stat-row">
+      <span class="stat-label">CPU</span>
+      <div class="progress-bar"><div class="fill" style="width:{{cpuPct .Load1 .CPUCores}}%"></div></div>
+      <span class="stat-val">{{pct .Load1}}/{{.CPUCores}}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">RAM</span>
+      <div class="progress-bar"><div class="fill{{if gt .MemUsedPct 90.0}} fill-warn{{end}}" style="width:{{pct .MemUsedPct}}%"></div></div>
+      <span class="stat-val">{{printf "%.0f" .MemUsedGB}}/{{fmtGB .MemTotalGB}}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Disk</span>
+      <div class="progress-bar"><div class="fill{{if gt .DiskUsedPct 85.0}} fill-warn{{end}}{{if gt .DiskUsedPct 95.0}} fill-crit{{end}}" style="width:{{pct .DiskUsedPct}}%"></div></div>
+      <span class="stat-val">{{fmtGB .DiskUsedGB}}/{{fmtGB .DiskTotalGB}}</span>
+    </div>
+    {{if .GPUName}}
+    <div class="stat-row">
+      <span class="stat-label">GPU</span>
+      {{if gt .GPUVRAMTotal 0.0}}
+      <div class="progress-bar"><div class="fill{{if gt .GPUVRAMPct 90.0}} fill-warn{{end}}" style="width:{{pct .GPUVRAMPct}}%"></div></div>
+      <span class="stat-val">{{printf "%.1f" .GPUVRAMUsed}}/{{printf "%.0f" .GPUVRAMTotal}}G</span>
+      {{else}}
+      <span class="stat-val" style="color:var(--muted);font-size:.6875rem">{{.GPUName}}</span>
+      {{end}}
+    </div>
+    {{end}}
+    <div class="sub">{{.Uptime}}{{if gt .GPUTemp 0}} &middot; GPU {{.GPUTemp}}&deg;C{{end}}</div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="card">
+    <h3>Machines</h3>
+    <div class="empty">Waiting for data...</div>
+  </div>
+  {{end}}
+
+  <div class="card">
+    <h3>LEK Models</h3>
+    <div class="value">{{len .Models}}</div>
+    <div class="sub"><a href="/models">View on HuggingFace</a></div>
+  </div>
+
+  <div class="card">
+    <h3>Benchmark Runs</h3>
+    {{$b := .Benchmarks}}
+    <div class="value">{{benchmarkCount $b}}</div>
+    <div class="sub">{{dataPoints $b}} data points &middot; <a href="/runs">View runs</a></div>
+  </div>
+
+  <div class="card">
+    <h3>Gold Generation</h3>
+    {{if .Training.GoldAvailable}}
+    <div class="value">{{pct .Training.GoldPercent}}%</div>
+    <div class="progress-bar"><div class="fill" style="width:{{pct .Training.GoldPercent}}%"></div></div>
+    <div class="sub">{{.Training.GoldGenerated}} / {{.Training.GoldTarget}}</div>
+    {{else}}
+    <div class="value status-err"><span class="status-dot"></span>Unavailable</div>
+    <div class="sub">M3 Ultra unreachable</div>
+    {{end}}
+  </div>
+</div>
+
+{{if .Commits}}
+<h2 class="section-title">Recent Activity</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>Repo</th><th>Message</th><th>Author</th><th>Time</th></tr></thead>
+    <tbody>
+    {{range .Commits}}
+    <tr>
+      <td><code>{{.Repo}}</code></td>
+      <td>{{shortMsg .Message}}</td>
+      <td>{{.Author}}</td>
+      <td>{{timeAgo .Timestamp}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+{{if .Errors}}
+<div style="margin-top:1rem">
+  {{range $k, $v := .Errors}}
+  <div style="display:inline-block;margin-right:.5rem;font-size:.75rem;color:var(--muted)">
+    <span class="badge badge-err">{{$k}}</span> {{$v}}
+  </div>
+  {{end}}
+</div>
+{{end}}
+
+{{template "footer"}}

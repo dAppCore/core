@@ -1,0 +1,278 @@
+{{template "head" "Training"}}
+{{template "nav" "training"}}
+
+<style>
+.training-layout{display:flex;gap:1.5rem;min-height:calc(100vh - 120px)}
+.training-sidebar{width:220px;flex-shrink:0}
+.training-sidebar .sidebar-title{font-size:.6875rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;padding:0 .75rem}
+.training-sidebar a{display:flex;align-items:center;gap:.5rem;padding:.625rem .75rem;border-radius:6px;color:var(--muted);font-size:.8125rem;transition:all .2s;text-decoration:none;margin-bottom:2px}
+.training-sidebar a:hover{color:var(--text);background:var(--bg)}
+.training-sidebar a.active{color:var(--text);background:var(--bg);border-left:3px solid var(--accent)}
+.training-sidebar .model-name{font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.training-sidebar .badge{font-size:.5625rem;padding:.0625rem .375rem}
+.training-main{flex:1;min-width:0}
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem}
+.model-card{padding:1.25rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;transition:border-color .2s}
+.model-card:hover{border-color:var(--accent-dim)}
+.model-card h3{font-size:1rem;font-weight:700;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
+.model-card .run-id{font-size:.6875rem;color:var(--muted);font-family:"SF Mono",Consolas,monospace}
+.model-card .stats{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem}
+.model-card .stat-label{font-size:.6875rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.model-card .stat-value{font-size:1.125rem;font-weight:700}
+.detail-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+.detail-header h2{font-size:1.25rem;font-weight:700;margin:0}
+.detail-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem}
+.detail-stat{padding:.75rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.detail-stat .label{font-size:.6875rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.detail-stat .value{font-size:1.5rem;font-weight:700;line-height:1.2}
+.detail-stat .sub{font-size:.75rem;color:var(--muted);margin-top:.125rem}
+.run-section{margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border)}
+.run-section:last-child{border-bottom:none}
+.run-header{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem}
+.run-header h3{font-size:.9375rem;font-weight:700;margin:0}
+.run-header .run-id{font-size:.6875rem;color:var(--muted);font-family:"SF Mono",Consolas,monospace}
+.chart-section{margin-bottom:1.5rem}
+.chart-section h4{font-size:.8125rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}
+.chart-card{border:1px solid var(--border);border-radius:8px;padding:1rem;background:var(--surface);overflow-x:auto}
+.chart-tabs{display:flex;gap:2px;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:0}
+.chart-tabs button{background:none;border:none;padding:.5rem 1rem;font-size:.8125rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:inherit}
+.chart-tabs button:hover{color:var(--text)}
+.chart-tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+.chart-panel{display:none}
+.chart-panel.active{display:block}
+@media(max-width:768px){.training-layout{flex-direction:column}.training-sidebar{width:100%;display:flex;gap:.5rem;flex-wrap:wrap}.training-sidebar .sidebar-title{width:100%}.training-sidebar a{flex:0 0 auto}}
+</style>
+
+<div class="training-layout">
+
+{{/* -- Sidebar -- */}}
+<div class="training-sidebar">
+  <div class="sidebar-title">Models</div>
+  <a href="/training"{{if not .SelectedModel}} class="active"{{end}}>
+    <span class="model-name">Overview</span>
+  </a>
+  {{range .ModelGroups}}
+  <a href="/training?model={{.Model}}"{{if eq $.SelectedModel .Model}} class="active"{{end}}>
+    <span class="model-name">{{.Model}}</span>
+    <span class="badge {{statusBadge .BestStatus}}">{{.BestStatus}}</span>
+  </a>
+  {{end}}
+</div>
+
+{{/* -- Main content -- */}}
+<div class="training-main">
+
+{{if not .SelectedModel}}
+{{/* -- Overview: all models -- */}}
+<h2 class="section-title">LEM Training</h2>
+
+{{/* -- Scoring progress summary -- */}}
+{{if .ModelGroups}}
+<div class="detail-stats" style="margin-bottom:1.5rem">
+  <div class="detail-stat">
+    <div class="label">Models</div>
+    <div class="value">{{.ScoredModels}} / {{len .ModelGroups}}</div>
+    <div class="sub">scored</div>
+  </div>
+  <div class="detail-stat">
+    <div class="label">Scoring Runs</div>
+    <div class="value">{{.TotalScoringRuns}}</div>
+    <div class="sub">content + capability</div>
+  </div>
+  <div class="detail-stat">
+    <div class="label">Data Points</div>
+    <div class="value">{{fmtInt .TotalDataPoints}}</div>
+    <div class="sub">across all benchmarks</div>
+  </div>
+  {{if gt .UnscoredModels 0}}
+  <div class="detail-stat" style="border-color:var(--accent-dim)">
+    <div class="label">Awaiting Scoring</div>
+    <div class="value" style="color:var(--accent)">{{.UnscoredModels}}</div>
+    <div class="sub">{{.UnscoredNames}}</div>
+  </div>
+  {{else}}
+  <div class="detail-stat" style="border-color:var(--green)">
+    <div class="label">Status</div>
+    <div class="value" style="color:var(--green)">Done</div>
+    <div class="sub">all models scored</div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+
+{{if .ModelGroups}}
+<div class="overview-grid">
+{{range .ModelGroups}}
+  <a href="/training?model={{.Model}}" style="text-decoration:none;color:inherit">
+  <div class="model-card">
+    <h3>
+      {{.Model}}
+      <span class="badge {{statusBadge .BestStatus}}">{{.BestStatus}}</span>
+    </h3>
+    {{if .HasTraining}}
+    {{range .TrainingRuns}}
+    <div class="sub" style="margin-bottom:.375rem"><i class="fa-solid fa-database" style="color:var(--accent)"></i> {{runLabel .RunID}}</div>
+    <div class="progress-bar"><div class="fill" style="width:{{pct .Pct}}%;{{if eq .Status "complete"}}background:var(--green){{end}}"></div></div>
+    <div class="sub">{{.Iteration}} / {{.TotalIters}} iters ({{pct .Pct}}%)</div>
+    <div class="stats">
+      {{if gt .LastLoss 0.0}}
+      <div>
+        <div class="stat-label">Train Loss</div>
+        <div class="stat-value">{{fmtFloat .LastLoss 3}}</div>
+      </div>
+      {{end}}
+      {{if gt .ValLoss 0.0}}
+      <div>
+        <div class="stat-label">Val Loss</div>
+        <div class="stat-value">{{fmtFloat .ValLoss 3}}</div>
+      </div>
+      {{end}}
+    </div>
+    {{break}}
+    {{end}}
+    {{else}}
+    <div class="sub" style="margin-top:.5rem">{{len .BenchmarkRuns}} benchmark run{{if gt (len .BenchmarkRuns) 1}}s{{end}}</div>
+    {{if .HasCapability}}<div class="sub"><i class="fa-solid fa-flask"></i> Capability probes scored</div>{{end}}
+    {{if .HasContent}}<div class="sub"><i class="fa-solid fa-chart-bar"></i> Content scores available</div>{{end}}
+    {{end}}
+  </div>
+  </a>
+{{end}}
+</div>
+{{else}}
+<div class="card empty">
+  <p>No training or benchmark data. InfluxDB refreshes every 60 seconds.</p>
+</div>
+{{end}}
+
+{{else}}
+{{/* -- Detail view: single model -- */}}
+{{$sel := .SelectedModel}}
+{{$b := .Benchmarks}}
+{{$found := false}}
+
+{{range .ModelGroups}}
+{{if eq .Model $sel}}
+
+<div class="detail-header">
+  <h2>{{.Model}}</h2>
+  <span class="badge {{statusBadge .BestStatus}}">{{.BestStatus}}</span>
+</div>
+
+{{/* Training run status cards */}}
+{{if .TrainingRuns}}
+<div class="detail-stats">
+  {{range .TrainingRuns}}
+  <div class="detail-stat">
+    <div class="label">{{.RunID}}</div>
+    <div class="value">{{pct .Pct}}%</div>
+    <div class="sub">{{.Iteration}} / {{.TotalIters}} &middot; {{.Status}}</div>
+  </div>
+  {{end}}
+
+  {{/* Show latest loss stats from most recent run */}}
+  {{with index .TrainingRuns 0}}
+  {{if gt .LastLoss 0.0}}
+  <div class="detail-stat">
+    <div class="label">Train Loss</div>
+    <div class="value">{{fmtFloat .LastLoss 3}}</div>
+    <div class="sub">latest</div>
+  </div>
+  {{end}}
+  {{if gt .ValLoss 0.0}}
+  <div class="detail-stat">
+    <div class="label">Val Loss</div>
+    <div class="value">{{fmtFloat .ValLoss 3}}</div>
+    <div class="sub">latest</div>
+  </div>
+  {{end}}
+  {{if gt .TokensSec 0.0}}
+  <div class="detail-stat">
+    <div class="label">Tokens/sec</div>
+    <div class="value">{{fmtFloat .TokensSec 0}}</div>
+    <div class="sub">throughput</div>
+  </div>
+  {{end}}
+  {{end}}
+</div>
+
+{{/* Progress bars for in-progress training runs only */}}
+{{range .TrainingRuns}}
+{{if ne .Status "complete"}}
+<div style="margin-bottom:1rem">
+  <div class="sub" style="margin-bottom:.25rem"><strong>{{.RunID}}</strong></div>
+  <div class="progress-bar"><div class="fill" style="width:{{pct .Pct}}%"></div></div>
+</div>
+{{end}}
+{{end}}
+{{end}}
+
+{{/* All benchmark runs for this model -- collect data for tabs */}}
+{{$runs := runsForModel $b $sel}}
+
+{{/* Tabbed charts */}}
+<div class="chart-tabs" id="chartTabs">
+  {{if anyContent $runs $b.Content}}<button class="active" onclick="showTab('content')"><i class="fa-solid fa-chart-line"></i> Content</button>{{end}}
+  {{if anyCap $runs $b.Capability}}<button onclick="showTab('capability')"><i class="fa-solid fa-flask"></i> Capability</button>{{end}}
+  {{if anyCap $runs $b.Capability}}<button onclick="showTab('categories')"><i class="fa-solid fa-table-cells"></i> Categories</button>{{end}}
+  {{if anyLoss $runs $b.Loss}}<button onclick="showTab('loss')"><i class="fa-solid fa-chart-area"></i> Loss</button>{{end}}
+</div>
+
+{{range $runs}}
+{{$rid := .RunID}}
+{{if hasContentKey $b.Content $rid}}
+<div class="chart-panel active" data-tab="content">
+  <div class="chart-card">
+    {{contentChart (getContent $b.Content $rid)}}
+  </div>
+</div>
+{{end}}
+{{if hasCapKey $b.Capability $rid}}
+<div class="chart-panel" data-tab="capability">
+  <div class="chart-card">
+    {{capabilityChart (getCap $b.Capability $rid)}}
+  </div>
+</div>
+<div class="chart-panel" data-tab="categories">
+  <div class="chart-card">
+    {{categoryBreakdown (getCap $b.Capability $rid) (getCapJudge $b.CapabilityJudge $rid)}}
+  </div>
+</div>
+{{end}}
+{{if hasKey $b.Loss $rid}}
+<div class="chart-panel" data-tab="loss">
+  <div class="chart-card">
+    {{lossChart (getLoss $b.Loss $rid)}}
+  </div>
+</div>
+{{end}}
+{{end}}
+
+<script>
+function showTab(name){
+  document.querySelectorAll('.chart-panel').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.chart-tabs button').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('[data-tab="'+name+'"]').forEach(function(p){p.classList.add('active')});
+  document.querySelectorAll('.chart-tabs button[onclick*="\'"+name+"\'"]').forEach(function(b){b.classList.add('active')});
+}
+(function(){
+  var tabs=document.getElementById('chartTabs');
+  if(!tabs)return;
+  var first=tabs.querySelector('button');
+  if(first&&!tabs.querySelector('button.active')){first.classList.add('active');first.click()}
+})();
+</script>
+
+{{if and (not .TrainingRuns) (not $runs)}}
+<div class="card empty"><p>No data for this model yet.</p></div>
+{{end}}
+
+{{end}}
+{{end}}
+
+{{end}}
+
+</div>
+</div>
+
+{{template "footer"}}
