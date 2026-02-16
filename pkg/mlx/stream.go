@@ -72,3 +72,8 @@ func GetPeakMemory() uint64 {
 	C.mlx_get_peak_memory(&mem)
 	return uint64(mem)
 }
+
+// ClearCache releases Metal memory held in the MLX allocator cache.
+func ClearCache() {
+	C.mlx_clear_cache()
+}

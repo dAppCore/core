@@ -37,6 +37,9 @@ func NewMLXBackend(modelPath string) (*MLXBackend, error) {
 		return nil, fmt.Errorf("mlx: load model: %w", err)
 	}
 
+	// Set Metal cache limit to prevent unbounded memory growth
+	mlx.SetCacheLimit(16 * 1024 * 1024 * 1024) // 16 GB
+
 	slog.Info("mlx: model loaded",
 		"layers", m.NumLayers(),
 		"memory_mb", mlx.GetActiveMemory()/1024/1024,
@@ -82,12 +85,12 @@ func (b *MLXBackend) Generate(ctx context.Context, prompt string, opts GenOpts) 
 	for i := 0; i < maxTokens; i++ {
 		select {
 		case <-ctx.Done():
+			mlx.ClearCache()
 			return b.tok.Decode(output), ctx.Err()
 		default:
 		}
 
 		logits := b.model.Forward(input, b.caches)
-		// Take last position: [B, L, V] → [B, V]
 		logits = lastPosition(logits)
 		next := sampler.Sample(logits)
 		mlx.Materialize(next)
@@ -98,8 +101,14 @@ func (b *MLXBackend) Generate(ctx context.Context, prompt string, opts GenOpts) 
 		}
 		output = append(output, nextToken)
 		input = mlx.FromValues([]int32{nextToken}, 1, 1)
+
+		// Periodically release Metal allocator cache to prevent memory growth
+		if i%8 == 7 {
+			mlx.ClearCache()
+		}
 	}
 
+	mlx.ClearCache()
 	return b.tok.Decode(output), nil
 }
 
@@ -158,6 +167,7 @@ func (b *MLXBackend) Chat(ctx context.Context, messages []Message, opts GenOpts)
 	for i := 0; i < maxTokens; i++ {
 		select {
 		case <-ctx.Done():
+			mlx.ClearCache()
 			return b.tok.Decode(output), ctx.Err()
 		default:
 		}
@@ -173,8 +183,13 @@ func (b *MLXBackend) Chat(ctx context.Context, messages []Message, opts GenOpts)
 		}
 		output = append(output, nextToken)
 		input = mlx.FromValues([]int32{nextToken}, 1, 1)
+
+		if i%8 == 7 {
+			mlx.ClearCache()
+		}
 	}
 
+	mlx.ClearCache()
 	return b.tok.Decode(output), nil
 }
 
