@@ -25,10 +25,18 @@ package mlx
 #include <stdlib.h>
 #include "mlx/c/mlx.h"
 
-extern void goMLXErrorHandler(const char *msg, void *data);
+static const char *last_mlx_error = NULL;
+
+static void mlx_go_error_handler(const char *msg, void *data) {
+    last_mlx_error = msg;
+}
 
 static void set_error_handler() {
-    mlx_set_error_handler(&goMLXErrorHandler, NULL, NULL);
+    mlx_set_error_handler(&mlx_go_error_handler, NULL, NULL);
+}
+
+static const char* get_last_error() {
+    return last_mlx_error;
 }
 */
 import "C"
@@ -36,7 +44,6 @@ import "C"
 import (
 	"log/slog"
 	"sync"
-	"unsafe"
 )
 
 var initOnce sync.Once
@@ -49,9 +56,11 @@ func Init() {
 	})
 }
 
-//export goMLXErrorHandler
-func goMLXErrorHandler(msg *C.char, data unsafe.Pointer) {
-	slog.Error("mlx", "error", C.GoString(msg))
+// checkError logs the last MLX error if any occurred.
+func checkError() {
+	if msg := C.get_last_error(); msg != nil {
+		slog.Error("mlx", "error", C.GoString(msg))
+	}
 }
 
 // Materialize synchronously evaluates arrays, computing their values on the GPU.
