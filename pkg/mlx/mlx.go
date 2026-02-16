@@ -17,8 +17,9 @@ package mlx
 
 /*
 #cgo CXXFLAGS: -std=c++17
+#cgo CFLAGS: -mmacosx-version-min=26.0
 #cgo CPPFLAGS: -I${SRCDIR}/dist/include
-#cgo LDFLAGS: -L${SRCDIR}/dist/lib -lmlxc -lmlx -lstdc++
+#cgo LDFLAGS: -L${SRCDIR}/dist/lib -lmlxc -lmlx
 #cgo darwin LDFLAGS: -framework Foundation -framework Metal -framework Accelerate
 #cgo darwin LDFLAGS: -Wl,-rpath,${SRCDIR}/dist/lib
 
