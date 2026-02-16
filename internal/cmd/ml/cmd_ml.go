@@ -10,6 +10,7 @@
 //   - core ml convert: Convert MLX LoRA adapter to PEFT format
 //   - core ml agent: Run the scoring agent daemon
 //   - core ml worker: Run a distributed worker node
+//   - core ml serve: Start OpenAI-compatible inference server
 package ml
 
 import (
@@ -38,6 +39,7 @@ func AddMLCommands(root *cli.Command) {
 	mlCmd.AddCommand(convertCmd)
 	mlCmd.AddCommand(agentCmd)
 	mlCmd.AddCommand(workerCmd)
+	mlCmd.AddCommand(serveCmd)
 	root.AddCommand(mlCmd)
 }
 
