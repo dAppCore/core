@@ -5,7 +5,7 @@ The `pkg/i18n` package provides internationalisation and localisation for Go CLI
 ## Quick Start
 
 ```go
-import "github.com/host-uk/core/pkg/i18n"
+import "forge.lthn.ai/core/cli/pkg/i18n"
 
 func main() {
     // Initialise with embedded locales

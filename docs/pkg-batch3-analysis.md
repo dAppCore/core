@@ -87,8 +87,8 @@ type Builder interface {
 ### 4. Dependencies
 *   `archive/tar`, `archive/zip`, `compress/gzip`: Standard library for archiving.
 *   `github.com/Snider/Borg/pkg/compress`: External dependency for XZ compression support.
-*   `github.com/host-uk/core/pkg/io`: Internal interface for filesystem abstraction.
-*   `github.com/host-uk/core/pkg/config`: Internal centralized configuration loading.
+*   `forge.lthn.ai/core/cli/pkg/io`: Internal interface for filesystem abstraction.
+*   `forge.lthn.ai/core/cli/pkg/config`: Internal centralized configuration loading.
 
 ### 5. Test Coverage Notes
 *   **Mocking IO**: Tests must implement a mock `io.Medium` to simulate file existence (`Detect`) and write operations (`Archive`) without touching the disk.
@@ -158,7 +158,7 @@ type RunOptions struct {
 ### 4. Dependencies
 *   `os/exec`: Essential for spawning the hypervisor processes.
 *   `embed`: For built-in templates.
-*   `github.com/host-uk/core/pkg/io`: Filesystem access for state and logs.
+*   `forge.lthn.ai/core/cli/pkg/io`: Filesystem access for state and logs.
 
 ### 5. Test Coverage Notes
 *   **Process Management**: Difficult to test `Run` in standard CI. Mocking `exec.Command` or the `Hypervisor` interface is required.
@@ -224,7 +224,7 @@ func (r *Runner) RunParallel(ctx context.Context, specs []RunSpec) (*RunAllResul
 
 ### 4. Dependencies
 *   `os/exec`: The underlying execution engine.
-*   `github.com/host-uk/core/pkg/framework`: Creates the `ServiceRuntime` and provides the IPC/Action bus.
+*   `forge.lthn.ai/core/cli/pkg/framework`: Creates the `ServiceRuntime` and provides the IPC/Action bus.
 
 ### 5. Test Coverage Notes
 *   **Concurrency**: The `Runner` needs tests for race conditions during parallel execution.
@@ -286,7 +286,7 @@ type JobHandler interface {
 *   **Journaling**: Writes `jsonl` (JSON Lines) files partitioned by repository and date (`baseDir/owner/repo/YYYY-MM-DD.jsonl`), ensuring an append-only audit trail.
 
 ### 4. Dependencies
-*   `github.com/host-uk/core/pkg/log`: Internal logging.
+*   `forge.lthn.ai/core/cli/pkg/log`: Internal logging.
 *   `encoding/json`: For journal serialization.
 
 ### 5. Test Coverage Notes

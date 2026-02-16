@@ -1,7 +1,7 @@
 # Issue 258: Smart Test Detection
 
 ## Original Issue
-<https://github.com/host-uk/core/issues/258>
+<https://forge.lthn.ai/core/cli/issues/258>
 
 ## Summary
 Make `core test` smart — detect changed Go files and run only relevant tests.

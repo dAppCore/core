@@ -15,7 +15,7 @@ vars:
   SEMVER_PRERELEASE:
     sh: '[ "{{.SEMVER_COMMITS}}" = "0" ] && echo "" || echo "dev.{{.SEMVER_COMMITS}}"'
   # ldflags
-  PKG: "github.com/host-uk/core/pkg/cli"
+  PKG: "forge.lthn.ai/core/cli/pkg/cli"
   LDFLAGS_BASE: >-
     -X {{.PKG}}.AppVersion={{.SEMVER_VERSION}}
     -X {{.PKG}}.BuildCommit={{.SEMVER_COMMIT}}

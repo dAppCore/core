@@ -81,8 +81,8 @@ import (
 	"context"
 	"fmt"
 
-	ragcmd "github.com/host-uk/core/internal/cmd/rag"
-	"github.com/host-uk/core/pkg/rag"
+	ragcmd "forge.lthn.ai/core/cli/internal/cmd/rag"
+	"forge.lthn.ai/core/cli/pkg/rag"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -368,7 +368,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/host-uk/core/pkg/ai"
+	"forge.lthn.ai/core/cli/pkg/ai"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -608,9 +608,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/host-uk/core/pkg/cli"
-	"github.com/host-uk/core/pkg/i18n"
-	"github.com/host-uk/core/pkg/mcp"
+	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/cli/pkg/i18n"
+	"forge.lthn.ai/core/cli/pkg/mcp"
 )
 
 func init() {
@@ -695,7 +695,7 @@ Modify `internal/variants/full.go` to add:
 ```go
 import (
 	// ... existing imports ...
-	_ "github.com/host-uk/core/internal/cmd/mcpcmd"
+	_ "forge.lthn.ai/core/cli/internal/cmd/mcpcmd"
 )
 ```
 

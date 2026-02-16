@@ -40,7 +40,7 @@ package mypackage
 
 import (
     "sync"
-    "github.com/host-uk/core/pkg/framework"
+    "forge.lthn.ai/core/cli/pkg/framework"
 )
 
 // Service provides mypackage functionality with Core integration.
@@ -120,7 +120,7 @@ import (
     "sync"
     "sync/atomic"
 
-    "github.com/host-uk/core/pkg/framework"
+    "forge.lthn.ai/core/cli/pkg/framework"
 )
 
 // Global default service

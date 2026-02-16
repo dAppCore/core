@@ -47,8 +47,8 @@ Here is the technical documentation for the Core framework packages.
 *   **Framework Integration**: The `Service` struct embeds `framework.ServiceRuntime`, utilizing the Actor pattern (Queries and Tasks) to allow dynamic log level adjustment at runtime without restarting the application.
 
 ### 4. Dependencies
-*   `github.com/host-uk/core/pkg/io`: Used by `rotation.go` to handle file operations (renaming, deleting, writing) abstractly.
-*   `github.com/host-uk/core/pkg/framework`: Used by `service.go` to hook into the application lifecycle and message bus.
+*   `forge.lthn.ai/core/cli/pkg/io`: Used by `rotation.go` to handle file operations (renaming, deleting, writing) abstractly.
+*   `forge.lthn.ai/core/cli/pkg/framework`: Used by `service.go` to hook into the application lifecycle and message bus.
 *   Standard Lib: `errors`, `fmt`, `os`, `sync`, `time`.
 
 ### 5. Test Coverage Notes
@@ -88,8 +88,8 @@ Here is the technical documentation for the Core framework packages.
 ### 4. Dependencies
 *   `github.com/spf13/viper`: Core logic for map merging and unmarshalling.
 *   `gopkg.in/yaml.v3`: For marshalling data when saving.
-*   `github.com/host-uk/core/pkg/io`: For reading/writing config files.
-*   `github.com/host-uk/core/pkg/framework/core`: For service integration and error handling.
+*   `forge.lthn.ai/core/cli/pkg/io`: For reading/writing config files.
+*   `forge.lthn.ai/core/cli/pkg/framework/core`: For service integration and error handling.
 
 ### 5. Test Coverage Notes
 *   **Precedence**: Verify that Environment variables override File values.
@@ -122,7 +122,7 @@ Here is the technical documentation for the Core framework packages.
 
 ### 4. Dependencies
 *   Standard Lib: `io`, `io/fs`, `os`, `path/filepath`, `strings`, `time`.
-*   `github.com/host-uk/core/pkg/io/local`: (Implied) The concrete implementation for OS disk access.
+*   `forge.lthn.ai/core/cli/pkg/io/local`: (Implied) The concrete implementation for OS disk access.
 
 ### 5. Test Coverage Notes
 *   **Mock fidelity**: The `MockMedium` must behave exactly like the OS. E.g., `Rename` should fail if the source doesn't exist; `Delete` should fail if a directory is not empty.
@@ -198,10 +198,10 @@ Here is the technical documentation for the Core framework packages.
     4.  Server validates signature against User Public Key.
 
 ### 4. Dependencies
-*   `github.com/host-uk/core/pkg/io`: For user database storage.
-*   `github.com/host-uk/core/pkg/crypt/lthn`: (Implied) Specific password hashing.
-*   `github.com/host-uk/core/pkg/crypt/pgp`: (Implied) OpenPGP operations.
-*   `github.com/host-uk/core/pkg/framework/core`: Error handling.
+*   `forge.lthn.ai/core/cli/pkg/io`: For user database storage.
+*   `forge.lthn.ai/core/cli/pkg/crypt/lthn`: (Implied) Specific password hashing.
+*   `forge.lthn.ai/core/cli/pkg/crypt/pgp`: (Implied) OpenPGP operations.
+*   `forge.lthn.ai/core/cli/pkg/framework/core`: Error handling.
 
 ### 5. Test Coverage Notes
 *   **Flow Verification**: Full integration test simulating a client: Register -> Get Challenge -> Decrypt/Sign (Mock Client) -> Validate -> Get Token.

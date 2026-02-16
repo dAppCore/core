@@ -201,7 +201,7 @@ else
 
     # Install from releases
     ARCH=$(dpkg --print-architecture)
-    CORE_URL="https://github.com/host-uk/core/releases/latest/download/core-linux-${ARCH}"
+    CORE_URL="https://forge.lthn.ai/core/cli/releases/latest/download/core-linux-${ARCH}"
 
     curl -fsSL "$CORE_URL" -o /tmp/core
     chmod +x /tmp/core
@@ -220,7 +220,7 @@ if [[ -z "${SKIP_GUI:-}" ]]; then
         log_info "Installing core-ide..."
 
         ARCH=$(dpkg --print-architecture)
-        IDE_URL="https://github.com/host-uk/core/releases/latest/download/core-ide-linux-${ARCH}.deb"
+        IDE_URL="https://forge.lthn.ai/core/cli/releases/latest/download/core-ide-linux-${ARCH}.deb"
 
         curl -fsSL "$IDE_URL" -o /tmp/core-ide.deb
         sudo dpkg -i /tmp/core-ide.deb || sudo apt-get install -f -y

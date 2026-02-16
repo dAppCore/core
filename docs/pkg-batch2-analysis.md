@@ -60,9 +60,9 @@ The `cli` package is a comprehensive application runtime and UI framework design
 
 ### 4. Dependencies
 - `github.com/spf13/cobra`: The underlying command routing engine.
-- `github.com/host-uk/core/pkg/framework`: The dependency injection and service lifecycle container.
-- `github.com/host-uk/core/pkg/i18n`: For translation and semantic grammar generation.
-- `github.com/host-uk/core/pkg/log`: For structured logging.
+- `forge.lthn.ai/core/cli/pkg/framework`: The dependency injection and service lifecycle container.
+- `forge.lthn.ai/core/cli/pkg/i18n`: For translation and semantic grammar generation.
+- `forge.lthn.ai/core/cli/pkg/log`: For structured logging.
 - `golang.org/x/term`: For TTY detection.
 
 ### 5. Test Coverage Notes
@@ -162,8 +162,8 @@ The `workspace` package implements the `core.Workspace` interface, providing iso
 - **Key Management**: Delegates actual key generation to the core's `Crypt()` service but manages the storage of the resulting keys within the workspace layout.
 
 ### 4. Dependencies
-- `github.com/host-uk/core/pkg/framework/core`: Interfaces.
-- `github.com/host-uk/core/pkg/io`: File system abstraction (`io.Medium`).
+- `forge.lthn.ai/core/cli/pkg/framework/core`: Interfaces.
+- `forge.lthn.ai/core/cli/pkg/io`: File system abstraction (`io.Medium`).
 - `crypt` service (Runtime dependency): Required for `CreateWorkspace`.
 
 ### 5. Test Coverage Notes

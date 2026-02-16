@@ -21,7 +21,7 @@ It is both. The Core Framework (`pkg/core`) is a library for building Go desktop
 The recommended way is via Go:
 
 ```bash
-go install github.com/host-uk/core/cmd/core@latest
+go install forge.lthn.ai/core/cli/cmd/core@latest
 ```
 
 Ensure your Go bin directory is in your PATH. See [Getting Started](getting-started.md) for more options.

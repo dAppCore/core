@@ -19,7 +19,7 @@ BugSETI is a system tray application that helps developers contribute to open so
 
 ```bash
 # Clone the repository
-git clone https://github.com/host-uk/core.git
+git clone https://forge.lthn.ai/core/cli.git
 cd core
 
 # Build BugSETI

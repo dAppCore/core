@@ -51,8 +51,8 @@ func ListAgents(cfg *config.Config) (map[string]AgentConfig, error)
 *   **Defaults Handling**: `LoadAgents` applies specific logic defaults (e.g., default queue directories, default models like "sonnet") to ensure the system works with minimal configuration.
 
 ### 4. Dependencies
-*   `github.com/host-uk/core/pkg/config`: For reading/writing the persistent configuration state.
-*   `github.com/host-uk/core/pkg/jobrunner/handlers`: To map local config structs to the runtime types used by the job dispatch system.
+*   `forge.lthn.ai/core/cli/pkg/config`: For reading/writing the persistent configuration state.
+*   `forge.lthn.ai/core/cli/pkg/jobrunner/handlers`: To map local config structs to the runtime types used by the job dispatch system.
 
 ### 5. Test Coverage Notes
 *   **Configuration Persistence**: Tests should verify that `SaveAgent` correctly updates the underlying config file and that `LoadAgents` retrieves it accurately.

@@ -26,8 +26,8 @@ core dev work --status
 repos:
   - name: core
     path: ./core
-    url: https://github.com/host-uk/core
+    url: https://forge.lthn.ai/core/cli
   - name: core-php
     path: ./core-php
-    url: https://github.com/host-uk/core-php
+    url: https://forge.lthn.ai/core/cli-php
 ```

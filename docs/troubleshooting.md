@@ -18,7 +18,7 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 source ~/.bashrc  # or ~/.zshrc
 ```
 
-### "go: module github.com/host-uk/core: no matching versions"
+### "go: module forge.lthn.ai/core/cli: no matching versions"
 
 **Cause:** Go module proxy hasn't cached the latest version yet.
 
@@ -26,7 +26,7 @@ source ~/.bashrc  # or ~/.zshrc
 
 ```bash
 # Bypass proxy
-GOPROXY=direct go install github.com/host-uk/core/cmd/core@latest
+GOPROXY=direct go install forge.lthn.ai/core/cli/cmd/core@latest
 ```
 
 ---
@@ -340,7 +340,7 @@ This verifies all required tools are installed and configured.
 
 If you've found a bug:
 
-1. Check existing issues: https://github.com/host-uk/core/issues
+1. Check existing issues: https://forge.lthn.ai/core/cli/issues
 2. Create a new issue with:
    - Core version (`core --version`)
    - OS and architecture (`go env GOOS GOARCH`)

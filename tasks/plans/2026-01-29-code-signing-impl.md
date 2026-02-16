@@ -491,7 +491,7 @@ In `pkg/build/config.go`, add to the `BuildConfig` struct:
 
 ```go
 // Add import
-import "github.com/host-uk/core/pkg/build/signing"
+import "forge.lthn.ai/core/cli/pkg/build/signing"
 
 // Add to BuildConfig struct after Targets field:
 	// Sign contains code signing configuration.
@@ -590,7 +590,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/host-uk/core/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/build"
 )
 
 // SignBinaries signs macOS binaries in the artifacts list.
@@ -727,7 +727,7 @@ buildCmd.Action(func() error {
 Add to imports:
 
 ```go
-	"github.com/host-uk/core/pkg/build/signing"
+	"forge.lthn.ai/core/cli/pkg/build/signing"
 ```
 
 **Step 4: Add signing after build, before archive**
@@ -820,7 +820,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/host-uk/core/pkg/build"
+	"forge.lthn.ai/core/cli/pkg/build"
 )
 
 func TestSignBinaries_Good_SkipsNonDarwin(t *testing.T) {

@@ -6,10 +6,10 @@ Core is a unified CLI for the host-uk ecosystem - build, release, and deploy Go,
 
 ```bash
 # Via Go (recommended)
-go install github.com/host-uk/core/cmd/core@latest
+go install forge.lthn.ai/core/cli/cmd/core@latest
 
 # Or download binary from releases
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-$(go env GOOS)-$(go env GOARCH)
+curl -Lo core https://forge.lthn.ai/core/cli/releases/latest/download/core-$(go env GOOS)-$(go env GOARCH)
 chmod +x core && sudo mv core /usr/local/bin/
 
 # Verify

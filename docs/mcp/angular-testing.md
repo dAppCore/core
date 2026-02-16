@@ -364,7 +364,7 @@ import (
     "log"
     "time"
 
-    "github.com/host-uk/core/pkg/webview"
+    "forge.lthn.ai/core/cli/pkg/webview"
 )
 
 func main() {
@@ -424,7 +424,7 @@ import (
     "log"
     "time"
 
-    "github.com/host-uk/core/pkg/webview"
+    "forge.lthn.ai/core/cli/pkg/webview"
 )
 
 func main() {

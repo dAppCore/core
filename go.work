@@ -2,9 +2,6 @@ go 1.25.5
 
 use (
 	.
-	./cmd/bugseti
-	./cmd/core-app
-	./cmd/core-ide
 	./internal/bugseti
 	./internal/bugseti/updater
 	./internal/core-ide

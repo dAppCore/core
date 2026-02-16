@@ -15,7 +15,7 @@
 **Files:**
 - Create: `go.work`
 
-**Context:** The repo has two real modules — the root (`github.com/host-uk/core`) and core-ide (`github.com/host-uk/core/internal/core-ide`). Without a workspace, core-ide can't import `pkg/jobrunner` from the root module during local development without fragile `replace` directives. A `go.work` file makes cross-module imports resolve locally, keeps each module's `go.mod` clean, and lets CI build each variant independently.
+**Context:** The repo has two real modules — the root (`forge.lthn.ai/core/cli`) and core-ide (`forge.lthn.ai/core/cli/internal/core-ide`). Without a workspace, core-ide can't import `pkg/jobrunner` from the root module during local development without fragile `replace` directives. A `go.work` file makes cross-module imports resolve locally, keeps each module's `go.mod` clean, and lets CI build each variant independently.
 
 **Step 1: Create the workspace file**
 
@@ -580,7 +580,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/log"
 )
 
 // PollerConfig configures the job runner poller.
@@ -732,7 +732,7 @@ func (p *Poller) AddHandler(h JobHandler) {
 _ = fmt.Sprintf // ensure fmt imported for future use
 ```
 
-Wait — remove that last line. The `fmt` import is only needed if used. Let me correct: the implementation above doesn't use `fmt` directly, so remove it from imports. The `log` package import path is `github.com/host-uk/core/pkg/log`.
+Wait — remove that last line. The `fmt` import is only needed if used. Let me correct: the implementation above doesn't use `fmt` directly, so remove it from imports. The `log` package import path is `forge.lthn.ai/core/cli/pkg/log`.
 
 **Step 4: Run tests**
 
@@ -755,7 +755,7 @@ git commit -m "feat(jobrunner): add Poller with multi-source dispatch and journa
 - Create: `pkg/jobrunner/github/signals.go`
 - Test: `pkg/jobrunner/github/source_test.go`
 
-**Context:** This package lives in the root go.mod (`github.com/host-uk/core`), NOT in the core-ide module. It uses `oauth2` and the GitHub REST API (same pattern as `internal/cmd/updater/github.go`). Uses conditional requests (ETag/If-None-Match) to conserve rate limit.
+**Context:** This package lives in the root go.mod (`forge.lthn.ai/core/cli`), NOT in the core-ide module. It uses `oauth2` and the GitHub REST API (same pattern as `internal/cmd/updater/github.go`). Uses conditional requests (ETag/If-None-Match) to conserve rate limit.
 
 **Step 1: Write the test**
 
@@ -769,7 +769,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -856,7 +856,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 // ghIssue is the minimal structure from GitHub Issues API.
@@ -985,8 +985,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/host-uk/core/pkg/jobrunner"
-	"github.com/host-uk/core/pkg/log"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/log"
 	"golang.org/x/oauth2"
 )
 
@@ -1176,7 +1176,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1259,7 +1259,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 // PublishDraft marks a draft PR as ready for review.
@@ -1355,7 +1355,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1438,7 +1438,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 // SendFixCommand comments on a PR to request a fix.
@@ -1559,7 +1559,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 type EnableAutoMerge struct{}
@@ -1657,7 +1657,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1758,7 +1758,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/host-uk/core/pkg/jobrunner"
+	"forge.lthn.ai/core/cli/pkg/jobrunner"
 )
 
 // ResolveThreads resolves all unresolved review threads on a PR.
@@ -1918,16 +1918,16 @@ git commit -m "feat(jobrunner): add resolve_threads handler with GraphQL"
 
 **Context:** core-ide currently always creates a Wails app. We need to branch: headless starts the poller + MCP bridge directly; desktop mode keeps the existing Wails app with poller as an optional service.
 
-Note: core-ide has its own `go.mod` (`github.com/host-uk/core/internal/core-ide`). The jobrunner package lives in the root module. We need to add the root module as a dependency of core-ide, OR move the handler wiring into the root module. **Simplest approach:** core-ide imports `github.com/host-uk/core/pkg/jobrunner` — this requires adding the root module as a dependency in core-ide's go.mod.
+Note: core-ide has its own `go.mod` (`forge.lthn.ai/core/cli/internal/core-ide`). The jobrunner package lives in the root module. We need to add the root module as a dependency of core-ide, OR move the handler wiring into the root module. **Simplest approach:** core-ide imports `forge.lthn.ai/core/cli/pkg/jobrunner` — this requires adding the root module as a dependency in core-ide's go.mod.
 
 **Step 1: Update core-ide go.mod**
 
-Run: `cd /Users/snider/Code/host-uk/core/internal/core-ide && go get github.com/host-uk/core/pkg/jobrunner`
+Run: `cd /Users/snider/Code/host-uk/core/internal/core-ide && go get forge.lthn.ai/core/cli/pkg/jobrunner`
 
 If this fails because the package isn't published yet, use a `replace` directive temporarily:
 
 ```
-replace github.com/host-uk/core => ../..
+replace forge.lthn.ai/core/cli => ../..
 ```
 
 Then `go mod tidy`.
@@ -2020,7 +2020,7 @@ git commit -m "feat(core-ide): register job handlers as MCP tools"
 ```go
 // In startHeadless(), before starting poller:
 updaterSvc, err := updater.NewUpdateService(updater.UpdateServiceConfig{
-    RepoURL:        "https://github.com/host-uk/core",
+    RepoURL:        "https://forge.lthn.ai/core/cli",
     Channel:        "alpha",
     CheckOnStartup: updater.CheckAndUpdateOnStartup,
 })

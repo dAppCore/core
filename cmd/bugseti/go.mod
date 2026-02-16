@@ -7,6 +7,9 @@ require (
 	forge.lthn.ai/core/cli/internal/bugseti v0.0.0
 	forge.lthn.ai/core/cli/internal/bugseti/updater v0.0.0
 	github.com/Snider/Borg v0.2.0
+	forge.lthn.ai/core/cli v0.0.0
+	forge.lthn.ai/core/cli/internal/bugseti v0.0.0
+	forge.lthn.ai/core/cli/internal/bugseti/updater v0.0.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.64
 )
 

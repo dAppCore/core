@@ -9,9 +9,9 @@ steps:
       - go mod download
       - >-
         go build
-        -ldflags "-X github.com/host-uk/core/pkg/cli.AppVersion=ci
-        -X github.com/host-uk/core/pkg/cli.BuildCommit=${CI_COMMIT_SHA:0:7}
-        -X github.com/host-uk/core/pkg/cli.BuildDate=$(date -u +%Y%m%d)"
+        -ldflags "-X forge.lthn.ai/core/cli/pkg/cli.AppVersion=ci
+        -X forge.lthn.ai/core/cli/pkg/cli.BuildCommit=${CI_COMMIT_SHA:0:7}
+        -X forge.lthn.ai/core/cli/pkg/cli.BuildDate=$(date -u +%Y%m%d)"
         -o ./bin/core .
       - ./bin/core --version
 

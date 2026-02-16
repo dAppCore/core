@@ -25,7 +25,7 @@ Optional (for specific features):
 
 ```bash
 # Install latest release
-go install github.com/host-uk/core/cmd/core@latest
+go install forge.lthn.ai/core/cli/cmd/core@latest
 
 # Verify installation
 core doctor
@@ -39,21 +39,21 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 
 ### Option 2: Download Binary
 
-Download pre-built binaries from [GitHub Releases](https://github.com/host-uk/core/releases):
+Download pre-built binaries from [GitHub Releases](https://forge.lthn.ai/core/cli/releases):
 
 ```bash
 # macOS (Apple Silicon)
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-darwin-arm64
+curl -Lo core https://forge.lthn.ai/core/cli/releases/latest/download/core-darwin-arm64
 chmod +x core
 sudo mv core /usr/local/bin/
 
 # macOS (Intel)
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-darwin-amd64
+curl -Lo core https://forge.lthn.ai/core/cli/releases/latest/download/core-darwin-amd64
 chmod +x core
 sudo mv core /usr/local/bin/
 
 # Linux (x86_64)
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-linux-amd64
+curl -Lo core https://forge.lthn.ai/core/cli/releases/latest/download/core-linux-amd64
 chmod +x core
 sudo mv core /usr/local/bin/
 ```
@@ -62,7 +62,7 @@ sudo mv core /usr/local/bin/
 
 ```bash
 # Clone repository
-git clone https://github.com/host-uk/core.git
+git clone https://forge.lthn.ai/core/cli.git
 cd core
 
 # Build with Task (recommended)
@@ -181,7 +181,7 @@ core doctor
 core <command> --help
 
 # Full documentation
-https://github.com/host-uk/core/tree/main/docs
+https://forge.lthn.ai/core/cli/tree/main/docs
 ```
 
 ## See Also

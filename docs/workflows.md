@@ -173,7 +173,7 @@ jobs:
           go-version: '1.23'
 
       - name: Install Core
-        run: go install github.com/host-uk/core/cmd/core@latest
+        run: go install forge.lthn.ai/core/cli/cmd/core@latest
 
       - name: Build
         run: core build --ci

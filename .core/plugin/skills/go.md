@@ -30,7 +30,7 @@ core/
 package domain
 
 import (
-    "github.com/host-uk/core/pkg/cli"
+    "forge.lthn.ai/core/cli/pkg/cli"
     "github.com/spf13/cobra"
 )
 
@@ -53,7 +53,7 @@ func NewNameCmd() *cobra.Command {
 ## CLI Output Helpers
 
 ```go
-import "github.com/host-uk/core/pkg/cli"
+import "forge.lthn.ai/core/cli/pkg/cli"
 
 cli.Success("Operation completed")      // Green check
 cli.Warning("Something to note")        // Yellow warning

@@ -32,7 +32,7 @@ core go mod graph | dot -Tpng -o deps.png
 ## Output
 
 ```
-github.com/host-uk/core github.com/stretchr/testify@v1.11.1
+forge.lthn.ai/core/cli github.com/stretchr/testify@v1.11.1
 github.com/stretchr/testify@v1.11.1 github.com/davecgh/go-spew@v1.1.2
 github.com/stretchr/testify@v1.11.1 github.com/pmezard/go-difflib@v1.0.1
 ...

@@ -23,7 +23,7 @@ Unified interface for Go/PHP development, multi-repo management, and deployment.
 ## Installation
 
 ```bash
-go install github.com/host-uk/core/cmd/core@latest
+go install forge.lthn.ai/core/cli/cmd/core@latest
 ```
 
 Verify: `core doctor`

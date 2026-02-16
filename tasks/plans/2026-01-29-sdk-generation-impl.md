@@ -19,7 +19,7 @@
 **Step 1: Create go.mod for sdk package**
 
 ```go
-module github.com/host-uk/core/pkg/sdk
+module forge.lthn.ai/core/cli/pkg/sdk
 
 go 1.25
 
@@ -1390,7 +1390,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 // Add to sdk.go, replacing the stub Generate method
 
 import (
-	"github.com/host-uk/core/pkg/sdk/generators"
+	"forge.lthn.ai/core/cli/pkg/sdk/generators"
 )
 
 // Generate generates SDKs for all configured languages.
@@ -1494,7 +1494,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/host-uk/core/pkg/sdk"
+	"forge.lthn.ai/core/cli/pkg/sdk"
 	"github.com/leaanthony/clir"
 )
 

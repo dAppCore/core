@@ -313,7 +313,7 @@ func (s *SubmitService) generatePRBody(issue *Issue) string {
 	body.WriteString("<!-- Describe how you tested your changes -->\n\n")
 
 	body.WriteString("---\n\n")
-	body.WriteString("*Submitted via [BugSETI](https://bugseti.app) - Distributed Bug Fixing*\n")
+	body.WriteString("*Submitted via [BugSETI](https://forge.lthn.ai/core/cli) - Distributed Bug Fixing*\n")
 
 	return body.String()
 }

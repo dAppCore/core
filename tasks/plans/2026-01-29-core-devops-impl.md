@@ -19,17 +19,17 @@
 **Step 1: Create go.mod**
 
 ```go
-module github.com/host-uk/core/pkg/devops
+module forge.lthn.ai/core/cli/pkg/devops
 
 go 1.25
 
 require (
-	github.com/host-uk/core/pkg/container v0.0.0
+	forge.lthn.ai/core/cli/pkg/container v0.0.0
 	golang.org/x/crypto v0.32.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/host-uk/core/pkg/container => ../container
+replace forge.lthn.ai/core/cli/pkg/container => ../container
 ```
 
 **Step 2: Create devops.go with core types**
@@ -45,7 +45,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/host-uk/core/pkg/container"
+	"forge.lthn.ai/core/cli/pkg/container"
 )
 
 // DevOps manages the portable development environment.
@@ -744,7 +744,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/host-uk/core/pkg/devops/sources"
+	"forge.lthn.ai/core/cli/pkg/devops/sources"
 )
 
 // ImageManager handles image downloads and updates.
@@ -1786,7 +1786,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/host-uk/core/pkg/devops"
+	"forge.lthn.ai/core/cli/pkg/devops"
 	"github.com/leaanthony/clir"
 )
 

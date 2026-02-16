@@ -1,14 +1,14 @@
 # Core
 
 [![codecov](https://codecov.io/gh/host-uk/core/branch/dev/graph/badge.svg)](https://codecov.io/gh/host-uk/core)
-[![Go Test Coverage](https://github.com/host-uk/core/actions/workflows/coverage.yml/badge.svg)](https://github.com/host-uk/core/actions/workflows/coverage.yml)
-[![Code Scanning](https://github.com/host-uk/core/actions/workflows/codescan.yml/badge.svg)](https://github.com/host-uk/core/actions/workflows/codescan.yml)
+[![Go Test Coverage](https://forge.lthn.ai/core/cli/actions/workflows/coverage.yml/badge.svg)](https://forge.lthn.ai/core/cli/actions/workflows/coverage.yml)
+[![Code Scanning](https://forge.lthn.ai/core/cli/actions/workflows/codescan.yml/badge.svg)](https://forge.lthn.ai/core/cli/actions/workflows/codescan.yml)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/host-uk/core)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-EUPL--1.2-blue.svg)](https://opensource.org/licenses/EUPL-1.2)
 
 Core is a Web3 Framework, written in Go using Wails.io to replace Electron and the bloat of browsers that, at their core, still live in their mum's basement.
 
-- Repo: https://github.com/host-uk/core
+- Repo: https://forge.lthn.ai/core/cli
 
 ## Vision
 
@@ -26,7 +26,7 @@ Core is an **opinionated Web3 desktop application framework** providing:
 
 ```bash
 # 1. Install Core
-go install github.com/host-uk/core/cmd/core@latest
+go install forge.lthn.ai/core/cli/cmd/core@latest
 
 # 2. Verify environment
 core doctor
@@ -44,7 +44,7 @@ For more details, see the [User Guide](docs/user-guide.md).
 ## Framework Quick Start (Go)
 
 ```go
-import core "github.com/host-uk/core/pkg/framework/core"
+import core "forge.lthn.ai/core/cli/pkg/framework/core"
 
 app, err := core.New(
   core.WithServiceLock(),
@@ -210,7 +210,7 @@ app.RegisterService(application.NewService(coreService))  // Only Core is regist
 **Currently exposed** (see `cmd/core-gui/public/bindings/`):
 ```typescript
 // From frontend:
-import { ACTION, Config, Service } from './bindings/github.com/host-uk/core/pkg/core'
+import { ACTION, Config, Service } from './bindings/forge.lthn.ai/core/cli/pkg/core'
 
 ACTION(msg)              // Broadcast IPC message
 Config()                 // Get config service reference
@@ -259,7 +259,7 @@ Sub-services are accessed via Core's **IPC/ACTION system**, not direct Wails bin
 
 ```typescript
 // Frontend calls Core.ACTION() with typed messages
-import { ACTION } from './bindings/github.com/host-uk/core/pkg/core'
+import { ACTION } from './bindings/forge.lthn.ai/core/cli/pkg/core'
 
 // Open a window
 ACTION({ action: "display.open_window", name: "settings", options: { Title: "Settings", Width: 800 } })

@@ -2,7 +2,7 @@ site_name: Core Framework
 site_url: https://core.help
 site_description: 'A Web3 Framework for building Go desktop applications with Wails v3'
 site_author: 'Snider'
-repo_url: 'https://github.com/host-uk/core'
+repo_url: 'https://forge.lthn.ai/core/cli'
 repo_name: 'host-uk/core'
 
 theme:

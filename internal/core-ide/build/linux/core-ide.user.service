@@ -1,6 +1,6 @@
 [Unit]
 Description=Core IDE Job Runner (User Mode)
-Documentation=https://github.com/host-uk/core
+Documentation=https://forge.lthn.ai/core/cli
 After=network-online.target
 Wants=network-online.target
 

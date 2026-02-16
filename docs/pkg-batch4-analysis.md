@@ -72,7 +72,7 @@ func NewService(opts ServiceOptions) func(*framework.Core) (any, error)
 
 ### Dependencies
 *   `os/exec`: For invoking git commands.
-*   `github.com/host-uk/core/pkg/framework`: For service registration and message passing types.
+*   `forge.lthn.ai/core/cli/pkg/framework`: For service registration and message passing types.
 
 ### Test Coverage Notes
 *   **Mocking**: Testing requires abstracting `exec.Command`. Since this package calls `exec.CommandContext` directly, tests likely require overriding a package-level variable or using a "fake exec" pattern during test initialization.
@@ -135,7 +135,7 @@ func (repo *Repo) IsGitRepo() bool
 
 ### Dependencies
 *   `gopkg.in/yaml.v3`: For parsing `repos.yaml`.
-*   `github.com/host-uk/core/pkg/io`: For filesystem abstraction (`io.Medium`).
+*   `forge.lthn.ai/core/cli/pkg/io`: For filesystem abstraction (`io.Medium`).
 
 ### Test Coverage Notes
 *   **Circular Dependencies**: Critical test cases must define a registry with `A->B->A` dependencies to ensure `TopologicalOrder` returns a clear error and doesn't stack overflow.
@@ -197,7 +197,7 @@ func (c *Client) ListUserRepos(...)
 ### Dependencies
 *   `code.gitea.io/sdk/gitea` (for `pkg/gitea`)
 *   `codeberg.org/mvdkleijn/forgejo-sdk` (for `pkg/forge`)
-*   `github.com/host-uk/core/pkg/config`: For persistent auth storage.
+*   `forge.lthn.ai/core/cli/pkg/config`: For persistent auth storage.
 
 ### Test Coverage Notes
 *   **Draft Status**: The raw HTTP patch in `pkg/forge` needs integration testing against a real instance or a high-fidelity HTTP mock to ensure payload format matches Forgejo's API expectation.
@@ -250,8 +250,8 @@ func IncrementVersion(current string) string
 *   **SDK Generation**: Includes a specialized sub-pipeline (`RunSDK`) that handles OpenAPI diffing and client generation.
 
 ### Dependencies
-*   `github.com/host-uk/core/pkg/build`: For compiling artifacts.
-*   `github.com/host-uk/core/pkg/release/publishers`: Interface definitions for publishing targets.
+*   `forge.lthn.ai/core/cli/pkg/build`: For compiling artifacts.
+*   `forge.lthn.ai/core/cli/pkg/release/publishers`: Interface definitions for publishing targets.
 *   `golang.org/x/text`: For title casing in changelogs.
 
 ### Test Coverage Notes

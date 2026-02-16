@@ -108,7 +108,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/host-uk/core/pkg/sdk"
+    "forge.lthn.ai/core/cli/pkg/sdk"
 )
 
 // SDKRelease holds the result of an SDK release.

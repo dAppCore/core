@@ -58,7 +58,7 @@ type TaskResult struct { Changed, Failed bool; Msg, Stdout string; ... }
 *   **SSH Abstraction**: `ssh.go` wraps `golang.org/x/crypto/ssh` to handle connection pooling, key management, and `sudo` escalation (become).
 
 ### 4. Dependencies
-*   `github.com/host-uk/core/pkg/log`: structured logging.
+*   `forge.lthn.ai/core/cli/pkg/log`: structured logging.
 *   `golang.org/x/crypto/ssh`: Underlying SSH transport.
 *   `gopkg.in/yaml.v3`: YAML parsing.
 
@@ -129,7 +129,7 @@ Re-exports `Core`, `Option`, `Message`, `Startable`, `Stoppable`, and constructo
 Purely structural; contains type aliases and variable assignments to expose the internal `core` package.
 
 ### 4. Dependencies
-*   `github.com/host-uk/core/pkg/framework/core`
+*   `forge.lthn.ai/core/cli/pkg/framework/core`
 
 ### 5. Test Coverage Notes
 No logic to test directly; coverage belongs in `pkg/framework/core`.
