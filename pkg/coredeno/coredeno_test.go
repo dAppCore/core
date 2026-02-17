@@ -80,3 +80,20 @@ func TestDefaultSocketPath_XDG(t *testing.T) {
 	path := DefaultSocketPath()
 	assert.Equal(t, "/run/user/1000/core/deno.sock", path)
 }
+
+func TestOptions_DenoSocketPath_Default_Good(t *testing.T) {
+	opts := Options{SocketPath: "/tmp/core/core.sock"}
+	sc := NewSidecar(opts)
+	assert.Equal(t, "/tmp/core/deno.sock", sc.opts.DenoSocketPath,
+		"DenoSocketPath should default to same dir as SocketPath with deno.sock")
+}
+
+func TestOptions_DenoSocketPath_Explicit_Good(t *testing.T) {
+	opts := Options{
+		SocketPath:     "/tmp/core/core.sock",
+		DenoSocketPath: "/tmp/custom/deno.sock",
+	}
+	sc := NewSidecar(opts)
+	assert.Equal(t, "/tmp/custom/deno.sock", sc.opts.DenoSocketPath,
+		"Explicit DenoSocketPath should not be overridden")
+}

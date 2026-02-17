@@ -3,6 +3,8 @@ package coredeno
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
 
 	core "forge.lthn.ai/core/go/pkg/framework/core"
 	"forge.lthn.ai/core/go/pkg/io"
@@ -23,6 +25,7 @@ type Service struct {
 	store      *store.Store
 	grpcCancel context.CancelFunc
 	grpcDone   chan error
+	denoClient *DenoClient
 }
 
 // NewServiceFactory returns a factory function for framework registration via WithService.
@@ -91,8 +94,25 @@ func (s *Service) OnStartup(ctx context.Context) error {
 
 	// 6. Start sidecar (if args provided)
 	if len(opts.SidecarArgs) > 0 {
+		// Wait for core socket so sidecar can connect to our gRPC server
+		if err := waitForSocket(ctx, opts.SocketPath, 5*time.Second); err != nil {
+			return fmt.Errorf("coredeno: core socket: %w", err)
+		}
+
 		if err := s.sidecar.Start(ctx, opts.SidecarArgs...); err != nil {
 			return fmt.Errorf("coredeno: sidecar: %w", err)
+		}
+
+		// 7. Wait for Deno's server and connect as client
+		if opts.DenoSocketPath != "" {
+			if err := waitForSocket(ctx, opts.DenoSocketPath, 10*time.Second); err != nil {
+				return fmt.Errorf("coredeno: deno socket: %w", err)
+			}
+			dc, err := DialDeno(opts.DenoSocketPath)
+			if err != nil {
+				return fmt.Errorf("coredeno: deno client: %w", err)
+			}
+			s.denoClient = dc
 		}
 	}
 
@@ -101,7 +121,12 @@ func (s *Service) OnStartup(ctx context.Context) error {
 
 // OnShutdown stops the CoreDeno subsystem. Called by the framework on app shutdown.
 func (s *Service) OnShutdown(_ context.Context) error {
-	// Stop sidecar first
+	// Close Deno client connection
+	if s.denoClient != nil {
+		s.denoClient.Close()
+	}
+
+	// Stop sidecar
 	_ = s.sidecar.Stop()
 
 	// Stop gRPC listener
@@ -126,4 +151,28 @@ func (s *Service) Sidecar() *Sidecar {
 // GRPCServer returns the gRPC server for direct access.
 func (s *Service) GRPCServer() *Server {
 	return s.grpcServer
+}
+
+// DenoClient returns the DenoService client for calling the Deno sidecar.
+// Returns nil if the sidecar was not started or has no DenoSocketPath.
+func (s *Service) DenoClient() *DenoClient {
+	return s.denoClient
+}
+
+// waitForSocket polls until a Unix socket file appears or the context/timeout expires.
+func waitForSocket(ctx context.Context, path string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for socket %s", path)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
 }

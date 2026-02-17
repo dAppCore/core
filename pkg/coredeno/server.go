@@ -8,7 +8,26 @@ import (
 	"forge.lthn.ai/core/go/pkg/io"
 	"forge.lthn.ai/core/go/pkg/manifest"
 	"forge.lthn.ai/core/go/pkg/store"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// ProcessRunner abstracts process management for the gRPC server.
+// Satisfied by *process.Service.
+type ProcessRunner interface {
+	Start(ctx context.Context, command string, args ...string) (ProcessHandle, error)
+	Kill(id string) error
+}
+
+// ProcessHandle is returned by ProcessRunner.Start.
+type ProcessHandle interface {
+	Info() ProcessInfo
+}
+
+// ProcessInfo is the subset of process info the server needs.
+type ProcessInfo struct {
+	ID string
+}
 
 // Server implements the CoreService gRPC interface with permission gating.
 // Every I/O request is checked against the calling module's declared permissions.
@@ -17,6 +36,7 @@ type Server struct {
 	medium    io.Medium
 	store     *store.Store
 	manifests map[string]*manifest.Manifest
+	processes ProcessRunner
 }
 
 // NewServer creates a CoreService server backed by the given Medium and Store.
@@ -128,4 +148,39 @@ func (s *Server) StoreSet(_ context.Context, req *pb.StoreSetRequest) (*pb.Store
 		return nil, err
 	}
 	return &pb.StoreSetResponse{Ok: true}, nil
+}
+
+// SetProcessRunner sets the process runner for ProcessStart/ProcessStop.
+func (s *Server) SetProcessRunner(pr ProcessRunner) {
+	s.processes = pr
+}
+
+// ProcessStart implements CoreService.ProcessStart with permission gating.
+func (s *Server) ProcessStart(ctx context.Context, req *pb.ProcessStartRequest) (*pb.ProcessStartResponse, error) {
+	if s.processes == nil {
+		return nil, status.Error(codes.Unimplemented, "process service not available")
+	}
+	m, err := s.getManifest(req.ModuleCode)
+	if err != nil {
+		return nil, err
+	}
+	if !CheckRun(req.Command, m.Permissions.Run) {
+		return nil, fmt.Errorf("permission denied: %s cannot run %s", req.ModuleCode, req.Command)
+	}
+	proc, err := s.processes.Start(ctx, req.Command, req.Args...)
+	if err != nil {
+		return nil, fmt.Errorf("process start: %w", err)
+	}
+	return &pb.ProcessStartResponse{ProcessId: proc.Info().ID}, nil
+}
+
+// ProcessStop implements CoreService.ProcessStop.
+func (s *Server) ProcessStop(_ context.Context, req *pb.ProcessStopRequest) (*pb.ProcessStopResponse, error) {
+	if s.processes == nil {
+		return nil, status.Error(codes.Unimplemented, "process service not available")
+	}
+	if err := s.processes.Kill(req.ProcessId); err != nil {
+		return nil, fmt.Errorf("process stop: %w", err)
+	}
+	return &pb.ProcessStopResponse{Ok: true}, nil
 }
