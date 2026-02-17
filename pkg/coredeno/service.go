@@ -1,29 +1,39 @@
 package coredeno
 
-import "context"
+import (
+	"context"
 
-// Service wraps the CoreDeno sidecar for framework lifecycle integration.
-// Implements Startable (OnStartup) and Stoppable (OnShutdown) interfaces.
+	core "forge.lthn.ai/core/go/pkg/framework/core"
+)
+
+// Service wraps the CoreDeno sidecar as a framework service.
+// Implements Startable and Stoppable for lifecycle management.
+//
+// Registration:
+//
+//	core.New(core.WithService(coredeno.NewServiceFactory(opts)))
 type Service struct {
+	*core.ServiceRuntime[Options]
 	sidecar *Sidecar
-	opts    Options
 }
 
-// NewService creates a CoreDeno service ready for framework registration.
-func NewService(opts Options) *Service {
-	return &Service{
-		sidecar: NewSidecar(opts),
-		opts:    opts,
+// NewServiceFactory returns a factory function for framework registration via WithService.
+func NewServiceFactory(opts Options) func(*core.Core) (any, error) {
+	return func(c *core.Core) (any, error) {
+		return &Service{
+			ServiceRuntime: core.NewServiceRuntime(c, opts),
+			sidecar:        NewSidecar(opts),
+		}, nil
 	}
 }
 
-// OnStartup starts the Deno sidecar. Called by the framework.
+// OnStartup starts the Deno sidecar. Called by the framework on app startup.
 func (s *Service) OnStartup(ctx context.Context) error {
 	return nil
 }
 
-// OnShutdown stops the Deno sidecar. Called by the framework.
-func (s *Service) OnShutdown() error {
+// OnShutdown stops the Deno sidecar. Called by the framework on app shutdown.
+func (s *Service) OnShutdown(_ context.Context) error {
 	return s.sidecar.Stop()
 }
 
