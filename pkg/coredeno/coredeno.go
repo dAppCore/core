@@ -58,6 +58,7 @@ type Sidecar struct {
 	cmd    *exec.Cmd
 	ctx    context.Context
 	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // NewSidecar creates a Sidecar with the given options.
