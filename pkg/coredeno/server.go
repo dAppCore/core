@@ -1,0 +1,131 @@
+package coredeno
+
+import (
+	"context"
+	"fmt"
+
+	pb "forge.lthn.ai/core/go/pkg/coredeno/proto"
+	"forge.lthn.ai/core/go/pkg/io"
+	"forge.lthn.ai/core/go/pkg/manifest"
+	"forge.lthn.ai/core/go/pkg/store"
+)
+
+// Server implements the CoreService gRPC interface with permission gating.
+// Every I/O request is checked against the calling module's declared permissions.
+type Server struct {
+	pb.UnimplementedCoreServiceServer
+	medium    io.Medium
+	store     *store.Store
+	manifests map[string]*manifest.Manifest
+}
+
+// NewServer creates a CoreService server backed by the given Medium and Store.
+func NewServer(medium io.Medium, st *store.Store) *Server {
+	return &Server{
+		medium:    medium,
+		store:     st,
+		manifests: make(map[string]*manifest.Manifest),
+	}
+}
+
+// RegisterModule adds a module's manifest to the permission registry.
+func (s *Server) RegisterModule(m *manifest.Manifest) {
+	s.manifests[m.Code] = m
+}
+
+// getManifest looks up a module and returns an error if unknown.
+func (s *Server) getManifest(code string) (*manifest.Manifest, error) {
+	m, ok := s.manifests[code]
+	if !ok {
+		return nil, fmt.Errorf("unknown module: %s", code)
+	}
+	return m, nil
+}
+
+// FileRead implements CoreService.FileRead with permission gating.
+func (s *Server) FileRead(_ context.Context, req *pb.FileReadRequest) (*pb.FileReadResponse, error) {
+	m, err := s.getManifest(req.ModuleCode)
+	if err != nil {
+		return nil, err
+	}
+	if !CheckPath(req.Path, m.Permissions.Read) {
+		return nil, fmt.Errorf("permission denied: %s cannot read %s", req.ModuleCode, req.Path)
+	}
+	content, err := s.medium.Read(req.Path)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.FileReadResponse{Content: content}, nil
+}
+
+// FileWrite implements CoreService.FileWrite with permission gating.
+func (s *Server) FileWrite(_ context.Context, req *pb.FileWriteRequest) (*pb.FileWriteResponse, error) {
+	m, err := s.getManifest(req.ModuleCode)
+	if err != nil {
+		return nil, err
+	}
+	if !CheckPath(req.Path, m.Permissions.Write) {
+		return nil, fmt.Errorf("permission denied: %s cannot write %s", req.ModuleCode, req.Path)
+	}
+	if err := s.medium.Write(req.Path, req.Content); err != nil {
+		return nil, err
+	}
+	return &pb.FileWriteResponse{Ok: true}, nil
+}
+
+// FileList implements CoreService.FileList with permission gating.
+func (s *Server) FileList(_ context.Context, req *pb.FileListRequest) (*pb.FileListResponse, error) {
+	m, err := s.getManifest(req.ModuleCode)
+	if err != nil {
+		return nil, err
+	}
+	if !CheckPath(req.Path, m.Permissions.Read) {
+		return nil, fmt.Errorf("permission denied: %s cannot list %s", req.ModuleCode, req.Path)
+	}
+	entries, err := s.medium.List(req.Path)
+	if err != nil {
+		return nil, err
+	}
+	var pbEntries []*pb.FileEntry
+	for _, e := range entries {
+		info, _ := e.Info()
+		pbEntries = append(pbEntries, &pb.FileEntry{
+			Name:  e.Name(),
+			IsDir: e.IsDir(),
+			Size:  info.Size(),
+		})
+	}
+	return &pb.FileListResponse{Entries: pbEntries}, nil
+}
+
+// FileDelete implements CoreService.FileDelete with permission gating.
+func (s *Server) FileDelete(_ context.Context, req *pb.FileDeleteRequest) (*pb.FileDeleteResponse, error) {
+	m, err := s.getManifest(req.ModuleCode)
+	if err != nil {
+		return nil, err
+	}
+	if !CheckPath(req.Path, m.Permissions.Write) {
+		return nil, fmt.Errorf("permission denied: %s cannot delete %s", req.ModuleCode, req.Path)
+	}
+	if err := s.medium.Delete(req.Path); err != nil {
+		return nil, err
+	}
+	return &pb.FileDeleteResponse{Ok: true}, nil
+}
+
+// StoreGet implements CoreService.StoreGet.
+func (s *Server) StoreGet(_ context.Context, req *pb.StoreGetRequest) (*pb.StoreGetResponse, error) {
+	val, err := s.store.Get(req.Group, req.Key)
+	if err != nil {
+		return &pb.StoreGetResponse{Found: false}, nil
+	}
+	return &pb.StoreGetResponse{Value: val, Found: true}, nil
+}
+
+// StoreSet implements CoreService.StoreSet.
+func (s *Server) StoreSet(_ context.Context, req *pb.StoreSetRequest) (*pb.StoreSetResponse, error) {
+	if err := s.store.Set(req.Group, req.Key, req.Value); err != nil {
+		return nil, err
+	}
+	return &pb.StoreSetResponse{Ok: true}, nil
+}
