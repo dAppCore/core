@@ -2,6 +2,7 @@ package coredeno
 
 import (
 	"context"
+	"crypto/ed25519"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,8 +13,12 @@ import (
 
 // Options configures the CoreDeno sidecar.
 type Options struct {
-	DenoPath   string // path to deno binary (default: "deno")
-	SocketPath string // Unix socket path for gRPC
+	DenoPath    string            // path to deno binary (default: "deno")
+	SocketPath  string            // Unix socket path for gRPC
+	AppRoot     string            // app root directory (sandboxed I/O)
+	StoreDBPath string            // SQLite DB path (default: AppRoot/.core/store.db)
+	PublicKey   ed25519.PublicKey  // ed25519 public key for manifest verification (optional)
+	SidecarArgs []string          // args passed to the sidecar process
 }
 
 // Permissions declares per-module Deno permission flags.
@@ -68,6 +73,9 @@ func NewSidecar(opts Options) *Sidecar {
 	}
 	if opts.SocketPath == "" {
 		opts.SocketPath = DefaultSocketPath()
+	}
+	if opts.StoreDBPath == "" && opts.AppRoot != "" {
+		opts.StoreDBPath = filepath.Join(opts.AppRoot, ".core", "store.db")
 	}
 	return &Sidecar{opts: opts}
 }

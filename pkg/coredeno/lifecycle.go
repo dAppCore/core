@@ -28,6 +28,7 @@ func (s *Sidecar) Start(ctx context.Context, args ...string) error {
 
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.cmd = exec.CommandContext(s.ctx, s.opts.DenoPath, args...)
+	s.cmd.Env = append(os.Environ(), "CORE_SOCKET="+s.opts.SocketPath)
 	s.done = make(chan struct{})
 	if err := s.cmd.Start(); err != nil {
 		s.cmd = nil
