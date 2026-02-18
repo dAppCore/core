@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	core "forge.lthn.ai/core/go/pkg/framework/core"
 	"forge.lthn.ai/core/go/pkg/io"
 	"forge.lthn.ai/core/go/pkg/manifest"
+	"forge.lthn.ai/core/go/pkg/marketplace"
 	"forge.lthn.ai/core/go/pkg/store"
 )
 
@@ -26,6 +28,7 @@ type Service struct {
 	grpcCancel context.CancelFunc
 	grpcDone   chan error
 	denoClient *DenoClient
+	installer  *marketplace.Installer
 }
 
 // NewServiceFactory returns a factory function for framework registration via WithService.
@@ -116,6 +119,27 @@ func (s *Service) OnStartup(ctx context.Context) error {
 		}
 	}
 
+	// 8. Create installer and auto-load installed modules
+	if opts.AppRoot != "" {
+		modulesDir := filepath.Join(opts.AppRoot, "modules")
+		s.installer = marketplace.NewInstaller(modulesDir, s.store)
+
+		if s.denoClient != nil {
+			installed, listErr := s.installer.Installed()
+			if listErr == nil {
+				for _, mod := range installed {
+					perms := ModulePermissions{
+						Read:  mod.Permissions.Read,
+						Write: mod.Permissions.Write,
+						Net:   mod.Permissions.Net,
+						Run:   mod.Permissions.Run,
+					}
+					s.denoClient.LoadModule(mod.Code, mod.EntryPoint, perms)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -157,6 +181,12 @@ func (s *Service) GRPCServer() *Server {
 // Returns nil if the sidecar was not started or has no DenoSocketPath.
 func (s *Service) DenoClient() *DenoClient {
 	return s.denoClient
+}
+
+// Installer returns the marketplace module installer.
+// Returns nil if AppRoot was not set.
+func (s *Service) Installer() *marketplace.Installer {
+	return s.installer
 }
 
 // waitForSocket polls until a Unix socket file appears or the context/timeout expires.

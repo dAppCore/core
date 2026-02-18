@@ -12,6 +12,7 @@ import (
 
 	pb "forge.lthn.ai/core/go/pkg/coredeno/proto"
 	core "forge.lthn.ai/core/go/pkg/framework/core"
+	"forge.lthn.ai/core/go/pkg/marketplace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -333,6 +334,163 @@ permissions:
 	statusResp, err := svc.DenoClient().ModuleStatus("test-mod")
 	require.NoError(t, err)
 	assert.Equal(t, "STOPPED", statusResp.Status)
+
+	// Clean shutdown
+	err = svc.OnShutdown(context.Background())
+	assert.NoError(t, err)
+	assert.False(t, svc.sidecar.IsRunning(), "Deno sidecar should be stopped")
+}
+
+// createModuleRepo creates a git repo containing a test module with manifest + main.ts.
+// The module's init() writes to the store to prove the I/O bridge works.
+func createModuleRepo(t *testing.T, code string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), code+"-repo")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".core"), 0755))
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".core", "view.yml"), []byte(`
+code: `+code+`
+name: Test Module `+code+`
+version: "1.0"
+permissions:
+  read: ["./"]
+`), 0644))
+
+	// Module that writes to store to prove it ran
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.ts"), []byte(`
+export async function init(core: any) {
+  await core.storeSet("`+code+`", "installed", "yes");
+}
+`), 0644))
+
+	gitCmd := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{
+			"-C", dir, "-c", "user.email=test@test.com", "-c", "user.name=test",
+		}, args...)...)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "git %v: %s", args, string(out))
+	}
+	gitCmd("init")
+	gitCmd("add", ".")
+	gitCmd("commit", "-m", "init")
+
+	return dir
+}
+
+func TestIntegration_Tier4_MarketplaceInstall_Good(t *testing.T) {
+	denoPath := findDeno(t)
+
+	tmpDir := t.TempDir()
+	sockPath := filepath.Join(tmpDir, "core.sock")
+	denoSockPath := filepath.Join(tmpDir, "deno.sock")
+
+	// Write app manifest
+	coreDir := filepath.Join(tmpDir, ".core")
+	require.NoError(t, os.MkdirAll(coreDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(coreDir, "view.yml"), []byte(`
+code: tier4-test
+name: Tier 4 Test
+version: "1.0"
+permissions:
+  read: ["./"]
+`), 0644))
+
+	entryPoint := runtimeEntryPoint(t)
+
+	opts := Options{
+		DenoPath:       denoPath,
+		SocketPath:     sockPath,
+		DenoSocketPath: denoSockPath,
+		AppRoot:        tmpDir,
+		StoreDBPath:    ":memory:",
+		SidecarArgs:    []string{"run", "-A", "--unstable-worker-options", entryPoint},
+	}
+
+	c, err := core.New()
+	require.NoError(t, err)
+
+	factory := NewServiceFactory(opts)
+	result, err := factory(c)
+	require.NoError(t, err)
+	svc := result.(*Service)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	err = svc.OnStartup(ctx)
+	require.NoError(t, err)
+
+	// Verify sidecar and Deno client are up
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(denoSockPath)
+		return err == nil
+	}, 10*time.Second, 50*time.Millisecond, "deno socket should appear")
+
+	require.NotNil(t, svc.DenoClient(), "DenoClient should be connected")
+	require.NotNil(t, svc.Installer(), "Installer should be available")
+
+	// Create a test module repo and install it
+	moduleRepo := createModuleRepo(t, "market-mod")
+	err = svc.Installer().Install(ctx, marketplace.Module{
+		Code: "market-mod",
+		Repo: moduleRepo,
+	})
+	require.NoError(t, err)
+
+	// Verify the module was installed on disk
+	modulesDir := filepath.Join(tmpDir, "modules", "market-mod")
+	require.DirExists(t, modulesDir)
+
+	// Verify Installed() returns it
+	installed, err := svc.Installer().Installed()
+	require.NoError(t, err)
+	require.Len(t, installed, 1)
+	assert.Equal(t, "market-mod", installed[0].Code)
+	assert.Equal(t, "1.0", installed[0].Version)
+
+	// Load the installed module into the Deno runtime
+	mod := installed[0]
+	loadResp, err := svc.DenoClient().LoadModule(mod.Code, mod.EntryPoint, ModulePermissions{
+		Read: mod.Permissions.Read,
+	})
+	require.NoError(t, err)
+	assert.True(t, loadResp.Ok)
+
+	// Wait for module to reach RUNNING
+	require.Eventually(t, func() bool {
+		resp, err := svc.DenoClient().ModuleStatus("market-mod")
+		return err == nil && resp.Status == "RUNNING"
+	}, 10*time.Second, 100*time.Millisecond, "installed module should be RUNNING")
+
+	// Verify the module wrote to the store via I/O bridge
+	conn, err := grpc.NewClient(
+		"unix://"+sockPath,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	coreClient := pb.NewCoreServiceClient(conn)
+	require.Eventually(t, func() bool {
+		resp, err := coreClient.StoreGet(ctx, &pb.StoreGetRequest{
+			Group: "market-mod", Key: "installed",
+		})
+		return err == nil && resp.Found && resp.Value == "yes"
+	}, 5*time.Second, 100*time.Millisecond, "installed module should have written to store via I/O bridge")
+
+	// Unload and remove
+	unloadResp, err := svc.DenoClient().UnloadModule("market-mod")
+	require.NoError(t, err)
+	assert.True(t, unloadResp.Ok)
+
+	err = svc.Installer().Remove("market-mod")
+	require.NoError(t, err)
+	assert.NoDirExists(t, modulesDir, "module directory should be removed")
+
+	installed2, err := svc.Installer().Installed()
+	require.NoError(t, err)
+	assert.Empty(t, installed2, "no modules should be installed after remove")
 
 	// Clean shutdown
 	err = svc.OnShutdown(context.Background())

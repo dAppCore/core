@@ -11,8 +11,8 @@ import (
 
 const manifestPath = ".core/view.yml"
 
-// marshalYAML serializes a manifest to YAML bytes.
-func marshalYAML(m *Manifest) ([]byte, error) {
+// MarshalYAML serializes a manifest to YAML bytes.
+func MarshalYAML(m *Manifest) ([]byte, error) {
 	return yaml.Marshal(m)
 }
 

@@ -39,7 +39,7 @@ func TestLoadVerified_Good(t *testing.T) {
 	}
 	_ = Sign(m, priv)
 
-	raw, _ := marshalYAML(m)
+	raw, _ := MarshalYAML(m)
 	fs := io.NewMockMedium()
 	fs.Files[".core/view.yml"] = string(raw)
 
@@ -53,7 +53,7 @@ func TestLoadVerified_Bad_Tampered(t *testing.T) {
 	m := &Manifest{Code: "app", Version: "1.0.0"}
 	_ = Sign(m, priv)
 
-	raw, _ := marshalYAML(m)
+	raw, _ := MarshalYAML(m)
 	tampered := "code: evil\n" + string(raw)[6:]
 	fs := io.NewMockMedium()
 	fs.Files[".core/view.yml"] = tampered

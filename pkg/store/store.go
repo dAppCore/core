@@ -95,6 +95,25 @@ func (s *Store) DeleteGroup(group string) error {
 	return nil
 }
 
+// GetAll returns all key-value pairs in a group.
+func (s *Store) GetAll(group string) (map[string]string, error) {
+	rows, err := s.db.Query("SELECT key, value FROM kv WHERE grp = ?", group)
+	if err != nil {
+		return nil, fmt.Errorf("store.GetAll: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, fmt.Errorf("store.GetAll: scan: %w", err)
+		}
+		result[k] = v
+	}
+	return result, nil
+}
+
 // Render loads all key-value pairs from a group and renders a Go template.
 func (s *Store) Render(tmplStr, group string) (string, error) {
 	rows, err := s.db.Query("SELECT key, value FROM kv WHERE grp = ?", group)
