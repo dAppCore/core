@@ -63,19 +63,27 @@ func (c *DenoClient) call(req map[string]any) (map[string]any, error) {
 	return resp, nil
 }
 
+// ModulePermissions declares per-module permission scopes for Deno Worker sandboxing.
+type ModulePermissions struct {
+	Read  []string `json:"read,omitempty"`
+	Write []string `json:"write,omitempty"`
+	Net   []string `json:"net,omitempty"`
+	Run   []string `json:"run,omitempty"`
+}
+
 // LoadModuleResponse holds the result of a LoadModule call.
 type LoadModuleResponse struct {
 	Ok    bool
 	Error string
 }
 
-// LoadModule tells Deno to load a module.
-func (c *DenoClient) LoadModule(code, entryPoint string, permissions []string) (*LoadModuleResponse, error) {
+// LoadModule tells Deno to load a module with the given permissions.
+func (c *DenoClient) LoadModule(code, entryPoint string, perms ModulePermissions) (*LoadModuleResponse, error) {
 	resp, err := c.call(map[string]any{
 		"method":      "LoadModule",
 		"code":        code,
 		"entry_point": entryPoint,
-		"permissions": permissions,
+		"permissions": perms,
 	})
 	if err != nil {
 		return nil, err

@@ -94,7 +94,7 @@ interface RPCRequest {
   method: string;
   code?: string;
   entry_point?: string;
-  permissions?: string[];
+  permissions?: { read?: string[]; write?: string[]; net?: string[]; run?: string[] };
   process_id?: string;
 }
 
@@ -107,7 +107,7 @@ function dispatch(
       registry.load(
         req.code ?? "",
         req.entry_point ?? "",
-        req.permissions ?? [],
+        req.permissions ?? {},
       );
       return { ok: true, error: "" };
     }

@@ -82,10 +82,13 @@ let coreClient: CoreClient;
   console.error("CoreDeno: CoreService client connected");
 }
 
-// 4. Signal readiness
+// 4. Inject CoreClient into registry for I/O bridge
+registry.setCoreClient(coreClient);
+
+// 5. Signal readiness
 console.error("CoreDeno: ready");
 
-// 5. Keep alive until SIGTERM
+// 6. Keep alive until SIGTERM
 const ac = new AbortController();
 Deno.addSignalListener("SIGTERM", () => {
   console.error("CoreDeno: shutting down");

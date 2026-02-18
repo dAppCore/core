@@ -3,5 +3,6 @@
     "@grpc/grpc-js": "npm:@grpc/grpc-js@^1.12",
     "@grpc/proto-loader": "npm:@grpc/proto-loader@^0.7"
   },
-  "nodeModulesDir": "none"
+  "nodeModulesDir": "none",
+  "unstable": ["worker-options"]
 }
