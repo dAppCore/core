@@ -14,7 +14,9 @@ func TestNew(t *testing.T) {
 	root := t.TempDir()
 	m, err := New(root)
 	assert.NoError(t, err)
-	assert.Equal(t, root, m.root)
+	// New() resolves symlinks (macOS /var → /private/var), so compare resolved paths.
+	resolved, _ := filepath.EvalSymlinks(root)
+	assert.Equal(t, resolved, m.root)
 }
 
 func TestPath(t *testing.T) {

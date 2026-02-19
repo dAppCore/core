@@ -24,6 +24,13 @@ func New(root string) (*Medium, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Resolve symlinks so sandbox checks compare like-for-like.
+	// On macOS, /var is a symlink to /private/var — without this,
+	// EvalSymlinks on child paths resolves to /private/var/... while
+	// root stays /var/..., causing false sandbox escape detections.
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		abs = resolved
+	}
 	return &Medium{root: abs}, nil
 }
 
