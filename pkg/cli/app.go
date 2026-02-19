@@ -5,7 +5,6 @@ import (
 	"os"
 	"runtime/debug"
 
-	"forge.lthn.ai/core/go/pkg/crypt/openpgp"
 	"forge.lthn.ai/core/go/pkg/framework"
 	"forge.lthn.ai/core/go/pkg/log"
 	"forge.lthn.ai/core/go/pkg/workspace"
@@ -70,7 +69,6 @@ func Main() {
 			framework.WithName("log", NewLogService(log.Options{
 				Level: log.LevelInfo,
 			})),
-			framework.WithName("crypt", openpgp.New),
 			framework.WithName("workspace", workspace.New),
 		},
 	}); err != nil {

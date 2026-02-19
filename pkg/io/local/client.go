@@ -25,7 +25,9 @@ func New(root string) (*Medium, error) {
 		return nil, err
 	}
 	// Resolve symlinks so sandbox checks compare like-for-like.
-	// macOS /var → /private/var causes false sandbox escapes without this.
+	// On macOS, /var is a symlink to /private/var — without this,
+	// EvalSymlinks on child paths resolves to /private/var/... while
+	// root stays /var/..., causing false sandbox escape detections.
 	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 		abs = resolved
 	}
