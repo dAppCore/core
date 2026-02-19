@@ -17,9 +17,9 @@ func (s *Sidecar) Start(ctx context.Context, args ...string) error {
 		return fmt.Errorf("coredeno: already running")
 	}
 
-	// Ensure socket directory exists
+	// Ensure socket directory exists with owner-only permissions
 	sockDir := filepath.Dir(s.opts.SocketPath)
-	if err := os.MkdirAll(sockDir, 0755); err != nil {
+	if err := os.MkdirAll(sockDir, 0700); err != nil {
 		return fmt.Errorf("coredeno: mkdir %s: %w", sockDir, err)
 	}
 

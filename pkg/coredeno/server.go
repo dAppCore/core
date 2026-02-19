@@ -2,7 +2,9 @@ package coredeno
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	pb "forge.lthn.ai/core/go/pkg/coredeno/proto"
 	"forge.lthn.ai/core/go/pkg/io"
@@ -133,17 +135,36 @@ func (s *Server) FileDelete(_ context.Context, req *pb.FileDeleteRequest) (*pb.F
 	return &pb.FileDeleteResponse{Ok: true}, nil
 }
 
-// StoreGet implements CoreService.StoreGet.
+// storeGroupAllowed checks that the requested group is not a reserved system namespace.
+// Groups prefixed with "_" are reserved for internal use (e.g. _coredeno, _modules).
+// TODO: once the proto carries module_code on store requests, enforce per-module namespace isolation.
+func storeGroupAllowed(group string) error {
+	if strings.HasPrefix(group, "_") {
+		return status.Errorf(codes.PermissionDenied, "reserved store group: %s", group)
+	}
+	return nil
+}
+
+// StoreGet implements CoreService.StoreGet with reserved namespace protection.
 func (s *Server) StoreGet(_ context.Context, req *pb.StoreGetRequest) (*pb.StoreGetResponse, error) {
+	if err := storeGroupAllowed(req.Group); err != nil {
+		return nil, err
+	}
 	val, err := s.store.Get(req.Group, req.Key)
 	if err != nil {
-		return &pb.StoreGetResponse{Found: false}, nil
+		if errors.Is(err, store.ErrNotFound) {
+			return &pb.StoreGetResponse{Found: false}, nil
+		}
+		return nil, status.Errorf(codes.Internal, "store: %v", err)
 	}
 	return &pb.StoreGetResponse{Value: val, Found: true}, nil
 }
 
-// StoreSet implements CoreService.StoreSet.
+// StoreSet implements CoreService.StoreSet with reserved namespace protection.
 func (s *Server) StoreSet(_ context.Context, req *pb.StoreSetRequest) (*pb.StoreSetResponse, error) {
+	if err := storeGroupAllowed(req.Group); err != nil {
+		return nil, err
+	}
 	if err := s.store.Set(req.Group, req.Key, req.Value); err != nil {
 		return nil, err
 	}

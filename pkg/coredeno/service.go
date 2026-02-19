@@ -95,24 +95,36 @@ func (s *Service) OnStartup(ctx context.Context) error {
 		s.grpcDone <- ListenGRPC(grpcCtx, opts.SocketPath, s.grpcServer)
 	}()
 
+	// cleanupGRPC tears down the listener on early-return errors.
+	cleanupGRPC := func() {
+		grpcCancel()
+		<-s.grpcDone
+	}
+
 	// 6. Start sidecar (if args provided)
 	if len(opts.SidecarArgs) > 0 {
 		// Wait for core socket so sidecar can connect to our gRPC server
 		if err := waitForSocket(ctx, opts.SocketPath, 5*time.Second); err != nil {
+			cleanupGRPC()
 			return fmt.Errorf("coredeno: core socket: %w", err)
 		}
 
 		if err := s.sidecar.Start(ctx, opts.SidecarArgs...); err != nil {
+			cleanupGRPC()
 			return fmt.Errorf("coredeno: sidecar: %w", err)
 		}
 
 		// 7. Wait for Deno's server and connect as client
 		if opts.DenoSocketPath != "" {
 			if err := waitForSocket(ctx, opts.DenoSocketPath, 10*time.Second); err != nil {
+				_ = s.sidecar.Stop()
+				cleanupGRPC()
 				return fmt.Errorf("coredeno: deno socket: %w", err)
 			}
 			dc, err := DialDeno(opts.DenoSocketPath)
 			if err != nil {
+				_ = s.sidecar.Stop()
+				cleanupGRPC()
 				return fmt.Errorf("coredeno: deno client: %w", err)
 			}
 			s.denoClient = dc

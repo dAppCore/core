@@ -14,7 +14,9 @@ func CheckPath(path string, allowed []string) bool {
 	clean := filepath.Clean(path)
 	for _, prefix := range allowed {
 		cleanPrefix := filepath.Clean(prefix)
-		if strings.HasPrefix(clean, cleanPrefix) {
+		// Exact match or path is under the prefix directory.
+		// The separator check prevents "data" matching "data-secrets".
+		if clean == cleanPrefix || strings.HasPrefix(clean, cleanPrefix+string(filepath.Separator)) {
 			return true
 		}
 	}

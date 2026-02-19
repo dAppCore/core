@@ -88,9 +88,10 @@ func (c *DenoClient) LoadModule(code, entryPoint string, perms ModulePermissions
 	if err != nil {
 		return nil, err
 	}
+	errStr, _ := resp["error"].(string)
 	return &LoadModuleResponse{
 		Ok:    resp["ok"] == true,
-		Error: fmt.Sprint(resp["error"]),
+		Error: errStr,
 	}, nil
 }
 
@@ -128,8 +129,10 @@ func (c *DenoClient) ModuleStatus(code string) (*ModuleStatusResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	respCode, _ := resp["code"].(string)
+	sts, _ := resp["status"].(string)
 	return &ModuleStatusResponse{
-		Code:   fmt.Sprint(resp["code"]),
-		Status: fmt.Sprint(resp["status"]),
+		Code:   respCode,
+		Status: sts,
 	}, nil
 }

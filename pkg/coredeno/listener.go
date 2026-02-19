@@ -2,6 +2,7 @@ package coredeno
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 
@@ -20,6 +21,11 @@ func ListenGRPC(ctx context.Context, socketPath string, srv *Server) error {
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		return err
+	}
+	// Restrict socket to owner only — prevents other users from sending gRPC commands.
+	if err := os.Chmod(socketPath, 0600); err != nil {
+		listener.Close()
+		return fmt.Errorf("chmod socket: %w", err)
 	}
 	defer func() {
 		_ = listener.Close()

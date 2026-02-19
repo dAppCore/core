@@ -40,6 +40,7 @@ type InstalledModule struct {
 	Repo        string               `json:"repo"`
 	EntryPoint  string               `json:"entry_point"`
 	Permissions manifest.Permissions `json:"permissions"`
+	SignKey     string               `json:"sign_key,omitempty"`
 	InstalledAt string               `json:"installed_at"`
 }
 
@@ -84,6 +85,7 @@ func (i *Installer) Install(ctx context.Context, mod Module) error {
 		Repo:        mod.Repo,
 		EntryPoint:  entryPoint,
 		Permissions: m.Permissions,
+		SignKey:     mod.SignKey,
 		InstalledAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -131,12 +133,12 @@ func (i *Installer) Update(ctx context.Context, code string) error {
 		return fmt.Errorf("marketplace: pull: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 
-	// Reload manifest
+	// Reload and re-verify manifest with the same key used at install time
 	medium, mErr := io.NewSandboxed(dest)
 	if mErr != nil {
 		return fmt.Errorf("marketplace: medium: %w", mErr)
 	}
-	m, mErr := manifest.Load(medium, ".")
+	m, mErr := loadManifest(medium, installed.SignKey)
 	if mErr != nil {
 		return fmt.Errorf("marketplace: reload manifest: %w", mErr)
 	}

@@ -76,10 +76,14 @@ func TestListenGRPC_Good(t *testing.T) {
 }
 
 func TestListenGRPC_Bad_StaleSocket(t *testing.T) {
-	sockDir := t.TempDir()
-	sockPath := filepath.Join(sockDir, "stale.sock")
+	// Use a short temp dir — macOS limits Unix socket paths to 104 bytes (sun_path)
+	// and t.TempDir() + this test's long name can exceed that.
+	sockDir, err := os.MkdirTemp("", "grpc")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(sockDir) })
+	sockPath := filepath.Join(sockDir, "s.sock")
 
-	// Create a stale socket file
+	// Create a stale regular file where the socket should go
 	require.NoError(t, os.WriteFile(sockPath, []byte("stale"), 0644))
 
 	medium := io.NewMockMedium()
@@ -97,13 +101,19 @@ func TestListenGRPC_Bad_StaleSocket(t *testing.T) {
 		errCh <- ListenGRPC(ctx, sockPath, srv)
 	}()
 
-	// Should replace stale file and start listening
+	// Should replace stale file and start listening.
+	// Also watch errCh — if ListenGRPC returns early, fail with the actual error.
 	require.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			t.Fatalf("ListenGRPC returned early: %v", err)
+			return false
+		default:
+		}
 		info, err := os.Stat(sockPath)
 		if err != nil {
 			return false
 		}
-		// Socket file type, not regular file
 		return info.Mode()&os.ModeSocket != 0
 	}, 2*time.Second, 10*time.Millisecond, "socket should replace stale file")
 
