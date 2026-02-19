@@ -2,12 +2,16 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"text/template"
 
 	_ "modernc.org/sqlite"
 )
+
+// ErrNotFound is returned when a key does not exist in the store.
+var ErrNotFound = errors.New("store: not found")
 
 // Store is a group-namespaced key-value store backed by SQLite.
 type Store struct {
@@ -46,7 +50,7 @@ func (s *Store) Get(group, key string) (string, error) {
 	var val string
 	err := s.db.QueryRow("SELECT value FROM kv WHERE grp = ? AND key = ?", group, key).Scan(&val)
 	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("store.Get: not found: %s/%s", group, key)
+		return "", fmt.Errorf("store.Get: %s/%s: %w", group, key, ErrNotFound)
 	}
 	if err != nil {
 		return "", fmt.Errorf("store.Get: %w", err)
@@ -95,6 +99,28 @@ func (s *Store) DeleteGroup(group string) error {
 	return nil
 }
 
+// GetAll returns all key-value pairs in a group.
+func (s *Store) GetAll(group string) (map[string]string, error) {
+	rows, err := s.db.Query("SELECT key, value FROM kv WHERE grp = ?", group)
+	if err != nil {
+		return nil, fmt.Errorf("store.GetAll: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, fmt.Errorf("store.GetAll: scan: %w", err)
+		}
+		result[k] = v
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store.GetAll: rows: %w", err)
+	}
+	return result, nil
+}
+
 // Render loads all key-value pairs from a group and renders a Go template.
 func (s *Store) Render(tmplStr, group string) (string, error) {
 	rows, err := s.db.Query("SELECT key, value FROM kv WHERE grp = ?", group)
@@ -110,6 +136,9 @@ func (s *Store) Render(tmplStr, group string) (string, error) {
 			return "", fmt.Errorf("store.Render: scan: %w", err)
 		}
 		vars[k] = v
+	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("store.Render: rows: %w", err)
 	}
 
 	tmpl, err := template.New("render").Parse(tmplStr)

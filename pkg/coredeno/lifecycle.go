@@ -17,17 +17,23 @@ func (s *Sidecar) Start(ctx context.Context, args ...string) error {
 		return fmt.Errorf("coredeno: already running")
 	}
 
-	// Ensure socket directory exists
+	// Ensure socket directory exists with owner-only permissions
 	sockDir := filepath.Dir(s.opts.SocketPath)
-	if err := os.MkdirAll(sockDir, 0755); err != nil {
+	if err := os.MkdirAll(sockDir, 0700); err != nil {
 		return fmt.Errorf("coredeno: mkdir %s: %w", sockDir, err)
 	}
 
-	// Remove stale socket
-	os.Remove(s.opts.SocketPath)
+	// Remove stale Deno socket (the Core socket is managed by ListenGRPC)
+	if s.opts.DenoSocketPath != "" {
+		os.Remove(s.opts.DenoSocketPath)
+	}
 
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.cmd = exec.CommandContext(s.ctx, s.opts.DenoPath, args...)
+	s.cmd.Env = append(os.Environ(),
+		"CORE_SOCKET="+s.opts.SocketPath,
+		"DENO_SOCKET="+s.opts.DenoSocketPath,
+	)
 	s.done = make(chan struct{})
 	if err := s.cmd.Start(); err != nil {
 		s.cmd = nil

@@ -44,6 +44,34 @@ func TestSidecar_PermissionFlags_Empty(t *testing.T) {
 	assert.Empty(t, flags)
 }
 
+func TestOptions_AppRoot_Good(t *testing.T) {
+	opts := Options{
+		DenoPath:    "deno",
+		SocketPath:  "/tmp/test.sock",
+		AppRoot:     "/app",
+		StoreDBPath: "/app/.core/store.db",
+	}
+	sc := NewSidecar(opts)
+	assert.Equal(t, "/app", sc.opts.AppRoot)
+	assert.Equal(t, "/app/.core/store.db", sc.opts.StoreDBPath)
+}
+
+func TestOptions_StoreDBPath_Default_Good(t *testing.T) {
+	opts := Options{AppRoot: "/app"}
+	sc := NewSidecar(opts)
+	assert.Equal(t, "/app/.core/store.db", sc.opts.StoreDBPath,
+		"StoreDBPath should default to AppRoot/.core/store.db")
+}
+
+func TestOptions_SidecarArgs_Good(t *testing.T) {
+	opts := Options{
+		DenoPath:    "deno",
+		SidecarArgs: []string{"run", "--allow-env", "main.ts"},
+	}
+	sc := NewSidecar(opts)
+	assert.Equal(t, []string{"run", "--allow-env", "main.ts"}, sc.opts.SidecarArgs)
+}
+
 func TestDefaultSocketPath_XDG(t *testing.T) {
 	orig := os.Getenv("XDG_RUNTIME_DIR")
 	defer os.Setenv("XDG_RUNTIME_DIR", orig)
@@ -51,4 +79,21 @@ func TestDefaultSocketPath_XDG(t *testing.T) {
 	os.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
 	path := DefaultSocketPath()
 	assert.Equal(t, "/run/user/1000/core/deno.sock", path)
+}
+
+func TestOptions_DenoSocketPath_Default_Good(t *testing.T) {
+	opts := Options{SocketPath: "/tmp/core/core.sock"}
+	sc := NewSidecar(opts)
+	assert.Equal(t, "/tmp/core/deno.sock", sc.opts.DenoSocketPath,
+		"DenoSocketPath should default to same dir as SocketPath with deno.sock")
+}
+
+func TestOptions_DenoSocketPath_Explicit_Good(t *testing.T) {
+	opts := Options{
+		SocketPath:     "/tmp/core/core.sock",
+		DenoSocketPath: "/tmp/custom/deno.sock",
+	}
+	sc := NewSidecar(opts)
+	assert.Equal(t, "/tmp/custom/deno.sock", sc.opts.DenoSocketPath,
+		"Explicit DenoSocketPath should not be overridden")
 }

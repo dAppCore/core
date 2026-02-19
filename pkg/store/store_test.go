@@ -66,6 +66,28 @@ func TestDeleteGroup_Good(t *testing.T) {
 	assert.Equal(t, 0, n)
 }
 
+func TestGetAll_Good(t *testing.T) {
+	s, _ := New(":memory:")
+	defer s.Close()
+
+	_ = s.Set("grp", "a", "1")
+	_ = s.Set("grp", "b", "2")
+	_ = s.Set("other", "c", "3")
+
+	all, err := s.GetAll("grp")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"a": "1", "b": "2"}, all)
+}
+
+func TestGetAll_Good_Empty(t *testing.T) {
+	s, _ := New(":memory:")
+	defer s.Close()
+
+	all, err := s.GetAll("empty")
+	require.NoError(t, err)
+	assert.Empty(t, all)
+}
+
 func TestRender_Good(t *testing.T) {
 	s, _ := New(":memory:")
 	defer s.Close()
