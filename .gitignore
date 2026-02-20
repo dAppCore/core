@@ -17,9 +17,9 @@ dist/
 tasks
 /core
 /i18n-validate
-cmd/bugseti/bugseti
-internal/core-ide/core-ide
+cmd/
 .angular/
 
 patch_cov.*
 go.work.sum
+lt-hn-index.html
