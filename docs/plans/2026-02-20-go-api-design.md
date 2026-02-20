@@ -1,23 +1,23 @@
-# go-api Design — REST Framework + OpenAPI SDK Generation
+# go-api Design — HTTP Gateway + OpenAPI SDK Generation
 
 **Date:** 2026-02-20
 **Author:** Virgil
-**Status:** Approved
+**Status:** Phase 1 Implemented, Phase 2 Planned
 **Module:** `forge.lthn.ai/core/go-api`
 
 ## Problem
 
-The Core Go ecosystem exposes 42+ tools via MCP (JSON-RPC), which is ideal for AI agents but inaccessible to regular HTTP clients, frontend applications, and third-party integrators. There is no REST API layer, no OpenAPI specification, and no generated SDKs.
+The Core Go ecosystem exposes 42+ tools via MCP (JSON-RPC), which is ideal for AI agents but inaccessible to regular HTTP clients, frontend applications, and third-party integrators. There is no unified HTTP gateway, no OpenAPI specification, and no generated SDKs.
 
-Both external customers (Host UK products) and Lethean network peers need programmatic access to the same services.
+Both external customers (Host UK products) and Lethean network peers need programmatic access to the same services. The gateway also serves web routes, static assets, and streaming endpoints — not just REST APIs.
 
 ## Solution
 
-A new `go-api` package that provides:
+A `go-api` package that acts as the central HTTP gateway:
 
-1. **Gin-based REST framework** with standard middleware
-2. **RouteGroup interface** that subsystems implement to register their own endpoints
-3. **WebSocket integration** via existing go-ws Hub for real-time streaming
+1. **Gin-based HTTP gateway** with extensible middleware via gin-contrib plugins
+2. **RouteGroup interface** that subsystems implement to register their own endpoints (API, web, or both)
+3. **WebSocket + SSE integration** for real-time streaming
 4. **OpenAPI 3.1 spec generation** via swaggo annotations
 5. **SDK generation pipeline** targeting Python, TypeScript, Go client, and more
 
@@ -293,7 +293,82 @@ core api sdk --lang typescript    # Generate TypeScript SDK
 
 Each subsystem's `api/` package adds ~100-200 LOC per route group.
 
-## Non-Goals (Phase 1)
+## Phase 1 — Implemented (20 Feb 2026)
+
+**Commit:** `17ae945` on Forge (`core/go-api`)
+
+| Component | Status | Tests |
+|-----------|--------|-------|
+| Response envelope (OK, Fail, Paginated) | Done | 9 |
+| RouteGroup + StreamGroup interfaces | Done | 4 |
+| Engine (New, Register, Handler, Serve) | Done | 9 |
+| Bearer auth middleware | Done | 3 |
+| Request ID middleware | Done | 2 |
+| CORS middleware (gin-contrib/cors) | Done | 3 |
+| WebSocket endpoint | Done | 3 |
+| Swagger UI (gin-swagger) | Done | 2 |
+| Health endpoint | Done | 1 |
+| **Total** | **~840 LOC** | **36** |
+
+**Integration proof:** go-ml/api/ registers 3 endpoints with 12 tests (`0c23858`).
+
+## Phase 2 — Gin Plugin Roadmap
+
+All plugins drop in as `With*()` options on the Engine. No architecture changes needed.
+
+### Security & Auth
+
+| Plugin | Option | Purpose | Priority |
+|--------|--------|---------|----------|
+| [gin-contrib/secure](https://github.com/gin-contrib/secure) | `WithSecure()` | Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP. Essential for web pages and API alike. | High |
+| [gin-contrib/sessions](https://github.com/gin-contrib/sessions) | `WithSessions()` | Server-side sessions (cookie, Redis, memcached). Needed when auth evolves beyond bearer tokens to web sessions. | High |
+| [gin-contrib/authz](https://github.com/gin-contrib/authz) | `WithAuthz()` | Casbin-based authorisation. Policy-driven access control — define who can call which endpoints. | Medium |
+| [gin-contrib/httpsign](https://github.com/gin-contrib/httpsign) | `WithHTTPSign()` | HTTP signature verification. Maps to UEPS Ed25519 consent tokens for Lethean network peer authentication. | Medium |
+
+### Performance & Reliability
+
+| Plugin | Option | Purpose | Priority |
+|--------|--------|---------|----------|
+| [gin-contrib/cache](https://github.com/gin-contrib/cache) | `WithCache()` | Response caching (in-memory, Redis). Huge for gateway performance — cache GET responses, invalidate on writes. | High |
+| [gin-contrib/timeout](https://github.com/gin-contrib/timeout) | `WithTimeout()` | Per-request timeouts. Protects against slow backends hanging the gateway. | High |
+| [gin-contrib/gzip](https://github.com/gin-contrib/gzip) | `WithGzip()` | Gzip response compression. Reduces bandwidth for API responses and web assets. | High |
+| [gin-contrib/brotli](https://github.com/gin-contrib/brotli) | `WithBrotli()` | Brotli compression. Better ratios than gzip for text/HTML. Can use alongside gzip with content negotiation. | Medium |
+
+### Observability
+
+| Plugin | Option | Purpose | Priority |
+|--------|--------|---------|----------|
+| [gin-contrib/slog](https://github.com/gin-contrib/slog) | `WithSlog()` | Structured request logging via Go's slog. Ecosystem already uses slog — natural fit. | High |
+| [gin-contrib/pprof](https://github.com/gin-contrib/pprof) | `WithPprof()` | Runtime profiling endpoints at /debug/pprof/. Dev/staging only, gate behind auth. | Low |
+| [gin-contrib/expvar](https://github.com/gin-contrib/expvar) | `WithExpvar()` | Go runtime metrics (goroutines, memstats). Dev/debug only. | Low |
+| [opengintracing](https://github.com/gin-contrib/opengintracing) | `WithTracing()` | OpenTelemetry distributed tracing. Needed when multiple services form a request chain. | Low |
+
+### Content & Streaming
+
+| Plugin | Option | Purpose | Priority |
+|--------|--------|---------|----------|
+| [gin-contrib/static](https://github.com/gin-contrib/static) | `WithStatic()` | Serve static files (SDK downloads, docs site, web assets). Gateway serves everything. | High |
+| [gin-contrib/sse](https://github.com/gin-contrib/sse) | `WithSSE()` | Server-Sent Events. One-way streaming alternative to WebSocket — ideal for ML generation progress, live logs, event feeds. | Medium |
+| [gin-contrib/location](https://github.com/gin-contrib/location) | `WithLocation()` | Auto-detect scheme/host from request headers (X-Forwarded-*). Needed behind reverse proxy. | Medium |
+
+### Ecosystem Integration
+
+| Plugin | Option | Purpose | Priority |
+|--------|--------|---------|----------|
+| [gin-contrib/i18n](https://github.com/gin-contrib/i18n) | `WithI18n()` | Localised API responses. Bridge to go-i18n grammar engine for localised error messages — unique differentiator. | Medium |
+| [gin-contrib/graceful](https://github.com/gin-contrib/graceful) | — | Already implemented in Engine.Serve(). Could swap to this for more robust lifecycle management if needed. | — |
+| [gin-contrib/requestid](https://github.com/gin-contrib/requestid) | — | Already implemented. Theirs uses UUID, ours uses hex. Could swap for standards compliance. | — |
+
+### Implementation Order
+
+**Wave 1 (gateway hardening):** secure, slog, timeout, gzip, static
+**Wave 2 (performance + auth):** cache, sessions, authz, brotli
+**Wave 3 (network + streaming):** httpsign, sse, location, i18n
+**Wave 4 (observability):** pprof, expvar, opengintracing
+
+Each wave adds `With*()` options + tests. No breaking changes — existing code continues to work without any new options enabled.
+
+## Non-Goals
 
 - GraphQL endpoint
 - gRPC gateway
@@ -303,10 +378,20 @@ Each subsystem's `api/` package adds ~100-200 LOC per route group.
 
 ## Success Criteria
 
-1. `core api serve` starts a Gin server with registered subsystem routes
-2. `core api spec` emits valid OpenAPI 3.1 JSON
-3. Generated Python and TypeScript SDKs can call endpoints successfully
-4. WebSocket subscriptions work alongside REST
-5. Swagger UI accessible at `/swagger/`
-6. All endpoints return consistent Response envelope
-7. Bearer token auth protects all routes
+### Phase 1 (Done)
+
+1. ~~`core api serve` starts a Gin server with registered subsystem routes~~
+2. ~~WebSocket subscriptions work alongside REST~~
+3. ~~Swagger UI accessible at `/swagger/`~~
+4. ~~All endpoints return consistent Response envelope~~
+5. ~~Bearer token auth protects all routes~~
+6. ~~First subsystem integration (go-ml/api/) proves the pattern~~
+
+### Phase 2
+
+7. `core api spec` emits valid OpenAPI 3.1 JSON from swaggo annotations
+8. Generated Python and TypeScript SDKs can call endpoints successfully
+9. Security headers, compression, and caching active in production
+10. Session-based auth alongside bearer tokens
+11. HTTP signature verification for Lethean network peers
+12. Static file serving for docs site and SDK downloads
