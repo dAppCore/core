@@ -215,7 +215,7 @@ api.New(
 )
 ```
 
-Auth evolution path: bearer token → API keys → JWT → OAuth2/OIDC. Middleware slot stays the same.
+Auth evolution path: bearer token → API keys → Authentik (OIDC/forward auth). Middleware slot stays the same.
 
 ## WebSocket Integration
 
@@ -322,9 +322,10 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
+| **Authentik** | `WithAuthentik()` | OIDC + forward auth integration. See Authentik section below. | **High** |
 | [gin-contrib/secure](https://github.com/gin-contrib/secure) | `WithSecure()` | Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP. Essential for web pages and API alike. | High |
-| [gin-contrib/sessions](https://github.com/gin-contrib/sessions) | `WithSessions()` | Server-side sessions (cookie, Redis, memcached). Needed when auth evolves beyond bearer tokens to web sessions. | High |
-| [gin-contrib/authz](https://github.com/gin-contrib/authz) | `WithAuthz()` | Casbin-based authorisation. Policy-driven access control — define who can call which endpoints. | Medium |
+| [gin-contrib/sessions](https://github.com/gin-contrib/sessions) | `WithSessions()` | Server-side sessions (cookie, Redis, memcached). For web session management alongside Authentik tokens. | High |
+| [gin-contrib/authz](https://github.com/gin-contrib/authz) | `WithAuthz()` | Casbin-based authorisation. Policy-driven access control — define who can call which endpoints. Complements Authentik's identity with fine-grained permissions. | Medium |
 | [gin-contrib/httpsign](https://github.com/gin-contrib/httpsign) | `WithHTTPSign()` | HTTP signature verification. Maps to UEPS Ed25519 consent tokens for Lethean network peer authentication. | Medium |
 
 ### Performance & Reliability
@@ -386,18 +387,112 @@ Four protocols, one set of handlers.
 
 ### Implementation Order
 
-**Wave 1 (gateway hardening):** secure, slog, timeout, gzip, static
+**Wave 1 (gateway hardening):** Authentik, secure, slog, timeout, gzip, static
 **Wave 2 (performance + auth):** cache, sessions, authz, brotli
 **Wave 3 (network + streaming):** httpsign, sse, location, i18n, gqlgen
 **Wave 4 (observability):** pprof, expvar, opengintracing
 
 Each wave adds `With*()` options + tests. No breaking changes — existing code continues to work without any new options enabled.
 
+## Authentik Integration
+
+[Authentik](https://goauthentik.io/) is the identity provider and edge auth proxy. It handles user registration, login, MFA, social auth, SAML, and OIDC — so go-api doesn't have to.
+
+### Two Integration Modes
+
+**1. Forward Auth (web traffic)**
+
+Traefik sits in front of go-api. For web routes, Traefik's `forwardAuth` middleware checks with Authentik before passing the request through. Authentik handles login flows, session cookies, and consent. go-api receives pre-authenticated requests with identity headers.
+
+```
+Browser → Traefik → Authentik (forward auth) → go-api
+                         ↓
+                    Login page (if unauthenticated)
+```
+
+go-api reads trusted headers set by Authentik:
+```
+X-Authentik-Username: alice
+X-Authentik-Groups: admins,developers
+X-Authentik-Email: alice@example.com
+X-Authentik-Uid: <uuid>
+X-Authentik-Jwt: <signed token>
+```
+
+**2. OIDC Token Validation (API traffic)**
+
+API clients (SDKs, CLI tools, network peers) authenticate directly with Authentik's OAuth2 token endpoint, then send the JWT to go-api. go-api validates the JWT using Authentik's OIDC discovery endpoint (`.well-known/openid-configuration`).
+
+```
+SDK client → Authentik (token endpoint) → receives JWT
+SDK client → go-api (Authorization: Bearer <jwt>) → validates via OIDC
+```
+
+### Implementation in go-api
+
+```go
+engine := api.New(
+    api.WithAuthentik(api.AuthentikConfig{
+        Issuer:       "https://auth.lthn.ai/application/o/core-api/",
+        ClientID:     "core-api",
+        TrustedProxy: true,  // Trust X-Authentik-* headers from Traefik
+    }),
+)
+```
+
+`WithAuthentik()` adds middleware that:
+1. Checks for `X-Authentik-Jwt` header (forward auth mode) — validates signature, extracts claims
+2. Falls back to `Authorization: Bearer <jwt>` header (direct OIDC mode) — validates via JWKS
+3. Populates `c.Set("user", AuthentikUser{...})` in the Gin context for handlers to use
+4. Skips /health, /swagger, and any public paths
+
+```go
+// In any handler:
+func (r *Routes) ListItems(c *gin.Context) {
+    user := api.GetUser(c)  // Returns *AuthentikUser or nil
+    if user == nil {
+        c.JSON(401, api.Fail("unauthorised", "Authentication required"))
+        return
+    }
+    // user.Username, user.Groups, user.Email, user.UID available
+}
+```
+
+### Auth Layers
+
+```
+Authentik (identity)     → WHO is this? (user, groups, email)
+    ↓
+go-api middleware         → IS their token valid? (JWT verification)
+    ↓
+Casbin authz (optional)  → CAN they do this? (role → endpoint policies)
+    ↓
+Handler                   → DOES this (business logic)
+```
+
+Phase 1 bearer auth continues to work alongside Authentik — useful for service-to-service tokens, CI/CD, and development. `WithBearerAuth` and `WithAuthentik` can coexist.
+
+### Authentik Deployment
+
+Authentik runs as a Docker service alongside go-api, fronted by Traefik:
+- **auth.lthn.ai** — Authentik UI + OIDC endpoints (production)
+- **auth.leth.in** — Authentik for devnet/testnet
+- Traefik routes `/outpost.goauthentik.io/` to Authentik's embedded outpost for forward auth
+
+### Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `github.com/coreos/go-oidc/v3` | OIDC discovery + JWT validation |
+| `golang.org/x/oauth2` | OAuth2 token exchange (for server-side flows) |
+
+Both are standard Go libraries with no heavy dependencies.
+
 ## Non-Goals
 
 - gRPC gateway
 - Automatic MCP-to-REST adapter (can be added later)
-- OAuth2 server (use external provider)
+- Built-in user registration/login (Authentik handles this)
 - API versioning beyond /v1/ prefix
 
 ## Success Criteria
