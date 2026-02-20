@@ -243,33 +243,21 @@ func TestExists_Good(t *testing.T) {
 	n.AddData("foo.txt", []byte("foo"))
 	n.AddData("bar/baz.txt", []byte("baz"))
 
-	exists, err := n.Exists("foo.txt")
-	require.NoError(t, err)
-	assert.True(t, exists)
-
-	exists, err = n.Exists("bar")
-	require.NoError(t, err)
-	assert.True(t, exists)
+	assert.True(t, n.Exists("foo.txt"))
+	assert.True(t, n.Exists("bar"))
 }
 
 func TestExists_Bad(t *testing.T) {
 	n := New()
-	exists, err := n.Exists("nonexistent")
-	require.NoError(t, err)
-	assert.False(t, exists)
+	assert.False(t, n.Exists("nonexistent"))
 }
 
 func TestExists_Ugly(t *testing.T) {
 	n := New()
 	n.AddData("dummy.txt", []byte("dummy"))
 
-	exists, err := n.Exists(".")
-	require.NoError(t, err)
-	assert.True(t, exists, "root '.' must exist")
-
-	exists, err = n.Exists("")
-	require.NoError(t, err)
-	assert.True(t, exists, "empty path (root) must exist")
+	assert.True(t, n.Exists("."), "root '.' must exist")
+	assert.True(t, n.Exists(""), "empty path (root) must exist")
 }
 
 // ---------------------------------------------------------------------------
@@ -466,11 +454,8 @@ func TestFromTar_Good(t *testing.T) {
 	n, err := FromTar(buf.Bytes())
 	require.NoError(t, err)
 
-	exists, _ := n.Exists("foo.txt")
-	assert.True(t, exists, "foo.txt should exist")
-
-	exists, _ = n.Exists("bar/baz.txt")
-	assert.True(t, exists, "bar/baz.txt should exist")
+	assert.True(t, n.Exists("foo.txt"), "foo.txt should exist")
+	assert.True(t, n.Exists("bar/baz.txt"), "bar/baz.txt should exist")
 }
 
 func TestFromTar_Bad(t *testing.T) {

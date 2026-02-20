@@ -24,8 +24,9 @@ type Node struct {
 	files map[string]*dataFile
 }
 
-// compile-time interface check
+// compile-time interface checks
 var _ coreio.Medium = (*Node)(nil)
+var _ fs.ReadFileFS = (*Node)(nil)
 
 // New creates a new, empty Node.
 func New() *Node {
@@ -78,8 +79,17 @@ func (n *Node) ToTar() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// FromTar replaces the in-memory tree with the contents of a tar archive.
-func (n *Node) FromTar(data []byte) error {
+// FromTar creates a new Node from a tar archive.
+func FromTar(data []byte) (*Node, error) {
+	n := New()
+	if err := n.LoadTar(data); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+// LoadTar replaces the in-memory tree with the contents of a tar archive.
+func (n *Node) LoadTar(data []byte) error {
 	newFiles := make(map[string]*dataFile)
 	tr := tar.NewReader(bytes.NewReader(data))
 
@@ -116,6 +126,91 @@ func (n *Node) FromTar(data []byte) error {
 // WalkNode walks the in-memory tree, calling fn for each entry.
 func (n *Node) WalkNode(root string, fn fs.WalkDirFunc) error {
 	return fs.WalkDir(n, root, fn)
+}
+
+// WalkOptions configures the behaviour of Walk.
+type WalkOptions struct {
+	// MaxDepth limits how many directory levels to descend. 0 means unlimited.
+	MaxDepth int
+	// Filter, if set, is called for each entry. Return true to include the
+	// entry (and descend into it if it is a directory).
+	Filter func(path string, d fs.DirEntry) bool
+	// SkipErrors suppresses errors (e.g. nonexistent root) instead of
+	// propagating them through the callback.
+	SkipErrors bool
+}
+
+// Walk walks the in-memory tree with optional WalkOptions.
+func (n *Node) Walk(root string, fn fs.WalkDirFunc, opts ...WalkOptions) error {
+	var opt WalkOptions
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+
+	if opt.SkipErrors {
+		// If root doesn't exist, silently return nil.
+		if _, err := n.Stat(root); err != nil {
+			return nil
+		}
+	}
+
+	return fs.WalkDir(n, root, func(p string, d fs.DirEntry, err error) error {
+		if opt.Filter != nil && err == nil {
+			if !opt.Filter(p, d) {
+				if d != nil && d.IsDir() {
+					return fs.SkipDir
+				}
+				return nil
+			}
+		}
+
+		// Call the user's function first so the entry is visited.
+		result := fn(p, d, err)
+
+		// After visiting a directory at MaxDepth, prevent descending further.
+		if result == nil && opt.MaxDepth > 0 && d != nil && d.IsDir() && p != root {
+			rel := strings.TrimPrefix(p, root)
+			rel = strings.TrimPrefix(rel, "/")
+			depth := strings.Count(rel, "/") + 1
+			if depth >= opt.MaxDepth {
+				return fs.SkipDir
+			}
+		}
+
+		return result
+	})
+}
+
+// ReadFile returns the content of the named file as a byte slice.
+// Implements fs.ReadFileFS.
+func (n *Node) ReadFile(name string) ([]byte, error) {
+	name = strings.TrimPrefix(name, "/")
+	f, ok := n.files[name]
+	if !ok {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
+	}
+	// Return a copy to prevent callers from mutating internal state.
+	result := make([]byte, len(f.content))
+	copy(result, f.content)
+	return result, nil
+}
+
+// CopyFile copies a file from the in-memory tree to the local filesystem.
+func (n *Node) CopyFile(src, dst string, perm fs.FileMode) error {
+	src = strings.TrimPrefix(src, "/")
+	f, ok := n.files[src]
+	if !ok {
+		// Check if it's a directory — can't copy directories this way.
+		info, err := n.Stat(src)
+		if err != nil {
+			return &fs.PathError{Op: "copyfile", Path: src, Err: fs.ErrNotExist}
+		}
+		if info.IsDir() {
+			return &fs.PathError{Op: "copyfile", Path: src, Err: fs.ErrInvalid}
+		}
+		return &fs.PathError{Op: "copyfile", Path: src, Err: fs.ErrNotExist}
+	}
+	return os.WriteFile(dst, f.content, perm)
 }
 
 // CopyTo copies a file (or directory tree) from the node to any Medium.

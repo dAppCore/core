@@ -21,7 +21,7 @@ Format: `- [ ] REPO: task description` / `- [x]` when done.
 - [ ] **go-i18n: Classification benchmark suite** — `classify_bench_test.go` with 200+ domain-tagged sentences. Categories: {technical, creative, ethical, casual}. Ground truth for calibrating 1B pre-tags.
 - [ ] **go-i18n: 1B pre-sort pipeline tool** — CLI/func that reads JSONL corpus, classifies via LEK-Gemma3-1B, writes back with `domain_1b` field. Target: ~5K sentences/sec on M3.
 - [ ] **go-i18n: 1B vs 27B calibration check** — Sample 500 sentences, classify with both, measure agreement. 75% baseline from benchmarks, technical↔creative is known weak spot.
-- [ ] **go-i18n: Article/irregular validator** — Lightweight funcs using 1B's strong article (100%) and irregular base form (100%) accuracy as fast validators.
+- [x] **go-i18n: Article/irregular validator** — `validate.go` + `validate_test.go` (14 tests). `ValidateArticle()`, `ValidateIrregular()`, batch variants. Commit `3c55d91`.
 
 #### 2b: Reference Distributions
 
