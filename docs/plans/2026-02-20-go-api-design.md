@@ -330,6 +330,20 @@ Each subsystem's `api/` package adds ~100-200 LOC per route group.
 
 **Cumulative:** 76 tests (36 Phase 1 + 43 Wave 1 - 3 shared), all passing.
 
+## Phase 2 Wave 2 — Implemented (20 Feb 2026)
+
+**Commits:** `64a8b16..67dcc83` on Forge (`core/go-api`)
+
+| Component | Option | Dependency | Tests | Notes |
+|-----------|--------|------------|-------|-------|
+| Brotli compression | `WithBrotli()` | `andybalholm/brotli` | 5 | Custom middleware; `gin-contrib/brotli` is empty stub |
+| Response caching | `WithCache()` | none (in-memory) | 5 | Custom middleware; `gin-contrib/cache` is per-handler, not global |
+| Server-side sessions | `WithSessions()` | `gin-contrib/sessions` | 5 | Cookie store, configurable name + secret |
+| Casbin authorisation | `WithAuthz()` | `gin-contrib/authz`, `casbin/v2` | 5 | Subject via Basic Auth; RBAC policy model |
+| **Wave 2 Total** | | | **20** | |
+
+**Cumulative:** 102 passing tests (2 integration skipped), all green.
+
 ## Phase 2 — Remaining Gin Plugin Roadmap
 
 All plugins drop in as `With*()` options on the Engine. No architecture changes needed.
@@ -340,18 +354,18 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 |--------|--------|---------|----------|
 | ~~**Authentik**~~ | ~~`WithAuthentik()`~~ | ~~OIDC + forward auth integration.~~ | ~~**Done**~~ |
 | ~~gin-contrib/secure~~ | ~~`WithSecure()`~~ | ~~Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP.~~ | ~~**Done**~~ |
-| [gin-contrib/sessions](https://github.com/gin-contrib/sessions) | `WithSessions()` | Server-side sessions (cookie, Redis, memcached). For web session management alongside Authentik tokens. | High |
-| [gin-contrib/authz](https://github.com/gin-contrib/authz) | `WithAuthz()` | Casbin-based authorisation. Policy-driven access control — define who can call which endpoints. Complements Authentik's identity with fine-grained permissions. | Medium |
+| ~~gin-contrib/sessions~~ | ~~`WithSessions()`~~ | ~~Server-side sessions (cookie store). Web session management alongside Authentik tokens.~~ | ~~**Done**~~ |
+| ~~gin-contrib/authz~~ | ~~`WithAuthz()`~~ | ~~Casbin-based authorisation. Policy-driven access control via RBAC.~~ | ~~**Done**~~ |
 | [gin-contrib/httpsign](https://github.com/gin-contrib/httpsign) | `WithHTTPSign()` | HTTP signature verification. Maps to UEPS Ed25519 consent tokens for Lethean network peer authentication. | Medium |
 
 ### Performance & Reliability
 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
-| [gin-contrib/cache](https://github.com/gin-contrib/cache) | `WithCache()` | Response caching (in-memory, Redis). Huge for gateway performance — cache GET responses, invalidate on writes. | High |
+| ~~gin-contrib/cache~~ | ~~`WithCache()`~~ | ~~Response caching (in-memory). GET response caching with TTL, lazy eviction.~~ | ~~**Done**~~ |
 | ~~gin-contrib/timeout~~ | ~~`WithTimeout()`~~ | ~~Per-request timeouts.~~ | ~~**Done**~~ |
 | ~~gin-contrib/gzip~~ | ~~`WithGzip()`~~ | ~~Gzip response compression.~~ | ~~**Done**~~ |
-| [gin-contrib/brotli](https://github.com/gin-contrib/brotli) | `WithBrotli()` | Brotli compression. Better ratios than gzip for text/HTML. Can use alongside gzip with content negotiation. | Medium |
+| ~~gin-contrib/brotli~~ | ~~`WithBrotli()`~~ | ~~Brotli compression via `andybalholm/brotli`. Custom middleware (gin-contrib stub empty).~~ | ~~**Done**~~ |
 
 ### Observability
 
@@ -404,7 +418,7 @@ Four protocols, one set of handlers.
 ### Implementation Order
 
 **Wave 1 (gateway hardening):** ~~Authentik, secure, slog, timeout, gzip, static~~ **DONE** (20 Feb 2026)
-**Wave 2 (performance + auth):** cache, sessions, authz, brotli
+**Wave 2 (performance + auth):** ~~cache, sessions, authz, brotli~~ **DONE** (20 Feb 2026)
 **Wave 3 (network + streaming):** httpsign, sse, location, i18n, gqlgen
 **Wave 4 (observability):** pprof, expvar, opengintracing
 
