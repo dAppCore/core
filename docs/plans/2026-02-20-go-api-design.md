@@ -314,7 +314,23 @@ Each subsystem's `api/` package adds ~100-200 LOC per route group.
 
 **Integration proof:** go-ml/api/ registers 3 endpoints with 12 tests (`0c23858`).
 
-## Phase 2 — Gin Plugin Roadmap
+## Phase 2 Wave 1 — Implemented (20 Feb 2026)
+
+**Commits:** `6bb7195..daae6f7` on Forge (`core/go-api`)
+
+| Component | Option | Dependency | Tests |
+|-----------|--------|------------|-------|
+| Authentik (forward auth + OIDC) | `WithAuthentik()` | `go-oidc/v3`, `oauth2` | 14 |
+| Security headers (HSTS, CSP, etc.) | `WithSecure()` | `gin-contrib/secure` | 8 |
+| Structured request logging | `WithSlog()` | `gin-contrib/slog` | 6 |
+| Per-request timeouts | `WithTimeout()` | `gin-contrib/timeout` | 5 |
+| Gzip compression | `WithGzip()` | `gin-contrib/gzip` | 5 |
+| Static file serving | `WithStatic()` | `gin-contrib/static` | 5 |
+| **Wave 1 Total** | | | **43** |
+
+**Cumulative:** 76 tests (36 Phase 1 + 43 Wave 1 - 3 shared), all passing.
+
+## Phase 2 — Remaining Gin Plugin Roadmap
 
 All plugins drop in as `With*()` options on the Engine. No architecture changes needed.
 
@@ -322,8 +338,8 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
-| **Authentik** | `WithAuthentik()` | OIDC + forward auth integration. See Authentik section below. | **High** |
-| [gin-contrib/secure](https://github.com/gin-contrib/secure) | `WithSecure()` | Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP. Essential for web pages and API alike. | High |
+| ~~**Authentik**~~ | ~~`WithAuthentik()`~~ | ~~OIDC + forward auth integration.~~ | ~~**Done**~~ |
+| ~~gin-contrib/secure~~ | ~~`WithSecure()`~~ | ~~Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP.~~ | ~~**Done**~~ |
 | [gin-contrib/sessions](https://github.com/gin-contrib/sessions) | `WithSessions()` | Server-side sessions (cookie, Redis, memcached). For web session management alongside Authentik tokens. | High |
 | [gin-contrib/authz](https://github.com/gin-contrib/authz) | `WithAuthz()` | Casbin-based authorisation. Policy-driven access control — define who can call which endpoints. Complements Authentik's identity with fine-grained permissions. | Medium |
 | [gin-contrib/httpsign](https://github.com/gin-contrib/httpsign) | `WithHTTPSign()` | HTTP signature verification. Maps to UEPS Ed25519 consent tokens for Lethean network peer authentication. | Medium |
@@ -333,15 +349,15 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
 | [gin-contrib/cache](https://github.com/gin-contrib/cache) | `WithCache()` | Response caching (in-memory, Redis). Huge for gateway performance — cache GET responses, invalidate on writes. | High |
-| [gin-contrib/timeout](https://github.com/gin-contrib/timeout) | `WithTimeout()` | Per-request timeouts. Protects against slow backends hanging the gateway. | High |
-| [gin-contrib/gzip](https://github.com/gin-contrib/gzip) | `WithGzip()` | Gzip response compression. Reduces bandwidth for API responses and web assets. | High |
+| ~~gin-contrib/timeout~~ | ~~`WithTimeout()`~~ | ~~Per-request timeouts.~~ | ~~**Done**~~ |
+| ~~gin-contrib/gzip~~ | ~~`WithGzip()`~~ | ~~Gzip response compression.~~ | ~~**Done**~~ |
 | [gin-contrib/brotli](https://github.com/gin-contrib/brotli) | `WithBrotli()` | Brotli compression. Better ratios than gzip for text/HTML. Can use alongside gzip with content negotiation. | Medium |
 
 ### Observability
 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
-| [gin-contrib/slog](https://github.com/gin-contrib/slog) | `WithSlog()` | Structured request logging via Go's slog. Ecosystem already uses slog — natural fit. | High |
+| ~~gin-contrib/slog~~ | ~~`WithSlog()`~~ | ~~Structured request logging via slog.~~ | ~~**Done**~~ |
 | [gin-contrib/pprof](https://github.com/gin-contrib/pprof) | `WithPprof()` | Runtime profiling endpoints at /debug/pprof/. Dev/staging only, gate behind auth. | Low |
 | [gin-contrib/expvar](https://github.com/gin-contrib/expvar) | `WithExpvar()` | Go runtime metrics (goroutines, memstats). Dev/debug only. | Low |
 | [opengintracing](https://github.com/gin-contrib/opengintracing) | `WithTracing()` | OpenTelemetry distributed tracing. Needed when multiple services form a request chain. | Low |
@@ -350,7 +366,7 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
-| [gin-contrib/static](https://github.com/gin-contrib/static) | `WithStatic()` | Serve static files (SDK downloads, docs site, web assets). Gateway serves everything. | High |
+| ~~gin-contrib/static~~ | ~~`WithStatic()`~~ | ~~Serve static files.~~ | ~~**Done**~~ |
 | [gin-contrib/sse](https://github.com/gin-contrib/sse) | `WithSSE()` | Server-Sent Events. One-way streaming alternative to WebSocket — ideal for ML generation progress, live logs, event feeds. | Medium |
 | [gin-contrib/location](https://github.com/gin-contrib/location) | `WithLocation()` | Auto-detect scheme/host from request headers (X-Forwarded-*). Needed behind reverse proxy. | Medium |
 
@@ -387,7 +403,7 @@ Four protocols, one set of handlers.
 
 ### Implementation Order
 
-**Wave 1 (gateway hardening):** Authentik, secure, slog, timeout, gzip, static
+**Wave 1 (gateway hardening):** ~~Authentik, secure, slog, timeout, gzip, static~~ **DONE** (20 Feb 2026)
 **Wave 2 (performance + auth):** cache, sessions, authz, brotli
 **Wave 3 (network + streaming):** httpsign, sse, location, i18n, gqlgen
 **Wave 4 (observability):** pprof, expvar, opengintracing
