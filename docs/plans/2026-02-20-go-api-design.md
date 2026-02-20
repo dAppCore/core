@@ -23,16 +23,18 @@ A `go-api` package that acts as the central HTTP gateway:
 
 ## Architecture
 
-### Three-Protocol Access
+### Four-Protocol Access
 
-Same backend services, three client protocols:
+Same backend services, four client protocols:
 
 ```
-                    ┌─── REST (go-api)     POST /v1/ml/generate → JSON
+                    ┌─── REST (go-api)      POST /v1/ml/generate → JSON
                     │
-Client ────────────┼─── WebSocket (go-ws)  subscribe ml.generate → streaming
+                    ├─── GraphQL (gqlgen)   mutation { mlGenerate(...) { response } }
+Client ────────────┤
+                    ├─── WebSocket (go-ws)  subscribe ml.generate → streaming
                     │
-                    └─── MCP (go-ai)       ml_generate → JSON-RPC
+                    └─── MCP (go-ai)        ml_generate → JSON-RPC
 ```
 
 ### Dependency Graph
@@ -351,6 +353,29 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 | [gin-contrib/sse](https://github.com/gin-contrib/sse) | `WithSSE()` | Server-Sent Events. One-way streaming alternative to WebSocket — ideal for ML generation progress, live logs, event feeds. | Medium |
 | [gin-contrib/location](https://github.com/gin-contrib/location) | `WithLocation()` | Auto-detect scheme/host from request headers (X-Forwarded-*). Needed behind reverse proxy. | Medium |
 
+### Query Layer
+
+| Plugin | Option | Purpose | Priority |
+|--------|--------|---------|----------|
+| [99designs/gqlgen](https://github.com/99designs/gqlgen) | `WithGraphQL()` | GraphQL endpoint at `/graphql` + playground at `/graphql/playground`. Code-first: generates resolvers from Go types. Same backend services as REST — subsystems implement a `ResolverGroup` interface alongside `RouteGroup`. Clients choose REST or GraphQL per preference. | Medium |
+
+The GraphQL schema can be generated from the same Go Input/Output structs that define the REST endpoints. gqlgen produces an `http.Handler` that mounts directly on Gin. Subsystems opt-in via:
+
+```go
+// Subsystems that want GraphQL implement this alongside RouteGroup
+type ResolverGroup interface {
+    // RegisterResolvers adds query/mutation resolvers to the GraphQL schema
+    RegisterResolvers(schema *graphql.Schema)
+}
+```
+
+This means a subsystem like go-ml exposes:
+- **REST:** `POST /v1/ml/generate` (existing)
+- **GraphQL:** `mutation { mlGenerate(prompt: "...", backend: "mlx") { response, model } }` (same handler)
+- **MCP:** `ml_generate` tool (existing)
+
+Four protocols, one set of handlers.
+
 ### Ecosystem Integration
 
 | Plugin | Option | Purpose | Priority |
@@ -363,14 +388,13 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 
 **Wave 1 (gateway hardening):** secure, slog, timeout, gzip, static
 **Wave 2 (performance + auth):** cache, sessions, authz, brotli
-**Wave 3 (network + streaming):** httpsign, sse, location, i18n
+**Wave 3 (network + streaming):** httpsign, sse, location, i18n, gqlgen
 **Wave 4 (observability):** pprof, expvar, opengintracing
 
 Each wave adds `With*()` options + tests. No breaking changes — existing code continues to work without any new options enabled.
 
 ## Non-Goals
 
-- GraphQL endpoint
 - gRPC gateway
 - Automatic MCP-to-REST adapter (can be added later)
 - OAuth2 server (use external provider)
@@ -395,3 +419,4 @@ Each wave adds `With*()` options + tests. No breaking changes — existing code 
 10. Session-based auth alongside bearer tokens
 11. HTTP signature verification for Lethean network peers
 12. Static file serving for docs site and SDK downloads
+13. GraphQL endpoint at `/graphql` with playground, subsystem resolvers via ResolverGroup interface
