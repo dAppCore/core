@@ -63,9 +63,6 @@ func Init(opts Options) error {
 			SilenceUsage:  true,
 		}
 
-		// Attach all registered commands
-		attachRegisteredCommands(rootCmd)
-
 		// Build signal service options
 		var signalOpts []SignalOption
 		if opts.OnReload != nil {

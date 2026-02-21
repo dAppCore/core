@@ -48,9 +48,16 @@ func SemVer() string {
 }
 
 // Main initialises and runs the CLI application.
-// This is the main entry point for the CLI.
+// Pass command services via WithCommands to register CLI commands
+// through the Core framework lifecycle.
+//
+//	cli.Main(
+//	    cli.WithCommands("config", config.AddConfigCommands),
+//	    cli.WithCommands("doctor", doctor.AddDoctorCommands),
+//	)
+//
 // Exits with code 1 on error or panic.
-func Main() {
+func Main(commands ...framework.Option) {
 	// Recovery from panics
 	defer func() {
 		if r := recover(); r != nil {
@@ -60,17 +67,21 @@ func Main() {
 		}
 	}()
 
+	// Core services load first, then command services
+	services := []framework.Option{
+		framework.WithName("i18n", NewI18nService(I18nOptions{})),
+		framework.WithName("log", NewLogService(log.Options{
+			Level: log.LevelInfo,
+		})),
+		framework.WithName("workspace", workspace.New),
+	}
+	services = append(services, commands...)
+
 	// Initialise CLI runtime with services
 	if err := Init(Options{
-		AppName: AppName,
-		Version: SemVer(),
-		Services: []framework.Option{
-			framework.WithName("i18n", NewI18nService(I18nOptions{})),
-			framework.WithName("log", NewLogService(log.Options{
-				Level: log.LevelInfo,
-			})),
-			framework.WithName("workspace", workspace.New),
-		},
+		AppName:  AppName,
+		Version:  SemVer(),
+		Services: services,
 	}); err != nil {
 		Error(err.Error())
 		os.Exit(1)
