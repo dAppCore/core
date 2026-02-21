@@ -57,7 +57,7 @@ type Repo struct {
 	Clone       *bool    `yaml:"clone,omitempty"` // nil = true, false = skip cloning
 
 	// Computed fields
-	Path     string    `yaml:"-"` // Full path to repo directory
+	Path     string    `yaml:"path,omitempty"` // Full path to repo directory (optional, defaults to base_path/name)
 	registry *Registry `yaml:"-"`
 }
 
@@ -83,7 +83,11 @@ func LoadRegistry(m io.Medium, path string) (*Registry, error) {
 	// Set computed fields on each repo
 	for name, repo := range reg.Repos {
 		repo.Name = name
-		repo.Path = filepath.Join(reg.BasePath, name)
+		if repo.Path == "" {
+			repo.Path = filepath.Join(reg.BasePath, name)
+		} else {
+			repo.Path = expandPath(repo.Path)
+		}
 		repo.registry = &reg
 
 		// Apply defaults if not set
@@ -106,7 +110,13 @@ func FindRegistry(m io.Medium) (string, error) {
 	}
 
 	for {
+		// Check repos.yaml (existing)
 		candidate := filepath.Join(dir, "repos.yaml")
+		if m.Exists(candidate) {
+			return candidate, nil
+		}
+		// Check .core/repos.yaml (new)
+		candidate = filepath.Join(dir, ".core", "repos.yaml")
 		if m.Exists(candidate) {
 			return candidate, nil
 		}
@@ -125,6 +135,7 @@ func FindRegistry(m io.Medium) (string, error) {
 	}
 
 	commonPaths := []string{
+		filepath.Join(home, "Code", "host-uk", ".core", "repos.yaml"),
 		filepath.Join(home, "Code", "host-uk", "repos.yaml"),
 		filepath.Join(home, ".config", "core", "repos.yaml"),
 	}
