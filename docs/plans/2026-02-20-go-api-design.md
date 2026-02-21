@@ -344,6 +344,21 @@ Each subsystem's `api/` package adds ~100-200 LOC per route group.
 
 **Cumulative:** 102 passing tests (2 integration skipped), all green.
 
+## Phase 2 Wave 3 — Implemented (20 Feb 2026)
+
+**Commits:** `7b3f99e..d517fa2` on Forge (`core/go-api`)
+
+| Component | Option | Dependency | Tests | Notes |
+|-----------|--------|------------|-------|-------|
+| HTTP signature verification | `WithHTTPSign()` | `gin-contrib/httpsign` | 5 | HMAC-SHA256; extensible via httpsign.Option |
+| Server-Sent Events | `WithSSE()` | none (custom SSEBroker) | 6 | Channel filtering, multi-client broadcast, GET /events |
+| Reverse proxy detection | `WithLocation()` | `gin-contrib/location/v2` | 5 | X-Forwarded-Host/Proto parsing |
+| Locale detection | `WithI18n()` | `golang.org/x/text/language` | 5 | Accept-Language parsing, message lookup, GetLocale/GetMessage |
+| GraphQL endpoint | `WithGraphQL()` | `99designs/gqlgen` | 5 | /graphql + optional /graphql/playground |
+| **Wave 3 Total** | | | **26** | |
+
+**Cumulative:** 128 passing tests (2 integration skipped), all green.
+
 ## Phase 2 — Remaining Gin Plugin Roadmap
 
 All plugins drop in as `With*()` options on the Engine. No architecture changes needed.
@@ -356,7 +371,7 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 | ~~gin-contrib/secure~~ | ~~`WithSecure()`~~ | ~~Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, CSP.~~ | ~~**Done**~~ |
 | ~~gin-contrib/sessions~~ | ~~`WithSessions()`~~ | ~~Server-side sessions (cookie store). Web session management alongside Authentik tokens.~~ | ~~**Done**~~ |
 | ~~gin-contrib/authz~~ | ~~`WithAuthz()`~~ | ~~Casbin-based authorisation. Policy-driven access control via RBAC.~~ | ~~**Done**~~ |
-| [gin-contrib/httpsign](https://github.com/gin-contrib/httpsign) | `WithHTTPSign()` | HTTP signature verification. Maps to UEPS Ed25519 consent tokens for Lethean network peer authentication. | Medium |
+| ~~gin-contrib/httpsign~~ | ~~`WithHTTPSign()`~~ | ~~HTTP signature verification. HMAC-SHA256 with extensible options.~~ | ~~**Done**~~ |
 
 ### Performance & Reliability
 
@@ -381,14 +396,14 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
 | ~~gin-contrib/static~~ | ~~`WithStatic()`~~ | ~~Serve static files.~~ | ~~**Done**~~ |
-| [gin-contrib/sse](https://github.com/gin-contrib/sse) | `WithSSE()` | Server-Sent Events. One-way streaming alternative to WebSocket — ideal for ML generation progress, live logs, event feeds. | Medium |
-| [gin-contrib/location](https://github.com/gin-contrib/location) | `WithLocation()` | Auto-detect scheme/host from request headers (X-Forwarded-*). Needed behind reverse proxy. | Medium |
+| ~~gin-contrib/sse~~ | ~~`WithSSE()`~~ | ~~Server-Sent Events. Custom SSEBroker with channel filtering, GET /events.~~ | ~~**Done**~~ |
+| ~~gin-contrib/location~~ | ~~`WithLocation()`~~ | ~~Auto-detect scheme/host from X-Forwarded-* headers.~~ | ~~**Done**~~ |
 
 ### Query Layer
 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
-| [99designs/gqlgen](https://github.com/99designs/gqlgen) | `WithGraphQL()` | GraphQL endpoint at `/graphql` + playground at `/graphql/playground`. Code-first: generates resolvers from Go types. Same backend services as REST — subsystems implement a `ResolverGroup` interface alongside `RouteGroup`. Clients choose REST or GraphQL per preference. | Medium |
+| ~~99designs/gqlgen~~ | ~~`WithGraphQL()`~~ | ~~GraphQL endpoint at `/graphql` + optional playground. Accepts gqlgen ExecutableSchema.~~ | ~~**Done**~~ |
 
 The GraphQL schema can be generated from the same Go Input/Output structs that define the REST endpoints. gqlgen produces an `http.Handler` that mounts directly on Gin. Subsystems opt-in via:
 
@@ -411,7 +426,7 @@ Four protocols, one set of handlers.
 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
-| [gin-contrib/i18n](https://github.com/gin-contrib/i18n) | `WithI18n()` | Localised API responses. Bridge to go-i18n grammar engine for localised error messages — unique differentiator. | Medium |
+| ~~gin-contrib/i18n~~ | ~~`WithI18n()`~~ | ~~Locale detection via Accept-Language. Custom middleware using `golang.org/x/text/language`.~~ | ~~**Done**~~ |
 | [gin-contrib/graceful](https://github.com/gin-contrib/graceful) | — | Already implemented in Engine.Serve(). Could swap to this for more robust lifecycle management if needed. | — |
 | [gin-contrib/requestid](https://github.com/gin-contrib/requestid) | — | Already implemented. Theirs uses UUID, ours uses hex. Could swap for standards compliance. | — |
 
@@ -419,7 +434,7 @@ Four protocols, one set of handlers.
 
 **Wave 1 (gateway hardening):** ~~Authentik, secure, slog, timeout, gzip, static~~ **DONE** (20 Feb 2026)
 **Wave 2 (performance + auth):** ~~cache, sessions, authz, brotli~~ **DONE** (20 Feb 2026)
-**Wave 3 (network + streaming):** httpsign, sse, location, i18n, gqlgen
+**Wave 3 (network + streaming):** ~~httpsign, sse, location, i18n, gqlgen~~ **DONE** (20 Feb 2026)
 **Wave 4 (observability):** pprof, expvar, opengintracing
 
 Each wave adds `With*()` options + tests. No breaking changes — existing code continues to work without any new options enabled.
