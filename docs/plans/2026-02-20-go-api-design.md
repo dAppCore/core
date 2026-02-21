@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-20
 **Author:** Virgil
-**Status:** Phase 1 Implemented, Phase 2 Planned
+**Status:** Phase 1 + Phase 2 Complete (143 tests)
 **Module:** `forge.lthn.ai/core/go-api`
 
 ## Problem
@@ -359,7 +359,22 @@ Each subsystem's `api/` package adds ~100-200 LOC per route group.
 
 **Cumulative:** 128 passing tests (2 integration skipped), all green.
 
-## Phase 2 — Remaining Gin Plugin Roadmap
+## Phase 2 Wave 4 — Implemented (21 Feb 2026)
+
+**Commits:** `32b3680..8ba1716` on Forge (`core/go-api`)
+
+| Component | Option | Dependency | Tests | Notes |
+|-----------|--------|------------|-------|-------|
+| Runtime profiling | `WithPprof()` | `gin-contrib/pprof` | 5 | /debug/pprof/* endpoints, flag-based mount |
+| Runtime metrics | `WithExpvar()` | `gin-contrib/expvar` | 5 | /debug/vars endpoint, flag-based mount |
+| Distributed tracing | `WithTracing()` | `otelgin` + OpenTelemetry SDK | 5 | W3C traceparent propagation, span attributes |
+| **Wave 4 Total** | | | **15** | |
+
+**Cumulative:** 143 passing tests (2 integration skipped), all green.
+
+**Phase 2 complete.** All 4 waves implemented. Every planned plugin has a `With*()` option and tests.
+
+## Phase 2 — Gin Plugin Roadmap (Complete)
 
 All plugins drop in as `With*()` options on the Engine. No architecture changes needed.
 
@@ -387,9 +402,9 @@ All plugins drop in as `With*()` options on the Engine. No architecture changes 
 | Plugin | Option | Purpose | Priority |
 |--------|--------|---------|----------|
 | ~~gin-contrib/slog~~ | ~~`WithSlog()`~~ | ~~Structured request logging via slog.~~ | ~~**Done**~~ |
-| [gin-contrib/pprof](https://github.com/gin-contrib/pprof) | `WithPprof()` | Runtime profiling endpoints at /debug/pprof/. Dev/staging only, gate behind auth. | Low |
-| [gin-contrib/expvar](https://github.com/gin-contrib/expvar) | `WithExpvar()` | Go runtime metrics (goroutines, memstats). Dev/debug only. | Low |
-| [opengintracing](https://github.com/gin-contrib/opengintracing) | `WithTracing()` | OpenTelemetry distributed tracing. Needed when multiple services form a request chain. | Low |
+| ~~gin-contrib/pprof~~ | ~~`WithPprof()`~~ | ~~Runtime profiling endpoints at /debug/pprof/. Flag-based mount.~~ | ~~**Done**~~ |
+| ~~gin-contrib/expvar~~ | ~~`WithExpvar()`~~ | ~~Go runtime metrics at /debug/vars. Flag-based mount.~~ | ~~**Done**~~ |
+| ~~otelgin~~ | ~~`WithTracing()`~~ | ~~OpenTelemetry distributed tracing. W3C traceparent propagation.~~ | ~~**Done**~~ |
 
 ### Content & Streaming
 
@@ -435,7 +450,7 @@ Four protocols, one set of handlers.
 **Wave 1 (gateway hardening):** ~~Authentik, secure, slog, timeout, gzip, static~~ **DONE** (20 Feb 2026)
 **Wave 2 (performance + auth):** ~~cache, sessions, authz, brotli~~ **DONE** (20 Feb 2026)
 **Wave 3 (network + streaming):** ~~httpsign, sse, location, i18n, gqlgen~~ **DONE** (20 Feb 2026)
-**Wave 4 (observability):** pprof, expvar, opengintracing
+**Wave 4 (observability):** ~~pprof, expvar, tracing~~ **DONE** (21 Feb 2026)
 
 Each wave adds `With*()` options + tests. No breaking changes — existing code continues to work without any new options enabled.
 
