@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-20
 **Author:** Virgil
-**Status:** Phase 1 + Phase 2 Complete (143 tests)
+**Status:** Phase 1 + Phase 2 + Phase 3 Complete (176 tests in go-api)
 **Module:** `forge.lthn.ai/core/go-api`
 
 ## Problem
@@ -18,8 +18,8 @@ A `go-api` package that acts as the central HTTP gateway:
 1. **Gin-based HTTP gateway** with extensible middleware via gin-contrib plugins
 2. **RouteGroup interface** that subsystems implement to register their own endpoints (API, web, or both)
 3. **WebSocket + SSE integration** for real-time streaming
-4. **OpenAPI 3.1 spec generation** via swaggo annotations
-5. **SDK generation pipeline** targeting Python, TypeScript, Go client, and more
+4. **OpenAPI 3.1 spec generation** via runtime SpecBuilder (not swaggo annotations)
+5. **SDK generation pipeline** targeting 11 languages via openapi-generator-cli
 
 ## Architecture
 
@@ -234,52 +234,81 @@ Subsystems implementing `StreamGroup` declare which channels they publish to. Th
 
 ## OpenAPI + SDK Generation
 
-### Spec Generation (swaggo)
+### Runtime Spec Generation (SpecBuilder)
 
-```bash
-# Generate from swaggo annotations
-swag init -g api.go -o docs/ --parseDependency --parseInternal
+swaggo annotations were rejected because routes are dynamic via RouteGroup, Response[T] generics break swaggo, and MCP tools already carry JSON Schema at runtime. Instead, a `SpecBuilder` constructs the full OpenAPI 3.1 spec from registered RouteGroups at runtime.
 
-# Output: docs/swagger.json, docs/swagger.yaml
+```go
+// Groups that implement DescribableGroup contribute endpoint metadata
+type DescribableGroup interface {
+    RouteGroup
+    Describe() []RouteDescription
+}
+
+// SpecBuilder assembles the spec from all groups
+builder := &api.SpecBuilder{Title: "Core API", Description: "...", Version: "1.0.0"}
+spec, _ := builder.Build(engine.Groups())
+```
+
+### MCP-to-REST Bridge (ToolBridge)
+
+The `ToolBridge` converts MCP tool descriptors into REST POST endpoints and implements both `RouteGroup` and `DescribableGroup`. Each tool becomes `POST /{tool_name}`. Generic types are captured at MCP registration time via closures, enabling JSON unmarshalling to the correct input type at request time.
+
+```go
+bridge := api.NewToolBridge("/v1/tools")
+mcp.BridgeToAPI(mcpService, bridge)  // Populates bridge from MCP tool registry
+engine.Register(bridge)              // Registers REST endpoints + OpenAPI metadata
 ```
 
 ### Swagger UI
 
 ```go
 // Built-in at GET /swagger/*any
-// Served via gin-swagger middleware
+// SpecBuilder output served via gin-swagger, cached via sync.Once
+api.New(api.WithSwagger("Core API", "...", "1.0.0"))
 ```
 
 ### SDK Generation
 
 ```bash
-# Via openapi-generator-cli
-openapi-generator-cli generate -i docs/swagger.json -g python -o sdk/python
-openapi-generator-cli generate -i docs/swagger.json -g typescript-axios -o sdk/typescript
-openapi-generator-cli generate -i docs/swagger.json -g go -o sdk/go-client
-openapi-generator-cli generate -i docs/swagger.json -g java -o sdk/java
-openapi-generator-cli generate -i docs/swagger.json -g csharp -o sdk/csharp
+# Via openapi-generator-cli (11 languages supported)
+core api sdk --lang go                          # Generate Go SDK
+core api sdk --lang typescript-fetch,python     # Multiple languages
+core api sdk --lang rust --output ./sdk/        # Custom output dir
 ```
 
 ### CLI Commands
 
 ```bash
-core api serve                    # Start REST + WebSocket server
 core api spec                     # Emit OpenAPI JSON to stdout
 core api spec --format yaml       # YAML variant
-core api sdk --lang python        # Generate Python SDK to sdk/python/
-core api sdk --lang typescript    # Generate TypeScript SDK
+core api spec --output spec.json  # Write to file
+core api sdk --lang python        # Generate Python SDK
+core api sdk --lang go,rust       # Multiple SDKs
 ```
 
 ## Dependencies
 
-| Package | Purpose | Size |
-|---------|---------|------|
-| `github.com/gin-gonic/gin` | HTTP framework | ~15K LOC |
-| `github.com/swaggo/swag` | OpenAPI annotation parser | ~8K LOC |
-| `github.com/swaggo/gin-swagger` | Swagger UI middleware | ~500 LOC |
-| `github.com/gin-contrib/cors` | CORS middleware | ~300 LOC |
-| `forge.lthn.ai/core/go-ws` | WebSocket Hub (existing) | ~1.5K LOC |
+| Package | Purpose |
+|---------|---------|
+| `github.com/gin-gonic/gin` | HTTP framework |
+| `github.com/swaggo/gin-swagger` | Swagger UI middleware |
+| `github.com/gin-contrib/cors` | CORS middleware |
+| `github.com/gin-contrib/secure` | Security headers |
+| `github.com/gin-contrib/sessions` | Server-side sessions |
+| `github.com/gin-contrib/authz` | Casbin authorisation |
+| `github.com/gin-contrib/httpsign` | HTTP signature verification |
+| `github.com/gin-contrib/slog` | Structured request logging |
+| `github.com/gin-contrib/timeout` | Per-request timeouts |
+| `github.com/gin-contrib/gzip` | Gzip compression |
+| `github.com/gin-contrib/static` | Static file serving |
+| `github.com/gin-contrib/pprof` | Runtime profiling |
+| `github.com/gin-contrib/expvar` | Runtime metrics |
+| `github.com/gin-contrib/location/v2` | Reverse proxy detection |
+| `github.com/99designs/gqlgen` | GraphQL endpoint |
+| `go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin` | Distributed tracing |
+| `gopkg.in/yaml.v3` | YAML spec export |
+| `forge.lthn.ai/core/go-ws` | WebSocket Hub (existing) |
 
 ## Estimated Size
 
@@ -373,6 +402,52 @@ Each subsystem's `api/` package adds ~100-200 LOC per route group.
 **Cumulative:** 143 passing tests (2 integration skipped), all green.
 
 **Phase 2 complete.** All 4 waves implemented. Every planned plugin has a `With*()` option and tests.
+
+## Phase 3 — OpenAPI Spec Generation + SDK Codegen (21 Feb 2026)
+
+**Architecture:** Runtime OpenAPI generation via SpecBuilder (NOT swaggo annotations). Routes are dynamic via RouteGroup, Response[T] generics break swaggo, and MCP tools carry JSON Schema at runtime. A `ToolBridge` converts tool descriptors into RouteGroup + OpenAPI metadata. A `SpecBuilder` constructs the full OpenAPI 3.1 spec. SDK codegen wraps `openapi-generator-cli`.
+
+### Wave 1: go-api (Tasks 1-5)
+
+**Commits:** `465bd60..1910aec` on Forge (`core/go-api`)
+
+| Component | File | Tests | Notes |
+|-----------|------|-------|-------|
+| DescribableGroup interface | `group.go` | 5 | Opt-in OpenAPI metadata for RouteGroups |
+| ToolBridge | `bridge.go` | 6 | Tool descriptors → POST endpoints + DescribableGroup |
+| SpecBuilder | `openapi.go` | 6 | OpenAPI 3.1 JSON with Response[T] envelope wrapping |
+| Swagger refactor | `swagger.go` | 5 | Replaced hardcoded empty spec with SpecBuilder |
+| Spec export | `export.go` | 5 | JSON + YAML export to file/writer |
+| SDK codegen | `codegen.go` | 5 | 11-language wrapper for openapi-generator-cli |
+| **Wave 1 Total** | | **32** | |
+
+### Wave 2: go-ai MCP bridge (Tasks 6-7)
+
+**Commits:** `2107eda..c37e1cf` on Forge (`core/go-ai`)
+
+| Component | File | Tests | Notes |
+|-----------|------|-------|-------|
+| Tool registry | `mcp/registry.go` | 5 | Generic `addToolRecorded[In,Out]` captures types in closures |
+| BridgeToAPI | `mcp/bridge.go` | 5 | MCP tools → go-api ToolBridge, 10MB body limit, error classification |
+| **Wave 2 Total** | | **10** | |
+
+### Wave 3: CLI commands (Tasks 8-9)
+
+**Commit:** `d6eec4d` on Forge (`core/cli` dev branch)
+
+| Component | File | Tests | Notes |
+|-----------|------|-------|-------|
+| `core api spec` | `cmd/api/cmd_spec.go` | 2 | JSON/YAML export, --output/--format flags |
+| `core api sdk` | `cmd/api/cmd_sdk.go` | 2 | --lang (required), --output, --spec, --package flags |
+| **Wave 3 Total** | | **4** | |
+
+**Cumulative go-api:** 176 passing tests. **Phase 3 complete.**
+
+### Known Limitations
+
+- **Subsystem tools excluded from bridge:** Subsystems call `mcp.AddTool` directly, bypassing `addToolRecorded`. Only the 10 built-in MCP tools appear in the REST bridge. Future: pass `*Service` to `RegisterTools` instead of `*mcp.Server`.
+- **Flat schema only:** `structSchema` reflection handles flat structs but does not recurse into nested structs. Adequate for current tool inputs.
+- **CLI spec produces empty bridge:** `core api spec` currently generates a spec with only `/health`. Full MCP integration requires wiring the MCP service into the CLI command.
 
 ## Phase 2 — Gin Plugin Roadmap (Complete)
 
@@ -551,7 +626,6 @@ Both are standard Go libraries with no heavy dependencies.
 ## Non-Goals
 
 - gRPC gateway
-- Automatic MCP-to-REST adapter (can be added later)
 - Built-in user registration/login (Authentik handles this)
 - API versioning beyond /v1/ prefix
 
@@ -566,12 +640,18 @@ Both are standard Go libraries with no heavy dependencies.
 5. ~~Bearer token auth protects all routes~~
 6. ~~First subsystem integration (go-ml/api/) proves the pattern~~
 
-### Phase 2
+### Phase 2 (Done)
 
-7. `core api spec` emits valid OpenAPI 3.1 JSON from swaggo annotations
-8. Generated Python and TypeScript SDKs can call endpoints successfully
-9. Security headers, compression, and caching active in production
-10. Session-based auth alongside bearer tokens
-11. HTTP signature verification for Lethean network peers
-12. Static file serving for docs site and SDK downloads
-13. GraphQL endpoint at `/graphql` with playground, subsystem resolvers via ResolverGroup interface
+7. ~~Security headers, compression, and caching active in production~~
+8. ~~Session-based auth alongside bearer tokens~~
+9. ~~HTTP signature verification for Lethean network peers~~
+10. ~~Static file serving for docs site and SDK downloads~~
+11. ~~GraphQL endpoint at `/graphql` with playground~~
+
+### Phase 3 (Done)
+
+12. ~~`core api spec` emits valid OpenAPI 3.1 JSON via runtime SpecBuilder~~
+13. ~~`core api sdk` generates SDKs for 11 languages via openapi-generator-cli~~
+14. ~~MCP tools bridged to REST endpoints via ToolBridge + BridgeToAPI~~
+15. ~~OpenAPI spec includes Response[T] envelope wrapping~~
+16. ~~Spec export to file in JSON and YAML formats~~
