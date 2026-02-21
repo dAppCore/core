@@ -30,7 +30,7 @@ The `cli` package is a comprehensive application runtime and UI framework design
 #### Command Building
 - `func NewCommand(use, short, long string, run func(*Command, []string) error) *Command`: Factory for standard commands.
 - `func NewGroup(use, short, long string) *Command`: Factory for parent commands (no run logic).
-- `func RegisterCommands(fn CommandRegistration)`: Registers a callback to add commands to the root at runtime.
+- `func WithCommands(name string, register func(root *Command)) framework.Option`: Registers a command group as a framework service.
 
 #### Output & Styling
 - `type AnsiStyle`: Fluent builder for text styling (Bold, Dim, Foreground, Background).
@@ -67,7 +67,7 @@ The `cli` package is a comprehensive application runtime and UI framework design
 
 ### 5. Test Coverage Notes
 - **Interactive Prompts**: Tests must mock `stdin` to verify `Confirm`, `Prompt`, and `Select` behavior without hanging.
-- **Command Registration**: Verify `RegisterCommands` works both before and after `Init` is called.
+- **Command Registration**: Verify `WithCommands` services receive the root command during `OnStartup`.
 - **Daemon Lifecycle**: Tests needed for `PIDFile` locking and `HealthServer` endpoints (/health, /ready).
 - **Layout Rendering**: Snapshot testing is recommended for `Layout` and `Table` rendering to ensure ANSI codes and alignment are correct.
 

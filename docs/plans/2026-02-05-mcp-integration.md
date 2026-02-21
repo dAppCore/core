@@ -1,5 +1,7 @@
 # MCP Integration Implementation Plan
 
+> **Status:** Completed. MCP command now lives in `go-ai/cmd/mcpcmd/`. Code examples below use the old `init()` + `RegisterCommands()` pattern — the current approach uses `cli.WithCommands()` (see cli-meta-package-design.md).
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add `core mcp serve` command with RAG and metrics tools, then configure the agentic-flows plugin to use it.
