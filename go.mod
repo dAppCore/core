@@ -2,7 +2,7 @@ module forge.lthn.ai/core/go
 
 go 1.25.5
 
-require forge.lthn.ai/core/go-crypt v0.0.0
+require forge.lthn.ai/core/go-crypt v0.0.0-20260221190941-9585da8e6649
 
 require (
 	github.com/Snider/Borg v0.2.0
@@ -19,7 +19,7 @@ require (
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.45.0
+	modernc.org/sqlite v1.46.1
 )
 
 require (
@@ -77,5 +77,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace forge.lthn.ai/core/go-crypt => ../go-crypt
