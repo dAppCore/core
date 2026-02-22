@@ -17,6 +17,7 @@ dist/
 tasks
 /core
 /i18n-validate
+/validate
 cmd/*
 !cmd/gocmd/
 .angular/
