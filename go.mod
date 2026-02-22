@@ -1,6 +1,6 @@
 module forge.lthn.ai/core/go
 
-go 1.25.5
+go 1.26.0
 
 require forge.lthn.ai/core/go-crypt v0.0.1
 
