@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"forge.lthn.ai/core/cli/pkg/cli"
+	"forge.lthn.ai/core/go-devops/cmd/qa"
 	"forge.lthn.ai/core/go/pkg/i18n"
 )
 
@@ -613,8 +614,14 @@ func runInternalCheck(check QACheck) (string, error) {
 		return "", runGoFuzz(duration, "", "", qaVerbose)
 
 	case "docblock":
-		// TODO: migrate to go-devops/cmd/qa.CheckDocblockCoverage once circular dep resolved
-		return "", cli.Err("docblock check not yet available (pending go-devops migration)")
+		result, err := qa.CheckDocblockCoverage([]string{"./..."})
+		if err != nil {
+			return "", err
+		}
+		if result.Coverage < qaDocblockThreshold {
+			return "", cli.Err("docblock coverage %.1f%% below threshold %.1f%%", result.Coverage, qaDocblockThreshold)
+		}
+		return fmt.Sprintf("docblock coverage: %.1f%% (%d/%d)", result.Coverage, result.Documented, result.Total), nil
 
 	default:
 		return "", cli.Err("unknown internal check: %s", check.Name)
