@@ -2,7 +2,7 @@ module forge.lthn.ai/core/go
 
 go 1.25.5
 
-require forge.lthn.ai/core/go-crypt main
+require forge.lthn.ai/core/go-crypt v0.0.1
 
 require (
 	github.com/Snider/Borg v0.2.0
