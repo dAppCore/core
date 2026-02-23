@@ -4,9 +4,9 @@ go 1.26.0
 
 require (
 	forge.lthn.ai/Snider/Borg v0.2.1
-	forge.lthn.ai/core/cli v0.0.3
-	forge.lthn.ai/core/go-crypt v0.0.2
-	forge.lthn.ai/core/go-devops v0.0.2
+	forge.lthn.ai/core/cli v0.0.4
+	forge.lthn.ai/core/go-crypt v0.0.3
+	forge.lthn.ai/core/go-devops v0.0.3
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.0
 	github.com/gorilla/websocket v1.5.3
