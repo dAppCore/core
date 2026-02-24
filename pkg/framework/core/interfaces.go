@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	goio "io"
+	"slices"
 	"sync/atomic"
 )
 
@@ -29,12 +30,7 @@ type Features struct {
 
 // IsEnabled returns true if the given feature is enabled.
 func (f *Features) IsEnabled(feature string) bool {
-	for _, flag := range f.Flags {
-		if flag == feature {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(f.Flags, feature)
 }
 
 // Option is a function that configures the Core.
