@@ -67,7 +67,7 @@ func (c *Cache) Path(key string) string {
 }
 
 // Get retrieves a cached item if it exists and hasn't expired.
-func (c *Cache) Get(key string, dest interface{}) (bool, error) {
+func (c *Cache) Get(key string, dest any) (bool, error) {
 	path := c.Path(key)
 
 	dataStr, err := c.medium.Read(path)
@@ -98,7 +98,7 @@ func (c *Cache) Get(key string, dest interface{}) (bool, error) {
 }
 
 // Set stores an item in the cache.
-func (c *Cache) Set(key string, data interface{}) error {
+func (c *Cache) Set(key string, data any) error {
 	path := c.Path(key)
 
 	// Ensure parent directory exists

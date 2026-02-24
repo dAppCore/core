@@ -54,7 +54,7 @@ type contentBlock struct {
 	Text      string          `json:"text,omitempty"`
 	Input     json.RawMessage `json:"input,omitempty"`
 	ToolUseID string          `json:"tool_use_id,omitempty"`
-	Content   interface{}     `json:"content,omitempty"`
+	Content   any             `json:"content,omitempty"`
 	IsError   *bool           `json:"is_error,omitempty"`
 }
 
@@ -340,7 +340,7 @@ func extractToolInput(toolName string, raw json.RawMessage) string {
 	}
 
 	// Fallback: show raw JSON keys
-	var m map[string]interface{}
+	var m map[string]any
 	if json.Unmarshal(raw, &m) == nil {
 		var parts []string
 		for k := range m {
@@ -353,21 +353,21 @@ func extractToolInput(toolName string, raw json.RawMessage) string {
 	return ""
 }
 
-func extractResultContent(content interface{}) string {
+func extractResultContent(content any) string {
 	switch v := content.(type) {
 	case string:
 		return v
-	case []interface{}:
+	case []any:
 		var parts []string
 		for _, item := range v {
-			if m, ok := item.(map[string]interface{}); ok {
+			if m, ok := item.(map[string]any); ok {
 				if text, ok := m["text"].(string); ok {
 					parts = append(parts, text)
 				}
 			}
 		}
 		return strings.Join(parts, "\n")
-	case map[string]interface{}:
+	case map[string]any:
 		if text, ok := v["text"].(string); ok {
 			return text
 		}
