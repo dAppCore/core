@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -156,8 +157,8 @@ func ListSessions(projectsDir string) ([]Session, error) {
 		sessions = append(sessions, s)
 	}
 
-	sort.Slice(sessions, func(i, j int) bool {
-		return sessions[i].StartTime.After(sessions[j].StartTime)
+	slices.SortFunc(sessions, func(a, b Session) int {
+		return b.StartTime.Compare(a.StartTime) // descending
 	})
 
 	return sessions, nil

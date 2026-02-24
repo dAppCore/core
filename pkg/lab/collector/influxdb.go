@@ -1,11 +1,12 @@
 package collector
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -126,8 +127,11 @@ func (i *InfluxDB) Collect(ctx context.Context) error {
 	for _, r := range runSet {
 		data.Runs = append(data.Runs, r)
 	}
-	sort.Slice(data.Runs, func(i, j int) bool {
-		return data.Runs[i].Model < data.Runs[j].Model || (data.Runs[i].Model == data.Runs[j].Model && data.Runs[i].RunID < data.Runs[j].RunID)
+	slices.SortFunc(data.Runs, func(a, b lab.BenchmarkRun) int {
+		if c := cmp.Compare(a.Model, b.Model); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.RunID, b.RunID)
 	})
 
 	i.store.SetBenchmarks(data)

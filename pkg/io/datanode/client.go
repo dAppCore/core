@@ -7,11 +7,12 @@
 package datanode
 
 import (
+	"cmp"
 	goio "io"
 	"io/fs"
 	"os"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -359,8 +360,8 @@ func (m *Medium) List(p string) ([]fs.DirEntry, error) {
 		}
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name() < entries[j].Name()
+	slices.SortFunc(entries, func(a, b fs.DirEntry) int {
+		return cmp.Compare(a.Name(), b.Name())
 	})
 
 	return entries, nil

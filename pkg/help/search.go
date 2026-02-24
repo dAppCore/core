@@ -1,8 +1,9 @@
 package help
 
 import (
+	"cmp"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -158,11 +159,11 @@ func (i *searchIndex) Search(query string) []*SearchResult {
 	}
 
 	// Sort by score (highest first)
-	sort.Slice(results, func(a, b int) bool {
-		if results[a].Score != results[b].Score {
-			return results[a].Score > results[b].Score
+	slices.SortFunc(results, func(a, b *SearchResult) int {
+		if a.Score != b.Score {
+			return cmp.Compare(b.Score, a.Score) // descending
 		}
-		return results[a].Topic.Title < results[b].Topic.Title
+		return cmp.Compare(a.Topic.Title, b.Topic.Title)
 	})
 
 	return results
@@ -357,11 +358,11 @@ func highlight(text string, res []*regexp.Regexp) string {
 	}
 
 	// Sort matches by start position
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].start != matches[j].start {
-			return matches[i].start < matches[j].start
+	slices.SortFunc(matches, func(a, b match) int {
+		if a.start != b.start {
+			return cmp.Compare(a.start, b.start)
 		}
-		return matches[i].end > matches[j].end
+		return cmp.Compare(b.end, a.end) // descending
 	})
 
 	// Merge overlapping or adjacent matches

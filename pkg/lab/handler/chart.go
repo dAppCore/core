@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"cmp"
 	"fmt"
 	"html/template"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -118,7 +120,7 @@ func LossChart(points []lab.LossPoint) template.HTML {
 
 	// Draw train loss line (dimmed).
 	if len(trainPts) > 1 {
-		sort.Slice(trainPts, func(i, j int) bool { return trainPts[i].Iteration < trainPts[j].Iteration })
+		slices.SortFunc(trainPts, func(a, b lab.LossPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 		sb.WriteString(`<polyline points="`)
 		for i, p := range trainPts {
 			if i > 0 {
@@ -134,7 +136,7 @@ func LossChart(points []lab.LossPoint) template.HTML {
 
 	// Draw val loss line (accent).
 	if len(valPts) > 1 {
-		sort.Slice(valPts, func(i, j int) bool { return valPts[i].Iteration < valPts[j].Iteration })
+		slices.SortFunc(valPts, func(a, b lab.LossPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 		sb.WriteString(`<polyline points="`)
 		for i, p := range valPts {
 			if i > 0 {
@@ -232,7 +234,7 @@ func ContentChart(points []lab.ContentPoint) template.HTML {
 		if !ok || len(pts) < 2 {
 			continue
 		}
-		sort.Slice(pts, func(i, j int) bool { return pts[i].Iteration < pts[j].Iteration })
+		slices.SortFunc(pts, func(a, b lab.ContentPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 
 		// Average duplicate iterations.
 		averaged := averageByIteration(pts)
@@ -285,7 +287,7 @@ func CapabilityChart(points []lab.CapabilityPoint) template.HTML {
 			overall = append(overall, p)
 		}
 	}
-	sort.Slice(overall, func(i, j int) bool { return overall[i].Iteration < overall[j].Iteration })
+	slices.SortFunc(overall, func(a, b lab.CapabilityPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 
 	if len(overall) == 0 {
 		return template.HTML(`<div class="empty">No overall capability data</div>`)

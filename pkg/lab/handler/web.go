@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"cmp"
 	"embed"
 	"fmt"
 	"html/template"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -376,11 +377,14 @@ func buildModelGroups(runs []lab.TrainingRunStatus, benchmarks lab.BenchmarkData
 		}
 		result = append(result, *g)
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].HasTraining != result[j].HasTraining {
-			return result[i].HasTraining
+	slices.SortFunc(result, func(a, b ModelGroup) int {
+		if a.HasTraining != b.HasTraining {
+			if a.HasTraining {
+				return -1
+			}
+			return 1
 		}
-		return result[i].Model < result[j].Model
+		return cmp.Compare(a.Model, b.Model)
 	})
 	return result
 }
