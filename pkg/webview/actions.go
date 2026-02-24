@@ -235,7 +235,7 @@ func (a DoubleClickAction) Execute(ctx context.Context, wv *Webview) error {
 	y := elem.BoundingBox.Y + elem.BoundingBox.Height/2
 
 	// Double click sequence
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		for _, eventType := range []string{"mousePressed", "mouseReleased"} {
 			_, err := wv.client.Call(ctx, "Input.dispatchMouseEvent", map[string]any{
 				"type":       eventType,
