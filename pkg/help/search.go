@@ -286,24 +286,15 @@ func extractSnippet(content string, res []*regexp.Regexp) string {
 	if matchPos == -1 {
 		// No match found, use start of content
 		start = 0
-		end = snippetLen
-		if end > runeLen {
-			end = runeLen
-		}
+		end = min(snippetLen, runeLen)
 	} else {
 		// Convert byte position to rune position
 		matchRunePos := len([]rune(content[:matchPos]))
 
 		// Extract snippet around match (rune-based)
-		start = matchRunePos - 50
-		if start < 0 {
-			start = 0
-		}
+		start = max(matchRunePos-50, 0)
 
-		end = start + snippetLen
-		if end > runeLen {
-			end = runeLen
-		}
+		end = min(start+snippetLen, runeLen)
 	}
 
 	snippet := string(runes[start:end])
@@ -371,9 +362,7 @@ func highlight(text string, res []*regexp.Regexp) string {
 		curr := matches[0]
 		for i := 1; i < len(matches); i++ {
 			if matches[i].start <= curr.end {
-				if matches[i].end > curr.end {
-					curr.end = matches[i].end
-				}
+				curr.end = max(curr.end, matches[i].end)
 			} else {
 				merged = append(merged, curr)
 				curr = matches[i]

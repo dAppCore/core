@@ -62,25 +62,15 @@ func LossChart(points []lab.LossPoint) template.HTML {
 	yMin, yMax := allPts[0].Loss, allPts[0].Loss
 	for _, p := range allPts {
 		x := float64(p.Iteration)
-		if x < xMin {
-			xMin = x
-		}
-		if x > xMax {
-			xMax = x
-		}
-		if p.Loss < yMin {
-			yMin = p.Loss
-		}
-		if p.Loss > yMax {
-			yMax = p.Loss
-		}
+		xMin = min(xMin, x)
+		xMax = max(xMax, x)
+		yMin = min(yMin, p.Loss)
+		yMax = max(yMax, p.Loss)
 	}
 
 	// Add padding to Y range.
 	yRange := yMax - yMin
-	if yRange < 0.1 {
-		yRange = 0.1
-	}
+	yRange = max(yRange, 0.1)
 	yMin = yMin - yRange*0.1
 	yMax = yMax + yRange*0.1
 	if xMax == xMin {
@@ -104,13 +94,7 @@ func LossChart(points []lab.LossPoint) template.HTML {
 	}
 
 	// X axis labels.
-	nGridX := 6
-	if int(xMax-xMin) < nGridX {
-		nGridX = int(xMax - xMin)
-	}
-	if nGridX < 1 {
-		nGridX = 1
-	}
+	nGridX := max(min(6, int(xMax-xMin)), 1)
 	for i := 0; i <= nGridX; i++ {
 		xVal := xMin + float64(i)*(xMax-xMin)/float64(nGridX)
 		x := scaleX(xVal)
@@ -534,21 +518,14 @@ func DomainChart(stats []lab.DomainStat) template.HTML {
 	if len(stats) == 0 {
 		return ""
 	}
-	limit := 25
-	if len(stats) < limit {
-		limit = len(stats)
-	}
+	limit := min(25, len(stats))
 	items := stats[:limit]
 
 	maxCount := 0
 	for _, d := range items {
-		if d.Count > maxCount {
-			maxCount = d.Count
-		}
+		maxCount = max(maxCount, d.Count)
 	}
-	if maxCount == 0 {
-		maxCount = 1
-	}
+	maxCount = max(maxCount, 1)
 
 	barH := 18
 	gap := 4
@@ -563,10 +540,7 @@ func DomainChart(stats []lab.DomainStat) template.HTML {
 
 	for i, d := range items {
 		y := i*(barH+gap) + 5
-		barW := int(float64(d.Count) / float64(maxCount) * float64(barAreaW))
-		if barW < 2 {
-			barW = 2
-		}
+		barW := max(int(float64(d.Count)/float64(maxCount)*float64(barAreaW)), 2)
 		fmt.Fprintf(&b, `<text x="%d" y="%d" fill="var(--muted)" font-size="11" text-anchor="end" dominant-baseline="middle">%s</text>`,
 			labelW-8, y+barH/2, template.HTMLEscapeString(d.Domain))
 		fmt.Fprintf(&b, `<rect x="%d" y="%d" width="%d" height="%d" fill="var(--accent)" rx="2" opacity="0.8"/>`,
@@ -587,13 +561,9 @@ func VoiceChart(stats []lab.VoiceStat) template.HTML {
 
 	maxCount := 0
 	for _, v := range stats {
-		if v.Count > maxCount {
-			maxCount = v.Count
-		}
+		maxCount = max(maxCount, v.Count)
 	}
-	if maxCount == 0 {
-		maxCount = 1
-	}
+	maxCount = max(maxCount, 1)
 
 	barW := 50
 	gap := 8
@@ -609,10 +579,7 @@ func VoiceChart(stats []lab.VoiceStat) template.HTML {
 
 	for i, v := range stats {
 		x := i*(barW+gap) + gap + 5
-		barH := int(float64(v.Count) / float64(maxCount) * float64(chartHeight))
-		if barH < 2 {
-			barH = 2
-		}
+		barH := max(int(float64(v.Count)/float64(maxCount)*float64(chartHeight)), 2)
 		y := topPad + chartHeight - barH
 
 		fmt.Fprintf(&b, `<rect x="%d" y="%d" width="%d" height="%d" fill="var(--green)" rx="2" opacity="0.7"/>`,

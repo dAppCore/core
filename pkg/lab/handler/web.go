@@ -73,10 +73,7 @@ func NewWebHandler(s *lab.Store) *WebHandler {
 			if cores <= 0 {
 				return "0"
 			}
-			pct := load / float64(cores) * 100
-			if pct > 100 {
-				pct = 100
-			}
+			pct := min(load/float64(cores)*100, 100)
 			return fmt.Sprintf("%.0f", pct)
 		},
 		"fmtGB": func(v float64) string {

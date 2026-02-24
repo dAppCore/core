@@ -103,10 +103,7 @@ func (x *XORObfuscator) deriveKeyStream(entropy []byte, length int) []byte {
 		h.Write(blockBytes[:])
 		block := h.Sum(nil)
 
-		copyLen := len(block)
-		if offset+copyLen > length {
-			copyLen = length - offset
-		}
+		copyLen := min(len(block), length-offset)
 		copy(stream[offset:], block[:copyLen])
 		offset += copyLen
 		blockNum++
@@ -222,10 +219,7 @@ func (s *ShuffleMaskObfuscator) deriveMask(entropy []byte, length int) []byte {
 		h.Write(blockBytes[:])
 		block := h.Sum(nil)
 
-		copyLen := len(block)
-		if offset+copyLen > length {
-			copyLen = length - offset
-		}
+		copyLen := min(len(block), length-offset)
 		copy(mask[offset:], block[:copyLen])
 		offset += copyLen
 		blockNum++
