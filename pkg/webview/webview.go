@@ -24,6 +24,7 @@ package webview
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -122,7 +123,7 @@ func New(opts ...Option) (*Webview, error) {
 
 	if wv.client == nil {
 		cancel()
-		return nil, fmt.Errorf("no debug URL provided; use WithDebugURL option")
+		return nil, errors.New("no debug URL provided; use WithDebugURL option")
 	}
 
 	// Enable console capture
@@ -222,7 +223,7 @@ func (wv *Webview) Screenshot() ([]byte, error) {
 
 	dataStr, ok := result["data"].(string)
 	if !ok {
-		return nil, fmt.Errorf("invalid screenshot data")
+		return nil, errors.New("invalid screenshot data")
 	}
 
 	data, err := base64.StdEncoding.DecodeString(dataStr)
@@ -263,7 +264,7 @@ func (wv *Webview) GetURL() (string, error) {
 
 	url, ok := result.(string)
 	if !ok {
-		return "", fmt.Errorf("invalid URL result")
+		return "", errors.New("invalid URL result")
 	}
 
 	return url, nil
@@ -281,7 +282,7 @@ func (wv *Webview) GetTitle() (string, error) {
 
 	title, ok := result.(string)
 	if !ok {
-		return "", fmt.Errorf("invalid title result")
+		return "", errors.New("invalid title result")
 	}
 
 	return title, nil
@@ -306,7 +307,7 @@ func (wv *Webview) GetHTML(selector string) (string, error) {
 
 	html, ok := result.(string)
 	if !ok {
-		return "", fmt.Errorf("invalid HTML result")
+		return "", errors.New("invalid HTML result")
 	}
 
 	return html, nil
@@ -520,7 +521,7 @@ func (wv *Webview) evaluate(ctx context.Context, script string) (any, error) {
 				return nil, fmt.Errorf("JavaScript error: %s", description)
 			}
 		}
-		return nil, fmt.Errorf("JavaScript error")
+		return nil, errors.New("JavaScript error")
 	}
 
 	// Extract result value
@@ -541,12 +542,12 @@ func (wv *Webview) querySelector(ctx context.Context, selector string) (*Element
 
 	root, ok := docResult["root"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid document root")
+		return nil, errors.New("invalid document root")
 	}
 
 	rootID, ok := root["nodeId"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("invalid root node ID")
+		return nil, errors.New("invalid root node ID")
 	}
 
 	// Query selector
@@ -576,12 +577,12 @@ func (wv *Webview) querySelectorAll(ctx context.Context, selector string) ([]*El
 
 	root, ok := docResult["root"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid document root")
+		return nil, errors.New("invalid document root")
 	}
 
 	rootID, ok := root["nodeId"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("invalid root node ID")
+		return nil, errors.New("invalid root node ID")
 	}
 
 	// Query selector all
@@ -595,7 +596,7 @@ func (wv *Webview) querySelectorAll(ctx context.Context, selector string) ([]*El
 
 	nodeIDs, ok := queryResult["nodeIds"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid node IDs")
+		return nil, errors.New("invalid node IDs")
 	}
 
 	elements := make([]*ElementInfo, 0, len(nodeIDs))
@@ -622,7 +623,7 @@ func (wv *Webview) getElementInfo(ctx context.Context, nodeID int) (*ElementInfo
 
 	node, ok := descResult["node"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid node description")
+		return nil, errors.New("invalid node description")
 	}
 
 	tagName, _ := node["nodeName"].(string)

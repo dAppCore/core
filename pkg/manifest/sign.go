@@ -3,6 +3,7 @@ package manifest
 import (
 	"crypto/ed25519"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
 	"gopkg.in/yaml.v3"
@@ -29,7 +30,7 @@ func Sign(m *Manifest, priv ed25519.PrivateKey) error {
 // Verify checks the ed25519 signature in m.Sign against the public key.
 func Verify(m *Manifest, pub ed25519.PublicKey) (bool, error) {
 	if m.Sign == "" {
-		return false, fmt.Errorf("manifest.Verify: no signature present")
+		return false, errors.New("manifest.Verify: no signature present")
 	}
 	sig, err := base64.StdEncoding.DecodeString(m.Sign)
 	if err != nil {

@@ -1,8 +1,9 @@
 package help
 
 import (
+	"cmp"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -158,11 +159,11 @@ func (i *searchIndex) Search(query string) []*SearchResult {
 	}
 
 	// Sort by score (highest first)
-	sort.Slice(results, func(a, b int) bool {
-		if results[a].Score != results[b].Score {
-			return results[a].Score > results[b].Score
+	slices.SortFunc(results, func(a, b *SearchResult) int {
+		if a.Score != b.Score {
+			return cmp.Compare(b.Score, a.Score) // descending
 		}
-		return results[a].Topic.Title < results[b].Topic.Title
+		return cmp.Compare(a.Topic.Title, b.Topic.Title)
 	})
 
 	return results
@@ -285,24 +286,15 @@ func extractSnippet(content string, res []*regexp.Regexp) string {
 	if matchPos == -1 {
 		// No match found, use start of content
 		start = 0
-		end = snippetLen
-		if end > runeLen {
-			end = runeLen
-		}
+		end = min(snippetLen, runeLen)
 	} else {
 		// Convert byte position to rune position
 		matchRunePos := len([]rune(content[:matchPos]))
 
 		// Extract snippet around match (rune-based)
-		start = matchRunePos - 50
-		if start < 0 {
-			start = 0
-		}
+		start = max(matchRunePos-50, 0)
 
-		end = start + snippetLen
-		if end > runeLen {
-			end = runeLen
-		}
+		end = min(start+snippetLen, runeLen)
 	}
 
 	snippet := string(runes[start:end])
@@ -357,11 +349,11 @@ func highlight(text string, res []*regexp.Regexp) string {
 	}
 
 	// Sort matches by start position
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].start != matches[j].start {
-			return matches[i].start < matches[j].start
+	slices.SortFunc(matches, func(a, b match) int {
+		if a.start != b.start {
+			return cmp.Compare(a.start, b.start)
 		}
-		return matches[i].end > matches[j].end
+		return cmp.Compare(b.end, a.end) // descending
 	})
 
 	// Merge overlapping or adjacent matches
@@ -370,9 +362,7 @@ func highlight(text string, res []*regexp.Regexp) string {
 		curr := matches[0]
 		for i := 1; i < len(matches); i++ {
 			if matches[i].start <= curr.end {
-				if matches[i].end > curr.end {
-					curr.end = matches[i].end
-				}
+				curr.end = max(curr.end, matches[i].end)
 			} else {
 				merged = append(merged, curr)
 				curr = matches[i]

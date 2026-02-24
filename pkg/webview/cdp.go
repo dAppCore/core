@@ -3,6 +3,7 @@ package webview
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -121,7 +122,7 @@ func NewCDPClient(debugURL string) (*CDPClient, error) {
 	}
 
 	if wsURL == "" {
-		return nil, fmt.Errorf("no WebSocket URL available")
+		return nil, errors.New("no WebSocket URL available")
 	}
 
 	// Connect to WebSocket
@@ -306,7 +307,7 @@ func (c *CDPClient) NewTab(url string) (*CDPClient, error) {
 	}
 
 	if target.WebSocketDebuggerURL == "" {
-		return nil, fmt.Errorf("no WebSocket URL for new tab")
+		return nil, errors.New("no WebSocket URL for new tab")
 	}
 
 	// Connect to new tab

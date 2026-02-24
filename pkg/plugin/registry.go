@@ -1,9 +1,10 @@
 package plugin
 
 import (
+	"cmp"
 	"encoding/json"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	core "forge.lthn.ai/core/go/pkg/framework/core"
 	"forge.lthn.ai/core/go/pkg/io"
@@ -34,8 +35,8 @@ func (r *Registry) List() []*PluginConfig {
 	for _, cfg := range r.plugins {
 		result = append(result, cfg)
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
+	slices.SortFunc(result, func(a, b *PluginConfig) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 	return result
 }

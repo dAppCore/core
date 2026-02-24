@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	goio "io"
+	"slices"
 	"sync/atomic"
 )
 
@@ -29,12 +30,7 @@ type Features struct {
 
 // IsEnabled returns true if the given feature is enabled.
 func (f *Features) IsEnabled(feature string) bool {
-	for _, flag := range f.Flags {
-		if flag == feature {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(f.Flags, feature)
 }
 
 // Option is a function that configures the Core.
@@ -44,15 +40,15 @@ type Option func(*Core) error
 // Message is the interface for all messages that can be sent through the Core's IPC system.
 // Any struct can be a message, allowing for structured data to be passed between services.
 // Used with ACTION for fire-and-forget broadcasts.
-type Message interface{}
+type Message any
 
 // Query is the interface for read-only requests that return data.
 // Used with QUERY (first responder) or QUERYALL (all responders).
-type Query interface{}
+type Query any
 
 // Task is the interface for requests that perform side effects.
 // Used with PERFORM (first responder executes).
-type Task interface{}
+type Task any
 
 // TaskWithID is an optional interface for tasks that need to know their assigned ID.
 // This is useful for tasks that want to report progress back to the frontend.

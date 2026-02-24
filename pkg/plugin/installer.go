@@ -159,7 +159,7 @@ func (i *Installer) cloneRepo(ctx context.Context, org, repo, version, dest stri
 
 	cmd := exec.CommandContext(ctx, "gh", args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))
 	}
 
 	return nil

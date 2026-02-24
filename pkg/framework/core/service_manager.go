@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -27,7 +28,7 @@ func newServiceManager() *serviceManager {
 // It also appends to startables/stoppables if the service implements those interfaces.
 func (m *serviceManager) registerService(name string, svc any) error {
 	if name == "" {
-		return fmt.Errorf("core: service name cannot be empty")
+		return errors.New("core: service name cannot be empty")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()

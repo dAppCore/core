@@ -2,6 +2,7 @@ package coredeno
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -25,20 +26,10 @@ func CheckPath(path string, allowed []string) bool {
 
 // CheckNet returns true if the given host:port is in the allowed list.
 func CheckNet(addr string, allowed []string) bool {
-	for _, a := range allowed {
-		if a == addr {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowed, addr)
 }
 
 // CheckRun returns true if the given command is in the allowed list.
 func CheckRun(cmd string, allowed []string) bool {
-	for _, a := range allowed {
-		if a == cmd {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowed, cmd)
 }

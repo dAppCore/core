@@ -18,14 +18,16 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -101,7 +103,7 @@ func findProjectRoot() (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("could not find go.mod in any parent directory")
+			return "", errors.New("could not find go.mod in any parent directory")
 		}
 		dir = parent
 	}
@@ -507,11 +509,11 @@ func printReport(result ValidationResult) {
 		fmt.Printf("-------------\n")
 
 		// Sort by file then line
-		sort.Slice(result.MissingKeys, func(i, j int) bool {
-			if result.MissingKeys[i].File != result.MissingKeys[j].File {
-				return result.MissingKeys[i].File < result.MissingKeys[j].File
+		slices.SortFunc(result.MissingKeys, func(a, b KeyUsage) int {
+			if a.File != b.File {
+				return cmp.Compare(a.File, b.File)
 			}
-			return result.MissingKeys[i].Line < result.MissingKeys[j].Line
+			return cmp.Compare(a.Line, b.Line)
 		})
 
 		for _, usage := range result.MissingKeys {

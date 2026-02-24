@@ -2,7 +2,7 @@ package process
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 	"time"
 )
@@ -104,7 +104,7 @@ func (r *Runner) RunAll(ctx context.Context, specs []RunSpec) (*RunAllResult, er
 					Name:    name,
 					Spec:    remaining[name],
 					Skipped: true,
-					Error:   fmt.Errorf("circular dependency or missing dependency"),
+					Error:   errors.New("circular dependency or missing dependency"),
 				})
 			}
 			break
@@ -136,7 +136,7 @@ func (r *Runner) RunAll(ctx context.Context, specs []RunSpec) (*RunAllResult, er
 						Name:    spec.Name,
 						Spec:    spec,
 						Skipped: true,
-						Error:   fmt.Errorf("skipped due to dependency failure"),
+						Error:   errors.New("skipped due to dependency failure"),
 					}
 				} else {
 					result = r.runSpec(ctx, spec)

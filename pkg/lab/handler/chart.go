@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"cmp"
 	"fmt"
 	"html/template"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -60,25 +62,15 @@ func LossChart(points []lab.LossPoint) template.HTML {
 	yMin, yMax := allPts[0].Loss, allPts[0].Loss
 	for _, p := range allPts {
 		x := float64(p.Iteration)
-		if x < xMin {
-			xMin = x
-		}
-		if x > xMax {
-			xMax = x
-		}
-		if p.Loss < yMin {
-			yMin = p.Loss
-		}
-		if p.Loss > yMax {
-			yMax = p.Loss
-		}
+		xMin = min(xMin, x)
+		xMax = max(xMax, x)
+		yMin = min(yMin, p.Loss)
+		yMax = max(yMax, p.Loss)
 	}
 
 	// Add padding to Y range.
 	yRange := yMax - yMin
-	if yRange < 0.1 {
-		yRange = 0.1
-	}
+	yRange = max(yRange, 0.1)
 	yMin = yMin - yRange*0.1
 	yMax = yMax + yRange*0.1
 	if xMax == xMin {
@@ -102,13 +94,7 @@ func LossChart(points []lab.LossPoint) template.HTML {
 	}
 
 	// X axis labels.
-	nGridX := 6
-	if int(xMax-xMin) < nGridX {
-		nGridX = int(xMax - xMin)
-	}
-	if nGridX < 1 {
-		nGridX = 1
-	}
+	nGridX := max(min(6, int(xMax-xMin)), 1)
 	for i := 0; i <= nGridX; i++ {
 		xVal := xMin + float64(i)*(xMax-xMin)/float64(nGridX)
 		x := scaleX(xVal)
@@ -118,7 +104,7 @@ func LossChart(points []lab.LossPoint) template.HTML {
 
 	// Draw train loss line (dimmed).
 	if len(trainPts) > 1 {
-		sort.Slice(trainPts, func(i, j int) bool { return trainPts[i].Iteration < trainPts[j].Iteration })
+		slices.SortFunc(trainPts, func(a, b lab.LossPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 		sb.WriteString(`<polyline points="`)
 		for i, p := range trainPts {
 			if i > 0 {
@@ -134,7 +120,7 @@ func LossChart(points []lab.LossPoint) template.HTML {
 
 	// Draw val loss line (accent).
 	if len(valPts) > 1 {
-		sort.Slice(valPts, func(i, j int) bool { return valPts[i].Iteration < valPts[j].Iteration })
+		slices.SortFunc(valPts, func(a, b lab.LossPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 		sb.WriteString(`<polyline points="`)
 		for i, p := range valPts {
 			if i > 0 {
@@ -232,7 +218,7 @@ func ContentChart(points []lab.ContentPoint) template.HTML {
 		if !ok || len(pts) < 2 {
 			continue
 		}
-		sort.Slice(pts, func(i, j int) bool { return pts[i].Iteration < pts[j].Iteration })
+		slices.SortFunc(pts, func(a, b lab.ContentPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 
 		// Average duplicate iterations.
 		averaged := averageByIteration(pts)
@@ -285,7 +271,7 @@ func CapabilityChart(points []lab.CapabilityPoint) template.HTML {
 			overall = append(overall, p)
 		}
 	}
-	sort.Slice(overall, func(i, j int) bool { return overall[i].Iteration < overall[j].Iteration })
+	slices.SortFunc(overall, func(a, b lab.CapabilityPoint) int { return cmp.Compare(a.Iteration, b.Iteration) })
 
 	if len(overall) == 0 {
 		return template.HTML(`<div class="empty">No overall capability data</div>`)
@@ -532,21 +518,14 @@ func DomainChart(stats []lab.DomainStat) template.HTML {
 	if len(stats) == 0 {
 		return ""
 	}
-	limit := 25
-	if len(stats) < limit {
-		limit = len(stats)
-	}
+	limit := min(25, len(stats))
 	items := stats[:limit]
 
 	maxCount := 0
 	for _, d := range items {
-		if d.Count > maxCount {
-			maxCount = d.Count
-		}
+		maxCount = max(maxCount, d.Count)
 	}
-	if maxCount == 0 {
-		maxCount = 1
-	}
+	maxCount = max(maxCount, 1)
 
 	barH := 18
 	gap := 4
@@ -561,10 +540,7 @@ func DomainChart(stats []lab.DomainStat) template.HTML {
 
 	for i, d := range items {
 		y := i*(barH+gap) + 5
-		barW := int(float64(d.Count) / float64(maxCount) * float64(barAreaW))
-		if barW < 2 {
-			barW = 2
-		}
+		barW := max(int(float64(d.Count)/float64(maxCount)*float64(barAreaW)), 2)
 		fmt.Fprintf(&b, `<text x="%d" y="%d" fill="var(--muted)" font-size="11" text-anchor="end" dominant-baseline="middle">%s</text>`,
 			labelW-8, y+barH/2, template.HTMLEscapeString(d.Domain))
 		fmt.Fprintf(&b, `<rect x="%d" y="%d" width="%d" height="%d" fill="var(--accent)" rx="2" opacity="0.8"/>`,
@@ -585,13 +561,9 @@ func VoiceChart(stats []lab.VoiceStat) template.HTML {
 
 	maxCount := 0
 	for _, v := range stats {
-		if v.Count > maxCount {
-			maxCount = v.Count
-		}
+		maxCount = max(maxCount, v.Count)
 	}
-	if maxCount == 0 {
-		maxCount = 1
-	}
+	maxCount = max(maxCount, 1)
 
 	barW := 50
 	gap := 8
@@ -607,10 +579,7 @@ func VoiceChart(stats []lab.VoiceStat) template.HTML {
 
 	for i, v := range stats {
 		x := i*(barW+gap) + gap + 5
-		barH := int(float64(v.Count) / float64(maxCount) * float64(chartHeight))
-		if barH < 2 {
-			barH = 2
-		}
+		barH := max(int(float64(v.Count)/float64(maxCount)*float64(chartHeight)), 2)
 		y := topPad + chartHeight - barH
 
 		fmt.Fprintf(&b, `<rect x="%d" y="%d" width="%d" height="%d" fill="var(--green)" rx="2" opacity="0.7"/>`,
