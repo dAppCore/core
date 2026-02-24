@@ -1,10 +1,109 @@
 package plugin
 
 import (
+	"context"
 	"testing"
 
+	"forge.lthn.ai/core/go/pkg/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// ── NewInstaller ───────────────────────────────────────────────────
+
+func TestNewInstaller_Good(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+	inst := NewInstaller(m, reg)
+
+	assert.NotNil(t, inst)
+	assert.Equal(t, m, inst.medium)
+	assert.Equal(t, reg, inst.registry)
+}
+
+// ── Install error paths ────────────────────────────────────────────
+
+func TestInstall_Bad_InvalidSource(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+	inst := NewInstaller(m, reg)
+
+	err := inst.Install(context.Background(), "bad-source")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid source")
+}
+
+func TestInstall_Bad_AlreadyInstalled(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+	_ = reg.Add(&PluginConfig{Name: "my-plugin", Version: "1.0.0"})
+
+	inst := NewInstaller(m, reg)
+	err := inst.Install(context.Background(), "org/my-plugin")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already installed")
+}
+
+// ── Remove ─────────────────────────────────────────────────────────
+
+func TestRemove_Good(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+	_ = reg.Add(&PluginConfig{Name: "removable", Version: "1.0.0"})
+
+	// Create plugin directory.
+	_ = m.EnsureDir("/plugins/removable")
+	_ = m.Write("/plugins/removable/plugin.json", `{"name":"removable"}`)
+
+	inst := NewInstaller(m, reg)
+	err := inst.Remove("removable")
+	require.NoError(t, err)
+
+	// Plugin removed from registry.
+	_, ok := reg.Get("removable")
+	assert.False(t, ok)
+
+	// Directory cleaned up.
+	assert.False(t, m.Exists("/plugins/removable"))
+}
+
+func TestRemove_Good_DirAlreadyGone(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+	_ = reg.Add(&PluginConfig{Name: "ghost", Version: "1.0.0"})
+	// No directory exists — should still succeed.
+
+	inst := NewInstaller(m, reg)
+	err := inst.Remove("ghost")
+	require.NoError(t, err)
+
+	_, ok := reg.Get("ghost")
+	assert.False(t, ok)
+}
+
+func TestRemove_Bad_NotFound(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+	inst := NewInstaller(m, reg)
+
+	err := inst.Remove("nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "plugin not found")
+}
+
+// ── Update error paths ─────────────────────────────────────────────
+
+func TestUpdate_Bad_NotFound(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+	inst := NewInstaller(m, reg)
+
+	err := inst.Update(context.Background(), "missing")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "plugin not found")
+}
+
+// ── ParseSource ────────────────────────────────────────────────────
 
 func TestParseSource_Good_OrgRepo(t *testing.T) {
 	org, repo, version, err := ParseSource("host-uk/core-plugin")

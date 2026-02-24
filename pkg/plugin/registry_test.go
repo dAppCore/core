@@ -134,3 +134,59 @@ func TestRegistry_Load_Good_EmptyWhenNoFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, reg.List())
 }
+
+func TestRegistry_Load_Bad_InvalidJSON(t *testing.T) {
+	m := io.NewMockMedium()
+	basePath := "/home/user/.core/plugins"
+	_ = m.Write(basePath+"/registry.json", "not valid json {{{")
+
+	reg := NewRegistry(m, basePath)
+	err := reg.Load()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse registry")
+}
+
+func TestRegistry_Load_Good_NullJSON(t *testing.T) {
+	m := io.NewMockMedium()
+	basePath := "/home/user/.core/plugins"
+	_ = m.Write(basePath+"/registry.json", "null")
+
+	reg := NewRegistry(m, basePath)
+	err := reg.Load()
+	assert.NoError(t, err)
+	assert.Empty(t, reg.List())
+}
+
+func TestRegistry_Save_Good_CreatesDir(t *testing.T) {
+	m := io.NewMockMedium()
+	basePath := "/home/user/.core/plugins"
+	reg := NewRegistry(m, basePath)
+
+	_ = reg.Add(&PluginConfig{Name: "test", Version: "1.0.0"})
+	err := reg.Save()
+	assert.NoError(t, err)
+
+	// Verify file was written.
+	assert.True(t, m.IsFile(basePath+"/registry.json"))
+}
+
+func TestRegistry_List_Good_Sorted(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/plugins")
+
+	_ = reg.Add(&PluginConfig{Name: "zebra", Version: "1.0.0"})
+	_ = reg.Add(&PluginConfig{Name: "alpha", Version: "1.0.0"})
+	_ = reg.Add(&PluginConfig{Name: "middle", Version: "1.0.0"})
+
+	list := reg.List()
+	assert.Len(t, list, 3)
+	assert.Equal(t, "alpha", list[0].Name)
+	assert.Equal(t, "middle", list[1].Name)
+	assert.Equal(t, "zebra", list[2].Name)
+}
+
+func TestRegistry_RegistryPath_Good(t *testing.T) {
+	m := io.NewMockMedium()
+	reg := NewRegistry(m, "/base/path")
+	assert.Equal(t, "/base/path/registry.json", reg.registryPath())
+}
