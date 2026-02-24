@@ -4,6 +4,7 @@ package i18n
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
@@ -118,7 +119,7 @@ func NewWithLoader(loader Loader, opts ...Option) (*Service, error) {
 	// Load all available languages
 	langs := loader.Languages()
 	if len(langs) == 0 {
-		return nil, fmt.Errorf("no languages available from loader")
+		return nil, errors.New("no languages available from loader")
 	}
 
 	for _, lang := range langs {
@@ -223,7 +224,7 @@ func (s *Service) SetLanguage(lang string) error {
 	}
 
 	if len(s.availableLangs) == 0 {
-		return fmt.Errorf("no languages available")
+		return errors.New("no languages available")
 	}
 
 	matcher := language.NewMatcher(s.availableLangs)

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,7 +11,7 @@ import (
 // RenderMP4 generates an MP4 video from session events using VHS (charmbracelet).
 func RenderMP4(sess *Session, outputPath string) error {
 	if _, err := exec.LookPath("vhs"); err != nil {
-		return fmt.Errorf("vhs not installed (go install github.com/charmbracelet/vhs@latest)")
+		return errors.New("vhs not installed (go install github.com/charmbracelet/vhs@latest)")
 	}
 
 	tape := generateTape(sess, outputPath)

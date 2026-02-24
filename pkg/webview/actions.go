@@ -2,6 +2,7 @@ package webview
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -191,7 +192,7 @@ func (a HoverAction) Execute(ctx context.Context, wv *Webview) error {
 	}
 
 	if elem.BoundingBox == nil {
-		return fmt.Errorf("element has no bounding box")
+		return errors.New("element has no bounding box")
 	}
 
 	x := elem.BoundingBox.X + elem.BoundingBox.Width/2
@@ -495,7 +496,7 @@ func (wv *Webview) DragAndDrop(sourceSelector, targetSelector string) error {
 		return fmt.Errorf("source element not found: %w", err)
 	}
 	if source.BoundingBox == nil {
-		return fmt.Errorf("source element has no bounding box")
+		return errors.New("source element has no bounding box")
 	}
 
 	target, err := wv.querySelector(ctx, targetSelector)
@@ -503,7 +504,7 @@ func (wv *Webview) DragAndDrop(sourceSelector, targetSelector string) error {
 		return fmt.Errorf("target element not found: %w", err)
 	}
 	if target.BoundingBox == nil {
-		return fmt.Errorf("target element has no bounding box")
+		return errors.New("target element has no bounding box")
 	}
 
 	// Calculate center points

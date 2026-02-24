@@ -47,6 +47,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -220,7 +221,7 @@ func (h *Hub) Broadcast(msg Message) error {
 	select {
 	case h.broadcast <- data:
 	default:
-		return fmt.Errorf("broadcast channel full")
+		return errors.New("broadcast channel full")
 	}
 	return nil
 }

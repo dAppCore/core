@@ -4,6 +4,7 @@
 package repos
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -146,7 +147,7 @@ func FindRegistry(m io.Medium) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("repos.yaml not found")
+	return "", errors.New("repos.yaml not found")
 }
 
 // ScanDirectory creates a Registry by scanning a directory for git repos.

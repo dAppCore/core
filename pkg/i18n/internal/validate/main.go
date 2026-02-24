@@ -19,6 +19,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -101,7 +102,7 @@ func findProjectRoot() (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("could not find go.mod in any parent directory")
+			return "", errors.New("could not find go.mod in any parent directory")
 		}
 		dir = parent
 	}

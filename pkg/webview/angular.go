@@ -2,6 +2,7 @@ package webview
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -42,7 +43,7 @@ func (ah *AngularHelper) waitForAngular(ctx context.Context) error {
 		return err
 	}
 	if !isAngular {
-		return fmt.Errorf("not an Angular application")
+		return errors.New("not an Angular application")
 	}
 
 	// Wait for Zone.js stability
@@ -278,13 +279,13 @@ func (ah *AngularHelper) GetRouterState() (*AngularRouterState, error) {
 	}
 
 	if result == nil {
-		return nil, fmt.Errorf("could not get router state")
+		return nil, errors.New("could not get router state")
 	}
 
 	// Parse result
 	resultMap, ok := result.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("invalid router state format")
+		return nil, errors.New("invalid router state format")
 	}
 
 	state := &AngularRouterState{

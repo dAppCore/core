@@ -2,6 +2,7 @@ package coredeno
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,7 +15,7 @@ func (s *Sidecar) Start(ctx context.Context, args ...string) error {
 	defer s.mu.Unlock()
 
 	if s.cmd != nil {
-		return fmt.Errorf("coredeno: already running")
+		return errors.New("coredeno: already running")
 	}
 
 	// Ensure socket directory exists with owner-only permissions
