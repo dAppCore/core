@@ -1,11 +1,11 @@
 forge.lthn.ai/Snider/Borg v0.2.1 h1:Uf/YtUJLL8jlxTCjvP4J+5GHe3LLeALGtbh7zj8d8Qc=
 forge.lthn.ai/Snider/Borg v0.2.1/go.mod h1:MVfolb7F6/A2LOIijcbBhWImu5db5NSMcSjvShMoMCA=
-forge.lthn.ai/core/cli v0.0.4 h1:jPpxtz1ULVJypgvPwdq0qH/G4PRMlyYiHo7dAy2uexI=
-forge.lthn.ai/core/cli v0.0.4/go.mod h1:YKLTEkGkJ8s9i43pbY6VmzoROMREI3hPRaEr+Qdq7Aw=
-forge.lthn.ai/core/go-crypt v0.0.3 h1:KG5dQstPfcohIitZJRF7jEdR4H1gjb4YrxjkzIQ8CGE=
-forge.lthn.ai/core/go-crypt v0.0.3/go.mod h1:BFHULU7hJBXkg4EXDO62pZvpUctzrzrW9x8gJEaBKX8=
-forge.lthn.ai/core/go-devops v0.0.3 h1:tiSZ2x6a/H1A1IYYUmaM+bEuZqT9Hot7KGCEFN6PSYY=
-forge.lthn.ai/core/go-devops v0.0.3/go.mod h1:V5/YaRsrDsYlSnCCJXKX7h1zSbaGyRdRQApPF5XwGAo=
+forge.lthn.ai/core/cli v0.1.0 h1:2XRiEMVzUElnQlZnHYDyfKIKQVPcCzGuYHlnz55GjsM=
+forge.lthn.ai/core/cli v0.1.0/go.mod h1:mZ7dzccfzo0BP2dE7Mwuw9dXuIowiEd1G5ZGMoLuxVc=
+forge.lthn.ai/core/go-crypt v0.1.0 h1:92gwdQi7iAwktpvZhL/8Cu+QS6xKCtGP4FJfyInPGnw=
+forge.lthn.ai/core/go-crypt v0.1.0/go.mod h1:zVAgx6ZiGtC+dbX4R/VKvEPqsEqjyuLl4gQZH9SXBUw=
+forge.lthn.ai/core/go-devops v0.1.0 h1:xT3J//gilwVz15ju63xhg/Lz700cOYjqQkRWhTZDHLk=
+forge.lthn.ai/core/go-devops v0.1.0/go.mod h1:V5/YaRsrDsYlSnCCJXKX7h1zSbaGyRdRQApPF5XwGAo=
 github.com/ProtonMail/go-crypto v1.3.0 h1:ILq8+Sf5If5DCpHQp4PbZdS1J7HDFRXz/+xKBiRGFrw=
 github.com/ProtonMail/go-crypto v1.3.0/go.mod h1:9whxjD8Rbs29b4XWbB8irEcE8KHMqaR2e7GWU1R+/PE=
 github.com/aws/aws-sdk-go-v2 v1.41.1 h1:ABlyEARCDLN034NhxlRUSZr4l71mh+T5KAeGh6cerhU=
