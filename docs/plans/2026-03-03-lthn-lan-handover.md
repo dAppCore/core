@@ -44,7 +44,7 @@ mkdir -p /opt/services/lthn-lan
 cd /opt/services/lthn-lan
 
 # Clone via forge SSH
-git clone ssh://git@forge.lthn.ai:2223/host-uk/host.uk.com.git app
+git clone ssh://git@forge.lthn.ai:2223/lthn/hostuk.git app
 cd app
 ```
 
