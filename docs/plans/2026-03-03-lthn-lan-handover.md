@@ -6,7 +6,7 @@
 
 ## Goal
 
-Stand up the Host UK Laravel app on the Linux homelab as `lthn.lan` — a private dev/ops hub away from production. This joins the existing `.lan` service mesh (ollama.lan, qdrant.lan, eaas.lan).
+Stand up the Host UK Laravel app on the Linux homelab as `lthn.lan` — a private dev/ops hub away from production. This joins the existing `.lan` service mesh (ollama.lthn.lan, qdrant.lthn.lan, eaas.lthn.lan).
 
 ## What lthn.lan Is
 
@@ -22,9 +22,9 @@ Mac (snider) ──hosts file──▶ lthn.lan (10.69.69.165)
                              └── Redis/Dragonfly (port 6379)
 
 Already running on 10.69.69.165:
-  ollama.lan  → Ollama (embeddings, LEM inference)
-  qdrant.lan  → Qdrant (vector search)
-  eaas.lan    → EaaS scoring API v0.2.0
+  ollama.lthn.lan  → Ollama (embeddings, LEM inference)
+  qdrant.lthn.lan  → Qdrant (vector search)
+  eaas.lthn.lan    → EaaS scoring API v0.2.0
 ```
 
 ## Prerequisites
@@ -147,13 +147,13 @@ BROADCAST_CONNECTION=log
 OCTANE_SERVER=frankenphp
 
 # OpenBrain — connects to existing .lan services
-BRAIN_OLLAMA_URL=https://ollama.lan
-BRAIN_QDRANT_URL=https://qdrant.lan
+BRAIN_OLLAMA_URL=https://ollama.lthn.lan
+BRAIN_QDRANT_URL=https://qdrant.lthn.lan
 BRAIN_COLLECTION=openbrain
 BRAIN_EMBEDDING_MODEL=embeddinggemma
 
 # EaaS scorer
-EAAS_URL=https://eaas.lan
+EAAS_URL=https://eaas.lthn.lan
 ```
 
 Then generate the app key:
@@ -175,7 +175,7 @@ labels:
   traefik.docker.network: proxy
 ```
 
-Note: For `.lan` domains, Traefik uses self-signed certs (no Let's Encrypt — not a real TLD). The same pattern as ollama.lan/qdrant.lan/eaas.lan.
+Note: For `.lan` domains, Traefik uses self-signed certs (no Let's Encrypt — not a real TLD). The same pattern as ollama.lthn.lan/qdrant.lthn.lan/eaas.lthn.lan.
 
 ## Step 5: Build and Start
 
@@ -225,11 +225,11 @@ Already done by snider:
 
 ## Embedding Model on GPU
 
-The `embeddinggemma` model on ollama.lan appears to be running on CPU. It's only ~256MB — should fit easily alongside whatever else is on the RX 7800 XT. Check with:
+The `embeddinggemma` model on ollama.lthn.lan appears to be running on CPU. It's only ~256MB — should fit easily alongside whatever else is on the RX 7800 XT. Check with:
 
 ```bash
 # On the Linux machine
-curl -sk https://ollama.lan/api/ps
+curl -sk https://ollama.lthn.lan/api/ps
 ```
 
 If it shows CPU, try pulling it fresh or restarting Ollama — it should auto-detect the GPU.

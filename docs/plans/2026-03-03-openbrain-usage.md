@@ -25,8 +25,8 @@ Agent ──recall()────▶ BrainService
 
 | Service | URL | What |
 |---------|-----|------|
-| Ollama | `https://ollama.lan` | Embedding model (`embeddinggemma`, 768 dimensions) |
-| Qdrant | `https://qdrant.lan` | Vector storage + cosine similarity search |
+| Ollama | `https://ollama.lthn.lan` | Embedding model (`embeddinggemma`, 768 dimensions) |
+| Qdrant | `https://qdrant.lthn.lan` | Vector storage + cosine similarity search |
 | MariaDB | `lthn-lan-db:3306` | `brain_memories` table (workspace-scoped) |
 | Laravel | `https://lthn.lan` | BrainService, artisan commands, MCP tools |
 
@@ -80,8 +80,8 @@ If the Laravel app isn't available, use the Go brain-seed tool:
 ```bash
 cd ~/Code/go-ai
 go run cmd/brain-seed/main.go \
-  --ollama=https://ollama.lan \
-  --qdrant=https://qdrant.lan \
+  --ollama=https://ollama.lthn.lan \
+  --qdrant=https://qdrant.lthn.lan \
   --collection=openbrain \
   --model=embeddinggemma
 ```
@@ -134,14 +134,14 @@ For debugging or bulk operations:
 
 ```bash
 # Collection stats
-curl -sk https://qdrant.lan/collections/openbrain | python3 -m json.tool
+curl -sk https://qdrant.lthn.lan/collections/openbrain | python3 -m json.tool
 
 # Raw vector search (embed query first via Ollama)
-VECTOR=$(curl -sk https://ollama.lan/api/embeddings \
+VECTOR=$(curl -sk https://ollama.lthn.lan/api/embeddings \
   -d '{"model":"embeddinggemma","prompt":"Traefik setup"}' \
   | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['embedding']))")
 
-curl -sk https://qdrant.lan/collections/openbrain/points/search \
+curl -sk https://qdrant.lthn.lan/collections/openbrain/points/search \
   -H 'Content-Type: application/json' \
   -d "{\"vector\":$VECTOR,\"limit\":5,\"with_payload\":true}" \
   | python3 -m json.tool
@@ -215,7 +215,7 @@ php artisan brain:ingest --workspace=1 --fresh --source=memory
 ### Check Collection Health
 
 ```bash
-curl -sk https://qdrant.lan/collections/openbrain | \
+curl -sk https://qdrant.lthn.lan/collections/openbrain | \
   python3 -c "import sys,json; r=json.load(sys.stdin)['result']; print(f'Points: {r[\"points_count\"]}, Status: {r[\"status\"]}')"
 ```
 
