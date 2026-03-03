@@ -25,12 +25,14 @@ Agent ──recall()────▶ BrainService
 
 | Service | URL | What |
 |---------|-----|------|
-| Ollama | `https://ollama.lthn.lan` | Embedding model (`embeddinggemma`, 768 dimensions) |
-| Qdrant | `https://qdrant.lthn.lan` | Vector storage + cosine similarity search |
-| MariaDB | `lthn-lan-db:3306` | `brain_memories` table (workspace-scoped) |
-| Laravel | `https://lthn.lan` | BrainService, artisan commands, MCP tools |
+| Ollama | `https://ollama.lthn.sh` | Embedding model (`embeddinggemma`, 768 dimensions) |
+| Qdrant | `https://qdrant.lthn.sh` | Vector storage + cosine similarity search |
+| MariaDB | `lthn-sh-db:3306` | `brain_memories` table (workspace-scoped) |
+| Laravel | `https://hub.lthn.sh` | BrainService, artisan commands, MCP tools |
 
-All `.lan` services use self-signed TLS behind Traefik. The app auto-skips TLS verification for `.lan` URLs.
+All `*.lthn.sh` services use real TLS certs (GoGetSSL wildcard). Internal-only DNS via UniFi gateway.
+
+> **Migration note**: Services are transitioning from `*.lthn.lan` (self-signed, /etc/hosts) to `*.lthn.sh` (real certs, proper DNS). During transition, either URL scheme works.
 
 ## Seeding Knowledge
 
@@ -80,8 +82,8 @@ If the Laravel app isn't available, use the Go brain-seed tool:
 ```bash
 cd ~/Code/go-ai
 go run cmd/brain-seed/main.go \
-  --ollama=https://ollama.lthn.lan \
-  --qdrant=https://qdrant.lthn.lan \
+  --ollama=https://ollama.lthn.sh \
+  --qdrant=https://qdrant.lthn.sh \
   --collection=openbrain \
   --model=embeddinggemma
 ```
@@ -134,18 +136,20 @@ For debugging or bulk operations:
 
 ```bash
 # Collection stats
-curl -sk https://qdrant.lthn.lan/collections/openbrain | python3 -m json.tool
+curl -s https://qdrant.lthn.sh/collections/openbrain | python3 -m json.tool
 
 # Raw vector search (embed query first via Ollama)
-VECTOR=$(curl -sk https://ollama.lthn.lan/api/embeddings \
+VECTOR=$(curl -s https://ollama.lthn.sh/api/embeddings \
   -d '{"model":"embeddinggemma","prompt":"Traefik setup"}' \
   | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['embedding']))")
 
-curl -sk https://qdrant.lthn.lan/collections/openbrain/points/search \
+curl -s https://qdrant.lthn.sh/collections/openbrain/points/search \
   -H 'Content-Type: application/json' \
   -d "{\"vector\":$VECTOR,\"limit\":5,\"with_payload\":true}" \
   | python3 -m json.tool
 ```
+
+No `-sk` flag needed — real TLS certs.
 
 ## Storing New Memories
 
@@ -215,7 +219,7 @@ php artisan brain:ingest --workspace=1 --fresh --source=memory
 ### Check Collection Health
 
 ```bash
-curl -sk https://qdrant.lthn.lan/collections/openbrain | \
+curl -s https://qdrant.lthn.sh/collections/openbrain | \
   python3 -c "import sys,json; r=json.load(sys.stdin)['result']; print(f'Points: {r[\"points_count\"]}, Status: {r[\"status\"]}')"
 ```
 
@@ -240,3 +244,4 @@ This deletes the Qdrant collection and re-creates it with fresh data.
 - **Embedding model**: `embeddinggemma` (768d, ~135ms per embedding on GPU)
 - **Collection status**: green
 - **4 failed sections**: Oversized plan sections that exceeded Ollama's context window — not critical
+- **Domain migration**: `*.lthn.lan` → `*.lthn.sh` (in progress)

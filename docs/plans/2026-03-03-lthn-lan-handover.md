@@ -1,4 +1,4 @@
-# lthn.lan Homelab Setup — Handover to Charon
+# lthn.sh Homelab Setup — Handover to Charon
 
 > **For:** Charon (Linux homelab agent, 10.69.69.165)
 > **From:** Virgil (macOS)
@@ -6,42 +6,121 @@
 
 ## Goal
 
-Stand up the Host UK Laravel app on the Linux homelab as `lthn.lan` — a private dev/ops hub away from production. This joins the existing `.lan` service mesh (ollama.lthn.lan, qdrant.lthn.lan, eaas.lthn.lan).
+Stand up the Host UK Laravel app on the Linux homelab as `hub.lthn.sh` — a private dev/ops hub away from production. This joins the existing homelab service mesh (ollama, qdrant, eaas) which is migrating from `*.lthn.lan` to `*.lthn.sh`.
 
-## What lthn.lan Is
+## Domain Strategy
 
-The personal admin hub — issues, dashboards, agent coordination. NOT production-facing. Runs the same codebase as lthn.ai but configured for homelab use with access to local AI services.
+Clean separation between production and homelab:
+
+| Zone | Purpose | Visibility |
+|------|---------|------------|
+| `*.lthn.sh` | Homelab — ML, agents, lab services | Internal only |
+| `*.infra.lthn.sh` | Homelab — admin/infra tools | Internal only |
+| `lthn.ai` | Production — portal, forge, API | Public |
+| `lthn.io` | Production — landing, service mesh | Public |
+| `leth.in` | Internal prod DNS (CoreDNS on noc) | Internal |
+| `lthn.host` | Shared/collab — demos, community | Public when needed |
 
 ## Architecture
 
 ```
-Mac (snider) ──hosts file──▶ lthn.lan (10.69.69.165)
-                             ├── Traefik (TLS termination, self-signed)
-                             ├── Laravel app (FrankenPHP/Octane, port 80)
-                             ├── MariaDB 11 (port 3306)
-                             └── Redis/Dragonfly (port 6379)
+UniFi Gateway ──DNS──▶ 10.69.69.165 (Linux homelab)
+                        ├── Traefik (TLS via real cert, *.lthn.sh + *.infra.lthn.sh)
+                        ├── Laravel hub (FrankenPHP/Octane, port 80)
+                        ├── MariaDB 11 (port 3306)
+                        └── Redis/Dragonfly (port 6379)
 
 Already running on 10.69.69.165:
-  ollama.lthn.lan  → Ollama (embeddings, LEM inference)
-  qdrant.lthn.lan  → Qdrant (vector search)
-  eaas.lthn.lan    → EaaS scoring API v0.2.0
+  ollama   → Ollama (embeddings, LEM inference)
+  qdrant   → Qdrant (vector search)
+  eaas     → EaaS scoring API v0.2.0
 ```
 
-## Prerequisites
+**Hardware**: Ryzen 9, 128GB RAM, RX 7800 XT (AMD ROCm GPU)
 
-These should already exist on the machine:
+## DNS Records — UniFi Gateway
 
-- Docker (or Podman) with Traefik v3.6+ running
-- External Docker network `proxy` for Traefik
-- SSH key for forge.lthn.ai (port 2223) — needed for `composer install`
+No wildcard support on UniFi — each service needs an individual A record.
+All point to `10.69.69.165`.
 
-If Traefik isn't set up yet, see the existing `.lan` services for the pattern.
+### Lab services (`*.lthn.sh`)
+
+| Hostname | Service |
+|----------|---------|
+| `hub.lthn.sh` | Laravel admin hub |
+| `lab.lthn.sh` | LEM Lab |
+| `ollama.lthn.sh` | Ollama inference + embeddings |
+| `qdrant.lthn.sh` | Qdrant vector search |
+| `eaas.lthn.sh` | EaaS scoring API |
+
+### Infrastructure (`*.infra.lthn.sh`)
+
+| Hostname | Service |
+|----------|---------|
+| `traefik.infra.lthn.sh` | Traefik dashboard |
+| `grafana.infra.lthn.sh` | Grafana |
+| `prometheus.infra.lthn.sh` | Prometheus |
+| `influx.infra.lthn.sh` | InfluxDB |
+| `auth.infra.lthn.sh` | Authentik SSO |
+| `portainer.infra.lthn.sh` | Portainer |
+| `phpmyadmin.infra.lthn.sh` | phpMyAdmin |
+| `maria.infra.lthn.sh` | MariaDB admin |
+| `postgres.infra.lthn.sh` | PostgreSQL admin |
+| `redis.infra.lthn.sh` | Redis admin |
+
+## TLS Certificate
+
+A real GoGetSSL cert covers all homelab domains. No self-signed certs, no TLS skip logic.
+
+**SANs**: `lthn.sh`, `*.lthn.sh`, `*.infra.lthn.sh`
+**Validity**: 3 Mar 2026 → 1 Jun 2026
+
+### Deploy the cert to Traefik
+
+Copy the cert + key to the homelab (from snider's Mac):
+
+```bash
+# From Mac
+scp -P 4819 ~/Downloads/fullchain_lthn.sh.crt root@10.69.69.165:/opt/traefik/certs/lthn.sh.crt
+scp -P 4819 ~/Downloads/lthn.sh.key root@10.69.69.165:/opt/traefik/certs/lthn.sh.key
+```
+
+Create a Traefik dynamic config file at `/opt/traefik/dynamic/lthn-sh-cert.yml`:
+
+```yaml
+tls:
+  certificates:
+    - certFile: /certs/lthn.sh.crt
+      keyFile: /certs/lthn.sh.key
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/lthn.sh.crt
+        keyFile: /certs/lthn.sh.key
+```
+
+Ensure Traefik's compose mounts the certs directory:
+
+```yaml
+volumes:
+  - /opt/traefik/certs:/certs:ro
+  - /opt/traefik/dynamic:/etc/traefik/dynamic:ro
+```
+
+And the static config watches for file provider changes:
+
+```yaml
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+```
 
 ## Step 1: Clone the Repo
 
 ```bash
-mkdir -p /opt/services/lthn-lan
-cd /opt/services/lthn-lan
+mkdir -p /opt/services/lthn-sh
+cd /opt/services/lthn-sh
 
 # Clone via forge SSH
 git clone ssh://git@forge.lthn.ai:2223/lthn/hostuk.git app
@@ -59,7 +138,7 @@ Host forge.lthn.ai
 
 ## Step 2: Create docker-compose.yml
 
-Create `/opt/services/lthn-lan/docker-compose.yml`:
+Create `/opt/services/lthn-sh/docker-compose.yml`:
 
 ```yaml
 services:
@@ -67,31 +146,38 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
-    container_name: lthn-lan
+    container_name: lthn-sh-hub
     restart: unless-stopped
     env_file: .env
     volumes:
       - app_storage:/app/storage/logs
     networks:
       - proxy
-      - lthn-lan
+      - lthn-sh
     depends_on:
       mariadb:
         condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.lthn-sh-hub.rule: "Host(`hub.lthn.sh`)"
+      traefik.http.routers.lthn-sh-hub.entrypoints: websecure
+      traefik.http.routers.lthn-sh-hub.tls: "true"
+      traefik.http.services.lthn-sh-hub.loadbalancer.server.port: "80"
+      traefik.docker.network: proxy
 
   mariadb:
     image: mariadb:11
-    container_name: lthn-lan-db
+    container_name: lthn-sh-db
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
-      MARIADB_DATABASE: lthn_lan
-      MARIADB_USER: lthn_lan
+      MARIADB_DATABASE: lthn_sh
+      MARIADB_USER: lthn_sh
       MARIADB_PASSWORD: "${DB_PASSWORD}"
     volumes:
       - mariadb_data:/var/lib/mysql
     networks:
-      - lthn-lan
+      - lthn-sh
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -105,34 +191,34 @@ volumes:
 networks:
   proxy:
     external: true
-  lthn-lan:
+  lthn-sh:
     driver: bridge
 ```
 
 ## Step 3: Create .env
 
-Create `/opt/services/lthn-lan/.env`:
+Create `/opt/services/lthn-sh/.env`:
 
 ```bash
 APP_NAME="LTHN Hub"
 APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
-APP_URL=https://lthn.lan
-APP_DOMAIN=lthn.lan
+APP_URL=https://hub.lthn.sh
+APP_DOMAIN=lthn.sh
 
 TRUSTED_PROXIES=*
 
 DB_CONNECTION=mariadb
-DB_HOST=lthn-lan-db
+DB_HOST=lthn-sh-db
 DB_PORT=3306
-DB_DATABASE=lthn_lan
-DB_USERNAME=lthn_lan
+DB_DATABASE=lthn_sh
+DB_USERNAME=lthn_sh
 DB_PASSWORD=changeme-generate-a-real-one
 DB_ROOT_PASSWORD=changeme-generate-a-real-one
 
 SESSION_DRIVER=redis
-SESSION_DOMAIN=.lthn.lan
+SESSION_DOMAIN=.lthn.sh
 SESSION_SECURE_COOKIE=true
 
 REDIS_CLIENT=predis
@@ -146,14 +232,14 @@ BROADCAST_CONNECTION=log
 
 OCTANE_SERVER=frankenphp
 
-# OpenBrain — connects to existing .lan services
-BRAIN_OLLAMA_URL=https://ollama.lthn.lan
-BRAIN_QDRANT_URL=https://qdrant.lthn.lan
+# OpenBrain — connects to homelab services
+BRAIN_OLLAMA_URL=https://ollama.lthn.sh
+BRAIN_QDRANT_URL=https://qdrant.lthn.sh
 BRAIN_COLLECTION=openbrain
 BRAIN_EMBEDDING_MODEL=embeddinggemma
 
 # EaaS scorer
-EAAS_URL=https://eaas.lthn.lan
+EAAS_URL=https://eaas.lthn.sh
 ```
 
 Then generate the app key:
@@ -161,26 +247,45 @@ Then generate the app key:
 docker compose run --rm app php artisan key:generate
 ```
 
-## Step 4: Traefik Labels
+## Step 4: Update Existing Services
 
-Add these labels to the `app` service in docker-compose.yml (or use a Traefik dynamic config file):
+Existing services (ollama, qdrant, eaas) need their Traefik router rules updated from `*.lthn.lan` to `*.lthn.sh`. For each service, update the Host rule:
 
+**Docker labels** (if using label-based routing):
 ```yaml
-labels:
-  traefik.enable: "true"
-  traefik.http.routers.lthn-lan.rule: "Host(`lthn.lan`)"
-  traefik.http.routers.lthn-lan.entrypoints: websecure
-  traefik.http.routers.lthn-lan.tls: "true"
-  traefik.http.services.lthn-lan.loadbalancer.server.port: "80"
-  traefik.docker.network: proxy
+# Example: ollama
+traefik.http.routers.ollama.rule: "Host(`ollama.lthn.sh`)"
+
+# Example: qdrant
+traefik.http.routers.qdrant.rule: "Host(`qdrant.lthn.sh`)"
+
+# Example: eaas
+traefik.http.routers.eaas.rule: "Host(`eaas.lthn.sh`)"
 ```
 
-Note: For `.lan` domains, Traefik uses self-signed certs (no Let's Encrypt — not a real TLD). The same pattern as ollama.lthn.lan/qdrant.lthn.lan/eaas.lthn.lan.
+**Or** Traefik dynamic config files (if using file provider):
+```yaml
+# /opt/traefik/dynamic/ollama.yml
+http:
+  routers:
+    ollama:
+      rule: "Host(`ollama.lthn.sh`)"
+      entryPoints: [websecure]
+      tls: {}
+      service: ollama
+  services:
+    ollama:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:11434"
+```
+
+Infrastructure tools follow the same pattern with `*.infra.lthn.sh` hostnames.
 
 ## Step 5: Build and Start
 
 ```bash
-cd /opt/services/lthn-lan
+cd /opt/services/lthn-sh
 
 # Build the image (amd64)
 docker compose build
@@ -209,27 +314,24 @@ docker compose ps
 # Check migrations ran
 docker compose logs app | grep -i migration
 
-# Test HTTP (from the machine itself)
-curl -sk https://lthn.lan/ | head -20
+# Test HTTP (from any machine with DNS configured)
+curl -s https://hub.lthn.sh/ | head -20
 
 # Check Horizon (queue workers)
-curl -sk https://lthn.lan/horizon/api/stats
+curl -s https://hub.lthn.sh/horizon/api/stats
+
+# Verify TLS is the real cert (not self-signed)
+echo | openssl s_client -connect 10.69.69.165:443 -servername hub.lthn.sh 2>/dev/null | openssl x509 -noout -subject -dates
 ```
 
-## Step 7: /etc/hosts on Mac
-
-Already done by snider:
-```
-10.69.69.165  lthn.lan
-```
+No `-k` flag needed — the cert is real and trusted.
 
 ## Embedding Model on GPU
 
-The `embeddinggemma` model on ollama.lthn.lan appears to be running on CPU. It's only ~256MB — should fit easily alongside whatever else is on the RX 7800 XT. Check with:
+The `embeddinggemma` model on ollama may be running on CPU. It's only ~256MB — should fit easily alongside whatever else is on the RX 7800 XT. Check with:
 
 ```bash
-# On the Linux machine
-curl -sk https://ollama.lthn.lan/api/ps
+curl -s https://ollama.lthn.sh/api/ps
 ```
 
 If it shows CPU, try pulling it fresh or restarting Ollama — it should auto-detect the GPU.
@@ -245,7 +347,7 @@ The app container runs 4 supervised processes:
 | Scheduler | Cron loop (`schedule:run`) | — |
 | Redis | In-container cache/session/queue | 6379 |
 
-Reverb (WebSocket) is optional for lthn.lan — skip it unless needed.
+Reverb (WebSocket) is optional — skip it unless needed.
 
 ## Key Artisan Commands
 
@@ -276,15 +378,28 @@ SSH key must be available inside the container for forge access. The Dockerfile 
 
 ## Known Issues
 
-- **Self-signed TLS**: All `.lan` domains use self-signed certs. The app's `BrainService` auto-detects `.lan` URLs and skips verification. Browsers will warn — just accept.
 - **Embedding 500s on large sections**: Some very large plan sections (30KB+) cause Ollama to return 500. Not critical — only 4 out of 4,671 sections affected.
 - **PHP 8.5**: The Dockerfile uses PHP 8.5. Make sure the base image supports it (`dunglas/frankenphp:1-php8.5-trixie`).
 
+## Migration Checklist — lthn.lan → lthn.sh
+
+When switching existing services from the old `*.lthn.lan` naming:
+
+- [ ] Deploy cert + key to `/opt/traefik/certs/`
+- [ ] Create `lthn-sh-cert.yml` dynamic config
+- [ ] Update Traefik router rules (Host matchers) for all services
+- [ ] Configure UniFi gateway DNS (all A records → 10.69.69.165)
+- [ ] Test from Mac: `curl https://hub.lthn.sh/`
+- [ ] Remove old `/etc/hosts` entries for `*.lthn.lan`
+- [ ] Update `php-agentic/config.php` defaults to `*.lthn.sh`
+- [ ] Update `Boot.php` — `verifySsl` can be `true` always (real certs)
+
 ## Future: Satellite Services
 
-Once lthn.lan is stable, the plan is to add Website/Service satellites:
-- `eaas.lthn.ai` → Ethics scorer frontage
-- `models.lthn.ai` → Model data + HuggingFace info
-- Each feature (LEM.Lab etc) → its own subdomain via Website/Service pattern
+Once hub.lthn.sh is stable, the plan is to add Website/Service satellites:
+- `eaas.lthn.ai` → Ethics scorer frontage (public)
+- `models.lthn.ai` → Model data + HuggingFace info (public)
+- `lab.lthn.sh` → LEM Lab (internal)
+- Each feature gets its own subdomain via Website/Service pattern
 
 These are just additional `Boot.php` modules with domain patterns — the multi-tenant modular monolith handles everything from one codebase.
