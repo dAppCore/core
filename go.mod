@@ -3,33 +3,22 @@ module forge.lthn.ai/core/go
 go 1.26.0
 
 require (
-	forge.lthn.ai/Snider/Borg v0.2.1
-	forge.lthn.ai/core/cli v0.1.0
-	forge.lthn.ai/core/go-crypt v0.1.0
-	forge.lthn.ai/core/go-devops v0.1.0
-	forge.lthn.ai/core/go-io v0.0.1
+	forge.lthn.ai/core/cli v0.1.1
+	forge.lthn.ai/core/go-crypt v0.1.2
+	forge.lthn.ai/core/go-devops v0.1.2
+	forge.lthn.ai/core/go-i18n v0.1.1
+	forge.lthn.ai/core/go-io v0.0.4
 	forge.lthn.ai/core/go-log v0.0.1
-	github.com/aws/aws-sdk-go-v2 v1.41.3
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.4
 	github.com/gorilla/websocket v1.5.3
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/crypto v0.48.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.46.1
 )
 
 require (
-	github.com/ProtonMail/go-crypto v1.3.0 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.19 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.19 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.20 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.19 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.19 // indirect
-	github.com/aws/smithy-go v1.24.2 // indirect
+	forge.lthn.ai/core/go-inference v0.1.1 // indirect
+	github.com/ProtonMail/go-crypto v1.4.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/bubbletea v1.3.10 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
@@ -67,6 +56,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
