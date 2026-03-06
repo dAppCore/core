@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	coreerr "forge.lthn.ai/core/go-log"
 	core "forge.lthn.ai/core/go/pkg/framework/core"
-	"forge.lthn.ai/core/go/pkg/io"
+	"forge.lthn.ai/core/go-io"
 )
 
 // Service implements the core.Workspace interface.
@@ -24,7 +25,7 @@ type Service struct {
 func New(c *core.Core) (any, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, core.E("workspace.New", "failed to determine home directory", err)
+		return nil, coreerr.E("workspace.New", "failed to determine home directory", err)
 	}
 	rootPath := filepath.Join(home, ".core", "workspaces")
 
@@ -35,7 +36,7 @@ func New(c *core.Core) (any, error) {
 	}
 
 	if err := s.medium.EnsureDir(rootPath); err != nil {
-		return nil, core.E("workspace.New", "failed to ensure root directory", err)
+		return nil, coreerr.E("workspace.New", "failed to ensure root directory", err)
 	}
 
 	return s, nil
@@ -54,30 +55,30 @@ func (s *Service) CreateWorkspace(identifier, password string) (string, error) {
 	wsPath := filepath.Join(s.rootPath, wsID)
 
 	if s.medium.Exists(wsPath) {
-		return "", core.E("workspace.CreateWorkspace", "workspace already exists", nil)
+		return "", coreerr.E("workspace.CreateWorkspace", "workspace already exists", nil)
 	}
 
 	// 2. Directory structure
 	dirs := []string{"config", "log", "data", "files", "keys"}
 	for _, d := range dirs {
 		if err := s.medium.EnsureDir(filepath.Join(wsPath, d)); err != nil {
-			return "", core.E("workspace.CreateWorkspace", "failed to create directory: "+d, err)
+			return "", coreerr.E("workspace.CreateWorkspace", "failed to create directory: "+d, err)
 		}
 	}
 
 	// 3. PGP Keypair generation
 	crypt := s.core.Crypt()
 	if crypt == nil {
-		return "", core.E("workspace.CreateWorkspace", "crypt service not available", nil)
+		return "", coreerr.E("workspace.CreateWorkspace", "crypt service not available", nil)
 	}
 	privKey, err := crypt.CreateKeyPair(identifier, password)
 	if err != nil {
-		return "", core.E("workspace.CreateWorkspace", "failed to generate keys", err)
+		return "", coreerr.E("workspace.CreateWorkspace", "failed to generate keys", err)
 	}
 
 	// Save private key
 	if err := s.medium.Write(filepath.Join(wsPath, "keys", "private.key"), privKey); err != nil {
-		return "", core.E("workspace.CreateWorkspace", "failed to save private key", err)
+		return "", coreerr.E("workspace.CreateWorkspace", "failed to save private key", err)
 	}
 
 	return wsID, nil
@@ -90,7 +91,7 @@ func (s *Service) SwitchWorkspace(name string) error {
 
 	wsPath := filepath.Join(s.rootPath, name)
 	if !s.medium.IsDir(wsPath) {
-		return core.E("workspace.SwitchWorkspace", "workspace not found: "+name, nil)
+		return coreerr.E("workspace.SwitchWorkspace", "workspace not found: "+name, nil)
 	}
 
 	s.activeWorkspace = name
@@ -104,7 +105,7 @@ func (s *Service) WorkspaceFileGet(filename string) (string, error) {
 	defer s.mu.RUnlock()
 
 	if s.activeWorkspace == "" {
-		return "", core.E("workspace.WorkspaceFileGet", "no active workspace", nil)
+		return "", coreerr.E("workspace.WorkspaceFileGet", "no active workspace", nil)
 	}
 
 	path := filepath.Join(s.rootPath, s.activeWorkspace, "files", filename)
@@ -118,7 +119,7 @@ func (s *Service) WorkspaceFileSet(filename, content string) error {
 	defer s.mu.Unlock()
 
 	if s.activeWorkspace == "" {
-		return core.E("workspace.WorkspaceFileSet", "no active workspace", nil)
+		return coreerr.E("workspace.WorkspaceFileSet", "no active workspace", nil)
 	}
 
 	path := filepath.Join(s.rootPath, s.activeWorkspace, "files", filename)

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"forge.lthn.ai/core/go/pkg/io"
+	"forge.lthn.ai/core/go-io"
 	"forge.lthn.ai/core/go/pkg/manifest"
 	"forge.lthn.ai/core/go/pkg/store"
 )

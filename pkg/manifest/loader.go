@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"forge.lthn.ai/core/go/pkg/io"
+	"forge.lthn.ai/core/go-io"
 	"gopkg.in/yaml.v3"
 )
 

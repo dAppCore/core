@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"forge.lthn.ai/core/go/pkg/io"
+	"forge.lthn.ai/core/go-io"
 )
 
 // DefaultTTL is the default cache expiry time.

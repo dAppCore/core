@@ -3,8 +3,8 @@ package plugin
 import (
 	"path/filepath"
 
-	core "forge.lthn.ai/core/go/pkg/framework/core"
-	"forge.lthn.ai/core/go/pkg/io"
+	coreerr "forge.lthn.ai/core/go-log"
+	"forge.lthn.ai/core/go-io"
 )
 
 // Loader loads plugins from the filesystem.
@@ -26,7 +26,7 @@ func NewLoader(m io.Medium, baseDir string) *Loader {
 func (l *Loader) Discover() ([]*Manifest, error) {
 	entries, err := l.medium.List(l.baseDir)
 	if err != nil {
-		return nil, core.E("plugin.Loader.Discover", "failed to list plugin directory", err)
+		return nil, coreerr.E("plugin.Loader.Discover", "failed to list plugin directory", err)
 	}
 
 	var manifests []*Manifest
@@ -52,11 +52,11 @@ func (l *Loader) LoadPlugin(name string) (*Manifest, error) {
 	manifestPath := filepath.Join(l.baseDir, name, "plugin.json")
 	manifest, err := LoadManifest(l.medium, manifestPath)
 	if err != nil {
-		return nil, core.E("plugin.Loader.LoadPlugin", "failed to load plugin: "+name, err)
+		return nil, coreerr.E("plugin.Loader.LoadPlugin", "failed to load plugin: "+name, err)
 	}
 
 	if err := manifest.Validate(); err != nil {
-		return nil, core.E("plugin.Loader.LoadPlugin", "invalid plugin manifest: "+name, err)
+		return nil, coreerr.E("plugin.Loader.LoadPlugin", "invalid plugin manifest: "+name, err)
 	}
 
 	return manifest, nil

@@ -3,8 +3,9 @@ package config
 import (
 	"context"
 
+	coreerr "forge.lthn.ai/core/go-log"
+	"forge.lthn.ai/core/go-io"
 	core "forge.lthn.ai/core/go/pkg/framework/core"
-	"forge.lthn.ai/core/go/pkg/io"
 )
 
 // Service wraps Config as a framework service with lifecycle support.
@@ -54,7 +55,7 @@ func (s *Service) OnStartup(_ context.Context) error {
 // Get retrieves a configuration value by key.
 func (s *Service) Get(key string, out any) error {
 	if s.config == nil {
-		return core.E("config.Service.Get", "config not loaded", nil)
+		return coreerr.E("config.Service.Get", "config not loaded", nil)
 	}
 	return s.config.Get(key, out)
 }
@@ -62,7 +63,7 @@ func (s *Service) Get(key string, out any) error {
 // Set stores a configuration value by key.
 func (s *Service) Set(key string, v any) error {
 	if s.config == nil {
-		return core.E("config.Service.Set", "config not loaded", nil)
+		return coreerr.E("config.Service.Set", "config not loaded", nil)
 	}
 	return s.config.Set(key, v)
 }
@@ -70,7 +71,7 @@ func (s *Service) Set(key string, v any) error {
 // LoadFile merges a configuration file into the central configuration.
 func (s *Service) LoadFile(m io.Medium, path string) error {
 	if s.config == nil {
-		return core.E("config.Service.LoadFile", "config not loaded", nil)
+		return coreerr.E("config.Service.LoadFile", "config not loaded", nil)
 	}
 	return s.config.LoadFile(m, path)
 }

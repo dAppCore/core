@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"slices"
 
-	core "forge.lthn.ai/core/go/pkg/framework/core"
-	"forge.lthn.ai/core/go/pkg/io"
+	coreerr "forge.lthn.ai/core/go-log"
+	"forge.lthn.ai/core/go-io"
 )
 
 const registryFilename = "registry.json"
@@ -51,7 +51,7 @@ func (r *Registry) Get(name string) (*PluginConfig, bool) {
 // Add registers a plugin in the registry.
 func (r *Registry) Add(cfg *PluginConfig) error {
 	if cfg.Name == "" {
-		return core.E("plugin.Registry.Add", "plugin name is required", nil)
+		return coreerr.E("plugin.Registry.Add", "plugin name is required", nil)
 	}
 	r.plugins[cfg.Name] = cfg
 	return nil
@@ -60,7 +60,7 @@ func (r *Registry) Add(cfg *PluginConfig) error {
 // Remove unregisters a plugin from the registry.
 func (r *Registry) Remove(name string) error {
 	if _, ok := r.plugins[name]; !ok {
-		return core.E("plugin.Registry.Remove", "plugin not found: "+name, nil)
+		return coreerr.E("plugin.Registry.Remove", "plugin not found: "+name, nil)
 	}
 	delete(r.plugins, name)
 	return nil
@@ -84,12 +84,12 @@ func (r *Registry) Load() error {
 
 	content, err := r.medium.Read(path)
 	if err != nil {
-		return core.E("plugin.Registry.Load", "failed to read registry", err)
+		return coreerr.E("plugin.Registry.Load", "failed to read registry", err)
 	}
 
 	var plugins map[string]*PluginConfig
 	if err := json.Unmarshal([]byte(content), &plugins); err != nil {
-		return core.E("plugin.Registry.Load", "failed to parse registry", err)
+		return coreerr.E("plugin.Registry.Load", "failed to parse registry", err)
 	}
 
 	if plugins == nil {
@@ -102,16 +102,16 @@ func (r *Registry) Load() error {
 // Save writes the plugin registry to disk.
 func (r *Registry) Save() error {
 	if err := r.medium.EnsureDir(r.basePath); err != nil {
-		return core.E("plugin.Registry.Save", "failed to create plugin directory", err)
+		return coreerr.E("plugin.Registry.Save", "failed to create plugin directory", err)
 	}
 
 	data, err := json.MarshalIndent(r.plugins, "", "  ")
 	if err != nil {
-		return core.E("plugin.Registry.Save", "failed to marshal registry", err)
+		return coreerr.E("plugin.Registry.Save", "failed to marshal registry", err)
 	}
 
 	if err := r.medium.Write(r.registryPath(), string(data)); err != nil {
-		return core.E("plugin.Registry.Save", "failed to write registry", err)
+		return coreerr.E("plugin.Registry.Save", "failed to write registry", err)
 	}
 
 	return nil

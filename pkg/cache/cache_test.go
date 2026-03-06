@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"forge.lthn.ai/core/go/pkg/cache"
-	"forge.lthn.ai/core/go/pkg/io"
+	"forge.lthn.ai/core/go-io"
 )
 
 func TestCache(t *testing.T) {

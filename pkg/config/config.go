@@ -17,8 +17,9 @@ import (
 	"strings"
 	"sync"
 
+	coreerr "forge.lthn.ai/core/go-log"
+	coreio "forge.lthn.ai/core/go-io"
 	core "forge.lthn.ai/core/go/pkg/framework/core"
-	coreio "forge.lthn.ai/core/go/pkg/io"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
@@ -79,7 +80,7 @@ func New(opts ...Option) (*Config, error) {
 	if c.path == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil, core.E("config.New", "failed to determine home directory", err)
+			return nil, coreerr.E("config.New", "failed to determine home directory", err)
 		}
 		c.path = filepath.Join(home, ".core", "config.yaml")
 	}
@@ -89,7 +90,7 @@ func New(opts ...Option) (*Config, error) {
 	// Load existing config file if it exists
 	if c.medium.Exists(c.path) {
 		if err := c.LoadFile(c.medium, c.path); err != nil {
-			return nil, core.E("config.New", "failed to load config file", err)
+			return nil, coreerr.E("config.New", "failed to load config file", err)
 		}
 	}
 
@@ -104,7 +105,7 @@ func (c *Config) LoadFile(m coreio.Medium, path string) error {
 
 	content, err := m.Read(path)
 	if err != nil {
-		return core.E("config.LoadFile", "failed to read config file: "+path, err)
+		return coreerr.E("config.LoadFile", "failed to read config file: "+path, err)
 	}
 
 	ext := filepath.Ext(path)
@@ -117,7 +118,7 @@ func (c *Config) LoadFile(m coreio.Medium, path string) error {
 	}
 
 	if err := c.v.MergeConfig(strings.NewReader(content)); err != nil {
-		return core.E("config.LoadFile", "failed to parse config file: "+path, err)
+		return coreerr.E("config.LoadFile", "failed to parse config file: "+path, err)
 	}
 
 	return nil
@@ -135,7 +136,7 @@ func (c *Config) Get(key string, out any) error {
 	}
 
 	if !c.v.IsSet(key) {
-		return core.E("config.Get", fmt.Sprintf("key not found: %s", key), nil)
+		return coreerr.E("config.Get", fmt.Sprintf("key not found: %s", key), nil)
 	}
 
 	return c.v.UnmarshalKey(key, out)
@@ -150,7 +151,7 @@ func (c *Config) Set(key string, v any) error {
 
 	// Persist to disk
 	if err := Save(c.medium, c.path, c.v.AllSettings()); err != nil {
-		return core.E("config.Set", "failed to save config", err)
+		return coreerr.E("config.Set", "failed to save config", err)
 	}
 
 	return nil
@@ -175,13 +176,13 @@ func (c *Config) Path() string {
 func Load(m coreio.Medium, path string) (map[string]any, error) {
 	content, err := m.Read(path)
 	if err != nil {
-		return nil, core.E("config.Load", "failed to read config file: "+path, err)
+		return nil, coreerr.E("config.Load", "failed to read config file: "+path, err)
 	}
 
 	v := viper.New()
 	v.SetConfigType("yaml")
 	if err := v.ReadConfig(strings.NewReader(content)); err != nil {
-		return nil, core.E("config.Load", "failed to parse config file: "+path, err)
+		return nil, coreerr.E("config.Load", "failed to parse config file: "+path, err)
 	}
 
 	return v.AllSettings(), nil
@@ -192,16 +193,16 @@ func Load(m coreio.Medium, path string) (map[string]any, error) {
 func Save(m coreio.Medium, path string, data map[string]any) error {
 	out, err := yaml.Marshal(data)
 	if err != nil {
-		return core.E("config.Save", "failed to marshal config", err)
+		return coreerr.E("config.Save", "failed to marshal config", err)
 	}
 
 	dir := filepath.Dir(path)
 	if err := m.EnsureDir(dir); err != nil {
-		return core.E("config.Save", "failed to create config directory: "+dir, err)
+		return coreerr.E("config.Save", "failed to create config directory: "+dir, err)
 	}
 
 	if err := m.Write(path, string(out)); err != nil {
-		return core.E("config.Save", "failed to write config file: "+path, err)
+		return coreerr.E("config.Save", "failed to write config file: "+path, err)
 	}
 
 	return nil

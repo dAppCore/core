@@ -3,8 +3,8 @@ package plugin
 import (
 	"encoding/json"
 
-	core "forge.lthn.ai/core/go/pkg/framework/core"
-	"forge.lthn.ai/core/go/pkg/io"
+	coreerr "forge.lthn.ai/core/go-log"
+	"forge.lthn.ai/core/go-io"
 )
 
 // Manifest represents a plugin.json manifest file.
@@ -23,12 +23,12 @@ type Manifest struct {
 func LoadManifest(m io.Medium, path string) (*Manifest, error) {
 	content, err := m.Read(path)
 	if err != nil {
-		return nil, core.E("plugin.LoadManifest", "failed to read manifest", err)
+		return nil, coreerr.E("plugin.LoadManifest", "failed to read manifest", err)
 	}
 
 	var manifest Manifest
 	if err := json.Unmarshal([]byte(content), &manifest); err != nil {
-		return nil, core.E("plugin.LoadManifest", "failed to parse manifest JSON", err)
+		return nil, coreerr.E("plugin.LoadManifest", "failed to parse manifest JSON", err)
 	}
 
 	return &manifest, nil
@@ -38,13 +38,13 @@ func LoadManifest(m io.Medium, path string) (*Manifest, error) {
 // Returns an error if name, version, or entrypoint are missing.
 func (m *Manifest) Validate() error {
 	if m.Name == "" {
-		return core.E("plugin.Manifest.Validate", "name is required", nil)
+		return coreerr.E("plugin.Manifest.Validate", "name is required", nil)
 	}
 	if m.Version == "" {
-		return core.E("plugin.Manifest.Validate", "version is required", nil)
+		return coreerr.E("plugin.Manifest.Validate", "version is required", nil)
 	}
 	if m.Entrypoint == "" {
-		return core.E("plugin.Manifest.Validate", "entrypoint is required", nil)
+		return coreerr.E("plugin.Manifest.Validate", "entrypoint is required", nil)
 	}
 	return nil
 }
