@@ -1,0 +1,24 @@
+# Core Go Framework release configuration
+# Used by: core ci
+# Library module — no binary artifacts, tag-only releases.
+
+version: 1
+
+project:
+  name: core-go
+  repository: core/go
+
+publishers: []
+
+changelog:
+  include:
+    - feat
+    - fix
+    - perf
+    - refactor
+  exclude:
+    - chore
+    - docs
+    - style
+    - test
+    - ci
