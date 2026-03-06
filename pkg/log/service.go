@@ -3,22 +3,22 @@ package log
 import (
 	"context"
 
-	"forge.lthn.ai/core/go/pkg/framework"
+	"forge.lthn.ai/core/go/pkg/core"
 )
 
 // Service wraps Logger for Core framework integration.
 type Service struct {
-	*framework.ServiceRuntime[Options]
+	*core.ServiceRuntime[Options]
 	*Logger
 }
 
 // NewService creates a log service factory for Core.
-func NewService(opts Options) func(*framework.Core) (any, error) {
-	return func(c *framework.Core) (any, error) {
+func NewService(opts Options) func(*core.Core) (any, error) {
+	return func(c *core.Core) (any, error) {
 		logger := New(opts)
 
 		return &Service{
-			ServiceRuntime: framework.NewServiceRuntime(c, opts),
+			ServiceRuntime: core.NewServiceRuntime(c, opts),
 			Logger:         logger,
 		}, nil
 	}
@@ -39,7 +39,7 @@ type TaskSetLevel struct {
 	Level Level
 }
 
-func (s *Service) handleQuery(c *framework.Core, q framework.Query) (any, bool, error) {
+func (s *Service) handleQuery(c *core.Core, q core.Query) (any, bool, error) {
 	switch q.(type) {
 	case QueryLevel:
 		return s.Level(), true, nil
@@ -47,7 +47,7 @@ func (s *Service) handleQuery(c *framework.Core, q framework.Query) (any, bool, 
 	return nil, false, nil
 }
 
-func (s *Service) handleTask(c *framework.Core, t framework.Task) (any, bool, error) {
+func (s *Service) handleTask(c *core.Core, t core.Task) (any, bool, error) {
 	switch m := t.(type) {
 	case TaskSetLevel:
 		s.SetLevel(m.Level)
