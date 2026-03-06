@@ -12,7 +12,7 @@ import (
 
 	"forge.lthn.ai/core/cli/pkg/cli"
 	"forge.lthn.ai/core/go-devops/cmd/qa"
-	"forge.lthn.ai/core/go/pkg/i18n"
+	"forge.lthn.ai/core/go-i18n"
 )
 
 // QA command flags - comprehensive options for all agents
