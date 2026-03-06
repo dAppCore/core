@@ -36,8 +36,8 @@ logger.Info("application started")
 When using the Core framework, logging is usually configured during application initialization:
 
 ```go
-app := core.New(
-    framework.WithName("my-app", log.NewService(log.Options{
+app, _ := core.New(
+    core.WithName("log", log.NewService(log.Options{
         Level: log.LevelDebug,
         Rotation: &log.RotationOptions{
             Filename: "/var/log/my-app.log",

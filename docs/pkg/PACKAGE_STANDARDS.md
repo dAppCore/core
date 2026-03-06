@@ -1,6 +1,6 @@
 # Core Package Standards
 
-This document defines the standards for creating packages in the Core framework. The `pkg/i18n` package is the reference implementation; all new packages should follow its patterns.
+This document defines the standards for creating packages in the Core framework. The `pkg/log` service is the reference implementation within this repo; standalone packages (go-session, go-store, etc.) follow the same patterns.
 
 ## Package Structure
 
@@ -40,12 +40,12 @@ package mypackage
 
 import (
     "sync"
-    "forge.lthn.ai/core/cli/pkg/framework"
+    "forge.lthn.ai/core/go/pkg/core"
 )
 
 // Service provides mypackage functionality with Core integration.
 type Service struct {
-    *framework.ServiceRuntime[Options]
+    *core.ServiceRuntime[Options]
 
     // Internal state (protected by mutex)
     data map[string]any
@@ -67,18 +67,18 @@ Create a factory function for Core registration:
 ```go
 // NewService creates a service factory for Core registration.
 //
-//    core, _ := framework.New(
-//        framework.WithName("mypackage", mypackage.NewService(mypackage.Options{})),
+//    core, _ := core.New(
+//        core.WithName("mypackage", mypackage.NewService(mypackage.Options{})),
 //    )
-func NewService(opts Options) func(*framework.Core) (any, error) {
-    return func(c *framework.Core) (any, error) {
+func NewService(opts Options) func(*core.Core) (any, error) {
+    return func(c *core.Core) (any, error) {
         // Apply defaults
         if opts.BufferSize == 0 {
             opts.BufferSize = DefaultBufferSize
         }
 
         svc := &Service{
-            ServiceRuntime: framework.NewServiceRuntime(c, opts),
+            ServiceRuntime: core.NewServiceRuntime(c, opts),
             data:           make(map[string]any),
         }
         return svc, nil
@@ -88,10 +88,10 @@ func NewService(opts Options) func(*framework.Core) (any, error) {
 
 ### Lifecycle Hooks
 
-Implement `framework.Startable` and/or `framework.Stoppable`:
+Implement `core.Startable` and/or `core.Stoppable`:
 
 ```go
-// OnStartup implements framework.Startable.
+// OnStartup implements core.Startable.
 func (s *Service) OnStartup(ctx context.Context) error {
     // Register query/task handlers
     s.Core().RegisterQuery(s.handleQuery)
@@ -99,7 +99,7 @@ func (s *Service) OnStartup(ctx context.Context) error {
     return nil
 }
 
-// OnShutdown implements framework.Stoppable.
+// OnShutdown implements core.Stoppable.
 func (s *Service) OnShutdown(ctx context.Context) error {
     // Cleanup resources
     return nil
@@ -110,7 +110,7 @@ func (s *Service) OnShutdown(ctx context.Context) error {
 
 ## Global Default Pattern
 
-Following `pkg/i18n`, provide a global default service with atomic access:
+Provide a global default service with atomic access:
 
 ```go
 // pkg/mypackage/mypackage.go
@@ -120,7 +120,7 @@ import (
     "sync"
     "sync/atomic"
 
-    "forge.lthn.ai/core/cli/pkg/framework"
+    "forge.lthn.ai/core/go/pkg/core"
 )
 
 // Global default service
@@ -146,7 +146,7 @@ func SetDefault(s *Service) {
 }
 
 // Init initialises the default service with a Core instance.
-func Init(c *framework.Core) error {
+func Init(c *core.Core) error {
     defaultOnce.Do(func() {
         factory := NewService(Options{})
         svc, err := factory(c)
@@ -267,7 +267,7 @@ func (s *Service) CreateItem(name string) (*Item, error) {
 Consumers register handlers:
 
 ```go
-core.RegisterAction(func(c *framework.Core, msg framework.Message) error {
+core.RegisterAction(func(c *core.Core, msg core.Message) error {
     switch m := msg.(type) {
     case mypackage.ActionItemCreated:
         log.Printf("Item created: %s", m.Name)
@@ -282,7 +282,7 @@ core.RegisterAction(func(c *framework.Core, msg framework.Message) error {
 
 ## Hooks Pattern
 
-For user-customisable behaviour, use atomic handlers (see `pkg/i18n/hooks.go`):
+For user-customisable behaviour, use atomic handlers:
 
 ```go
 // pkg/mypackage/hooks.go
@@ -435,15 +435,15 @@ buffer.go         → buffer_test.go
 Create helpers for common setup:
 
 ```go
-func newTestService(t *testing.T) (*Service, *framework.Core) {
+func newTestService(t *testing.T) (*Service, *core.Core) {
     t.Helper()
 
-    core, err := framework.New(
-        framework.WithName("mypackage", NewService(Options{})),
+    core, err := core.New(
+        core.WithName("mypackage", NewService(Options{})),
     )
     require.NoError(t, err)
 
-    svc, err := framework.ServiceFor[*Service](core, "mypackage")
+    svc, err := core.ServiceFor[*Service](core, "mypackage")
     require.NoError(t, err)
 
     return svc, core
@@ -476,14 +476,14 @@ Verify ACTION broadcasts:
 
 ```go
 func TestService_BroadcastsActions(t *testing.T) {
-    core, _ := framework.New(
-        framework.WithName("mypackage", NewService(Options{})),
+    core, _ := core.New(
+        core.WithName("mypackage", NewService(Options{})),
     )
 
     var received []ActionItemCreated
     var mu sync.Mutex
 
-    core.RegisterAction(func(c *framework.Core, msg framework.Message) error {
+    core.RegisterAction(func(c *core.Core, msg core.Message) error {
         if m, ok := msg.(ActionItemCreated); ok {
             mu.Lock()
             received = append(received, m)
@@ -492,7 +492,7 @@ func TestService_BroadcastsActions(t *testing.T) {
         return nil
     })
 
-    svc, _ := framework.ServiceFor[*Service](core, "mypackage")
+    svc, _ := core.ServiceFor[*Service](core, "mypackage")
     svc.CreateItem("test")
 
     mu.Lock()
@@ -520,8 +520,8 @@ Every package needs a doc comment in the main file:
 //
 // # Core Integration
 //
-//    core, _ := framework.New(
-//        framework.WithName("mypackage", mypackage.NewService(mypackage.Options{})),
+//    core, _ := core.New(
+//        core.WithName("mypackage", mypackage.NewService(mypackage.Options{})),
 //    )
 package mypackage
 ```
@@ -561,9 +561,9 @@ When creating a new package, ensure:
 
 ## Reference Implementations
 
-- **`pkg/i18n`** - Full reference with handlers, modes, hooks, grammar
-- **`pkg/process`** - Simpler example with ACTION events and runner orchestration
-- **`pkg/cli`** - Service integration with runtime lifecycle
+- **`pkg/log`** (this repo) — Service struct with Core integration, query/task handlers
+- **`core/go-store`** — SQLite KV store with Watch/OnChange, full service pattern
+- **`core/go-session`** — Transcript parser with analytics, factory pattern
 
 ---
 
@@ -596,7 +596,7 @@ The framework automatically broadcasts lifecycle actions:
 For very long operations, the service handler should broadcast progress:
 
 ```go
-func (s *Service) handleTask(c *framework.Core, t framework.Task) (any, bool, error) {
+func (s *Service) handleTask(c *core.Core, t core.Task) (any, bool, error) {
     switch m := t.(type) {
     case MyLongTask:
         // Optional: If you need to report progress, you might need to pass
