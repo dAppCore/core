@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -65,6 +66,9 @@ func WithService(factory func(*Core) (any, error)) Option {
 		if err != nil {
 			return fmt.Errorf("core: failed to create service: %w", err)
 		}
+		if serviceInstance == nil {
+			return fmt.Errorf("core: service factory returned nil instance")
+		}
 
 		// --- Service Name Discovery ---
 		typeOfService := reflect.TypeOf(serviceInstance)
@@ -74,6 +78,9 @@ func WithService(factory func(*Core) (any, error)) Option {
 		pkgPath := typeOfService.PkgPath()
 		parts := strings.Split(pkgPath, "/")
 		name := strings.ToLower(parts[len(parts)-1])
+		if name == "" {
+			return fmt.Errorf("core: service name could not be discovered for type %T (PkgPath is empty)", serviceInstance)
+		}
 
 		// --- IPC Handler Discovery ---
 		instanceValue := reflect.ValueOf(serviceInstance)
@@ -81,6 +88,8 @@ func WithService(factory func(*Core) (any, error)) Option {
 		if handlerMethod.IsValid() {
 			if handler, ok := handlerMethod.Interface().(func(*Core, Message) error); ok {
 				c.RegisterAction(handler)
+			} else {
+				return fmt.Errorf("core: service %q has HandleIPCEvents but wrong signature; expected func(*Core, Message) error", name)
 			}
 		}
 
@@ -141,6 +150,9 @@ func (c *Core) ServiceStartup(ctx context.Context, options any) error {
 
 	var agg error
 	for _, s := range startables {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(agg, err)
+		}
 		if err := s.OnStartup(ctx); err != nil {
 			agg = errors.Join(agg, err)
 		}
@@ -156,16 +168,34 @@ func (c *Core) ServiceStartup(ctx context.Context, options any) error {
 // ServiceShutdown is the entry point for the Core service's shutdown lifecycle.
 // It is called by the GUI runtime when the application shuts down.
 func (c *Core) ServiceShutdown(ctx context.Context) error {
+	c.shutdown.Store(true)
+
 	var agg error
 	if err := c.ACTION(ActionServiceShutdown{}); err != nil {
 		agg = errors.Join(agg, err)
 	}
 
 	stoppables := c.svc.getStoppables()
-	for i := len(stoppables) - 1; i >= 0; i-- {
-		if err := stoppables[i].OnShutdown(ctx); err != nil {
+	for _, s := range slices.Backward(stoppables) {
+		if err := ctx.Err(); err != nil {
+			agg = errors.Join(agg, err)
+			break // don't return — must still wait for background tasks below
+		}
+		if err := s.OnShutdown(ctx); err != nil {
 			agg = errors.Join(agg, err)
 		}
+	}
+
+	// Wait for background tasks (PerformAsync), respecting context deadline.
+	done := make(chan struct{})
+	go func() {
+		c.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		agg = errors.Join(agg, ctx.Err())
 	}
 
 	return agg
@@ -209,6 +239,10 @@ func (c *Core) PERFORM(t Task) (any, bool, error) {
 // It returns a unique task ID that can be used to track the task's progress.
 // The result of the task will be broadcasted via an ActionTaskCompleted message.
 func (c *Core) PerformAsync(t Task) string {
+	if c.shutdown.Load() {
+		return ""
+	}
+
 	taskID := fmt.Sprintf("task-%d", c.taskIDCounter.Add(1))
 
 	// If the task supports it, inject the ID
@@ -222,7 +256,7 @@ func (c *Core) PerformAsync(t Task) string {
 		Task:   t,
 	})
 
-	go func() {
+	c.wg.Go(func() {
 		result, handled, err := c.PERFORM(t)
 		if !handled && err == nil {
 			err = fmt.Errorf("no handler found for task type %T", t)
@@ -235,7 +269,7 @@ func (c *Core) PerformAsync(t Task) string {
 			Result: result,
 			Error:  err,
 		})
-	}()
+	})
 
 	return taskID
 }

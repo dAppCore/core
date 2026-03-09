@@ -3,7 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 )
 
 // ServiceRuntime is a helper struct embedded in services to provide access to the core application.
@@ -58,14 +59,13 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) (*Runtime, e
 		WithApp(app),
 	}
 
-	names := make([]string, 0, len(factories))
-	for name := range factories {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := slices.Sorted(maps.Keys(factories))
 
 	for _, name := range names {
 		factory := factories[name]
+		if factory == nil {
+			return nil, fmt.Errorf("failed to create service %s: factory is nil", name)
+		}
 		svc, err := factory()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create service %s: %w", name, err)
@@ -99,14 +99,15 @@ func (r *Runtime) ServiceName() string {
 
 // ServiceStartup is called by the GUI runtime at application startup.
 // This is where the Core's startup lifecycle is initiated.
-func (r *Runtime) ServiceStartup(ctx context.Context, options any) {
-	_ = r.Core.ServiceStartup(ctx, options)
+func (r *Runtime) ServiceStartup(ctx context.Context, options any) error {
+	return r.Core.ServiceStartup(ctx, options)
 }
 
 // ServiceShutdown is called by the GUI runtime at application shutdown.
 // This is where the Core's shutdown lifecycle is initiated.
-func (r *Runtime) ServiceShutdown(ctx context.Context) {
+func (r *Runtime) ServiceShutdown(ctx context.Context) error {
 	if r.Core != nil {
-		_ = r.Core.ServiceShutdown(ctx)
+		return r.Core.ServiceShutdown(ctx)
 	}
+	return nil
 }

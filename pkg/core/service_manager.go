@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 )
 
@@ -81,7 +82,7 @@ func (m *serviceManager) applyLock() {
 // getStartables returns a snapshot copy of the startables slice.
 func (m *serviceManager) getStartables() []Startable {
 	m.mu.RLock()
-	out := append([]Startable(nil), m.startables...)
+	out := slices.Clone(m.startables)
 	m.mu.RUnlock()
 	return out
 }
@@ -89,7 +90,7 @@ func (m *serviceManager) getStartables() []Startable {
 // getStoppables returns a snapshot copy of the stoppables slice.
 func (m *serviceManager) getStoppables() []Stoppable {
 	m.mu.RLock()
-	out := append([]Stoppable(nil), m.stoppables...)
+	out := slices.Clone(m.stoppables)
 	m.mu.RUnlock()
 	return out
 }

@@ -5,6 +5,7 @@ import (
 	"embed"
 	goio "io"
 	"slices"
+	"sync"
 	"sync/atomic"
 )
 
@@ -85,6 +86,8 @@ type Core struct {
 	bus      *messageBus
 
 	taskIDCounter atomic.Uint64
+	wg            sync.WaitGroup
+	shutdown      atomic.Bool
 }
 
 // Config provides access to application configuration.

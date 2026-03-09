@@ -88,9 +88,9 @@ func TestNewWithFactories_Ugly(t *testing.T) {
 	factories := map[string]ServiceFactory{
 		"test": nil,
 	}
-	assert.Panics(t, func() {
-		_, _ = NewWithFactories(nil, factories)
-	})
+	_, err := NewWithFactories(nil, factories)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "factory is nil")
 }
 
 func TestRuntime_Lifecycle_Good(t *testing.T) {

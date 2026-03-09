@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"slices"
 	"sync"
 )
 
@@ -28,7 +29,7 @@ func newMessageBus(c *Core) *messageBus {
 // action dispatches a message to all registered IPC handlers.
 func (b *messageBus) action(msg Message) error {
 	b.ipcMu.RLock()
-	handlers := append([]func(*Core, Message) error(nil), b.ipcHandlers...)
+	handlers := slices.Clone(b.ipcHandlers)
 	b.ipcMu.RUnlock()
 
 	var agg error
@@ -57,7 +58,7 @@ func (b *messageBus) registerActions(handlers ...func(*Core, Message) error) {
 // query dispatches a query to handlers until one responds.
 func (b *messageBus) query(q Query) (any, bool, error) {
 	b.queryMu.RLock()
-	handlers := append([]QueryHandler(nil), b.queryHandlers...)
+	handlers := slices.Clone(b.queryHandlers)
 	b.queryMu.RUnlock()
 
 	for _, h := range handlers {
@@ -72,7 +73,7 @@ func (b *messageBus) query(q Query) (any, bool, error) {
 // queryAll dispatches a query to all handlers and collects all responses.
 func (b *messageBus) queryAll(q Query) ([]any, error) {
 	b.queryMu.RLock()
-	handlers := append([]QueryHandler(nil), b.queryHandlers...)
+	handlers := slices.Clone(b.queryHandlers)
 	b.queryMu.RUnlock()
 
 	var results []any
@@ -99,7 +100,7 @@ func (b *messageBus) registerQuery(handler QueryHandler) {
 // perform dispatches a task to handlers until one executes it.
 func (b *messageBus) perform(t Task) (any, bool, error) {
 	b.taskMu.RLock()
-	handlers := append([]TaskHandler(nil), b.taskHandlers...)
+	handlers := slices.Clone(b.taskHandlers)
 	b.taskMu.RUnlock()
 
 	for _, h := range handlers {
