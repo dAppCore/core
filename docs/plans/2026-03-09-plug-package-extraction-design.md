@@ -31,6 +31,10 @@
 | Storage | Bunny (Browse, Delete, Download, Upload, VBucket, StorageManager) + contracts | 8 |
 | Stock | Unsplash (Search, Photo, Collection, Download, Exception, Jobs) | 6 |
 
+## Namespace Alignment
+
+The app currently uses `Plug\` namespace while core/php uses `Core\Plug\`. This extraction aligns everything under `Core\Plug\*` to match the framework convention.
+
 ## Target State
 
 ### 1. Contracts move into `core/php`
@@ -49,7 +53,7 @@ core/php/src/Plug/Contract/
 └── Refreshable.php
 ```
 
-Namespace: `Plug\Contract\` (unchanged).
+Namespace: `Core\Plug\Contract\` (aligned with framework).
 
 ### 2. Eight new packages on forge
 
@@ -74,16 +78,16 @@ PSR-4 mapping per package:
 
 | Package | Composer Name | Namespace | Autoload |
 |---------|--------------|-----------|----------|
-| `core/php-plug-social` | `core/php-plug-social` | `Plug\Social\` | `src/` |
-| `core/php-plug-web3` | `core/php-plug-web3` | `Plug\Web3\` | `src/` |
-| `core/php-plug-content` | `core/php-plug-content` | `Plug\Content\` | `src/` |
-| `core/php-plug-chat` | `core/php-plug-chat` | `Plug\Chat\` | `src/` |
-| `core/php-plug-business` | `core/php-plug-business` | `Plug\Business\` | `src/` |
-| `core/php-plug-cdn` | `core/php-plug-cdn` | `Plug\Cdn\` | `src/` |
-| `core/php-plug-storage` | `core/php-plug-storage` | `Plug\Storage\` | `src/` |
-| `core/php-plug-stock` | `core/php-plug-stock` | `Plug\Stock\` | `src/` |
+| `core/php-plug-social` | `core/php-plug-social` | `Core\Plug\Social\` | `src/` |
+| `core/php-plug-web3` | `core/php-plug-web3` | `Core\Plug\Web3\` | `src/` |
+| `core/php-plug-content` | `core/php-plug-content` | `Core\Plug\Content\` | `src/` |
+| `core/php-plug-chat` | `core/php-plug-chat` | `Core\Plug\Chat\` | `src/` |
+| `core/php-plug-business` | `core/php-plug-business` | `Core\Plug\Business\` | `src/` |
+| `core/php-plug-cdn` | `core/php-plug-cdn` | `Core\Plug\Cdn\` | `src/` |
+| `core/php-plug-storage` | `core/php-plug-storage` | `Core\Plug\Storage\` | `src/` |
+| `core/php-plug-stock` | `core/php-plug-stock` | `Core\Plug\Stock\` | `src/` |
 
-Cdn and Storage packages include their own sub-contracts (`Cdn\Contract\*`, `Storage\Contract\*`) since those are domain-specific (Purgeable, HasStats, Browseable, Uploadable, etc.) rather than shared Plug contracts.
+Cdn and Storage packages include their own sub-contracts (`Core\Plug\Cdn\Contract\*`, `Core\Plug\Storage\Contract\*`) since those are domain-specific (Purgeable, HasStats, Browseable, Uploadable, etc.) rather than shared Plug contracts.
 
 ### 3. Registry update
 
@@ -122,14 +126,22 @@ core/php-plug-storage   ─┤
 core/php-plug-stock     ─┘
 ```
 
-## Namespace Mapping (unchanged)
+## Namespace Mapping
 
-Provider code keeps its existing namespace. No renaming needed:
+All provider code is renamed from `Plug\*` to `Core\Plug\*`:
 
 ```php
 // Before (in app): Plug\Social\Twitter\Post
-// After (in package): Plug\Social\Twitter\Post  ← same
+// After (in package): Core\Plug\Social\Twitter\Post
+
+// Before: use Plug\Contract\Postable;
+// After:  use Core\Plug\Contract\Postable;
+
+// Before: use Plug\Concern\UsesHttp;
+// After:  use Core\Plug\Concern\UsesHttp;
 ```
+
+The app's `"Plug\\" => "app/Plug/"` autoload entry is removed entirely.
 
 ## Composer Repository Config
 
