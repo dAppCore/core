@@ -1,5 +1,7 @@
 # Lint Pattern Catalog Implementation Plan
 
+> **Fully implemented (14 Mar 2026).** All tasks in this plan are complete. The `core/lint` module ships 18 rules across 3 catalogs, with a working CLI and embedded YAML. This plan is retained alongside the design doc, which tracks the remaining MCP and polish skill layers.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build `core/lint` — a standalone Go library + CLI that loads YAML pattern catalogs and runs regex-based code checks, seeded with 18 patterns from the March 2026 ecosystem sweep.

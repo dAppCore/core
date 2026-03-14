@@ -1,5 +1,7 @@
 # Lint Pattern Catalog & Polish Skill Design
 
+> **Partial implementation (14 Mar 2026):** Layer 1 (`core/lint` -- catalog, matcher, scanner, CLI) is fully implemented and documented at `docs/tools/lint/index.md`. Layer 2 (MCP subsystem in `go-ai`) and Layer 3 (Claude Code polish skill in `core/agent`) are NOT implemented. This plan is retained for those remaining layers.
+
 **Goal:** A structured pattern catalog (`core/lint`) that captures recurring code quality findings as regex rules, exposes them via MCP tools in `go-ai`, and orchestrates multi-AI code review via a Claude Code skill in `core/agent`.
 
 **Architecture:** Three layers — a standalone catalog+matcher library (`core/lint`), an MCP subsystem in `go-ai` that exposes lint tools to agents, and a Claude Code plugin in `core/agent` that orchestrates the "polish" workflow (deterministic checks + AI reviewers + feedback loop into the catalog).

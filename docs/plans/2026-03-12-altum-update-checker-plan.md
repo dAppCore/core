@@ -1,5 +1,7 @@
 # AltumCode Update Checker Implementation Plan
 
+> **Note:** Layer 1 (Tasks 1-2, 4: version checking + seeder + sync command) is implemented and documented at `docs/docs/php/packages/uptelligence.md`. Task 3 (Claude Code browser skill for Layer 2 downloads) is NOT yet implemented.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add AltumCode product + plugin version checking to uptelligence, and create a Claude Code skill for browser-automated downloads from LemonSqueezy and CodeCanyon.

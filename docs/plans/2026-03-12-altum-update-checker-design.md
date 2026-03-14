@@ -1,5 +1,7 @@
 # AltumCode Update Checker — Design
 
+> **Note:** Layer 1 (version detection via PHP artisan) is implemented and documented at `docs/docs/php/packages/uptelligence.md`. Layer 2 (browser-automated downloads via Claude Code skill) is NOT yet implemented.
+
 ## Problem
 
 Host UK runs 4 AltumCode SaaS products and 13 plugins across two marketplaces (CodeCanyon + LemonSqueezy). Checking for updates and downloading them is a manual process: ~50 clicks across two marketplace UIs, moving 16+ zip files, extracting to the right directories. This eats a morning of momentum every update cycle.
