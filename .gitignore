@@ -25,3 +25,6 @@ cmd/*
 patch_cov.*
 go.work.sum
 lt-hn-index.html
+
+.core/workspace/
+.idea/
