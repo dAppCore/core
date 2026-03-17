@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	goio "io"
+	"io/fs"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -77,6 +78,20 @@ type Stoppable interface {
 	OnShutdown(ctx context.Context) error
 }
 
+// LocaleProvider is implemented by services that ship their own translation files.
+// Core discovers this interface during service registration and collects the
+// locale filesystems. The i18n service loads them during startup.
+//
+// Usage in a service package:
+//
+//	//go:embed locales
+//	var localeFS embed.FS
+//
+//	func (s *MyService) Locales() fs.FS { return localeFS }
+type LocaleProvider interface {
+	Locales() fs.FS
+}
+
 // Core is the central application object that manages services, assets, and communication.
 type Core struct {
 	App      any // GUI runtime (e.g., Wails App) - set by WithApp option
@@ -84,10 +99,17 @@ type Core struct {
 	Features *Features
 	svc      *serviceManager
 	bus      *messageBus
+	locales  []fs.FS // collected from LocaleProvider services
 
 	taskIDCounter atomic.Uint64
 	wg            sync.WaitGroup
 	shutdown      atomic.Bool
+}
+
+// Locales returns all locale filesystems collected from registered services.
+// The i18n service uses this during startup to load translations.
+func (c *Core) Locales() []fs.FS {
+	return c.locales
 }
 
 // Config provides access to application configuration.

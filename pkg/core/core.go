@@ -295,7 +295,13 @@ func (c *Core) RegisterTask(handler TaskHandler) {
 }
 
 // RegisterService adds a new service to the Core.
+// If the service implements LocaleProvider, its locale FS is collected
+// for the i18n service to load during startup.
 func (c *Core) RegisterService(name string, api any) error {
+	// Collect locale filesystems from services that provide them
+	if lp, ok := api.(LocaleProvider); ok {
+		c.locales = append(c.locales, lp.Locales())
+	}
 	return c.svc.registerService(name, api)
 }
 
