@@ -34,10 +34,10 @@ func (m *serviceManager) registerService(name string, svc any) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.locked {
-		return fmt.Errorf("core: service %q is not permitted by the serviceLock setting", name)
+		return E("core.RegisterService", fmt.Sprintf("service %q is not permitted by the serviceLock setting", name), nil)
 	}
 	if _, exists := m.services[name]; exists {
-		return fmt.Errorf("core: service %q already registered", name)
+		return E("core.RegisterService", fmt.Sprintf("service %q already registered", name), nil)
 	}
 	m.services[name] = svc
 

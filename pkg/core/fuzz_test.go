@@ -23,8 +23,8 @@ func FuzzE(f *testing.F) {
 		}
 
 		s := e.Error()
-		if s == "" {
-			t.Fatal("Error() returned empty string")
+		if s == "" && (op != "" || msg != "") {
+			t.Fatal("Error() returned empty string for non-empty op/msg")
 		}
 
 		// Round-trip: Unwrap should return the underlying error

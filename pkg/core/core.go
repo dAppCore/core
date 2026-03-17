@@ -64,10 +64,10 @@ func WithService(factory func(*Core) (any, error)) Option {
 		serviceInstance, err := factory(c)
 
 		if err != nil {
-			return fmt.Errorf("core: failed to create service: %w", err)
+			return E("core.WithService", "failed to create service", err)
 		}
 		if serviceInstance == nil {
-			return fmt.Errorf("core: service factory returned nil instance")
+			return E("core.WithService", "service factory returned nil instance", nil)
 		}
 
 		// --- Service Name Discovery ---
@@ -79,7 +79,7 @@ func WithService(factory func(*Core) (any, error)) Option {
 		parts := strings.Split(pkgPath, "/")
 		name := strings.ToLower(parts[len(parts)-1])
 		if name == "" {
-			return fmt.Errorf("core: service name could not be discovered for type %T (PkgPath is empty)", serviceInstance)
+			return E("core.WithService", fmt.Sprintf("service name could not be discovered for type %T (PkgPath is empty)", serviceInstance), nil)
 		}
 
 		// --- IPC Handler Discovery ---
@@ -89,7 +89,7 @@ func WithService(factory func(*Core) (any, error)) Option {
 			if handler, ok := handlerMethod.Interface().(func(*Core, Message) error); ok {
 				c.RegisterAction(handler)
 			} else {
-				return fmt.Errorf("core: service %q has HandleIPCEvents but wrong signature; expected func(*Core, Message) error", name)
+				return E("core.WithService", fmt.Sprintf("service %q has HandleIPCEvents but wrong signature; expected func(*Core, Message) error", name), nil)
 			}
 		}
 
@@ -107,7 +107,7 @@ func WithName(name string, factory func(*Core) (any, error)) Option {
 	return func(c *Core) error {
 		serviceInstance, err := factory(c)
 		if err != nil {
-			return fmt.Errorf("core: failed to create service '%s': %w", name, err)
+			return E("core.WithName", fmt.Sprintf("failed to create service %q", name), err)
 		}
 		return c.RegisterService(name, serviceInstance)
 	}
@@ -259,7 +259,7 @@ func (c *Core) PerformAsync(t Task) string {
 	c.wg.Go(func() {
 		result, handled, err := c.PERFORM(t)
 		if !handled && err == nil {
-			err = fmt.Errorf("no handler found for task type %T", t)
+			err = E("core.PerformAsync", fmt.Sprintf("no handler found for task type %T", t), nil)
 		}
 
 		// Broadcast task completed
@@ -316,11 +316,11 @@ func ServiceFor[T any](c *Core, name string) (T, error) {
 	var zero T
 	raw := c.Service(name)
 	if raw == nil {
-		return zero, fmt.Errorf("service '%s' not found", name)
+		return zero, E("core.ServiceFor", fmt.Sprintf("service %q not found", name), nil)
 	}
 	typed, ok := raw.(T)
 	if !ok {
-		return zero, fmt.Errorf("service '%s' is of type %T, but expected %T", name, raw, zero)
+		return zero, E("core.ServiceFor", fmt.Sprintf("service %q is type %T, expected %T", name, raw, zero), nil)
 	}
 	return typed, nil
 }

@@ -64,11 +64,11 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) (*Runtime, e
 	for _, name := range names {
 		factory := factories[name]
 		if factory == nil {
-			return nil, fmt.Errorf("failed to create service %s: factory is nil", name)
+			return nil, E("core.NewWithFactories", fmt.Sprintf("factory is nil for service %q", name), nil)
 		}
 		svc, err := factory()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create service %s: %w", name, err)
+			return nil, E("core.NewWithFactories", fmt.Sprintf("failed to create service %q", name), err)
 		}
 		svcCopy := svc
 		coreOpts = append(coreOpts, WithName(name, func(c *Core) (any, error) { return svcCopy, nil }))

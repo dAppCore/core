@@ -68,7 +68,7 @@ core.New(core.WithService(NewMyService))
 - `WithService`: Auto-discovers service name from package path, registers IPC handler if service has `HandleIPCEvents` method
 - `WithName`: Explicitly names a service
 
-### ServiceRuntime Generic Helper (`runtime.go`)
+### ServiceRuntime Generic Helper (`runtime_pkg.go`)
 
 Embed `ServiceRuntime[T]` in services to get access to Core and typed options:
 ```go
@@ -77,11 +77,12 @@ type MyService struct {
 }
 ```
 
-### Error Handling (`e.go`)
+### Error Handling (go-log)
 
-Use the `E()` helper for contextual errors:
+All errors MUST use `E()` from `go-log` (re-exported in `e.go`), never `fmt.Errorf`:
 ```go
 return core.E("service.Method", "what failed", underlyingErr)
+return core.E("service.Method", fmt.Sprintf("service %q not found", name), nil)
 ```
 
 ### Test Naming Convention
@@ -100,6 +101,6 @@ Tests use `_Good`, `_Bad`, `_Ugly` suffix pattern:
 
 ## Go Workspace
 
-Uses Go 1.25 workspaces. This module is part of the workspace at `~/Code/go.work`.
+Uses Go 1.26 workspaces. This module is part of the workspace at `~/Code/go.work`.
 
 After adding modules: `go work sync`

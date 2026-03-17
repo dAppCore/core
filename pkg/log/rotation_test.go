@@ -118,6 +118,58 @@ func TestRotatingWriter_Append(t *testing.T) {
 	}
 }
 
+func TestNewRotatingWriter_Defaults(t *testing.T) {
+	m := io.NewMockMedium()
+
+	// MaxAge < 0 disables age-based cleanup
+	w := NewRotatingWriter(RotationOptions{
+		Filename: "test.log",
+		MaxAge:   -1,
+	}, m)
+	defer w.Close()
+
+	if w.opts.MaxSize != 100 {
+		t.Errorf("expected default MaxSize 100, got %d", w.opts.MaxSize)
+	}
+	if w.opts.MaxBackups != 5 {
+		t.Errorf("expected default MaxBackups 5, got %d", w.opts.MaxBackups)
+	}
+	if w.opts.MaxAge != 0 {
+		t.Errorf("expected MaxAge 0 (disabled), got %d", w.opts.MaxAge)
+	}
+}
+
+func TestRotatingWriter_RotateEndToEnd(t *testing.T) {
+	m := io.NewMockMedium()
+	opts := RotationOptions{
+		Filename:   "test.log",
+		MaxSize:    1, // 1 MB
+		MaxBackups: 2,
+	}
+
+	w := NewRotatingWriter(opts, m)
+
+	// Write just under 1 MB
+	_, _ = w.Write([]byte(strings.Repeat("a", 1024*1024-10)))
+
+	// Write more to trigger rotation
+	_, err := w.Write([]byte(strings.Repeat("b", 20)))
+	if err != nil {
+		t.Fatalf("write after rotation failed: %v", err)
+	}
+	w.Close()
+
+	// Verify rotation happened
+	if !m.Exists("test.log.1") {
+		t.Error("expected test.log.1 after rotation")
+	}
+
+	content, _ := m.Read("test.log")
+	if !strings.Contains(content, "bbb") {
+		t.Errorf("expected new data in test.log after rotation, got %q", content)
+	}
+}
+
 func TestRotatingWriter_AgeRetention(t *testing.T) {
 	m := io.NewMockMedium()
 	opts := RotationOptions{
