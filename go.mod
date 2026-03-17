@@ -3,8 +3,8 @@ module forge.lthn.ai/core/go
 go 1.26.0
 
 require (
-	forge.lthn.ai/core/go-io v0.0.5
-	forge.lthn.ai/core/go-log v0.0.1
+	forge.lthn.ai/core/go-io v0.1.5
+	forge.lthn.ai/core/go-log v0.0.4
 	github.com/stretchr/testify v1.11.1
 )
 
