@@ -8,8 +8,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"io/fs"
-	"path/filepath"
 	"reflect"
 	"strings"
 )
@@ -188,32 +186,6 @@ func WithAssets(efs embed.FS) Option {
 	}
 }
 
-// WithIO sandboxes filesystem I/O to a root path.
-func WithIO(root string) Option {
-	return func(c *Core) error {
-		abs, err := filepath.Abs(root)
-		if err != nil {
-			return E("core.WithIO", "failed to create IO at "+root, err)
-		}
-		if resolved, err := filepath.EvalSymlinks(abs); err == nil {
-			abs = resolved
-		}
-		c.fs = &Fs{root: abs}
-		return nil
-	}
-}
-
-// WithMount mounts an fs.FS at a specific subdirectory.
-func WithMount(fsys fs.FS, basedir string) Option {
-	return func(c *Core) error {
-		sub, err := Mount(fsys, basedir)
-		if err != nil {
-			return E("core.WithMount", "failed to mount "+basedir, err)
-		}
-		c.emb = sub
-		return nil
-	}
-}
 
 // WithServiceLock prevents service registration after initialisation.
 func WithServiceLock() Option {

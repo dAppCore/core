@@ -56,6 +56,18 @@ func (c *Core) Perform(t Task) (any, bool, error) {
 	return nil, false, nil
 }
 
+func (c *Core) RegisterAction(handler func(*Core, Message) error) {
+	c.ipc.ipcMu.Lock()
+	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handler)
+	c.ipc.ipcMu.Unlock()
+}
+
+func (c *Core) RegisterActions(handlers ...func(*Core, Message) error) {
+	c.ipc.ipcMu.Lock()
+	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)
+	c.ipc.ipcMu.Unlock()
+}
+
 func (c *Core) RegisterTask(handler TaskHandler) {
 	c.ipc.taskMu.Lock()
 	c.ipc.taskHandlers = append(c.ipc.taskHandlers, handler)

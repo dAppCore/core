@@ -46,12 +46,10 @@ func (c *Core) Core() *Core     { return c }
 
 // --- IPC (uppercase aliases) ---
 
-func (c *Core) ACTION(msg Message) error                               { return c.Action(msg) }
-func (c *Core) RegisterAction(handler func(*Core, Message) error)      { c.RegisterAction(handler) }
-func (c *Core) RegisterActions(handlers ...func(*Core, Message) error) { c.RegisterActions(handlers...) }
-func (c *Core) QUERY(q Query) (any, bool, error)                       { return c.Query(q) }
-func (c *Core) QUERYALL(q Query) ([]any, error)                        { return c.QueryAll(q) }
-func (c *Core) PERFORM(t Task) (any, bool, error)                      { return c.Perform(t) }
+func (c *Core) ACTION(msg Message) error              { return c.Action(msg) }
+func (c *Core) QUERY(q Query) (any, bool, error)      { return c.Query(q) }
+func (c *Core) QUERYALL(q Query) ([]any, error)       { return c.QueryAll(q) }
+func (c *Core) PERFORM(t Task) (any, bool, error)     { return c.Perform(t) }
 
 // --- Error+Log ---
 
