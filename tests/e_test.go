@@ -1,6 +1,8 @@
-package core
+package core_test
+
 
 import (
+	. "forge.lthn.ai/core/go/pkg/core"
 	"errors"
 	"testing"
 
@@ -23,7 +25,7 @@ func TestE_Unwrap(t *testing.T) {
 
 	assert.True(t, errors.Is(err, originalErr))
 
-	var eErr *Error
+	var eErr *Err
 	assert.True(t, errors.As(err, &eErr))
 	assert.Equal(t, "test.op", eErr.Op)
 }

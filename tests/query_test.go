@@ -1,6 +1,8 @@
-package core
+package core_test
+
 
 import (
+	. "forge.lthn.ai/core/go/pkg/core"
 	"errors"
 	"testing"
 
