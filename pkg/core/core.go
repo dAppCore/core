@@ -27,8 +27,8 @@ var (
 //	)
 func New(opts ...Option) (*Core, error) {
 	c := &Core{
-		Features: &Features{},
-		svc:      newServiceManager(),
+		etc: NewEtc(),
+		svc: newServiceManager(),
 	}
 	c.bus = newMessageBus(c)
 

@@ -90,3 +90,19 @@ func ServiceFor[T any](c *Core, name string) (T, error) {
 
 // E creates a structured error.
 var E = di.E
+
+// --- Configuration (core.Etc) ---
+
+// Etc is the configuration and feature flags store.
+type Etc = di.Etc
+
+// NewEtc creates a standalone configuration store.
+var NewEtc = di.NewEtc
+
+// Var is a typed optional variable (set/unset/get).
+type Var[T any] = di.Var[T]
+
+// NewVar creates a Var with the given value.
+func NewVar[T any](val T) Var[T] {
+	return di.NewVar(val)
+}

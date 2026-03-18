@@ -119,24 +119,37 @@ func TestCore_Core_Good(t *testing.T) {
 	assert.Equal(t, c, c.Core())
 }
 
-func TestFeatures_IsEnabled_Good(t *testing.T) {
+func TestEtc_Features_Good(t *testing.T) {
 	c, err := New()
 	assert.NoError(t, err)
 
-	c.Features.Flags = []string{"feature1", "feature2"}
+	c.Etc().Enable("feature1")
+	c.Etc().Enable("feature2")
 
-	assert.True(t, c.Features.IsEnabled("feature1"))
-	assert.True(t, c.Features.IsEnabled("feature2"))
-	assert.False(t, c.Features.IsEnabled("feature3"))
-	assert.False(t, c.Features.IsEnabled(""))
+	assert.True(t, c.Etc().Enabled("feature1"))
+	assert.True(t, c.Etc().Enabled("feature2"))
+	assert.False(t, c.Etc().Enabled("feature3"))
+	assert.False(t, c.Etc().Enabled(""))
 }
 
-func TestFeatures_IsEnabled_Edge(t *testing.T) {
+func TestEtc_Settings_Good(t *testing.T) {
 	c, _ := New()
-	c.Features.Flags = []string{"  ", "foo"}
-	assert.True(t, c.Features.IsEnabled("  "))
-	assert.True(t, c.Features.IsEnabled("foo"))
-	assert.False(t, c.Features.IsEnabled("FOO")) // Case sensitive check
+	c.Etc().Set("api_url", "https://api.lthn.sh")
+	c.Etc().Set("max_agents", 5)
+
+	assert.Equal(t, "https://api.lthn.sh", c.Etc().GetString("api_url"))
+	assert.Equal(t, 5, c.Etc().GetInt("max_agents"))
+	assert.Equal(t, "", c.Etc().GetString("missing"))
+}
+
+func TestEtc_Features_Edge(t *testing.T) {
+	c, _ := New()
+	c.Etc().Enable("foo")
+	assert.True(t, c.Etc().Enabled("foo"))
+	assert.False(t, c.Etc().Enabled("FOO")) // Case sensitive
+
+	c.Etc().Disable("foo")
+	assert.False(t, c.Etc().Enabled("foo"))
 }
 
 func TestCore_ServiceLifecycle_Good(t *testing.T) {

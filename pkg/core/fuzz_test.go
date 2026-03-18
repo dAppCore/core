@@ -85,7 +85,6 @@ func FuzzMessageDispatch(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, payload string) {
 		c := &Core{
-			Features: &Features{},
 			svc:      newServiceManager(),
 		}
 		c.bus = newMessageBus(c)

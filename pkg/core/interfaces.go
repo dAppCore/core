@@ -4,7 +4,6 @@ import (
 	"context"
 	goio "io"
 	"io/fs"
-	"slices"
 	"sync"
 	"sync/atomic"
 )
@@ -20,18 +19,6 @@ type Contract struct {
 	DontPanic bool
 	// DisableLogging, if true, disables all logging from the Core and its services.
 	DisableLogging bool
-}
-
-// Features provides a way to check if a feature is enabled.
-// This is used for feature flagging and conditional logic.
-type Features struct {
-	// Flags is a list of enabled feature flags.
-	Flags []string
-}
-
-// IsEnabled returns true if the given feature is enabled.
-func (f *Features) IsEnabled(feature string) bool {
-	return slices.Contains(f.Flags, feature)
 }
 
 // Option is a function that configures the Core.
@@ -93,9 +80,9 @@ type LocaleProvider interface {
 
 // Core is the central application object that manages services, assets, and communication.
 type Core struct {
-	App      any       // GUI runtime (e.g., Wails App) - set by WithApp option
-	Features *Features // Feature flags
-	mnt      *Sub      // Mount point for embedded assets
+	App any   // GUI runtime (e.g., Wails App) - set by WithApp option
+	mnt *Sub  // Mount point for embedded assets
+	etc *Etc  // Configuration, settings, and feature flags
 	svc      *serviceManager
 	bus      *messageBus
 	locales  []fs.FS // collected from LocaleProvider services
@@ -109,6 +96,15 @@ type Core struct {
 // Use this to read embedded files and extract template directories.
 func (c *Core) Mnt() *Sub {
 	return c.mnt
+}
+
+// Etc returns the configuration and feature flags store.
+//
+//	c.Etc().Set("api_url", "https://api.lthn.sh")
+//	c.Etc().Enable("coderabbit")
+//	c.Etc().Enabled("coderabbit") // true
+func (c *Core) Etc() *Etc {
+	return c.etc
 }
 
 // Locales returns all locale filesystems collected from registered services.
