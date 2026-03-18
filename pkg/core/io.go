@@ -60,8 +60,8 @@ func (m *IO) path(p string) string {
 		return clean
 	}
 
-	// Join cleaned relative path with root
-	return filepath.Join(m.root, clean)
+	// Strip leading "/" so Join works correctly with root
+	return filepath.Join(m.root, clean[1:])
 }
 
 // validatePath ensures the path is within the sandbox, following symlinks if they exist.
