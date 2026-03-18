@@ -12,6 +12,7 @@ import (
 	"os/user"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -175,6 +176,9 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 
 	timestamp := styleTimestamp(time.Now().Format("15:04:05"))
 
+	// Copy keyvals to avoid mutating the caller's slice
+	keyvals = append([]any(nil), keyvals...)
+
 	// Automatically extract context from error if present in keyvals
 	origLen := len(keyvals)
 	for i := 0; i < origLen; i += 2 {
@@ -294,16 +298,23 @@ func Username() string {
 
 // --- Default logger ---
 
-var defaultLog = NewLog(LogOpts{Level: LevelInfo})
+var defaultLogPtr atomic.Pointer[Log]
+
+func init() {
+	l := NewLog(LogOpts{Level: LevelInfo})
+	defaultLogPtr.Store(l)
+}
+
+var defaultLog = defaultLogPtr.Load()
 
 // Default returns the default logger.
 func Default() *Log {
-	return defaultLog
+	return defaultLogPtr.Load()
 }
 
-// SetDefault sets the default logger.
+// SetDefault sets the default logger (thread-safe).
 func SetDefault(l *Log) {
-	defaultLog = l
+	defaultLogPtr.Store(l)
 }
 
 // SetLevel sets the default logger's level.

@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -390,14 +391,21 @@ func (h *ErrPan) Reports(n int) ([]CrashReport, error) {
 	return reports[len(reports)-n:], nil
 }
 
-func (h *ErrPan) appendReport(report CrashReport) {
-	var reports []CrashReport
+var crashMu sync.Mutex
 
+func (h *ErrPan) appendReport(report CrashReport) {
+	crashMu.Lock()
+	defer crashMu.Unlock()
+
+	var reports []CrashReport
 	if data, err := os.ReadFile(h.filePath); err == nil {
-		json.Unmarshal(data, &reports)
+		if err := json.Unmarshal(data, &reports); err != nil {
+			reports = nil
+		}
 	}
 
 	reports = append(reports, report)
-	data, _ := json.MarshalIndent(reports, "", "  ")
-	os.WriteFile(h.filePath, data, 0644)
+	if data, err := json.MarshalIndent(reports, "", "  "); err == nil {
+		_ = os.WriteFile(h.filePath, data, 0600)
+	}
 }
