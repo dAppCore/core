@@ -47,10 +47,6 @@ type I18n struct {
 	translator Translator // registered implementation (nil until set)
 }
 
-// NewCoreI18n creates a new i18n manager.
-func NewCoreI18n() *I18n {
-	return &I18n{}
-}
 
 // AddLocales adds locale mounts (called during service registration).
 func (i *I18n) AddLocales(mounts ...*Embed) {

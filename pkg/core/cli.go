@@ -13,9 +13,16 @@ import (
 // CliAction represents a function called when a command is invoked.
 type CliAction func() error
 
+// CliOpts configures a Cli.
+type CliOpts struct {
+	Version     string
+	Name        string
+	Description string
+}
+
 // Cli is the CLI command framework.
 type Cli struct {
-	app            *App
+	opts           *CliOpts
 	rootCommand    *Command
 	defaultCommand *Command
 	preRunCommand  func(*Cli) error
@@ -27,14 +34,14 @@ type Cli struct {
 // defaultBannerFunction prints a banner for the application.
 func defaultBannerFunction(c *Cli) string {
 	version := ""
-	if c.app != nil && c.app.Version != "" {
-		version = " " + c.app.Version
+	if c.opts != nil && c.opts.Version != "" {
+		version = " " + c.opts.Version
 	}
 	name := ""
 	description := ""
-	if c.app != nil {
-		name = c.app.Name
-		description = c.app.Description
+	if c.opts != nil {
+		name = c.opts.Name
+		description = c.opts.Description
 	}
 	if description != "" {
 		return fmt.Sprintf("%s%s - %s", name, version, description)
@@ -42,24 +49,6 @@ func defaultBannerFunction(c *Cli) string {
 	return fmt.Sprintf("%s%s", name, version)
 }
 
-// NewCoreCli creates a new CLI bound to the given App identity.
-func NewCoreCli(app *App) *Cli {
-	name := ""
-	description := ""
-	if app != nil {
-		name = app.Name
-		description = app.Description
-	}
-
-	result := &Cli{
-		app:            app,
-		bannerFunction: defaultBannerFunction,
-	}
-	result.rootCommand = NewCommand(name, description)
-	result.rootCommand.setApp(result)
-	result.rootCommand.setParentCommandPath("")
-	return result
-}
 
 // Command returns the root command.
 func (c *Cli) Command() *Command {
@@ -68,24 +57,24 @@ func (c *Cli) Command() *Command {
 
 // Version returns the application version string.
 func (c *Cli) Version() string {
-	if c.app != nil {
-		return c.app.Version
+	if c.opts != nil {
+		return c.opts.Version
 	}
 	return ""
 }
 
 // Name returns the application name.
 func (c *Cli) Name() string {
-	if c.app != nil {
-		return c.app.Name
+	if c.opts != nil {
+		return c.opts.Name
 	}
 	return c.rootCommand.name
 }
 
 // ShortDescription returns the application short description.
 func (c *Cli) ShortDescription() string {
-	if c.app != nil {
-		return c.app.Description
+	if c.opts != nil {
+		return c.opts.Description
 	}
 	return c.rootCommand.shortdescription
 }

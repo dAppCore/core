@@ -17,22 +17,6 @@ type Fs struct {
 	root string
 }
 
-// NewIO creates a Fs rooted at the given directory.
-// Pass "/" for full filesystem access, or a specific path to sandbox.
-func NewIO(root string) (*Fs, error) {
-	abs, err := filepath.Abs(root)
-	if err != nil {
-		return nil, err
-	}
-	// Resolve symlinks so sandbox checks compare like-for-like.
-	// On macOS, /var is a symlink to /private/var — without this,
-	// EvalSymlinks on child paths resolves to /private/var/... while
-	// root stays /var/..., causing false sandbox escape detections.
-	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
-		abs = resolved
-	}
-	return &Fs{root: abs}, nil
-}
 
 // path sanitises and returns the full path.
 // Absolute paths are sandboxed under root (unless root is "/").

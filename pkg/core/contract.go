@@ -9,6 +9,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"reflect"
 	"strings"
 )
@@ -88,20 +89,18 @@ type ActionTaskCompleted struct {
 
 // New creates a Core instance with the provided options.
 func New(opts ...Option) (*Core, error) {
-	defaultFS, _ := NewIO("/")
-	app := NewApp("", "", "")
 	c := &Core{
-		app:  app,
-		fs:   defaultFS,
-		cfg:  &Config{settings: make(map[string]any), features: make(map[string]bool)},
+		app:  &App{},
+		fs:   &Fs{root: "/"},
+		cfg:  &Config{ConfigOpts: &ConfigOpts{}},
 		err:  &ErrPan{},
 		log:  &ErrLog{&ErrOpts{Log: defaultLog}},
-		cli:  NewCoreCli(app),
-		srv:  &Service{Services: make(map[string]any)},
+		cli:  &Cli{opts: &CliOpts{}},
+		srv:  &Service{},
 		lock: &Lock{},
+		ipc:  &Ipc{},
 		i18n: &I18n{},
 	}
-	c.ipc = &Ipc{core: c}
 
 	for _, o := range opts {
 		if err := o(c); err != nil {
@@ -109,7 +108,6 @@ func New(opts ...Option) (*Core, error) {
 		}
 	}
 
-	c.LockApply()
 	return c, nil
 }
 
@@ -193,11 +191,14 @@ func WithAssets(efs embed.FS) Option {
 // WithIO sandboxes filesystem I/O to a root path.
 func WithIO(root string) Option {
 	return func(c *Core) error {
-		io, err := NewIO(root)
+		abs, err := filepath.Abs(root)
 		if err != nil {
 			return E("core.WithIO", "failed to create IO at "+root, err)
 		}
-		c.fs = io
+		if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+			abs = resolved
+		}
+		c.fs = &Fs{root: abs}
 		return nil
 	}
 }
@@ -218,6 +219,7 @@ func WithMount(fsys fs.FS, basedir string) Option {
 func WithServiceLock() Option {
 	return func(c *Core) error {
 		c.LockEnable()
+		c.LockApply()
 		return nil
 	}
 }

@@ -6,7 +6,6 @@
 package core
 
 import (
-	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -33,25 +32,6 @@ type App struct {
 	Runtime any
 }
 
-// NewApp creates a App with the given identity.
-// Filename and Path are auto-detected from the running binary.
-func NewApp(name, description, version string) *App {
-	app := &App{
-		Name:        name,
-		Version:     version,
-		Description: description,
-	}
-
-	// Auto-detect executable identity
-	if exe, err := os.Executable(); err == nil {
-		if abs, err := filepath.Abs(exe); err == nil {
-			app.Path = abs
-			app.Filename = filepath.Base(abs)
-		}
-	}
-
-	return app
-}
 
 // Find locates a program on PATH and returns a App for it.
 // Returns nil if not found.

@@ -17,12 +17,6 @@ type Service struct {
 	locked      bool
 }
 
-// NewService creates an empty service registry.
-func NewService() *Service {
-	return &Service{
-		Services: make(map[string]any),
-	}
-}
 
 // --- Core service methods ---
 
@@ -58,6 +52,9 @@ func (c *Core) Service(args ...any) any {
 			return E("core.Service", fmt.Sprintf("service %q already registered", name), nil)
 		}
 		svc := args[1]
+		if c.srv.Services == nil {
+			c.srv.Services = make(map[string]any)
+		}
 		c.srv.Services[name] = svc
 		if st, ok := svc.(Startable); ok {
 			c.srv.startables = append(c.srv.startables, st)
