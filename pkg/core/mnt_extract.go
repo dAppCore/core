@@ -135,11 +135,12 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 
 	// Copy standard files
 	for _, path := range standardFiles {
+		targetPath := path
 		name := filepath.Base(path)
 		if renamed := opt.RenameFiles[name]; renamed != "" {
-			path = filepath.Join(filepath.Dir(path), renamed)
+			targetPath = filepath.Join(filepath.Dir(path), renamed)
 		}
-		target := renderPath(filepath.Join(targetDir, path), data)
+		target := renderPath(filepath.Join(targetDir, targetPath), data)
 		if err := copyFile(fsys, path, target); err != nil {
 			return err
 		}

@@ -33,6 +33,7 @@ func New(opts ...Option) (*Core, error) {
 		io:    defaultIO,
 		etc:   NewEtc(),
 		crash: NewCrashHandler(),
+		cli:   NewCliApp("", "", ""),
 		svc:   newServiceManager(),
 	}
 	c.bus = newMessageBus(c)

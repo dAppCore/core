@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"flag"
+	"io"
 	"fmt"
 	"os"
 	"reflect"
@@ -75,11 +76,9 @@ func (c *Command) setApp(app *CliApp) {
 // parseFlags parses the given flags
 func (c *Command) parseFlags(args []string) error {
 	// Parse flags
-	tmp := os.Stderr
-	os.Stderr = nil
-	defer func() {
-		os.Stderr = tmp
-	}()
+	// Suppress flag parse errors to stderr
+	
+	c.flags.SetOutput(io.Discard)
 
 	// Credit: https://stackoverflow.com/a/74146375
 	var positionalArgs []string
