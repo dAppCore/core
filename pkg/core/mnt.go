@@ -1,21 +1,17 @@
 // SPDX-License-Identifier: EUPL-1.2
 
-// Mount operations for the Core framework. mount operations for the Core framework.
+// Mount operations for the Core framework.
 //
-// Mount operations attach data to/from binaries and watch live filesystems:
-//
-//   - FS: mount an embed.FS subdirectory for scoped access
-//   - Extract: extract a template directory with variable substitution
-//   - Watch: observe filesystem changes (file watcher)
-//
-// Zero external dependencies. All operations use stdlib only.
+// Sub provides scoped filesystem access that works with:
+//   - go:embed (embed.FS)
+//   - any fs.FS implementation
+//   - the Core asset registry (AddAsset/GetAsset from embed.go)
 //
 // Usage:
 //
-//	sub, _ := mnt.FS(myEmbed, "lib/persona")
-//	content, _ := sub.ReadFile("secops/developer.md")
-//
-//	mnt.Extract(sub, "/tmp/workspace", map[string]string{"Name": "myproject"})
+//	sub, _ := core.Mount(myFS, "lib/persona")
+//	content, _ := sub.ReadString("secops/developer.md")
+//	sub.Extract("/tmp/workspace", data)
 package core
 
 import (
@@ -24,22 +20,35 @@ import (
 	"path/filepath"
 )
 
-// Sub wraps an embed.FS with a basedir for scoped access.
+// Sub wraps an fs.FS with a basedir for scoped access.
 // All paths are relative to basedir.
 type Sub struct {
 	basedir string
-	fs      embed.FS
+	fsys    fs.FS
+	embedFS *embed.FS // kept for Embed() backwards compat
 }
 
-// FS creates a scoped view of an embed.FS anchored at basedir.
-// Returns error if basedir doesn't exist in the embedded filesystem.
-func Mount(efs embed.FS, basedir string) (*Sub, error) {
-	s := &Sub{fs: efs, basedir: basedir}
+// Mount creates a scoped view of an fs.FS anchored at basedir.
+// Works with embed.FS, os.DirFS, or any fs.FS implementation.
+func Mount(fsys fs.FS, basedir string) (*Sub, error) {
+	s := &Sub{fsys: fsys, basedir: basedir}
+
+	// If it's an embed.FS, keep a reference for Embed()
+	if efs, ok := fsys.(embed.FS); ok {
+		s.embedFS = &efs
+	}
+
 	// Verify the basedir exists
 	if _, err := s.ReadDir("."); err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// MountEmbed creates a scoped view of an embed.FS.
+// Convenience wrapper that preserves the embed.FS type for Embed().
+func MountEmbed(efs embed.FS, basedir string) (*Sub, error) {
+	return Mount(efs, basedir)
 }
 
 func (s *Sub) path(name string) string {
@@ -48,17 +57,17 @@ func (s *Sub) path(name string) string {
 
 // Open opens the named file for reading.
 func (s *Sub) Open(name string) (fs.File, error) {
-	return s.fs.Open(s.path(name))
+	return s.fsys.Open(s.path(name))
 }
 
 // ReadDir reads the named directory.
 func (s *Sub) ReadDir(name string) ([]fs.DirEntry, error) {
-	return s.fs.ReadDir(s.path(name))
+	return fs.ReadDir(s.fsys, s.path(name))
 }
 
 // ReadFile reads the named file.
 func (s *Sub) ReadFile(name string) ([]byte, error) {
-	return s.fs.ReadFile(s.path(name))
+	return fs.ReadFile(s.fsys, s.path(name))
 }
 
 // ReadString reads the named file as a string.
@@ -72,12 +81,25 @@ func (s *Sub) ReadString(name string) (string, error) {
 
 // Sub returns a new Sub anchored at a subdirectory within this Sub.
 func (s *Sub) Sub(subDir string) (*Sub, error) {
-	return Mount(s.fs, s.path(subDir))
+	sub, err := fs.Sub(s.fsys, s.path(subDir))
+	if err != nil {
+		return nil, err
+	}
+	return &Sub{fsys: sub, basedir: "."}, nil
 }
 
-// Embed returns the underlying embed.FS.
+// FS returns the underlying fs.FS.
+func (s *Sub) FS() fs.FS {
+	return s.fsys
+}
+
+// Embed returns the underlying embed.FS if mounted from one.
+// Returns zero embed.FS if mounted from a non-embed source.
 func (s *Sub) Embed() embed.FS {
-	return s.fs
+	if s.embedFS != nil {
+		return *s.embedFS
+	}
+	return embed.FS{}
 }
 
 // BaseDir returns the basedir this Sub is anchored at.

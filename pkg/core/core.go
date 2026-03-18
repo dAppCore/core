@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"io/fs"
 	"fmt"
 	"reflect"
 	"slices"
@@ -26,7 +27,10 @@ var (
 //		core.WithAssets(assets),
 //	)
 func New(opts ...Option) (*Core, error) {
+	// Default IO rooted at "/" (full access, like os package)
+	defaultIO, _ := NewIO("/")
 	c := &Core{
+		io:    defaultIO,
 		etc:   NewEtc(),
 		crash: NewCrashHandler(),
 		svc:   newServiceManager(),
@@ -123,7 +127,7 @@ func WithApp(app any) Option {
 	}
 }
 
-// WithAssets creates an Option that mounts the application's embedded assets.
+// WithAssets creates an Option that mounts embedded assets.
 // The assets are accessible via c.Mnt().
 func WithAssets(efs embed.FS) Option {
 	return func(c *Core) error {
@@ -136,10 +140,24 @@ func WithAssets(efs embed.FS) Option {
 	}
 }
 
-// WithMount creates an Option that mounts an embedded FS at a specific subdirectory.
-func WithMount(efs embed.FS, basedir string) Option {
+// WithIO creates an Option that sandboxes filesystem I/O to a root path.
+// Default is "/" (full access). Use this to restrict c.Io() operations.
+func WithIO(root string) Option {
 	return func(c *Core) error {
-		sub, err := Mount(efs, basedir)
+		io, err := NewIO(root)
+		if err != nil {
+			return E("core.WithIO", "failed to create IO at "+root, err)
+		}
+		c.io = io
+		return nil
+	}
+}
+
+// WithMount creates an Option that mounts an fs.FS at a specific subdirectory.
+// The mounted assets are accessible via c.Mnt().
+func WithMount(fsys fs.FS, basedir string) Option {
+	return func(c *Core) error {
+		sub, err := Mount(fsys, basedir)
 		if err != nil {
 			return E("core.WithMount", "failed to mount "+basedir, err)
 		}
@@ -413,11 +431,3 @@ func (c *Core) Crypt() Crypt {
 // Core returns self, implementing the CoreProvider interface.
 func (c *Core) Core() *Core { return c }
 
-// Assets returns the embedded filesystem containing the application's assets.
-// Deprecated: use c.Mnt().Embed() instead.
-func (c *Core) Assets() embed.FS {
-	if c.mnt != nil {
-		return c.mnt.Embed()
-	}
-	return embed.FS{}
-}

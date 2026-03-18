@@ -187,8 +187,7 @@ var testFS embed.FS
 func TestCore_WithAssets_Good(t *testing.T) {
 	c, err := New(WithAssets(testFS))
 	assert.NoError(t, err)
-	assets := c.Assets()
-	file, err := assets.Open("testdata/test.txt")
+	file, err := c.Mnt().Open("testdata/test.txt")
 	assert.NoError(t, err)
 	defer func() { _ = file.Close() }()
 	content, err := io.ReadAll(file)

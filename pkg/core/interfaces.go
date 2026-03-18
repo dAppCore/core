@@ -81,7 +81,8 @@ type LocaleProvider interface {
 // Core is the central application object that manages services, assets, and communication.
 type Core struct {
 	App   any           // GUI runtime (e.g., Wails App) - set by WithApp option
-	mnt   *Sub          // Mount point for embedded assets
+	mnt   *Sub          // Mounted embedded assets (read-only)
+	io    *IO           // Local filesystem I/O (read/write, sandboxable)
 	etc   *Etc          // Configuration, settings, and feature flags
 	crash *CrashHandler // Panic recovery and crash reporting
 	svc      *serviceManager
@@ -93,10 +94,20 @@ type Core struct {
 	shutdown      atomic.Bool
 }
 
-// Mnt returns the mount point for embedded assets.
-// Use this to read embedded files and extract template directories.
+// Mnt returns the mounted embedded assets (read-only).
+//
+//	c.Mnt().ReadString("persona/secops/developer.md")
 func (c *Core) Mnt() *Sub {
 	return c.mnt
+}
+
+// Io returns the local filesystem I/O layer.
+// Default: rooted at "/". Sandboxable via WithIO("./data").
+//
+//	c.Io().Read("config.yaml")
+//	c.Io().Write("output.txt", content)
+func (c *Core) Io() *IO {
+	return c.io
 }
 
 // Etc returns the configuration and feature flags store.
