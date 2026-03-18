@@ -13,6 +13,7 @@ import (
 	"iter"
 	"maps"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -385,7 +386,7 @@ func (h *ErrPan) Reports(n int) ([]CrashReport, error) {
 	if err := json.Unmarshal(data, &reports); err != nil {
 		return nil, err
 	}
-	if len(reports) <= n {
+	if n <= 0 || len(reports) <= n {
 		return reports, nil
 	}
 	return reports[len(reports)-n:], nil
@@ -406,6 +407,7 @@ func (h *ErrPan) appendReport(report CrashReport) {
 
 	reports = append(reports, report)
 	if data, err := json.MarshalIndent(reports, "", "  "); err == nil {
+		_ = os.MkdirAll(filepath.Dir(h.filePath), 0755)
 		_ = os.WriteFile(h.filePath, data, 0600)
 	}
 }

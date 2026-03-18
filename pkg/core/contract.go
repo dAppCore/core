@@ -106,6 +106,7 @@ func New(opts ...Option) (*Core, error) {
 		}
 	}
 
+	c.LockApply()
 	return c, nil
 }
 
@@ -188,10 +189,10 @@ func WithAssets(efs embed.FS) Option {
 
 
 // WithServiceLock prevents service registration after initialisation.
+// Order-independent — lock is applied after all options are processed.
 func WithServiceLock() Option {
 	return func(c *Core) error {
 		c.LockEnable()
-		c.LockApply()
 		return nil
 	}
 }

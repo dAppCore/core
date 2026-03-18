@@ -12,7 +12,6 @@ import (
 	"os/user"
 	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -298,23 +297,16 @@ func Username() string {
 
 // --- Default logger ---
 
-var defaultLogPtr atomic.Pointer[Log]
-
-func init() {
-	l := NewLog(LogOpts{Level: LevelInfo})
-	defaultLogPtr.Store(l)
-}
-
-var defaultLog = defaultLogPtr.Load()
+var defaultLog = NewLog(LogOpts{Level: LevelInfo})
 
 // Default returns the default logger.
 func Default() *Log {
-	return defaultLogPtr.Load()
+	return defaultLog
 }
 
-// SetDefault sets the default logger (thread-safe).
+// SetDefault sets the default logger.
 func SetDefault(l *Log) {
-	defaultLogPtr.Store(l)
+	defaultLog = l
 }
 
 // SetLevel sets the default logger's level.
