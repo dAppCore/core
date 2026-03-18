@@ -80,9 +80,10 @@ type LocaleProvider interface {
 
 // Core is the central application object that manages services, assets, and communication.
 type Core struct {
-	App any   // GUI runtime (e.g., Wails App) - set by WithApp option
-	mnt *Sub  // Mount point for embedded assets
-	etc *Etc  // Configuration, settings, and feature flags
+	App   any           // GUI runtime (e.g., Wails App) - set by WithApp option
+	mnt   *Sub          // Mount point for embedded assets
+	etc   *Etc          // Configuration, settings, and feature flags
+	crash *CrashHandler // Panic recovery and crash reporting
 	svc      *serviceManager
 	bus      *messageBus
 	locales  []fs.FS // collected from LocaleProvider services
@@ -105,6 +106,14 @@ func (c *Core) Mnt() *Sub {
 //	c.Etc().Enabled("coderabbit") // true
 func (c *Core) Etc() *Etc {
 	return c.etc
+}
+
+// Crash returns the crash handler for panic recovery.
+//
+//	defer c.Crash().Recover()
+//	c.Crash().SafeGo(func() { ... })
+func (c *Core) Crash() *CrashHandler {
+	return c.crash
 }
 
 // Locales returns all locale filesystems collected from registered services.
