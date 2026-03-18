@@ -69,33 +69,24 @@ func (e *Etc) Get(key string) (any, bool) {
 }
 
 // GetString retrieves a string configuration value.
-func (e *Etc) GetString(key string) string {
-	val, ok := e.Get(key)
-	if !ok {
-		return ""
-	}
-	s, _ := val.(string)
-	return s
-}
+func (e *Etc) GetString(key string) string { return EtcGet[string](e, key) }
 
 // GetInt retrieves an int configuration value.
-func (e *Etc) GetInt(key string) int {
-	val, ok := e.Get(key)
-	if !ok {
-		return 0
-	}
-	i, _ := val.(int)
-	return i
-}
+func (e *Etc) GetInt(key string) int { return EtcGet[int](e, key) }
 
 // GetBool retrieves a bool configuration value.
-func (e *Etc) GetBool(key string) bool {
+func (e *Etc) GetBool(key string) bool { return EtcGet[bool](e, key) }
+
+// EtcGet retrieves a typed configuration value.
+// Returns zero value if key is missing or type doesn't match.
+func EtcGet[T any](e *Etc, key string) T {
 	val, ok := e.Get(key)
 	if !ok {
-		return false
+		var zero T
+		return zero
 	}
-	b, _ := val.(bool)
-	return b
+	typed, _ := val.(T)
+	return typed
 }
 
 // --- Feature Flags ---
