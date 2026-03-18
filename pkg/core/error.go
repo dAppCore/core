@@ -251,13 +251,20 @@ func NewErrLog(opts *ErrOpts) *ErrLog {
 	return &ErrLog{opts}
 }
 
+func (el *ErrLog) log() *Log {
+	if el.ErrOpts != nil && el.Log != nil {
+		return el.Log
+	}
+	return defaultLog
+}
+
 // Error logs at Error level and returns a wrapped error.
 func (el *ErrLog) Error(err error, op, msg string) error {
 	if err == nil {
 		return nil
 	}
 	wrapped := Wrap(err, op, msg)
-	el.Log.Error(msg, "op", op, "err", err)
+	el.log().Error(msg, "op", op, "err", err)
 	return wrapped
 }
 
@@ -267,14 +274,14 @@ func (el *ErrLog) Warn(err error, op, msg string) error {
 		return nil
 	}
 	wrapped := Wrap(err, op, msg)
-	el.Log.Warn(msg, "op", op, "err", err)
+	el.log().Warn(msg, "op", op, "err", err)
 	return wrapped
 }
 
 // Must logs and panics if err is not nil.
 func (el *ErrLog) Must(err error, op, msg string) {
 	if err != nil {
-		el.Log.Error(msg, "op", op, "err", err)
+		el.log().Error(msg, "op", op, "err", err)
 		panic(Wrap(err, op, msg))
 	}
 }
