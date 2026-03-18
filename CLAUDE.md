@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Session Context
+
+Running on **Claude Max20 plan** with **1M context window** (Opus 4.6). This enables marathon sessions — use the full context for complex multi-repo work, dispatch coordination, and ecosystem-wide operations. Compact when needed, but don't be afraid of long sessions.
+
 ## Project Overview
 
 Core (`forge.lthn.ai/core/go`) is a **dependency injection and service lifecycle framework** for Go. It provides a typed service registry, lifecycle hooks, and a message-passing bus for decoupled communication between services.

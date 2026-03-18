@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"embed"
 	goio "io"
 	"io/fs"
 	"slices"
@@ -94,9 +93,9 @@ type LocaleProvider interface {
 
 // Core is the central application object that manages services, assets, and communication.
 type Core struct {
-	App      any // GUI runtime (e.g., Wails App) - set by WithApp option
-	assets   embed.FS
-	Features *Features
+	App      any       // GUI runtime (e.g., Wails App) - set by WithApp option
+	Features *Features // Feature flags
+	mnt      *Sub      // Mount point for embedded assets
 	svc      *serviceManager
 	bus      *messageBus
 	locales  []fs.FS // collected from LocaleProvider services
@@ -104,6 +103,12 @@ type Core struct {
 	taskIDCounter atomic.Uint64
 	wg            sync.WaitGroup
 	shutdown      atomic.Bool
+}
+
+// Mnt returns the mount point for embedded assets.
+// Use this to read embedded files and extract template directories.
+func (c *Core) Mnt() *Sub {
+	return c.mnt
 }
 
 // Locales returns all locale filesystems collected from registered services.

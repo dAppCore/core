@@ -122,11 +122,27 @@ func WithApp(app any) Option {
 	}
 }
 
-// WithAssets creates an Option that registers the application's embedded assets.
-// This is necessary for the application to be able to serve its frontend.
-func WithAssets(fs embed.FS) Option {
+// WithAssets creates an Option that mounts the application's embedded assets.
+// The assets are accessible via c.Mnt().
+func WithAssets(efs embed.FS) Option {
 	return func(c *Core) error {
-		c.assets = fs
+		sub, err := Mount(efs, ".")
+		if err != nil {
+			return E("core.WithAssets", "failed to mount assets", err)
+		}
+		c.mnt = sub
+		return nil
+	}
+}
+
+// WithMount creates an Option that mounts an embedded FS at a specific subdirectory.
+func WithMount(efs embed.FS, basedir string) Option {
+	return func(c *Core) error {
+		sub, err := Mount(efs, basedir)
+		if err != nil {
+			return E("core.WithMount", "failed to mount "+basedir, err)
+		}
+		c.mnt = sub
 		return nil
 	}
 }
@@ -397,6 +413,10 @@ func (c *Core) Crypt() Crypt {
 func (c *Core) Core() *Core { return c }
 
 // Assets returns the embedded filesystem containing the application's assets.
+// Deprecated: use c.Mnt().Embed() instead.
 func (c *Core) Assets() embed.FS {
-	return c.assets
+	if c.mnt != nil {
+		return c.mnt.Embed()
+	}
+	return embed.FS{}
 }

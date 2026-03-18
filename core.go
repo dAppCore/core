@@ -2,70 +2,91 @@
 
 // Package core is the Core framework for Go.
 //
-// Import this package to access the full framework surface:
+// Single import, single struct, everything accessible:
 //
 //	import core "forge.lthn.ai/core/go"
 //
-//	c, _ := core.New(core.WithService(myFactory))
+//	c, _ := core.New(
+//	    core.WithAssets(myEmbed),
+//	    core.WithService(myFactory),
+//	)
+//
+//	// DI
 //	svc, _ := core.ServiceFor[*MyService](c, "name")
 //
-// Sub-packages provide domain-specific capabilities:
+//	// Mount
+//	content, _ := c.Mnt().ReadString("persona/secops/developer.md")
+//	c.Mnt().Extract(targetDir, data)
 //
-//	core/pkg/core  — DI container, ServiceRuntime, lifecycle
-//	core/pkg/mnt   — mount operations (embed FS, template extraction)
-//	core/pkg/log   — structured logging (re-exported from go-log)
-//
-// The framework object is designed for zero transitive dependencies.
-// Each pkg/ uses stdlib only.
+//	// IPC
+//	c.ACTION(msg)
 package core
 
 import (
-	"forge.lthn.ai/core/go/pkg/core"
+	di "forge.lthn.ai/core/go/pkg/core"
 )
 
-// Re-export the DI container API at the top level.
-// This lets users write core.New() instead of core.Core.New().
+// --- Types ---
 
 // Core is the central application container.
-type Core = core.Core
-
-// New creates a new Core instance with the given options.
-var New = core.New
+type Core = di.Core
 
 // Option configures a Core instance.
-type Option = core.Option
+type Option = di.Option
+
+// Message is the IPC message type.
+type Message = di.Message
+
+// Sub is a scoped view of an embedded filesystem.
+type Sub = di.Sub
+
+// ExtractOptions configures template extraction.
+type ExtractOptions = di.ExtractOptions
+
+// Startable is implemented by services with startup logic.
+type Startable = di.Startable
+
+// Stoppable is implemented by services with shutdown logic.
+type Stoppable = di.Stoppable
+
+// LocaleProvider provides locale filesystems for i18n.
+type LocaleProvider = di.LocaleProvider
+
+// ServiceRuntime is the base for services with typed options.
+type ServiceRuntime[T any] = di.ServiceRuntime[T]
+
+// --- Constructor + Options ---
+
+// New creates a new Core instance.
+var New = di.New
 
 // WithService registers a service factory.
-var WithService = core.WithService
+var WithService = di.WithService
 
 // WithName registers a named service factory.
-var WithName = core.WithName
+var WithName = di.WithName
+
+// WithAssets mounts an embedded filesystem.
+var WithAssets = di.WithAssets
+
+// WithMount mounts an embedded filesystem at a subdirectory.
+var WithMount = di.WithMount
 
 // WithServiceLock prevents late service registration.
-var WithServiceLock = core.WithServiceLock
+var WithServiceLock = di.WithServiceLock
 
-// WithAssets registers an embedded filesystem.
-var WithAssets = core.WithAssets
+// WithApp sets the GUI runtime.
+var WithApp = di.WithApp
+
+// Mount creates a scoped view of an embed.FS at basedir.
+var Mount = di.Mount
+
+// --- Generic Functions ---
 
 // ServiceFor retrieves a typed service by name.
 func ServiceFor[T any](c *Core, name string) (T, error) {
-	return core.ServiceFor[T](c, name)
+	return di.ServiceFor[T](c, name)
 }
 
-// ServiceRuntime is the base for services with typed options.
-type ServiceRuntime[T any] = core.ServiceRuntime[T]
-
-// NewServiceRuntime creates a ServiceRuntime — use pkg/core.NewServiceRuntime[T] directly.
-// Cannot re-export generic functions at the package level.
-
-// Message is the IPC message type.
-type Message = core.Message
-
-// Startable is implemented by services with startup logic.
-type Startable = core.Startable
-
-// Stoppable is implemented by services with shutdown logic.
-type Stoppable = core.Stoppable
-
-// LocaleProvider is implemented by services that provide locale filesystems.
-type LocaleProvider = core.LocaleProvider
+// E creates a structured error.
+var E = di.E
