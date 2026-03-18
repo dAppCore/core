@@ -85,6 +85,7 @@ type Core struct {
 	io    *IO           // Local filesystem I/O (read/write, sandboxable)
 	etc   *Etc          // Configuration, settings, and feature flags
 	crash *CrashHandler // Panic recovery and crash reporting
+	cli   *CliApp       // CLI command registration and execution
 	svc      *serviceManager
 	bus      *messageBus
 	locales  []fs.FS // collected from LocaleProvider services
@@ -125,6 +126,14 @@ func (c *Core) Etc() *Etc {
 //	c.Crash().SafeGo(func() { ... })
 func (c *Core) Crash() *CrashHandler {
 	return c.crash
+}
+
+// Cli returns the CLI command framework.
+// Register commands without importing any CLI package.
+//
+//	c.Cli().NewSubCommand("health", "Check service health").Action(func() error { ... })
+func (c *Core) Cli() *CliApp {
+	return c.cli
 }
 
 // Locales returns all locale filesystems collected from registered services.
