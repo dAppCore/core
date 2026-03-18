@@ -9,6 +9,7 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -48,7 +49,8 @@ func WithCrashFile(path string) CrashOption {
 
 // WithCrashMeta adds metadata included in every crash report.
 func WithCrashMeta(meta map[string]string) CrashOption {
-	return func(h *CrashHandler) { h.meta = meta }
+	cloned := maps.Clone(meta)
+	return func(h *CrashHandler) { h.meta = cloned }
 }
 
 // WithCrashHandler sets a callback invoked on every crash.
