@@ -28,9 +28,9 @@ func FuzzE(f *testing.F) {
 		}
 
 		// Round-trip: Unwrap should return the underlying error
-		var coreErr *Error
+		var coreErr *Err
 		if !errors.As(e, &coreErr) {
-			t.Fatal("errors.As failed for *Error")
+			t.Fatal("errors.As failed for *Err")
 		}
 		if withErr && coreErr.Unwrap() == nil {
 			t.Fatal("Unwrap() returned nil with underlying error")
