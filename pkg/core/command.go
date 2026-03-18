@@ -1,10 +1,9 @@
 package core
 
 import (
-	"errors"
 	"flag"
-	"io"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strconv"
@@ -21,7 +20,7 @@ type Command struct {
 	subCommandsMap    map[string]*Command
 	longestSubcommand int
 	actionCallback    CliAction
-	app               *CliApp
+	app               *Cli
 	flags             *flag.FlagSet
 	flagCount         int
 	helpFlag          bool
@@ -30,12 +29,16 @@ type Command struct {
 	sliceSeparator    map[string]string
 }
 
-// NewCommand creates a new Command
-// func NewCommand(name string, description string, app *Cli, parentCommandPath string) *Command {
-func NewCommand(name string, description string) *Command {
+// NewCommand creates a new Command.
+// Description is optional — if omitted, i18n resolves it from the command path.
+func NewCommand(name string, description ...string) *Command {
+	desc := ""
+	if len(description) > 0 {
+		desc = description[0]
+	}
 	result := &Command{
 		name:              name,
-		shortdescription:  description,
+		shortdescription:  desc,
 		subCommandsMap:    make(map[string]*Command),
 		hidden:            false,
 		positionalArgsMap: make(map[string]reflect.Value),
@@ -69,7 +72,7 @@ func (c *Command) inheritFlags(inheritFlags *flag.FlagSet) {
 	})
 }
 
-func (c *Command) setApp(app *CliApp) {
+func (c *Command) setApp(app *Cli) {
 	c.app = app
 }
 
@@ -77,7 +80,7 @@ func (c *Command) setApp(app *CliApp) {
 func (c *Command) parseFlags(args []string) error {
 	// Parse flags
 	// Suppress flag parse errors to stderr
-	
+
 	c.flags.SetOutput(io.Discard)
 
 	// Credit: https://stackoverflow.com/a/74146375
@@ -129,7 +132,7 @@ func (c *Command) run(args []string) error {
 			if c.app.errorHandler != nil {
 				return c.app.errorHandler(c.commandPath, err)
 			}
-			return fmt.Errorf("Error: %s\nSee '%s --help' for usage", err, c.commandPath)
+			return E("cli.Run", fmt.Sprintf("see '%s --help' for usage", c.commandPath), err)
 		}
 
 		// Help takes precedence
@@ -225,9 +228,9 @@ func (c *Command) Hidden() {
 	c.hidden = true
 }
 
-// NewSubCommand - Creates a new subcommand
-func (c *Command) NewSubCommand(name, description string) *Command {
-	result := NewCommand(name, description)
+// NewChildCommand - Creates a new subcommand
+func (c *Command) NewChildCommand(name string, description ...string) *Command {
+	result := NewCommand(name, description...)
 	c.AddCommand(result)
 	return result
 }
@@ -244,14 +247,14 @@ func (c *Command) AddCommand(command *Command) {
 	}
 }
 
-// NewSubCommandInheritFlags - Creates a new subcommand, inherits flags from command
-func (c *Command) NewSubCommandInheritFlags(name, description string) *Command {
-	result := c.NewSubCommand(name, description)
+// NewChildCommandInheritFlags - Creates a new subcommand, inherits flags from command
+func (c *Command) NewChildCommandInheritFlags(name string, description ...string) *Command {
+	result := c.NewChildCommand(name, description...)
 	result.inheritFlags(c.flags)
 	return result
 }
 
-func (c *Command) AddFlags(optionStruct interface{}) *Command {
+func (c *Command) AddFlags(optionStruct any) *Command {
 	// use reflection to determine if this is a pointer to a struct
 	// if not, panic
 
@@ -436,7 +439,7 @@ func (c *Command) AddFlags(optionStruct interface{}) *Command {
 			c.addSliceFlags(name, description, field)
 		default:
 			if pos != "" {
-				println("WARNING: Unsupported type for flag: ", fieldType.Type.Kind(), name)
+				fmt.Fprintf(os.Stderr, "WARNING: unsupported type for flag: %s %s\n", fieldType.Type.Kind(), name)
 			}
 		}
 	}
@@ -624,7 +627,7 @@ func (c *Command) addSliceField(field reflect.Value, defaultValue, separator str
 	case reflect.Float32:
 		defaultValues := make([]float32, 0, len(defaultSlice))
 		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
+			val, err := strconv.ParseFloat(value, 32)
 			if err != nil {
 				panic("Invalid default value for float32 flag")
 			}
@@ -634,7 +637,7 @@ func (c *Command) addSliceField(field reflect.Value, defaultValue, separator str
 	case reflect.Float64:
 		defaultValues := make([]float64, 0, len(defaultSlice))
 		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
+			val, err := strconv.ParseFloat(value, 64)
 			if err != nil {
 				panic("Invalid default value for float64 flag")
 			}
@@ -1250,8 +1253,8 @@ func (c *Command) OtherArgs() []string {
 	return c.flags.Args()
 }
 
-func (c *Command) NewSubCommandFunction(name string, description string, fn interface{}) *Command {
-	result := c.NewSubCommand(name, description)
+func (c *Command) NewChildCommandFunction(name string, description string, fn any) *Command {
+	result := c.NewChildCommand(name, description)
 	// use reflection to determine if this is a function
 	// if not, panic
 	t := reflect.TypeOf(fn)
@@ -1326,7 +1329,7 @@ func (c *Command) parsePositionalArgs(args []string) error {
 		case reflect.Slice:
 			c.addSliceField(field, posArg, c.sliceSeparator[key])
 		default:
-			return errors.New("Unsupported type for positional argument: " + fieldType.Name())
+			return E("cli.parsePositionalArgs", "unsupported type for positional argument: "+fieldType.Name(), nil)
 		}
 	}
 	return nil

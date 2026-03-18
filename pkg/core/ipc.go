@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: EUPL-1.2
+
+// Message bus for the Core framework.
+// Dispatches actions (fire-and-forget), queries (first responder),
+// and tasks (first executor) between registered handlers.
+
 package core
 
 import (
@@ -6,9 +12,8 @@ import (
 	"sync"
 )
 
-// messageBus owns the IPC action, query, and task dispatch.
-// It is an unexported component used internally by Core.
-type messageBus struct {
+// Ipc owns action, query, and task dispatch between services.
+type Ipc struct {
 	core *Core
 
 	ipcMu       sync.RWMutex
@@ -21,13 +26,13 @@ type messageBus struct {
 	taskHandlers []TaskHandler
 }
 
-// newMessageBus creates an empty message bus bound to the given Core.
-func newMessageBus(c *Core) *messageBus {
-	return &messageBus{core: c}
+// NewBus creates an empty message bus bound to the given Core.
+func NewBus(c *Core) *Ipc {
+	return &Ipc{core: c}
 }
 
-// action dispatches a message to all registered IPC handlers.
-func (b *messageBus) action(msg Message) error {
+// Action dispatches a message to all registered IPC handlers.
+func (b *Ipc) Action(msg Message) error {
 	b.ipcMu.RLock()
 	handlers := slices.Clone(b.ipcHandlers)
 	b.ipcMu.RUnlock()
@@ -41,22 +46,22 @@ func (b *messageBus) action(msg Message) error {
 	return agg
 }
 
-// registerAction adds a single IPC handler.
-func (b *messageBus) registerAction(handler func(*Core, Message) error) {
+// RegisterAction adds a single IPC handler.
+func (b *Ipc) RegisterAction(handler func(*Core, Message) error) {
 	b.ipcMu.Lock()
 	b.ipcHandlers = append(b.ipcHandlers, handler)
 	b.ipcMu.Unlock()
 }
 
-// registerActions adds multiple IPC handlers.
-func (b *messageBus) registerActions(handlers ...func(*Core, Message) error) {
+// RegisterActions adds multiple IPC handlers.
+func (b *Ipc) RegisterActions(handlers ...func(*Core, Message) error) {
 	b.ipcMu.Lock()
 	b.ipcHandlers = append(b.ipcHandlers, handlers...)
 	b.ipcMu.Unlock()
 }
 
-// query dispatches a query to handlers until one responds.
-func (b *messageBus) query(q Query) (any, bool, error) {
+// Query dispatches a query to handlers until one responds.
+func (b *Ipc) Query(q Query) (any, bool, error) {
 	b.queryMu.RLock()
 	handlers := slices.Clone(b.queryHandlers)
 	b.queryMu.RUnlock()
@@ -70,8 +75,8 @@ func (b *messageBus) query(q Query) (any, bool, error) {
 	return nil, false, nil
 }
 
-// queryAll dispatches a query to all handlers and collects all responses.
-func (b *messageBus) queryAll(q Query) ([]any, error) {
+// QueryAll dispatches a query to all handlers and collects all responses.
+func (b *Ipc) QueryAll(q Query) ([]any, error) {
 	b.queryMu.RLock()
 	handlers := slices.Clone(b.queryHandlers)
 	b.queryMu.RUnlock()
@@ -90,15 +95,15 @@ func (b *messageBus) queryAll(q Query) ([]any, error) {
 	return results, agg
 }
 
-// registerQuery adds a query handler.
-func (b *messageBus) registerQuery(handler QueryHandler) {
+// RegisterQuery adds a query handler.
+func (b *Ipc) RegisterQuery(handler QueryHandler) {
 	b.queryMu.Lock()
 	b.queryHandlers = append(b.queryHandlers, handler)
 	b.queryMu.Unlock()
 }
 
-// perform dispatches a task to handlers until one executes it.
-func (b *messageBus) perform(t Task) (any, bool, error) {
+// Perform dispatches a task to handlers until one executes it.
+func (b *Ipc) Perform(t Task) (any, bool, error) {
 	b.taskMu.RLock()
 	handlers := slices.Clone(b.taskHandlers)
 	b.taskMu.RUnlock()
@@ -112,8 +117,8 @@ func (b *messageBus) perform(t Task) (any, bool, error) {
 	return nil, false, nil
 }
 
-// registerTask adds a task handler.
-func (b *messageBus) registerTask(handler TaskHandler) {
+// RegisterTask adds a task handler.
+func (b *Ipc) RegisterTask(handler TaskHandler) {
 	b.taskMu.Lock()
 	b.taskHandlers = append(b.taskHandlers, handler)
 	b.taskMu.Unlock()

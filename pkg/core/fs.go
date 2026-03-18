@@ -1,4 +1,4 @@
-// Package local provides a local filesystem implementation of the io.Medium interface.
+// Sandboxed local filesystem I/O for the Core framework.
 package core
 
 import (
@@ -10,18 +10,16 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	
 )
 
-// Medium is a local filesystem storage backend.
-type IO struct {
+// Fs is a sandboxed local filesystem backend.
+type Fs struct {
 	root string
 }
 
-// New creates a new local Medium rooted at the given directory.
+// NewIO creates a Fs rooted at the given directory.
 // Pass "/" for full filesystem access, or a specific path to sandbox.
-func NewIO(root string) (*IO, error) {
+func NewIO(root string) (*Fs, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -33,12 +31,12 @@ func NewIO(root string) (*IO, error) {
 	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 		abs = resolved
 	}
-	return &IO{root: abs}, nil
+	return &Fs{root: abs}, nil
 }
 
 // path sanitises and returns the full path.
 // Absolute paths are sandboxed under root (unless root is "/").
-func (m *IO) path(p string) string {
+func (m *Fs) path(p string) string {
 	if p == "" {
 		return m.root
 	}
@@ -65,7 +63,7 @@ func (m *IO) path(p string) string {
 }
 
 // validatePath ensures the path is within the sandbox, following symlinks if they exist.
-func (m *IO) validatePath(p string) (string, error) {
+func (m *Fs) validatePath(p string) (string, error) {
 	if m.root == "/" {
 		return m.path(p), nil
 	}
@@ -111,7 +109,7 @@ func (m *IO) validatePath(p string) (string, error) {
 }
 
 // Read returns file contents as string.
-func (m *IO) Read(p string) (string, error) {
+func (m *Fs) Read(p string) (string, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return "", err
@@ -126,13 +124,13 @@ func (m *IO) Read(p string) (string, error) {
 // Write saves content to file, creating parent directories as needed.
 // Files are created with mode 0644. For sensitive files (keys, secrets),
 // use WriteMode with 0600.
-func (m *IO) Write(p, content string) error {
+func (m *Fs) Write(p, content string) error {
 	return m.WriteMode(p, content, 0644)
 }
 
 // WriteMode saves content to file with explicit permissions.
 // Use 0600 for sensitive files (encryption output, private keys, auth hashes).
-func (m *IO) WriteMode(p, content string, mode os.FileMode) error {
+func (m *Fs) WriteMode(p, content string, mode os.FileMode) error {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return err
@@ -144,7 +142,7 @@ func (m *IO) WriteMode(p, content string, mode os.FileMode) error {
 }
 
 // EnsureDir creates directory if it doesn't exist.
-func (m *IO) EnsureDir(p string) error {
+func (m *Fs) EnsureDir(p string) error {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return err
@@ -153,7 +151,7 @@ func (m *IO) EnsureDir(p string) error {
 }
 
 // IsDir returns true if path is a directory.
-func (m *IO) IsDir(p string) bool {
+func (m *Fs) IsDir(p string) bool {
 	if p == "" {
 		return false
 	}
@@ -166,7 +164,7 @@ func (m *IO) IsDir(p string) bool {
 }
 
 // IsFile returns true if path is a regular file.
-func (m *IO) IsFile(p string) bool {
+func (m *Fs) IsFile(p string) bool {
 	if p == "" {
 		return false
 	}
@@ -179,7 +177,7 @@ func (m *IO) IsFile(p string) bool {
 }
 
 // Exists returns true if path exists.
-func (m *IO) Exists(p string) bool {
+func (m *Fs) Exists(p string) bool {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return false
@@ -189,7 +187,7 @@ func (m *IO) Exists(p string) bool {
 }
 
 // List returns directory entries.
-func (m *IO) List(p string) ([]fs.DirEntry, error) {
+func (m *Fs) List(p string) ([]fs.DirEntry, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return nil, err
@@ -198,7 +196,7 @@ func (m *IO) List(p string) ([]fs.DirEntry, error) {
 }
 
 // Stat returns file info.
-func (m *IO) Stat(p string) (fs.FileInfo, error) {
+func (m *Fs) Stat(p string) (fs.FileInfo, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return nil, err
@@ -207,7 +205,7 @@ func (m *IO) Stat(p string) (fs.FileInfo, error) {
 }
 
 // Open opens the named file for reading.
-func (m *IO) Open(p string) (fs.File, error) {
+func (m *Fs) Open(p string) (fs.File, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return nil, err
@@ -216,7 +214,7 @@ func (m *IO) Open(p string) (fs.File, error) {
 }
 
 // Create creates or truncates the named file.
-func (m *IO) Create(p string) (io.WriteCloser, error) {
+func (m *Fs) Create(p string) (io.WriteCloser, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return nil, err
@@ -228,7 +226,7 @@ func (m *IO) Create(p string) (io.WriteCloser, error) {
 }
 
 // Append opens the named file for appending, creating it if it doesn't exist.
-func (m *IO) Append(p string) (io.WriteCloser, error) {
+func (m *Fs) Append(p string) (io.WriteCloser, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return nil, err
@@ -240,27 +238,17 @@ func (m *IO) Append(p string) (io.WriteCloser, error) {
 }
 
 // ReadStream returns a reader for the file content.
-//
-// This is a convenience wrapper around Open that exposes a streaming-oriented
-// API, as required by the io.Medium interface, while Open provides the more
-// general filesystem-level operation. Both methods are kept for semantic
-// clarity and backward compatibility.
-func (m *IO) ReadStream(path string) (io.ReadCloser, error) {
+func (m *Fs) ReadStream(path string) (io.ReadCloser, error) {
 	return m.Open(path)
 }
 
 // WriteStream returns a writer for the file content.
-//
-// This is a convenience wrapper around Create that exposes a streaming-oriented
-// API, as required by the io.Medium interface, while Create provides the more
-// general filesystem-level operation. Both methods are kept for semantic
-// clarity and backward compatibility.
-func (m *IO) WriteStream(path string) (io.WriteCloser, error) {
+func (m *Fs) WriteStream(path string) (io.WriteCloser, error) {
 	return m.Create(path)
 }
 
 // Delete removes a file or empty directory.
-func (m *IO) Delete(p string) error {
+func (m *Fs) Delete(p string) error {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return err
@@ -272,7 +260,7 @@ func (m *IO) Delete(p string) error {
 }
 
 // DeleteAll removes a file or directory recursively.
-func (m *IO) DeleteAll(p string) error {
+func (m *Fs) DeleteAll(p string) error {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return err
@@ -284,7 +272,7 @@ func (m *IO) DeleteAll(p string) error {
 }
 
 // Rename moves a file or directory.
-func (m *IO) Rename(oldPath, newPath string) error {
+func (m *Fs) Rename(oldPath, newPath string) error {
 	oldFull, err := m.validatePath(oldPath)
 	if err != nil {
 		return err
@@ -294,14 +282,4 @@ func (m *IO) Rename(oldPath, newPath string) error {
 		return err
 	}
 	return os.Rename(oldFull, newFull)
-}
-
-// FileGet is an alias for Read.
-func (m *IO) FileGet(p string) (string, error) {
-	return m.Read(p)
-}
-
-// FileSet is an alias for Write.
-func (m *IO) FileSet(p, content string) error {
-	return m.Write(p, content)
 }

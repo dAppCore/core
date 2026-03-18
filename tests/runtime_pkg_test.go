@@ -1,6 +1,7 @@
-package core
+package core_test
 
 import (
+	. "forge.lthn.ai/core/go/pkg/core"
 	"context"
 	"testing"
 
@@ -120,7 +121,7 @@ func TestNewServiceRuntime_Good(t *testing.T) {
 	assert.NotNil(t, sr)
 	assert.Equal(t, c, sr.Core())
 
-	// We can't directly test sr.Config() without a registered config service,
+	// We can't directly test sr.Cfg() without a registered config service,
 	// as it will panic.
 	assert.Panics(t, func() {
 		sr.Config()

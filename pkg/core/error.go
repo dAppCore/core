@@ -1,16 +1,32 @@
-// Package log provides structured logging and error handling for Core applications.
-//
-// This file implements structured error types and combined log-and-return helpers
-// that simplify common error handling patterns.
+// SPDX-License-Identifier: EUPL-1.2
+
+// Structured errors, crash recovery, and reporting for the Core framework.
+// Provides E() for error creation, Wrap()/WrapCode() for chaining,
+// and Err for panic recovery and crash reporting.
 
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
+	"os"
+	"runtime"
+	"runtime/debug"
 	"strings"
+	"time"
 )
+
+// ErrSink is the shared interface for error reporting.
+// Implemented by ErrLog (structured logging) and ErrPan (panic recovery).
+type ErrSink interface {
+	Error(msg string, keyvals ...any)
+	Warn(msg string, keyvals ...any)
+}
+
+var _ ErrSink = (*Log)(nil)
 
 // Err represents a structured error with operational context.
 // It implements the error interface and supports unwrapping.
@@ -215,56 +231,173 @@ func FormatStackTrace(err error) string {
 	return strings.Join(ops, " -> ")
 }
 
-// --- Combined Log-and-Return Helpers ---
+// --- ErrLog: Log-and-Return Error Helpers ---
 
-// LogError logs an error at Error level and returns a wrapped error.
-// Reduces boilerplate in error handling paths.
-//
-// Example:
-//
-//	// Before
-//	if err != nil {
-//	    log.Error("failed to save", "err", err)
-//	    return errors.Wrap(err, "user.Save", "failed to save")
-//	}
-//
-//	// After
-//	if err != nil {
-//	    return log.LogError(err, "user.Save", "failed to save")
-//	}
-func LogError(err error, op, msg string) error {
+// ErrOpts holds shared options for error subsystems.
+type ErrOpts struct {
+	Log *Log
+}
+
+// ErrLog combines error creation with logging.
+// Primary action: return an error. Secondary: log it.
+type ErrLog struct {
+	*ErrOpts
+}
+
+// NewErrLog creates an ErrLog (consumer convenience).
+func NewErrLog(opts *ErrOpts) *ErrLog {
+	return &ErrLog{opts}
+}
+
+// Error logs at Error level and returns a wrapped error.
+func (el *ErrLog) Error(err error, op, msg string) error {
 	if err == nil {
 		return nil
 	}
 	wrapped := Wrap(err, op, msg)
-	defaultLogger.Error(msg, "op", op, "err", err)
+	el.Log.Error(msg, "op", op, "err", err)
 	return wrapped
 }
 
-// LogWarn logs at Warn level and returns a wrapped error.
-// Use for recoverable errors that should be logged but not treated as critical.
-//
-// Example:
-//
-//	return log.LogWarn(err, "cache.Get", "cache miss, falling back to db")
-func LogWarn(err error, op, msg string) error {
+// Warn logs at Warn level and returns a wrapped error.
+func (el *ErrLog) Warn(err error, op, msg string) error {
 	if err == nil {
 		return nil
 	}
 	wrapped := Wrap(err, op, msg)
-	defaultLogger.Warn(msg, "op", op, "err", err)
+	el.Log.Warn(msg, "op", op, "err", err)
 	return wrapped
 }
 
-// Must panics if err is not nil, logging first.
-// Use for errors that should never happen and indicate programmer error.
-//
-// Example:
-//
-//	log.Must(Initialize(), "app", "startup failed")
-func Must(err error, op, msg string) {
+// Must logs and panics if err is not nil.
+func (el *ErrLog) Must(err error, op, msg string) {
 	if err != nil {
-		defaultLogger.Error(msg, "op", op, "err", err)
+		el.Log.Error(msg, "op", op, "err", err)
 		panic(Wrap(err, op, msg))
 	}
+}
+
+// --- Crash Recovery & Reporting ---
+
+// CrashReport represents a single crash event.
+type CrashReport struct {
+	Timestamp time.Time         `json:"timestamp"`
+	Error     string            `json:"error"`
+	Stack     string            `json:"stack"`
+	System    CrashSystem       `json:"system,omitempty"`
+	Meta      map[string]string `json:"meta,omitempty"`
+}
+
+// CrashSystem holds system information at crash time.
+type CrashSystem struct {
+	OS      string `json:"os"`
+	Arch    string `json:"arch"`
+	Version string `json:"go_version"`
+}
+
+// ErrPan manages panic recovery and crash reporting.
+type ErrPan struct {
+	filePath string
+	meta     map[string]string
+	onCrash  func(CrashReport)
+}
+
+// PanOpts configures an ErrPan.
+type PanOpts struct {
+	// FilePath is the crash report JSON output path. Empty disables file output.
+	FilePath string
+	// Meta is metadata included in every crash report.
+	Meta map[string]string
+	// OnCrash is a callback invoked on every crash.
+	OnCrash func(CrashReport)
+}
+
+// NewErrPan creates an ErrPan (consumer convenience).
+func NewErrPan(opts ...PanOpts) *ErrPan {
+	h := &ErrPan{}
+	if len(opts) > 0 {
+		o := opts[0]
+		h.filePath = o.FilePath
+		if o.Meta != nil {
+			h.meta = maps.Clone(o.Meta)
+		}
+		h.onCrash = o.OnCrash
+	}
+	return h
+}
+
+// Recover captures a panic and creates a crash report.
+// Use as: defer c.Error().Recover()
+func (h *ErrPan) Recover() {
+	if h == nil {
+		return
+	}
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	err, ok := r.(error)
+	if !ok {
+		err = fmt.Errorf("%v", r)
+	}
+
+	report := CrashReport{
+		Timestamp: time.Now(),
+		Error:     err.Error(),
+		Stack:     string(debug.Stack()),
+		System: CrashSystem{
+			OS:      runtime.GOOS,
+			Arch:    runtime.GOARCH,
+			Version: runtime.Version(),
+		},
+		Meta: h.meta,
+	}
+
+	if h.onCrash != nil {
+		h.onCrash(report)
+	}
+
+	if h.filePath != "" {
+		h.appendReport(report)
+	}
+}
+
+// SafeGo runs a function in a goroutine with panic recovery.
+func (h *ErrPan) SafeGo(fn func()) {
+	go func() {
+		defer h.Recover()
+		fn()
+	}()
+}
+
+// Reports returns the last n crash reports from the file.
+func (h *ErrPan) Reports(n int) ([]CrashReport, error) {
+	if h.filePath == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(h.filePath)
+	if err != nil {
+		return nil, err
+	}
+	var reports []CrashReport
+	if err := json.Unmarshal(data, &reports); err != nil {
+		return nil, err
+	}
+	if len(reports) <= n {
+		return reports, nil
+	}
+	return reports[len(reports)-n:], nil
+}
+
+func (h *ErrPan) appendReport(report CrashReport) {
+	var reports []CrashReport
+
+	if data, err := os.ReadFile(h.filePath); err == nil {
+		json.Unmarshal(data, &reports)
+	}
+
+	reports = append(reports, report)
+	data, _ := json.MarshalIndent(reports, "", "  ")
+	os.WriteFile(h.filePath, data, 0644)
 }

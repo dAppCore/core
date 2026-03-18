@@ -1,6 +1,7 @@
-package core
+package core_test
 
 import (
+	. "forge.lthn.ai/core/go/pkg/core"
 	"context"
 	"embed"
 	"io"
@@ -33,7 +34,7 @@ func TestCore_WithService_Good(t *testing.T) {
 	}
 	c, err := New(WithService(factory))
 	assert.NoError(t, err)
-	svc := c.Service("core")
+	svc := c.Service().Get("core")
 	assert.NotNil(t, svc)
 	mockSvc, ok := svc.(*MockService)
 	assert.True(t, ok)
@@ -54,10 +55,6 @@ type MockConfigService struct{}
 func (m *MockConfigService) Get(key string, out any) error { return nil }
 func (m *MockConfigService) Set(key string, v any) error   { return nil }
 
-type MockDisplayService struct{}
-
-func (m *MockDisplayService) OpenWindow(opts ...WindowOption) error { return nil }
-
 func TestCore_Services_Good(t *testing.T) {
 	c, err := New()
 	assert.NoError(t, err)
@@ -65,29 +62,12 @@ func TestCore_Services_Good(t *testing.T) {
 	err = c.RegisterService("config", &MockConfigService{})
 	assert.NoError(t, err)
 
-	err = c.RegisterService("display", &MockDisplayService{})
-	assert.NoError(t, err)
+	svc := c.Service("config")
+	assert.NotNil(t, svc)
 
+	// Cfg() returns Cfg (always available, not a service)
 	cfg := c.Config()
 	assert.NotNil(t, cfg)
-
-	d := c.Display()
-	assert.NotNil(t, d)
-}
-
-func TestCore_Services_Ugly(t *testing.T) {
-	c, err := New()
-	assert.NoError(t, err)
-
-	// Config panics when service not registered
-	assert.Panics(t, func() {
-		c.Config()
-	})
-
-	// Display panics when service not registered
-	assert.Panics(t, func() {
-		c.Display()
-	})
 }
 
 func TestCore_App_Good(t *testing.T) {
@@ -95,21 +75,21 @@ func TestCore_App_Good(t *testing.T) {
 	c, err := New(WithApp(app))
 	assert.NoError(t, err)
 
-	// To test the global App() function, we need to set the global instance.
+	// To test the global CoreGUI() function, we need to set the global instance.
 	originalInstance := GetInstance()
 	SetInstance(c)
 	defer SetInstance(originalInstance)
 
-	assert.Equal(t, app, App())
+	assert.Equal(t, app, CoreGUI())
 }
 
 func TestCore_App_Ugly(t *testing.T) {
-	// This test ensures that calling App() before the core is initialized panics.
+	// This test ensures that calling CoreGUI() before the core is initialized panics.
 	originalInstance := GetInstance()
 	ClearInstance()
 	defer SetInstance(originalInstance)
 	assert.Panics(t, func() {
-		App()
+		CoreGUI()
 	})
 }
 
@@ -123,33 +103,33 @@ func TestEtc_Features_Good(t *testing.T) {
 	c, err := New()
 	assert.NoError(t, err)
 
-	c.Etc().Enable("feature1")
-	c.Etc().Enable("feature2")
+	c.Config().Enable("feature1")
+	c.Config().Enable("feature2")
 
-	assert.True(t, c.Etc().Enabled("feature1"))
-	assert.True(t, c.Etc().Enabled("feature2"))
-	assert.False(t, c.Etc().Enabled("feature3"))
-	assert.False(t, c.Etc().Enabled(""))
+	assert.True(t, c.Config().Enabled("feature1"))
+	assert.True(t, c.Config().Enabled("feature2"))
+	assert.False(t, c.Config().Enabled("feature3"))
+	assert.False(t, c.Config().Enabled(""))
 }
 
 func TestEtc_Settings_Good(t *testing.T) {
 	c, _ := New()
-	c.Etc().Set("api_url", "https://api.lthn.sh")
-	c.Etc().Set("max_agents", 5)
+	c.Config().Set("api_url", "https://api.lthn.sh")
+	c.Config().Set("max_agents", 5)
 
-	assert.Equal(t, "https://api.lthn.sh", c.Etc().GetString("api_url"))
-	assert.Equal(t, 5, c.Etc().GetInt("max_agents"))
-	assert.Equal(t, "", c.Etc().GetString("missing"))
+	assert.Equal(t, "https://api.lthn.sh", c.Config().GetString("api_url"))
+	assert.Equal(t, 5, c.Config().GetInt("max_agents"))
+	assert.Equal(t, "", c.Config().GetString("missing"))
 }
 
 func TestEtc_Features_Edge(t *testing.T) {
 	c, _ := New()
-	c.Etc().Enable("foo")
-	assert.True(t, c.Etc().Enabled("foo"))
-	assert.False(t, c.Etc().Enabled("FOO")) // Case sensitive
+	c.Config().Enable("foo")
+	assert.True(t, c.Config().Enabled("foo"))
+	assert.False(t, c.Config().Enabled("FOO")) // Case sensitive
 
-	c.Etc().Disable("foo")
-	assert.False(t, c.Etc().Enabled("foo"))
+	c.Config().Disable("foo")
+	assert.False(t, c.Config().Enabled("foo"))
 }
 
 func TestCore_ServiceLifecycle_Good(t *testing.T) {
@@ -178,7 +158,7 @@ func TestCore_WithApp_Good(t *testing.T) {
 	app := &mockApp{}
 	c, err := New(WithApp(app))
 	assert.NoError(t, err)
-	assert.Equal(t, app, c.App)
+	assert.Equal(t, app, c.App().Runtime)
 }
 
 //go:embed testdata
@@ -187,7 +167,7 @@ var testFS embed.FS
 func TestCore_WithAssets_Good(t *testing.T) {
 	c, err := New(WithAssets(testFS))
 	assert.NoError(t, err)
-	file, err := c.Mnt().Open("testdata/test.txt")
+	file, err := c.Embed().Open("testdata/test.txt")
 	assert.NoError(t, err)
 	defer func() { _ = file.Close() }()
 	content, err := io.ReadAll(file)

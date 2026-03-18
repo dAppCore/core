@@ -1,6 +1,7 @@
-package core
+package core_test
 
 import (
+	. "forge.lthn.ai/core/go/pkg/core"
 	"errors"
 	"testing"
 )
@@ -41,7 +42,7 @@ func FuzzE(f *testing.F) {
 	})
 }
 
-// FuzzServiceRegistration exercises service name registration with arbitrary names.
+// FuzzServiceRegistration exercises service registration with arbitrary names.
 func FuzzServiceRegistration(f *testing.F) {
 	f.Add("myservice")
 	f.Add("")
@@ -50,9 +51,9 @@ func FuzzServiceRegistration(f *testing.F) {
 	f.Add("service\x00null")
 
 	f.Fuzz(func(t *testing.T, name string) {
-		sm := newServiceManager()
+		c, _ := New()
 
-		err := sm.registerService(name, struct{}{})
+		err := c.RegisterService(name, struct{}{})
 		if name == "" {
 			if err == nil {
 				t.Fatal("expected error for empty name")
@@ -64,13 +65,13 @@ func FuzzServiceRegistration(f *testing.F) {
 		}
 
 		// Retrieve should return the same service
-		got := sm.service(name)
+		got := c.Service(name)
 		if got == nil {
 			t.Fatalf("service %q not found after registration", name)
 		}
 
 		// Duplicate registration should fail
-		err = sm.registerService(name, struct{}{})
+		err = c.RegisterService(name, struct{}{})
 		if err == nil {
 			t.Fatalf("expected duplicate error for name %q", name)
 		}
@@ -84,18 +85,15 @@ func FuzzMessageDispatch(f *testing.F) {
 	f.Add("test\nmultiline")
 
 	f.Fuzz(func(t *testing.T, payload string) {
-		c := &Core{
-			svc:      newServiceManager(),
-		}
-		c.bus = newMessageBus(c)
+		c, _ := New()
 
 		var received string
-		c.bus.registerAction(func(_ *Core, msg Message) error {
+		c.IPC().RegisterAction(func(_ *Core, msg Message) error {
 			received = msg.(string)
 			return nil
 		})
 
-		err := c.bus.action(payload)
+		err := c.IPC().Action(payload)
 		if err != nil {
 			t.Fatalf("action dispatch failed: %v", err)
 		}
