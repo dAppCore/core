@@ -1259,27 +1259,27 @@ func (c *Command) NewChildCommandFunction(name string, description string, fn an
 	// if not, panic
 	t := reflect.TypeOf(fn)
 	if t.Kind() != reflect.Func {
-		panic("NewSubFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
+		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
 	}
 
 	// Check the function has 1 input ant it's a struct pointer
 	fnValue := reflect.ValueOf(fn)
 	if t.NumIn() != 1 {
-		panic("NewSubFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
+		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
 	}
 	// Check the input is a struct pointer
 	if t.In(0).Kind() != reflect.Ptr {
-		panic("NewSubFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
+		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
 	}
 	if t.In(0).Elem().Kind() != reflect.Struct {
-		panic("NewSubFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
+		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
 	}
 	// Check only 1 output and it's an error
 	if t.NumOut() != 1 {
-		panic("NewSubFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
+		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
 	}
 	if t.Out(0) != reflect.TypeOf((*error)(nil)).Elem() {
-		panic("NewSubFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
+		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
 	}
 	flags := reflect.New(t.In(0).Elem())
 	result.Action(func() error {

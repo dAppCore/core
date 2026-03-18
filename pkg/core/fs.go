@@ -254,7 +254,7 @@ func (m *Fs) Delete(p string) error {
 		return err
 	}
 	if full == "/" || full == os.Getenv("HOME") {
-		return E("local.Delete", "refusing to delete protected path: "+full, nil)
+		return E("core.Delete", "refusing to delete protected path: "+full, nil)
 	}
 	return os.Remove(full)
 }
@@ -266,7 +266,7 @@ func (m *Fs) DeleteAll(p string) error {
 		return err
 	}
 	if full == "/" || full == os.Getenv("HOME") {
-		return E("local.DeleteAll", "refusing to delete protected path: "+full, nil)
+		return E("core.DeleteAll", "refusing to delete protected path: "+full, nil)
 	}
 	return os.RemoveAll(full)
 }

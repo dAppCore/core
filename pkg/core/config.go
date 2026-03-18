@@ -37,14 +37,14 @@ func NewConfigVar[T any](val T) ConfigVar[T] {
 	return ConfigVar[T]{val: val, set: true}
 }
 
-// Cfg holds configuration settings and feature flags.
+// Config holds configuration settings and feature flags.
 type Config struct {
 	mu       sync.RWMutex
 	settings map[string]any
 	features map[string]bool
 }
 
-// NewEtc creates a new configuration store.
+// NewConfig creates a new configuration store.
 func NewConfig() *Config {
 	return &Config{
 		settings: make(map[string]any),

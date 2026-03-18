@@ -17,7 +17,7 @@ type Service struct {
 	locked      bool
 }
 
-// NewSrv creates an empty service registry.
+// NewService creates an empty service registry.
 func NewService() *Service {
 	return &Service{
 		Services: make(map[string]any),

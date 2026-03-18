@@ -93,15 +93,15 @@ func New(opts ...Option) (*Core, error) {
 	c := &Core{
 		app:  app,
 		fs:   defaultFS,
-		cfg:  NewConfig(),
+		cfg:  &Config{settings: make(map[string]any), features: make(map[string]bool)},
 		err:  &ErrPan{},
 		log:  &ErrLog{&ErrOpts{Log: defaultLog}},
 		cli:  NewCoreCli(app),
-		srv:  NewService(),
+		srv:  &Service{Services: make(map[string]any)},
 		lock: &Lock{},
-		i18n: NewCoreI18n(),
+		i18n: &I18n{},
 	}
-	c.ipc = NewBus(c)
+	c.ipc = &Ipc{core: c}
 
 	for _, o := range opts {
 		if err := o(c); err != nil {

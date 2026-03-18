@@ -2,7 +2,7 @@
 
 // Embedded assets for the Core framework.
 //
-// Emb provides scoped filesystem access for go:embed and any fs.FS.
+// Embed provides scoped filesystem access for go:embed and any fs.FS.
 // Also includes build-time asset packing (AST scanner + compressor)
 // and template-based directory extraction.
 //
@@ -319,9 +319,9 @@ func getAllFiles(dir string) ([]string, error) {
 	return result, err
 }
 
-// --- Emb: Scoped Filesystem Mount ---
+// --- Embed: Scoped Filesystem Mount ---
 
-// Emb wraps an fs.FS with a basedir for scoped access.
+// Embed wraps an fs.FS with a basedir for scoped access.
 // All paths are relative to basedir.
 type Embed struct {
 	basedir string
@@ -379,7 +379,7 @@ func (s *Embed) ReadString(name string) (string, error) {
 	return string(data), nil
 }
 
-// Sub returns a new Emb anchored at a subdirectory within this mount.
+// Sub returns a new Embed anchored at a subdirectory within this mount.
 func (s *Embed) Sub(subDir string) (*Embed, error) {
 	sub, err := fs.Sub(s.fsys, s.path(subDir))
 	if err != nil {
@@ -402,7 +402,7 @@ func (s *Embed) EmbedFS() embed.FS {
 	return embed.FS{}
 }
 
-// BaseDir returns the basedir this Emb is anchored at.
+// BaseDir returns the basedir this Embed is anchored at.
 func (s *Embed) BaseDir() string {
 	return s.basedir
 }

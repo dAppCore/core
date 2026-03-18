@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 // Package core is a dependency injection and service lifecycle framework for Go.
-// This file defines the Core struct, all exported methods, and all With* options.
+// This file defines the Core struct, accessors, and IPC/error wrappers.
 
 package core
 
