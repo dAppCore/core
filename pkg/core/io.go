@@ -3,7 +3,7 @@ package core
 
 import (
 	"fmt"
-	goio "io"
+	"io"
 	"io/fs"
 	"os"
 	"os/user"
@@ -216,7 +216,7 @@ func (m *IO) Open(p string) (fs.File, error) {
 }
 
 // Create creates or truncates the named file.
-func (m *IO) Create(p string) (goio.WriteCloser, error) {
+func (m *IO) Create(p string) (io.WriteCloser, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return nil, err
@@ -228,7 +228,7 @@ func (m *IO) Create(p string) (goio.WriteCloser, error) {
 }
 
 // Append opens the named file for appending, creating it if it doesn't exist.
-func (m *IO) Append(p string) (goio.WriteCloser, error) {
+func (m *IO) Append(p string) (io.WriteCloser, error) {
 	full, err := m.validatePath(p)
 	if err != nil {
 		return nil, err
@@ -245,7 +245,7 @@ func (m *IO) Append(p string) (goio.WriteCloser, error) {
 // API, as required by the io.Medium interface, while Open provides the more
 // general filesystem-level operation. Both methods are kept for semantic
 // clarity and backward compatibility.
-func (m *IO) ReadStream(path string) (goio.ReadCloser, error) {
+func (m *IO) ReadStream(path string) (io.ReadCloser, error) {
 	return m.Open(path)
 }
 
@@ -255,7 +255,7 @@ func (m *IO) ReadStream(path string) (goio.ReadCloser, error) {
 // API, as required by the io.Medium interface, while Create provides the more
 // general filesystem-level operation. Both methods are kept for semantic
 // clarity and backward compatibility.
-func (m *IO) WriteStream(path string) (goio.WriteCloser, error) {
+func (m *IO) WriteStream(path string) (io.WriteCloser, error) {
 	return m.Create(path)
 }
 
