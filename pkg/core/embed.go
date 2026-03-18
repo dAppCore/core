@@ -21,14 +21,15 @@
 package core
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,7 +40,7 @@ import (
 
 // AssetGroup holds a named collection of packed assets.
 type AssetGroup struct {
-	name   string
+	
 	assets map[string]string // name → compressed data
 }
 
@@ -55,7 +56,7 @@ func AddAsset(group, name, data string) {
 
 	g, ok := assetGroups[group]
 	if !ok {
-		g = &AssetGroup{name: group, assets: make(map[string]string)}
+		g = &AssetGroup{assets: make(map[string]string)}
 		assetGroups[group] = g
 	}
 	g.assets[name] = data
@@ -86,10 +87,10 @@ func GetAssetBytes(group, name string) ([]byte, error) {
 
 // AssetRef is a reference to an asset found in source code.
 type AssetRef struct {
-	Name      string
-	Path      string
-	Group     string
-	FullPath  string
+	Name     string
+	Path     string
+	Group    string
+	FullPath string
 }
 
 // ScannedPackage holds all asset references from a set of source files.
@@ -104,7 +105,7 @@ type ScannedPackage struct {
 // Looks for calls to: core.GetAsset("group", "name"), core.AddAsset, etc.
 func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 	packageMap := make(map[string]*ScannedPackage)
-	groupPaths := make(map[string]string) // variable name → path
+	var scanErr error
 
 	for _, filename := range filenames {
 		fset := token.NewFileSet()
@@ -122,6 +123,9 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 		pkg.PackageName = node.Name.Name
 
 		ast.Inspect(node, func(n ast.Node) bool {
+			if scanErr != nil {
+				return false
+			}
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
 				return true
@@ -150,10 +154,14 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 									group = strings.Trim(glit.Value, "\"")
 								}
 							}
-							fullPath, _ := filepath.Abs(filepath.Join(baseDir, group, path))
+							fullPath, err := filepath.Abs(filepath.Join(baseDir, group, path))
+							if err != nil {
+								scanErr = fmt.Errorf("could not determine absolute path for asset %q in group %q: %w", path, group, err)
+								return false
+							}
 							pkg.Assets = append(pkg.Assets, AssetRef{
 								Name:     path,
-								Path:     path,
+								
 								Group:    group,
 								FullPath: fullPath,
 							})
@@ -164,10 +172,13 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 					if len(call.Args) == 1 {
 						if lit, ok := call.Args[0].(*ast.BasicLit); ok {
 							path := strings.Trim(lit.Value, "\"")
-							fullPath, _ := filepath.Abs(filepath.Join(baseDir, path))
+							fullPath, err := filepath.Abs(filepath.Join(baseDir, path))
+							if err != nil {
+								scanErr = fmt.Errorf("could not determine absolute path for group %q: %w", path, err)
+								return false
+							}
 							pkg.Groups = append(pkg.Groups, fullPath)
 							// Track for variable resolution
-							groupPaths[path] = fullPath
 						}
 					}
 				}
@@ -175,6 +186,9 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 
 			return true
 		})
+		if scanErr != nil {
+			return nil, scanErr
+		}
 	}
 
 	var result []ScannedPackage
@@ -203,7 +217,7 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 	for _, groupPath := range pkg.Groups {
 		files, err := getAllFiles(groupPath)
 		if err != nil {
-			continue
+			return "", fmt.Errorf("failed to scan asset group %q: %w", groupPath, err)
 		}
 		for _, file := range files {
 			if packed[file] {
@@ -211,10 +225,13 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 			}
 			data, err := compressFile(file)
 			if err != nil {
-				continue
+				return "", fmt.Errorf("failed to compress asset %q in group %q: %w", file, groupPath, err)
 			}
 			localPath := strings.TrimPrefix(file, groupPath+"/")
-			relGroup, _ := filepath.Rel(pkg.BaseDir, groupPath)
+			relGroup, err := filepath.Rel(pkg.BaseDir, groupPath)
+			if err != nil {
+				return "", fmt.Errorf("could not determine relative path for group %q (base %q): %w", groupPath, pkg.BaseDir, err)
+			}
 			b.WriteString(fmt.Sprintf("\tcore.AddAsset(%q, %q, %q)\n", relGroup, localPath, data))
 			packed[file] = true
 		}
@@ -227,7 +244,7 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 		}
 		data, err := compressFile(asset.FullPath)
 		if err != nil {
-			continue
+			return "", fmt.Errorf("failed to compress asset %q: %w", asset.FullPath, err)
 		}
 		b.WriteString(fmt.Sprintf("\tcore.AddAsset(%q, %q, %q)\n", asset.Group, asset.Name, data))
 		packed[asset.FullPath] = true
@@ -255,10 +272,17 @@ func compress(input string) (string, error) {
 		return "", err
 	}
 	if _, err := gz.Write([]byte(input)); err != nil {
+		_ = gz.Close()
+		_ = b64.Close()
 		return "", err
 	}
-	gz.Close()
-	b64.Close()
+	if err := gz.Close(); err != nil {
+		_ = b64.Close()
+		return "", err
+	}
+	if err := b64.Close(); err != nil {
+		return "", err
+	}
 	return buf.String(), nil
 }
 
@@ -268,9 +292,12 @@ func decompress(input string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer gz.Close()
+	
 	data, err := io.ReadAll(gz)
 	if err != nil {
+		return "", err
+	}
+	if err := gz.Close(); err != nil {
 		return "", err
 	}
 	return string(data), nil
@@ -278,11 +305,11 @@ func decompress(input string) (string, error) {
 
 func getAllFiles(dir string) ([]string, error) {
 	var result []string
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.Mode().IsRegular() {
+		if !d.IsDir() {
 			result = append(result, path)
 		}
 		return nil
