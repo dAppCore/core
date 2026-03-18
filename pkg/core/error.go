@@ -360,7 +360,7 @@ func (h *ErrPan) Recover() {
 			Arch:    runtime.GOARCH,
 			Version: runtime.Version(),
 		},
-		Meta: h.meta,
+		Meta: maps.Clone(h.meta),
 	}
 
 	if h.onCrash != nil {
@@ -385,6 +385,8 @@ func (h *ErrPan) Reports(n int) ([]CrashReport, error) {
 	if h.filePath == "" {
 		return nil, nil
 	}
+	crashMu.Lock()
+	defer crashMu.Unlock()
 	data, err := os.ReadFile(h.filePath)
 	if err != nil {
 		return nil, err
