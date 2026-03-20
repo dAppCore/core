@@ -64,7 +64,7 @@ func (cmd *Command) I18nKey() string {
 	if path == "" {
 		path = cmd.name
 	}
-	return "cmd." + Replace(path, "/", ".") + ".description"
+	return Concat("cmd.", Replace(path, "/", "."), ".description")
 }
 
 // Run executes the command's action with the given options.
