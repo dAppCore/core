@@ -43,40 +43,34 @@ type Result struct {
 	OK    bool
 }
 
-// Result returns the value.
+// Result gets or sets the value. Zero args returns Value. With args, maps
+// Go (value, error) pairs to Result and returns self.
 //
-//	val := r.Result()
-func (r *Result) Result() any { return r.Value }
-
-// New creates a Result from variadic args.
-// Maps Go (value, error) pairs to Result.
-//
-//	r.New(file, err)       // OK = err == nil, Value = file
-//	r.New(value)           // OK = true, Value = value
-//	r.New()                // OK = false
-func (r *Result) New(args ...any) *Result {
+//	r.Result()              // returns r.Value
+//	r.Result(file, err)     // OK = err == nil, Value = file
+//	r.Result(value)         // OK = true, Value = value
+//	r.Result()              // after set — returns the value
+func (r *Result) Result(args ...any) any {
 	if len(args) == 0 {
-		r.OK = false
-		return r
+		return r.Value
 	}
 
-	// Check if last arg is an error
 	if len(args) >= 2 {
 		if err, ok := args[len(args)-1].(error); ok {
 			if err != nil {
 				r.Value = err
 				r.OK = false
-				return r
+				return r.Value
 			}
 			r.Value = args[0]
 			r.OK = true
-			return r
+			return r.Value
 		}
 	}
 
 	r.Value = args[0]
 	r.OK = true
-	return r
+	return r.Value
 }
 
 // Option is a single key-value configuration pair.
