@@ -12,11 +12,11 @@ import (
 	"unicode/utf8"
 )
 
-// Printl writes a formatted line to a writer, defaulting to os.Stdout.
+// Print writes a formatted line to a writer, defaulting to os.Stdout.
 //
-//	core.Printl(nil, "hello %s", "world")     // → stdout
-//	core.Printl(w, "port: %d", 8080)          // → w
-func Printl(w io.Writer, format string, args ...any) {
+//	core.Print(nil, "hello %s", "world")     // → stdout
+//	core.Print(w, "port: %d", 8080)          // → w
+func Print(w io.Writer, format string, args ...any) {
 	if w == nil {
 		w = os.Stdout
 	}

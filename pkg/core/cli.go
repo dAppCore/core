@@ -30,7 +30,7 @@ type Cli struct {
 //
 //	c.Cli().Print("hello %s", "world")
 func (cl *Cli) Print(format string, args ...any) {
-	Printl(cl.output, format, args...)
+	Print(cl.output, format, args...)
 }
 
 // SetOutput sets the CLI output writer.
