@@ -88,8 +88,10 @@ func New(opts ...Options) *Core {
 	}
 
 	if len(opts) > 0 {
-		c.options = &opts[0]
-		name := opts[0].String("name")
+		cp := make(Options, len(opts[0]))
+		copy(cp, opts[0])
+		c.options = &cp
+		name := cp.String("name")
 		if name != "" {
 			c.app.Name = name
 		}

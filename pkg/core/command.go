@@ -144,7 +144,7 @@ func (c *Core) Command(path string, command ...Command) Result {
 	c.commands.mu.Lock()
 	defer c.commands.mu.Unlock()
 
-	if _, exists := c.commands.commands[path]; exists {
+	if existing, exists := c.commands.commands[path]; exists && existing.Action != nil {
 		return Result{E("core.Command", Concat("command \"", path, "\" already registered"), nil), false}
 	}
 

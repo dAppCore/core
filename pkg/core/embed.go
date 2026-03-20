@@ -366,13 +366,12 @@ func MountEmbed(efs embed.FS, basedir string) Result {
 	return Mount(efs, basedir)
 }
 
-func (s *Embed) path(name string) string {
+func (s *Embed) path(name string) Result {
 	joined := filepath.ToSlash(filepath.Join(s.basedir, name))
-	// Reject traversal outside the base directory
 	if HasPrefix(joined, "..") || Contains(joined, "/../") || HasSuffix(joined, "/..") {
-		return s.basedir
+		return Result{E("embed.path", Concat("path traversal rejected: ", name), nil), false}
 	}
-	return joined
+	return Result{joined, true}
 }
 
 // Open opens the named file for reading.
@@ -380,7 +379,11 @@ func (s *Embed) path(name string) string {
 //	r := emb.Open("test.txt")
 //	if r.OK { file := r.Value.(fs.File) }
 func (s *Embed) Open(name string) Result {
-	f, err := s.fsys.Open(s.path(name))
+	r := s.path(name)
+	if !r.OK {
+		return r
+	}
+	f, err := s.fsys.Open(r.Value.(string))
 	if err != nil {
 		return Result{err, false}
 	}
@@ -389,7 +392,11 @@ func (s *Embed) Open(name string) Result {
 
 // ReadDir reads the named directory.
 func (s *Embed) ReadDir(name string) Result {
-	return Result{}.Result(fs.ReadDir(s.fsys, s.path(name)))
+	r := s.path(name)
+	if !r.OK {
+		return r
+	}
+	return Result{}.Result(fs.ReadDir(s.fsys, r.Value.(string)))
 }
 
 // ReadFile reads the named file.
@@ -397,7 +404,11 @@ func (s *Embed) ReadDir(name string) Result {
 //	r := emb.ReadFile("test.txt")
 //	if r.OK { data := r.Value.([]byte) }
 func (s *Embed) ReadFile(name string) Result {
-	data, err := fs.ReadFile(s.fsys, s.path(name))
+	r := s.path(name)
+	if !r.OK {
+		return r
+	}
+	data, err := fs.ReadFile(s.fsys, r.Value.(string))
 	if err != nil {
 		return Result{err, false}
 	}
@@ -421,7 +432,11 @@ func (s *Embed) ReadString(name string) Result {
 //	r := emb.Sub("testdata")
 //	if r.OK { sub := r.Value.(*Embed) }
 func (s *Embed) Sub(subDir string) Result {
-	sub, err := fs.Sub(s.fsys, s.path(subDir))
+	r := s.path(subDir)
+	if !r.OK {
+		return r
+	}
+	sub, err := fs.Sub(s.fsys, r.Value.(string))
 	if err != nil {
 		return Result{err, false}
 	}

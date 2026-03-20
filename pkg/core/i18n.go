@@ -69,7 +69,11 @@ func (i *I18n) Locales() Result {
 func (i *I18n) SetTranslator(t Translator) {
 	i.mu.Lock()
 	i.translator = t
+	locale := i.locale
 	i.mu.Unlock()
+	if t != nil && locale != "" {
+		_ = t.SetLanguage(locale)
+	}
 }
 
 // Translator returns the registered translation implementation, or nil.

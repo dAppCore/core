@@ -112,7 +112,8 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
 		}
 		r := factory()
 		if !r.OK {
-			return Result{E("core.NewWithFactories", Concat("factory \"", name, "\" failed"), nil), false}
+			cause, _ := r.Value.(error)
+			return Result{E("core.NewWithFactories", Concat("factory \"", name, "\" failed"), cause), false}
 		}
 		svc, ok := r.Value.(Service)
 		if !ok {
