@@ -5,9 +5,23 @@
 package core
 
 import (
+	"fmt"
+	"io"
+	"os"
 	"strings"
 	"unicode/utf8"
 )
+
+// Printl writes a formatted line to a writer, defaulting to os.Stdout.
+//
+//	core.Printl(nil, "hello %s", "world")     // → stdout
+//	core.Printl(w, "port: %d", 8080)          // → w
+func Printl(w io.Writer, format string, args ...any) {
+	if w == nil {
+		w = os.Stdout
+	}
+	fmt.Fprintf(w, format+"\n", args...)
+}
 
 // FilterArgs removes empty strings and Go test runner flags from an argument list.
 //

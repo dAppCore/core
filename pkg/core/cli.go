@@ -14,7 +14,6 @@
 package core
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -31,11 +30,7 @@ type Cli struct {
 //
 //	c.Cli().Print("hello %s", "world")
 func (cl *Cli) Print(format string, args ...any) {
-	w := cl.output
-	if w == nil {
-		w = os.Stdout
-	}
-	fmt.Fprintf(w, format+"\n", args...)
+	Printl(cl.output, format, args...)
 }
 
 // SetOutput sets the CLI output writer.
