@@ -3,7 +3,7 @@ package core_test
 import (
 	"testing"
 
-	. "forge.lthn.ai/core/go/pkg/core"
+	. "dappco.re/go/core/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 

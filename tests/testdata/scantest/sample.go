@@ -1,6 +1,6 @@
 package scantest
 
-import "forge.lthn.ai/core/go/pkg/core"
+import "dappco.re/go/core/pkg/core"
 
 func example() {
 	_, _ = core.GetAsset("mygroup", "myfile.txt")
