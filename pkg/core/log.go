@@ -6,7 +6,6 @@
 package core
 
 import (
-	"fmt"
 	goio "io"
 	"os"
 	"os/user"
@@ -228,21 +227,21 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 			}
 
 			// Redaction logic
-			keyStr := fmt.Sprintf("%v", key)
+			keyStr := Sprint(key)
 			if slices.Contains(redactKeys, keyStr) {
 				val = "[REDACTED]"
 			}
 
 			// Secure formatting to prevent log injection
 			if s, ok := val.(string); ok {
-				kvStr += fmt.Sprintf("%v=%q", key, s)
+				kvStr += Sprintf("%v=%q", key, s)
 			} else {
-				kvStr += fmt.Sprintf("%v=%v", key, val)
+				kvStr += Sprintf("%v=%v", key, val)
 			}
 		}
 	}
 
-	_, _ = fmt.Fprintf(output, "%s %s %s%s\n", timestamp, prefix, msg, kvStr)
+	Print(output, "%s %s %s%s", timestamp, prefix, msg, kvStr)
 }
 
 // Debug logs a debug message with optional key-value pairs.
@@ -387,7 +386,7 @@ func (lp *LogPanic) Recover() {
 	}
 	err, ok := r.(error)
 	if !ok {
-		err = NewError(fmt.Sprint("panic: ", r))
+		err = NewError(Sprint("panic: ", r))
 	}
 	lp.log.Error("panic recovered",
 		"err", err,

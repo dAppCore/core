@@ -91,7 +91,7 @@ func (m *Fs) validatePath(p string) Result {
 func (m *Fs) Read(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	data, err := os.ReadFile(vp.Value.(string))
 	if err != nil {
@@ -176,7 +176,7 @@ func (m *Fs) Exists(p string) bool {
 func (m *Fs) List(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	return Result{}.Result(os.ReadDir(vp.Value.(string)))
 }
@@ -271,11 +271,11 @@ func (m *Fs) DeleteAll(p string) Result {
 func (m *Fs) Rename(oldPath, newPath string) Result {
 	oldVp := m.validatePath(oldPath)
 	if !oldVp.OK {
-		return Result{}
+		return oldVp
 	}
 	newVp := m.validatePath(newPath)
 	if !newVp.OK {
-		return Result{}
+		return newVp
 	}
 	if err := os.Rename(oldVp.Value.(string), newVp.Value.(string)); err != nil {
 		return Result{err, false}

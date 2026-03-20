@@ -27,14 +27,13 @@ func TestApp_Runtime_Good(t *testing.T) {
 }
 
 func TestApp_Find_Good(t *testing.T) {
-	app := Find("go", "go")
-	// Find looks for a binary — go should be in PATH
-	if app != nil {
-		assert.NotEmpty(t, app.Path)
-	}
+	r := Find("go", "go")
+	assert.True(t, r.OK)
+	app := r.Value.(*App)
+	assert.NotEmpty(t, app.Path)
 }
 
 func TestApp_Find_Bad(t *testing.T) {
-	app := Find("nonexistent-binary-xyz", "test")
-	assert.Nil(t, app)
+	r := Find("nonexistent-binary-xyz", "test")
+	assert.False(t, r.OK)
 }

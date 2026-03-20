@@ -7,6 +7,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 	"unicode/utf8"
 )
@@ -125,6 +126,21 @@ func NewBuilder() *strings.Builder {
 //	r := core.NewReader("hello world")
 func NewReader(s string) *strings.Reader {
 	return strings.NewReader(s)
+}
+
+// Sprint converts any value to its string representation.
+//
+//	core.Sprint(42)       // "42"
+//	core.Sprint(err)      // "connection refused"
+func Sprint(args ...any) string {
+	return fmt.Sprint(args...)
+}
+
+// Sprintf formats a string with the given arguments.
+//
+//	core.Sprintf("%v=%q", "key", "value")  // `key="value"`
+func Sprintf(format string, args ...any) string {
+	return fmt.Sprintf(format, args...)
 }
 
 // Concat joins variadic string parts into one string.
