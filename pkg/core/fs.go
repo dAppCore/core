@@ -181,9 +181,7 @@ func (m *Fs) List(p string) Result {
 	if !vp.OK {
 		return Result{}
 	}
-	r := &Result{}
-	r.Result(os.ReadDir(vp.Value.(string)))
-	return *r
+	return Result{}.Result(os.ReadDir(vp.Value.(string)))
 }
 
 // Stat returns file info.
@@ -192,9 +190,7 @@ func (m *Fs) Stat(p string) Result {
 	if !vp.OK {
 		return Result{}
 	}
-	r := &Result{}
-	r.Result(os.Stat(vp.Value.(string)))
-	return *r
+	return Result{}.Result(os.Stat(vp.Value.(string)))
 }
 
 // Open opens the named file for reading.
@@ -203,9 +199,7 @@ func (m *Fs) Open(p string) Result {
 	if !vp.OK {
 		return Result{}
 	}
-	r := &Result{}
-	r.Result(os.Open(vp.Value.(string)))
-	return *r
+	return Result{}.Result(os.Open(vp.Value.(string)))
 }
 
 // Create creates or truncates the named file.
@@ -218,9 +212,7 @@ func (m *Fs) Create(p string) Result {
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
 		return Result{}
 	}
-	r := &Result{}
-	r.Result(os.Create(full))
-	return *r
+	return Result{}.Result(os.Create(full))
 }
 
 // Append opens the named file for appending, creating it if it doesn't exist.
@@ -233,9 +225,7 @@ func (m *Fs) Append(p string) Result {
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
 		return Result{}
 	}
-	r := &Result{}
-	r.Result(os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644))
-	return *r
+	return Result{}.Result(os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644))
 }
 
 // ReadStream returns a reader for the file content.

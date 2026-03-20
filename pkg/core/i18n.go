@@ -43,10 +43,10 @@ type LocaleProvider interface {
 // I18n manages locale collection and translation dispatch.
 type I18n struct {
 	mu         sync.RWMutex
-	locales    []*Embed     // collected from LocaleProvider services
+	locales    []*Embed // collected from LocaleProvider services
+	locale     string
 	translator Translator // registered implementation (nil until set)
 }
-
 
 // AddLocales adds locale mounts (called during service registration).
 func (i *I18n) AddLocales(mounts ...*Embed) {
@@ -93,24 +93,17 @@ func (i *I18n) T(messageID string, args ...any) string {
 
 // SetLanguage sets the active language. No-op if no translator is registered.
 func (i *I18n) SetLanguage(lang string) Result {
-	i.mu.RLock()
-	t := i.translator
-	i.mu.RUnlock()
-	if t != nil {
-		r := &Result{}
-		r.Result(nil, t.SetLanguage(lang))
-		return *r
+
+	if lang != "" {
+		i.locale = lang
 	}
 	return Result{OK: true}
 }
 
-// Language returns the current language code, or "en" if no translator.
+// Language returns the current language code, or "en" if not set.
 func (i *I18n) Language() string {
-	i.mu.RLock()
-	t := i.translator
-	i.mu.RUnlock()
-	if t != nil {
-		return t.Language()
+	if i.locale != "" {
+		return i.locale
 	}
 	return "en"
 }
