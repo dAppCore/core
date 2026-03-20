@@ -38,16 +38,54 @@ func IsFlag(arg string) bool {
 	return HasPrefix(arg, "-")
 }
 
+// Arg extracts a value from a variadic any slice at the given index.
+// Returns nil if index is out of bounds.
+//
+//	val := core.Arg(args, 0)             // any
+//	name := core.ArgString(args, 0)      // string
+//	port := core.ArgInt(args, 1)         // int
+//	debug := core.ArgBool(args, 2)       // bool
+func Arg(args []any, index int) any {
+	if index >= len(args) {
+		return nil
+	}
+	return args[index]
+}
+
 // ArgString extracts a string from a variadic any slice at the given index.
-// Returns empty string if index is out of bounds or value is not a string.
 //
 //	name := core.ArgString(args, 0)
 func ArgString(args []any, index int) string {
-	if index >= len(args) {
+	v := Arg(args, index)
+	if v == nil {
 		return ""
 	}
-	s, _ := args[index].(string)
+	s, _ := v.(string)
 	return s
+}
+
+// ArgInt extracts an int from a variadic any slice at the given index.
+//
+//	port := core.ArgInt(args, 1)
+func ArgInt(args []any, index int) int {
+	v := Arg(args, index)
+	if v == nil {
+		return 0
+	}
+	i, _ := v.(int)
+	return i
+}
+
+// ArgBool extracts a bool from a variadic any slice at the given index.
+//
+//	debug := core.ArgBool(args, 2)
+func ArgBool(args []any, index int) bool {
+	v := Arg(args, index)
+	if v == nil {
+		return false
+	}
+	b, _ := v.(bool)
+	return b
 }
 
 // FilterArgs removes empty strings and Go test runner flags from an argument list.
