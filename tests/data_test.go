@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	. "forge.lthn.ai/core/go/pkg/core"
+	. "dappco.re/go/core/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 

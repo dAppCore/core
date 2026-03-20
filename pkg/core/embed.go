@@ -224,7 +224,7 @@ func GeneratePack(pkg ScannedPackage) Result {
 		return Result{b.String(), true}
 	}
 
-	b.WriteString("import \"forge.lthn.ai/core/go/pkg/core\"\n\n")
+	b.WriteString("import \"dappco.re/go/core/pkg/core\"\n\n")
 	b.WriteString("func init() {\n")
 
 	// Pack groups (entire directories)

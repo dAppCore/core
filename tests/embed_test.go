@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	. "forge.lthn.ai/core/go/pkg/core"
+	. "dappco.re/go/core/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -144,7 +144,7 @@ func TestGeneratePack_WithFiles_Good(t *testing.T) {
 	os.MkdirAll(assetDir, 0755)
 	os.WriteFile(assetDir+"/hello.txt", []byte("hello world"), 0644)
 
-	source := "package test\nimport \"forge.lthn.ai/core/go/pkg/core\"\nfunc example() {\n\t_, _ = core.GetAsset(\"mygroup\", \"hello.txt\")\n}\n"
+	source := "package test\nimport \"dappco.re/go/core/pkg/core\"\nfunc example() {\n\t_, _ = core.GetAsset(\"mygroup\", \"hello.txt\")\n}\n"
 	goFile := dir + "/test.go"
 	os.WriteFile(goFile, []byte(source), 0644)
 
