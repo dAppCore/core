@@ -11,7 +11,7 @@ func TestLock_Good(t *testing.T) {
 	c := New()
 	lock := c.Lock("test")
 	assert.NotNil(t, lock)
-	assert.NotNil(t, lock.Mu)
+	assert.NotNil(t, lock.Mutex)
 }
 
 func TestLock_SameName_Good(t *testing.T) {

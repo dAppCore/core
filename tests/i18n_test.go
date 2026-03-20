@@ -36,10 +36,10 @@ func TestI18n_Locales_Empty_Good(t *testing.T) {
 
 // --- Translator (no translator registered) ---
 
-func TestI18n_T_NoTranslator_Good(t *testing.T) {
+func TestI18n_Translate_NoTranslator_Good(t *testing.T) {
 	c := New()
 	// Without a translator, T returns the key as-is
-	result := c.I18n().T("greeting.hello")
+	result := c.I18n().Translate("greeting.hello")
 	assert.Equal(t, "greeting.hello", result)
 }
 
@@ -71,7 +71,7 @@ type mockTranslator struct {
 	lang string
 }
 
-func (m *mockTranslator) T(id string, args ...any) string     { return "translated:" + id }
+func (m *mockTranslator) Translate(id string, args ...any) string     { return "translated:" + id }
 func (m *mockTranslator) SetLanguage(lang string) error        { m.lang = lang; return nil }
 func (m *mockTranslator) Language() string                     { return m.lang }
 func (m *mockTranslator) AvailableLanguages() []string         { return []string{"en", "de", "fr"} }
@@ -82,7 +82,7 @@ func TestI18n_WithTranslator_Good(t *testing.T) {
 	c.I18n().SetTranslator(tr)
 
 	assert.Equal(t, tr, c.I18n().Translator())
-	assert.Equal(t, "translated:hello", c.I18n().T("hello"))
+	assert.Equal(t, "translated:hello", c.I18n().Translate("hello"))
 	assert.Equal(t, "en", c.I18n().Language())
 	assert.Equal(t, []string{"en", "de", "fr"}, c.I18n().AvailableLanguages())
 

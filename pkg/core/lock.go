@@ -17,7 +17,7 @@ var (
 // Lock is the DTO for a named mutex.
 type Lock struct {
 	Name string
-	Mu   *sync.RWMutex
+	Mutex *sync.RWMutex
 }
 
 // Lock returns a named Lock, creating the mutex if needed.
@@ -29,7 +29,7 @@ func (c *Core) Lock(name string) *Lock {
 		lockMap[name] = m
 	}
 	lockMu.Unlock()
-	return &Lock{Name: name, Mu: m}
+	return &Lock{Name: name, Mutex: m}
 }
 
 // LockEnable marks that the service lock should be applied after initialisation.
@@ -38,8 +38,8 @@ func (c *Core) LockEnable(name ...string) {
 	if len(name) > 0 {
 		n = name[0]
 	}
-	c.Lock(n).Mu.Lock()
-	defer c.Lock(n).Mu.Unlock()
+	c.Lock(n).Mutex.Lock()
+	defer c.Lock(n).Mutex.Unlock()
 	if c.services == nil {
 		c.services = &serviceRegistry{services: make(map[string]*Service)}
 	}
@@ -52,8 +52,8 @@ func (c *Core) LockApply(name ...string) {
 	if len(name) > 0 {
 		n = name[0]
 	}
-	c.Lock(n).Mu.Lock()
-	defer c.Lock(n).Mu.Unlock()
+	c.Lock(n).Mutex.Lock()
+	defer c.Lock(n).Mutex.Unlock()
 	if c.services.lockEnabled {
 		c.services.locked = true
 	}
@@ -64,8 +64,8 @@ func (c *Core) Startables() Result {
 	if c.services == nil {
 		return Result{}
 	}
-	c.Lock("srv").Mu.RLock()
-	defer c.Lock("srv").Mu.RUnlock()
+	c.Lock("srv").Mutex.RLock()
+	defer c.Lock("srv").Mutex.RUnlock()
 	var out []*Service
 	for _, svc := range c.services.services {
 		if svc.OnStart != nil {
@@ -80,8 +80,8 @@ func (c *Core) Stoppables() Result {
 	if c.services == nil {
 		return Result{}
 	}
-	c.Lock("srv").Mu.RLock()
-	defer c.Lock("srv").Mu.RUnlock()
+	c.Lock("srv").Mutex.RLock()
+	defer c.Lock("srv").Mutex.RUnlock()
 	var out []*Service
 	for _, svc := range c.services.services {
 		if svc.OnStop != nil {

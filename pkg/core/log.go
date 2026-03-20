@@ -182,7 +182,7 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 	for i := 0; i < origLen; i += 2 {
 		if i+1 < origLen {
 			if err, ok := keyvals[i+1].(error); ok {
-				if op := Op(err); op != "" {
+				if op := Operation(err); op != "" {
 					// Check if op is already in keyvals
 					hasOp := false
 					for j := 0; j < len(keyvals); j += 2 {
@@ -361,7 +361,7 @@ func (le *LogErr) Log(err error) {
 	if err == nil {
 		return
 	}
-	le.log.Error(ErrorMessage(err), "op", Op(err), "code", ErrorCode(err), "stack", FormatStackTrace(err))
+	le.log.Error(ErrorMessage(err), "op", Operation(err), "code", ErrorCode(err), "stack", FormatStackTrace(err))
 }
 
 // --- LogPanic: Panic-Aware Logger ---
@@ -390,7 +390,7 @@ func (lp *LogPanic) Recover() {
 	}
 	lp.log.Error("panic recovered",
 		"err", err,
-		"op", Op(err),
+		"op", Operation(err),
 		"stack", FormatStackTrace(err),
 	)
 }

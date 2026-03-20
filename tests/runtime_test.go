@@ -21,8 +21,8 @@ func TestServiceRuntime_Good(t *testing.T) {
 	rt := NewServiceRuntime(c, opts)
 
 	assert.Equal(t, c, rt.Core())
-	assert.Equal(t, opts, rt.Opts())
-	assert.Equal(t, "https://api.lthn.ai", rt.Opts().URL)
+	assert.Equal(t, opts, rt.Options())
+	assert.Equal(t, "https://api.lthn.ai", rt.Options().URL)
 	assert.NotNil(t, rt.Config())
 }
 

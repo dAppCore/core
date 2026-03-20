@@ -13,8 +13,8 @@ import (
 // Translator defines the interface for translation services.
 // Implemented by go-i18n's Srv.
 type Translator interface {
-	// T translates a message by its ID with optional arguments.
-	T(messageID string, args ...any) string
+	// Translate translates a message by its ID with optional arguments.
+	Translate(messageID string, args ...any) string
 	// SetLanguage sets the active language (BCP47 tag, e.g., "en-GB", "de").
 	SetLanguage(lang string) error
 	// Language returns the current language code.
@@ -80,13 +80,13 @@ func (i *I18n) Translator() Translator {
 	return t
 }
 
-// T translates a message. Returns the key as-is if no translator is registered.
-func (i *I18n) T(messageID string, args ...any) string {
+// Translate translates a message. Returns the key as-is if no translator is registered.
+func (i *I18n) Translate(messageID string, args ...any) string {
 	i.mu.RLock()
 	t := i.translator
 	i.mu.RUnlock()
 	if t != nil {
-		return t.T(messageID, args...)
+		return t.Translate(messageID, args...)
 	}
 	return messageID
 }

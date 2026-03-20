@@ -50,14 +50,14 @@ func TestNewCode_Good(t *testing.T) {
 
 // --- Error Introspection ---
 
-func TestOp_Good(t *testing.T) {
+func TestOperation_Good(t *testing.T) {
 	err := E("brain.Recall", "search failed", nil)
-	assert.Equal(t, "brain.Recall", Op(err))
+	assert.Equal(t, "brain.Recall", Operation(err))
 }
 
-func TestOp_Bad(t *testing.T) {
+func TestOperation_Bad(t *testing.T) {
 	err := errors.New("plain error")
-	assert.Equal(t, "", Op(err))
+	assert.Equal(t, "", Operation(err))
 }
 
 func TestErrorMessage_Good(t *testing.T) {
@@ -104,22 +104,22 @@ func TestFormatStackTrace_Good(t *testing.T) {
 func TestErrorLog_Good(t *testing.T) {
 	c := New()
 	cause := errors.New("boom")
-	err := c.Log().Error(cause, "test.Op", "something broke")
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, cause)
+	r := c.Log().Error(cause, "test.Op", "something broke")
+	assert.False(t, r.OK)
+	assert.ErrorIs(t, r.Value.(error), cause)
 }
 
 func TestErrorLog_Nil_Good(t *testing.T) {
 	c := New()
-	err := c.Log().Error(nil, "test.Op", "no error")
-	assert.Nil(t, err)
+	r := c.Log().Error(nil, "test.Op", "no error")
+	assert.True(t, r.OK)
 }
 
 func TestErrorLog_Warn_Good(t *testing.T) {
 	c := New()
 	cause := errors.New("warning")
-	err := c.Log().Warn(cause, "test.Op", "heads up")
-	assert.Error(t, err)
+	r := c.Log().Warn(cause, "test.Op", "heads up")
+	assert.False(t, r.OK)
 }
 
 func TestErrorLog_Must_Ugly(t *testing.T) {
@@ -222,8 +222,8 @@ func TestErrorPanic_CrashFile_Good(t *testing.T) {
 
 	// For now, test that Reports handles missing file gracefully
 	c := New()
-	reports, err := c.Error().Reports(5)
-	assert.NoError(t, err)
-	assert.Nil(t, reports)
+	r := c.Error().Reports(5)
+	assert.False(t, r.OK)
+	assert.Nil(t, r.Value)
 	_ = path
 }

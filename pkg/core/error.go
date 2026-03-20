@@ -145,9 +145,9 @@ func ErrorJoin(errs ...error) error {
 
 // --- Error Introspection Helpers ---
 
-// Op extracts the operation name from an error.
+// Operation extracts the operation name from an error.
 // Returns empty string if the error is not an *Err.
-func Op(err error) string {
+func Operation(err error) string {
 	var e *Err
 	if As(err, &e) {
 		return e.Op
@@ -193,9 +193,9 @@ func Root(err error) error {
 	}
 }
 
-// AllOps returns an iterator over all operational contexts in the error chain.
+// AllOperations returns an iterator over all operational contexts in the error chain.
 // It traverses the error tree using errors.Unwrap.
-func AllOps(err error) iter.Seq[string] {
+func AllOperations(err error) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		for err != nil {
 			if e, ok := err.(*Err); ok {
@@ -214,7 +214,7 @@ func AllOps(err error) iter.Seq[string] {
 // It returns an empty slice if no operational context is found.
 func StackTrace(err error) []string {
 	var stack []string
-	for op := range AllOps(err) {
+	for op := range AllOperations(err) {
 		stack = append(stack, op)
 	}
 	return stack
@@ -223,7 +223,7 @@ func StackTrace(err error) []string {
 // FormatStackTrace returns a pretty-printed logical stack trace.
 func FormatStackTrace(err error) string {
 	var ops []string
-	for op := range AllOps(err) {
+	for op := range AllOperations(err) {
 		ops = append(ops, op)
 	}
 	if len(ops) == 0 {
@@ -247,24 +247,24 @@ func (el *ErrorLog) logger() *Log {
 	return defaultLog
 }
 
-// Error logs at Error level and returns a wrapped error.
-func (el *ErrorLog) Error(err error, op, msg string) error {
+// Error logs at Error level and returns a Result with the wrapped error.
+func (el *ErrorLog) Error(err error, op, msg string) Result {
 	if err == nil {
-		return nil
+		return Result{OK: true}
 	}
 	wrapped := Wrap(err, op, msg)
 	el.logger().Error(msg, "op", op, "err", err)
-	return wrapped
+	return Result{wrapped, false}
 }
 
-// Warn logs at Warn level and returns a wrapped error.
-func (el *ErrorLog) Warn(err error, op, msg string) error {
+// Warn logs at Warn level and returns a Result with the wrapped error.
+func (el *ErrorLog) Warn(err error, op, msg string) Result {
 	if err == nil {
-		return nil
+		return Result{OK: true}
 	}
 	wrapped := Wrap(err, op, msg)
 	el.logger().Warn(msg, "op", op, "err", err)
-	return wrapped
+	return Result{wrapped, false}
 }
 
 // Must logs and panics if err is not nil.
@@ -346,24 +346,24 @@ func (h *ErrorPanic) SafeGo(fn func()) {
 }
 
 // Reports returns the last n crash reports from the file.
-func (h *ErrorPanic) Reports(n int) ([]CrashReport, error) {
+func (h *ErrorPanic) Reports(n int) Result {
 	if h.filePath == "" {
-		return nil, nil
+		return Result{}
 	}
 	crashMu.Lock()
 	defer crashMu.Unlock()
 	data, err := os.ReadFile(h.filePath)
 	if err != nil {
-		return nil, err
+		return Result{err, false}
 	}
 	var reports []CrashReport
 	if err := json.Unmarshal(data, &reports); err != nil {
-		return nil, err
+		return Result{err, false}
 	}
 	if n <= 0 || len(reports) <= n {
-		return reports, nil
+		return Result{reports, true}
 	}
-	return reports[len(reports)-n:], nil
+	return Result{reports[len(reports)-n:], true}
 }
 
 var crashMu sync.Mutex

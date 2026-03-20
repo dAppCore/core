@@ -121,7 +121,7 @@ func (cl *Cli) PrintHelp() {
 		if cmd.Hidden {
 			continue
 		}
-		desc := cl.core.I18n().T(cmd.I18nKey())
+		desc := cl.core.I18n().Translate(cmd.I18nKey())
 		if desc == cmd.I18nKey() {
 			cl.Print("  %s", path)
 		} else {

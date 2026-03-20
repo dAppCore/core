@@ -43,9 +43,9 @@ func (c *Core) Service(name string, service ...Service) Result {
 	}
 
 	if len(service) == 0 {
-		c.Lock("srv").Mu.RLock()
+		c.Lock("srv").Mutex.RLock()
 		v, ok := c.services.services[name]
-		c.Lock("srv").Mu.RUnlock()
+		c.Lock("srv").Mutex.RUnlock()
 		return Result{v, ok}
 	}
 
@@ -53,8 +53,8 @@ func (c *Core) Service(name string, service ...Service) Result {
 		return Result{E("core.Service", "service name cannot be empty", nil), false}
 	}
 
-	c.Lock("srv").Mu.Lock()
-	defer c.Lock("srv").Mu.Unlock()
+	c.Lock("srv").Mutex.Lock()
+	defer c.Lock("srv").Mutex.Unlock()
 
 	if c.services.locked {
 		return Result{E("core.Service", Concat("service \"", name, "\" not permitted — registry locked"), nil), false}
@@ -77,8 +77,8 @@ func (c *Core) Services() []string {
 	if c.services == nil {
 		return nil
 	}
-	c.Lock("srv").Mu.RLock()
-	defer c.Lock("srv").Mu.RUnlock()
+	c.Lock("srv").Mutex.RLock()
+	defer c.Lock("srv").Mutex.RUnlock()
 	var names []string
 	for k := range c.services.services {
 		names = append(names, k)

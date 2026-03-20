@@ -59,22 +59,14 @@ func (c *Core) PERFORM(t Task) Result      { return c.Perform(t) }
 
 // --- Error+Log ---
 
-// LogError logs an error and returns a Result with the wrapped error.
+// LogError logs an error and returns the Result from ErrorLog.
 func (c *Core) LogError(err error, op, msg string) Result {
-	wrapped := c.log.Error(err, op, msg)
-	if wrapped == nil {
-		return Result{OK: true}
-	}
-	return Result{wrapped, false}
+	return c.log.Error(err, op, msg)
 }
 
-// LogWarn logs a warning and returns a Result with the wrapped error.
+// LogWarn logs a warning and returns the Result from ErrorLog.
 func (c *Core) LogWarn(err error, op, msg string) Result {
-	wrapped := c.log.Warn(err, op, msg)
-	if wrapped == nil {
-		return Result{OK: true}
-	}
-	return Result{wrapped, false}
+	return c.log.Warn(err, op, msg)
 }
 
 // Must logs and panics if err is not nil.
