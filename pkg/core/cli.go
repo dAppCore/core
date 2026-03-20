@@ -50,7 +50,18 @@ func (cl *Cli) Run(args ...string) Result {
 
 	clean := FilterArgs(args)
 
-	if cl.core == nil || cl.core.commands == nil || len(cl.core.commands.commands) == 0 {
+	if cl.core == nil || cl.core.commands == nil {
+		if cl.banner != nil {
+			cl.Print(cl.banner(cl))
+		}
+		return Result{}
+	}
+
+	cl.core.commands.mu.RLock()
+	cmdCount := len(cl.core.commands.commands)
+	cl.core.commands.mu.RUnlock()
+
+	if cmdCount == 0 {
 		if cl.banner != nil {
 			cl.Print(cl.banner(cl))
 		}
@@ -61,6 +72,7 @@ func (cl *Cli) Run(args ...string) Result {
 	var cmd *Command
 	var remaining []string
 
+	cl.core.commands.mu.RLock()
 	for i := len(clean); i > 0; i-- {
 		path := JoinPath(clean[:i]...)
 		if c, ok := cl.core.commands.commands[path]; ok {
@@ -69,6 +81,7 @@ func (cl *Cli) Run(args ...string) Result {
 			break
 		}
 	}
+	cl.core.commands.mu.RUnlock()
 
 	if cmd == nil {
 		if cl.banner != nil {

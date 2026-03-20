@@ -49,10 +49,24 @@ func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
 	return Result{OK: true}
 }
 
-// ServiceShutdown runs OnStop for all registered services that have one.
+// ServiceShutdown drains background tasks, then stops all registered services.
 func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	c.shutdown.Store(true)
 	c.ACTION(ActionServiceShutdown{})
+
+	// Drain background tasks before stopping services
+	done := make(chan struct{})
+	go func() {
+		c.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return Result{ctx.Err(), false}
+	}
+
+	// Stop services
 	var firstErr error
 	stoppables := c.Stoppables()
 	if stoppables.OK {
@@ -67,16 +81,6 @@ func (c *Core) ServiceShutdown(ctx context.Context) Result {
 				}
 			}
 		}
-	}
-	done := make(chan struct{})
-	go func() {
-		c.wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-ctx.Done():
-		return Result{ctx.Err(), false}
 	}
 	if firstErr != nil {
 		return Result{firstErr, false}
@@ -108,10 +112,15 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
 		}
 		r := factory()
 		if !r.OK {
-			continue
+			return Result{E("core.NewWithFactories", Concat("factory \"", name, "\" failed"), nil), false}
 		}
-		if svc, ok := r.Value.(Service); ok {
-			c.Service(name, svc)
+		svc, ok := r.Value.(Service)
+		if !ok {
+			return Result{E("core.NewWithFactories", Concat("factory \"", name, "\" returned non-Service type"), nil), false}
+		}
+		sr := c.Service(name, svc)
+		if !sr.OK {
+			return sr
 		}
 	}
 	return Result{&Runtime{app: app, Core: c}, true}

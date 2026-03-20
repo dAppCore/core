@@ -367,7 +367,12 @@ func MountEmbed(efs embed.FS, basedir string) Result {
 }
 
 func (s *Embed) path(name string) string {
-	return filepath.ToSlash(filepath.Join(s.basedir, name))
+	joined := filepath.ToSlash(filepath.Join(s.basedir, name))
+	// Reject traversal outside the base directory
+	if HasPrefix(joined, "..") || Contains(joined, "/../") || HasSuffix(joined, "/..") {
+		return s.basedir
+	}
+	return joined
 }
 
 // Open opens the named file for reading.
@@ -526,9 +531,24 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Res
 		return Result{err, false}
 	}
 
+	// safePath ensures a rendered path stays under targetDir.
+	safePath := func(rendered string) (string, error) {
+		abs, err := filepath.Abs(rendered)
+		if err != nil {
+			return "", err
+		}
+		if !HasPrefix(abs, targetDir+string(filepath.Separator)) && abs != targetDir {
+			return "", E("embed.Extract", Concat("path escapes target: ", abs), nil)
+		}
+		return abs, nil
+	}
+
 	// Create directories (names may contain templates)
 	for _, dir := range dirs {
-		target := renderPath(filepath.Join(targetDir, dir), data)
+		target, err := safePath(renderPath(filepath.Join(targetDir, dir), data))
+		if err != nil {
+			return Result{err, false}
+		}
 		if err := os.MkdirAll(target, 0755); err != nil {
 			return Result{err, false}
 		}
@@ -552,7 +572,10 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Res
 		if renamed := opt.RenameFiles[name]; renamed != "" {
 			name = renamed
 		}
-		targetFile = filepath.Join(dir, name)
+		targetFile, err = safePath(filepath.Join(dir, name))
+		if err != nil {
+			return Result{err, false}
+		}
 
 		f, err := os.Create(targetFile)
 		if err != nil {
@@ -572,7 +595,10 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Res
 		if renamed := opt.RenameFiles[name]; renamed != "" {
 			targetPath = filepath.Join(filepath.Dir(path), renamed)
 		}
-		target := renderPath(filepath.Join(targetDir, targetPath), data)
+		target, err := safePath(renderPath(filepath.Join(targetDir, targetPath), data))
+		if err != nil {
+			return Result{err, false}
+		}
 		if err := copyFile(fsys, path, target); err != nil {
 			return Result{err, false}
 		}
