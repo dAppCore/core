@@ -69,11 +69,12 @@ func (d *Data) New(opts Options) Result {
 		d.mounts = make(map[string]*Embed)
 	}
 
-	emb, err := Mount(fsys, path)
-	if err != nil {
+	r := Mount(fsys, path)
+	if !r.OK {
 		return Result{}
 	}
 
+	emb := r.Value.(*Embed)
 	d.mounts[name] = emb
 	return Result{Value: emb, OK: true}
 }
@@ -108,45 +109,54 @@ func (d *Data) resolve(path string) (*Embed, string) {
 
 // ReadFile reads a file by full path.
 //
-//	bytes := c.Data().ReadFile("brain/prompts/coding.md")
-func (d *Data) ReadFile(path string) ([]byte, error) {
+//	r := c.Data().ReadFile("brain/prompts/coding.md")
+//	if r.OK { data := r.Value.([]byte) }
+func (d *Data) ReadFile(path string) Result {
 	emb, rel := d.resolve(path)
 	if emb == nil {
-		return nil, E("data.ReadFile", "mount not found: "+path, nil)
+		return Result{}
 	}
 	return emb.ReadFile(rel)
 }
 
 // ReadString reads a file as a string.
 //
-//	content := c.Data().ReadString("agent/flow/deploy/to/homelab.yaml")
-func (d *Data) ReadString(path string) (string, error) {
-	data, err := d.ReadFile(path)
-	if err != nil {
-		return "", err
+//	r := c.Data().ReadString("agent/flow/deploy/to/homelab.yaml")
+//	if r.OK { content := r.Value.(string) }
+func (d *Data) ReadString(path string) Result {
+	r := d.ReadFile(path)
+	if !r.OK {
+		return r
 	}
-	return string(data), nil
+	return Result{Value: string(r.Value.([]byte)), OK: true}
 }
 
 // List returns directory entries at a path.
 //
-//	entries := c.Data().List("agent/persona/code")
-func (d *Data) List(path string) ([]fs.DirEntry, error) {
+//	r := c.Data().List("agent/persona/code")
+//	if r.OK { entries := r.Value.([]fs.DirEntry) }
+func (d *Data) List(path string) Result {
 	emb, rel := d.resolve(path)
 	if emb == nil {
-		return nil, E("data.List", "mount not found: "+path, nil)
+		return Result{}
 	}
-	return emb.ReadDir(rel)
+	entries, err := emb.ReadDir(rel)
+	if err != nil {
+		return Result{}
+	}
+	return Result{Value: entries, OK: true}
 }
 
 // ListNames returns filenames (without extensions) at a path.
 //
-//	names := c.Data().ListNames("agent/flow")
-func (d *Data) ListNames(path string) ([]string, error) {
-	entries, err := d.List(path)
-	if err != nil {
-		return nil, err
+//	r := c.Data().ListNames("agent/flow")
+//	if r.OK { names := r.Value.([]string) }
+func (d *Data) ListNames(path string) Result {
+	r := d.List(path)
+	if !r.OK {
+		return r
 	}
+	entries := r.Value.([]fs.DirEntry)
 	var names []string
 	for _, e := range entries {
 		name := e.Name()
@@ -155,22 +165,22 @@ func (d *Data) ListNames(path string) ([]string, error) {
 		}
 		names = append(names, name)
 	}
-	return names, nil
+	return Result{Value: names, OK: true}
 }
 
 // Extract copies a template directory to targetDir.
 //
-//	c.Data().Extract("agent/workspace/default", "/tmp/ws", templateData)
-func (d *Data) Extract(path, targetDir string, templateData any) error {
+//	r := c.Data().Extract("agent/workspace/default", "/tmp/ws", templateData)
+func (d *Data) Extract(path, targetDir string, templateData any) Result {
 	emb, rel := d.resolve(path)
 	if emb == nil {
-		return E("data.Extract", "mount not found: "+path, nil)
+		return Result{}
 	}
-	sub, err := emb.Sub(rel)
-	if err != nil {
-		return err
+	r := emb.Sub(rel)
+	if !r.OK {
+		return r
 	}
-	return Extract(sub.FS(), targetDir, templateData)
+	return Extract(r.Value.(*Embed).FS(), targetDir, templateData)
 }
 
 // Mounts returns the names of all mounted content.

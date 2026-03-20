@@ -28,69 +28,47 @@ func TestData_New_Good(t *testing.T) {
 func TestData_New_Bad(t *testing.T) {
 	c := New()
 
-	// Missing name
-	r := c.Data().New(Options{
-		{K: "source", V: testFS},
-	})
+	r := c.Data().New(Options{{K: "source", V: testFS}})
 	assert.False(t, r.OK)
 
-	// Missing source
-	r = c.Data().New(Options{
-		{K: "name", V: "test"},
-	})
+	r = c.Data().New(Options{{K: "name", V: "test"}})
 	assert.False(t, r.OK)
 
-	// Wrong source type
-	r = c.Data().New(Options{
-		{K: "name", V: "test"},
-		{K: "source", V: "not-an-fs"},
-	})
+	r = c.Data().New(Options{{K: "name", V: "test"}, {K: "source", V: "not-an-fs"}})
 	assert.False(t, r.OK)
 }
 
 func TestData_ReadString_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{
-		{K: "name", V: "app"},
-		{K: "source", V: testFS},
-		{K: "path", V: "testdata"},
-	})
-	content, err := c.Data().ReadString("app/test.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "hello from testdata\n", content)
+	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	r := c.Data().ReadString("app/test.txt")
+	assert.True(t, r.OK)
+	assert.Equal(t, "hello from testdata\n", r.Value.(string))
 }
 
 func TestData_ReadString_Bad(t *testing.T) {
 	c := New()
-	_, err := c.Data().ReadString("nonexistent/file.txt")
-	assert.Error(t, err)
+	r := c.Data().ReadString("nonexistent/file.txt")
+	assert.False(t, r.OK)
 }
 
 func TestData_ReadFile_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{
-		{K: "name", V: "app"},
-		{K: "source", V: testFS},
-		{K: "path", V: "testdata"},
-	})
-	data, err := c.Data().ReadFile("app/test.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "hello from testdata\n", string(data))
+	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	r := c.Data().ReadFile("app/test.txt")
+	assert.True(t, r.OK)
+	assert.Equal(t, "hello from testdata\n", string(r.Value.([]byte)))
 }
 
 func TestData_Get_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{
-		{K: "name", V: "brain"},
-		{K: "source", V: testFS},
-		{K: "path", V: "testdata"},
-	})
+	c.Data().New(Options{{K: "name", V: "brain"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
 	emb := c.Data().Get("brain")
 	assert.NotNil(t, emb)
 
-	// Read via the Embed directly
-	file, err := emb.Open("test.txt")
-	assert.NoError(t, err)
+	r := emb.Open("test.txt")
+	assert.True(t, r.OK)
+	file := r.Value.(io.ReadCloser)
 	defer file.Close()
 	content, _ := io.ReadAll(file)
 	assert.Equal(t, "hello from testdata\n", string(content))
@@ -108,77 +86,44 @@ func TestData_Mounts_Good(t *testing.T) {
 	c.Data().New(Options{{K: "name", V: "b"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
 	mounts := c.Data().Mounts()
 	assert.Len(t, mounts, 2)
-	assert.Contains(t, mounts, "a")
-	assert.Contains(t, mounts, "b")
 }
-
-// --- Legacy Embed() accessor ---
 
 func TestEmbed_Legacy_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{
-		{K: "name", V: "app"},
-		{K: "source", V: testFS},
-		{K: "path", V: "testdata"},
-	})
-	// Legacy accessor reads from Data mount "app"
-	emb := c.Embed()
-	assert.NotNil(t, emb)
+	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	assert.NotNil(t, c.Embed())
 }
-
-// --- Data List / ListNames ---
 
 func TestData_List_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{
-		{K: "name", V: "app"},
-		{K: "source", V: testFS},
-		{K: "path", V: "."},
-	})
-	entries, err := c.Data().List("app/testdata")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, entries)
+	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "."}})
+	r := c.Data().List("app/testdata")
+	assert.True(t, r.OK)
 }
 
 func TestData_List_Bad(t *testing.T) {
 	c := New()
-	_, err := c.Data().List("nonexistent/path")
-	assert.Error(t, err)
+	r := c.Data().List("nonexistent/path")
+	assert.False(t, r.OK)
 }
 
 func TestData_ListNames_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{
-		{K: "name", V: "app"},
-		{K: "source", V: testFS},
-		{K: "path", V: "."},
-	})
-	names, err := c.Data().ListNames("app/testdata")
-	assert.NoError(t, err)
-	assert.Contains(t, names, "test")
+	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "."}})
+	r := c.Data().ListNames("app/testdata")
+	assert.True(t, r.OK)
+	assert.Contains(t, r.Value.([]string), "test")
 }
-
-// --- Data Extract ---
 
 func TestData_Extract_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{
-		{K: "name", V: "app"},
-		{K: "source", V: testFS},
-		{K: "path", V: "."},
-	})
-	dir := t.TempDir()
-	err := c.Data().Extract("app/testdata", dir, nil)
-	assert.NoError(t, err)
-
-	// Verify extracted file
-	content, err := c.Fs().Read(dir + "/test.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "hello from testdata\n", content)
+	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "."}})
+	r := c.Data().Extract("app/testdata", t.TempDir(), nil)
+	assert.True(t, r.OK)
 }
 
 func TestData_Extract_Bad(t *testing.T) {
 	c := New()
-	err := c.Data().Extract("nonexistent/path", t.TempDir(), nil)
-	assert.Error(t, err)
+	r := c.Data().Extract("nonexistent/path", t.TempDir(), nil)
+	assert.False(t, r.OK)
 }

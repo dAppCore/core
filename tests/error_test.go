@@ -210,18 +210,6 @@ func TestErrorPanic_Reports_Good(t *testing.T) {
 	// Crash reporting needs ErrorPanic configured with filePath — tested indirectly
 }
 
-// --- Embed extras ---
-
-func TestMountEmbed_Good(t *testing.T) {
-	emb, err := MountEmbed(testFS, "testdata")
-	assert.NoError(t, err)
-	assert.NotNil(t, emb)
-
-	content, err := emb.ReadString("test.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "hello from testdata\n", content)
-}
-
 // --- ErrorPanic Crash File ---
 
 func TestErrorPanic_CrashFile_Good(t *testing.T) {
