@@ -70,11 +70,11 @@ func GetAsset(group, name string) (string, error) {
 	g, ok := assetGroups[group]
 	assetGroupsMu.RUnlock()
 	if !ok {
-		return "", E("core.GetAsset", fmt.Sprintf("asset group %q not found", group), nil)
+		return "", E("core.GetAsset", Join(" ", "asset group", group, "not found"), nil)
 	}
 	data, ok := g.assets[name]
 	if !ok {
-		return "", E("core.GetAsset", fmt.Sprintf("asset %q not found in group %q", name, group), nil)
+		return "", E("core.GetAsset", Join(" ", "asset", name, "not found in group", group), nil)
 	}
 	return decompress(data)
 }
@@ -158,7 +158,7 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 							}
 							fullPath, err := filepath.Abs(filepath.Join(baseDir, group, path))
 							if err != nil {
-								scanErr = Wrap(err, "core.ScanAssets", fmt.Sprintf("could not determine absolute path for asset %q in group %q", path, group))
+								scanErr = Wrap(err, "core.ScanAssets", Join(" ", "could not determine absolute path for asset", path, "in group", group))
 								return false
 							}
 							pkg.Assets = append(pkg.Assets, AssetRef{
@@ -176,7 +176,7 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 							path := strings.Trim(lit.Value, "\"")
 							fullPath, err := filepath.Abs(filepath.Join(baseDir, path))
 							if err != nil {
-								scanErr = Wrap(err, "core.ScanAssets", fmt.Sprintf("could not determine absolute path for group %q", path))
+								scanErr = Wrap(err, "core.ScanAssets", Join(" ", "could not determine absolute path for group", path))
 								return false
 							}
 							pkg.Groups = append(pkg.Groups, fullPath)
@@ -219,7 +219,7 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 	for _, groupPath := range pkg.Groups {
 		files, err := getAllFiles(groupPath)
 		if err != nil {
-			return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("failed to scan asset group %q", groupPath))
+			return "", Wrap(err, "core.GeneratePack", Join(" ", "failed to scan asset group", groupPath))
 		}
 		for _, file := range files {
 			if packed[file] {
@@ -227,12 +227,12 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 			}
 			data, err := compressFile(file)
 			if err != nil {
-				return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("failed to compress asset %q in group %q", file, groupPath))
+				return "", Wrap(err, "core.GeneratePack", Join(" ", "failed to compress asset", file, "in group", groupPath))
 			}
 			localPath := strings.TrimPrefix(file, groupPath+"/")
 			relGroup, err := filepath.Rel(pkg.BaseDir, groupPath)
 			if err != nil {
-				return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("could not determine relative path for group %q (base %q)", groupPath, pkg.BaseDir))
+				return "", Wrap(err, "core.GeneratePack", Join(" ", "could not determine relative path for group", groupPath, "(base", Concat(pkg.BaseDir, ")")))
 			}
 			b.WriteString(fmt.Sprintf("\tcore.AddAsset(%q, %q, %q)\n", relGroup, localPath, data))
 			packed[file] = true
@@ -246,7 +246,7 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 		}
 		data, err := compressFile(asset.FullPath)
 		if err != nil {
-			return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("failed to compress asset %q", asset.FullPath))
+			return "", Wrap(err, "core.GeneratePack", Join(" ", "failed to compress asset", asset.FullPath))
 		}
 		b.WriteString(fmt.Sprintf("\tcore.AddAsset(%q, %q, %q)\n", asset.Group, asset.Name, data))
 		packed[asset.FullPath] = true

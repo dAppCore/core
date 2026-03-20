@@ -25,8 +25,8 @@ func NewServiceRuntime[T any](c *Core, opts T) *ServiceRuntime[T] {
 	return &ServiceRuntime[T]{core: c, opts: opts}
 }
 
-func (r *ServiceRuntime[T]) Core() *Core  { return r.core }
-func (r *ServiceRuntime[T]) Opts() T      { return r.opts }
+func (r *ServiceRuntime[T]) Core() *Core     { return r.core }
+func (r *ServiceRuntime[T]) Opts() T         { return r.opts }
 func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 
 // --- Lifecycle ---

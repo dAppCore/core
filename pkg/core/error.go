@@ -47,14 +47,14 @@ func (e *Err) Error() string {
 	}
 	if e.Err != nil {
 		if e.Code != "" {
-			return fmt.Sprintf("%s%s [%s]: %v", prefix, e.Msg, e.Code, e.Err)
+			return Concat(prefix, e.Msg, " [", e.Code, "]: ", e.Err.Error())
 		}
-		return fmt.Sprintf("%s%s: %v", prefix, e.Msg, e.Err)
+		return Concat(prefix, e.Msg, ": ", e.Err.Error())
 	}
 	if e.Code != "" {
-		return fmt.Sprintf("%s%s [%s]", prefix, e.Msg, e.Code)
+		return Concat(prefix, e.Msg, " [", e.Code, "]")
 	}
-	return fmt.Sprintf("%s%s", prefix, e.Msg)
+	return Concat(prefix, e.Msg)
 }
 
 // Unwrap returns the underlying error for use with errors.Is and errors.As.

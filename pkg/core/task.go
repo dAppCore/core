@@ -5,8 +5,9 @@
 package core
 
 import (
-	"fmt"
+	"reflect"
 	"slices"
+	"strconv"
 )
 
 // TaskState holds background task state.
@@ -22,7 +23,7 @@ func (c *Core) PerformAsync(t Task) string {
 	if c.shutdown.Load() {
 		return ""
 	}
-	taskID := fmt.Sprintf("task-%d", c.taskIDCounter.Add(1))
+	taskID := Concat("task-", strconv.FormatUint(c.taskIDCounter.Add(1), 10))
 	if tid, ok := t.(TaskWithID); ok {
 		tid.SetTaskID(taskID)
 	}
@@ -30,7 +31,7 @@ func (c *Core) PerformAsync(t Task) string {
 	c.wg.Go(func() {
 		result, handled, err := c.PERFORM(t)
 		if !handled && err == nil {
-			err = E("core.PerformAsync", fmt.Sprintf("no handler found for task type %T", t), nil)
+			err = E("core.PerformAsync", Join(" ", "no handler found for task type", reflect.TypeOf(t).String()), nil)
 		}
 		_ = c.ACTION(ActionTaskCompleted{TaskID: taskID, Task: t, Result: result, Error: err})
 	})

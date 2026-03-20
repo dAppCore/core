@@ -13,7 +13,7 @@
 
 package core
 
-import "fmt"
+// No imports needed — uses package-level string helpers.
 
 // Service is a managed component with optional lifecycle.
 type Service struct {
@@ -60,7 +60,7 @@ func (c *Core) Service(name string, service ...Service) Result {
 		return Result{Value: E("core.Service", Concat("service \"", name, "\" not permitted — registry locked"), nil)}
 	}
 	if _, exists := c.services.services[name]; exists {
-		return Result{Value: E("core.Service", fmt.Sprintf("service %q already registered", name), nil)}
+		return Result{Value: E("core.Service", Join(" ", "service", name, "already registered"), nil)}
 	}
 
 	srv := &service[0]
