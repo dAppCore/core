@@ -21,7 +21,6 @@
 package core
 
 import (
-	"strings"
 	"sync"
 )
 
@@ -65,7 +64,7 @@ func (cmd *Command) I18nKey() string {
 	if path == "" {
 		path = cmd.name
 	}
-	return "cmd." + strings.ReplaceAll(path, "/", ".") + ".description"
+	return "cmd." + Replace(path, "/", ".") + ".description"
 }
 
 // Run executes the command's action with the given options.
@@ -183,9 +182,9 @@ func (c *Core) Command(args ...any) any {
 		c.commands.commands[path] = cmd
 
 		// Build parent chain — "deploy/to/homelab" creates "deploy" and "deploy/to" if missing
-		parts := strings.Split(path, "/")
+		parts := Split(path, "/")
 		for i := len(parts) - 1; i > 0; i-- {
-			parentPath := strings.Join(parts[:i], "/")
+			parentPath := StringJoin(parts[:i], "/")
 			if _, exists := c.commands.commands[parentPath]; !exists {
 				c.commands.commands[parentPath] = &Command{
 					name:     parts[i-1],
@@ -220,6 +219,6 @@ func (c *Core) Commands() []string {
 // pathName extracts the last segment of a path.
 // "deploy/to/homelab" → "homelab"
 func pathName(path string) string {
-	parts := strings.Split(path, "/")
+	parts := Split(path, "/")
 	return parts[len(parts)-1]
 }
