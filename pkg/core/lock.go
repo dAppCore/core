@@ -41,7 +41,7 @@ func (c *Core) LockEnable(name ...string) {
 	}
 	c.Lock(n).Mu.Lock()
 	defer c.Lock(n).Mu.Unlock()
-	c.srv.lockEnabled = true
+	c.service.lockEnabled = true
 }
 
 // LockApply activates the service lock if it was enabled.
@@ -52,15 +52,15 @@ func (c *Core) LockApply(name ...string) {
 	}
 	c.Lock(n).Mu.Lock()
 	defer c.Lock(n).Mu.Unlock()
-	if c.srv.lockEnabled {
-		c.srv.locked = true
+	if c.service.lockEnabled {
+		c.service.locked = true
 	}
 }
 
 // Startables returns a snapshot of services implementing Startable.
 func (c *Core) Startables() []Startable {
 	c.Lock("srv").Mu.RLock()
-	out := slices.Clone(c.srv.startables)
+	out := slices.Clone(c.service.startables)
 	c.Lock("srv").Mu.RUnlock()
 	return out
 }
@@ -68,7 +68,7 @@ func (c *Core) Startables() []Startable {
 // Stoppables returns a snapshot of services implementing Stoppable.
 func (c *Core) Stoppables() []Stoppable {
 	c.Lock("srv").Mu.RLock()
-	out := slices.Clone(c.srv.stoppables)
+	out := slices.Clone(c.service.stoppables)
 	c.Lock("srv").Mu.RUnlock()
 	return out
 }

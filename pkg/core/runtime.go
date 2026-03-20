@@ -94,7 +94,9 @@ type ServiceFactory func() (any, error)
 
 // NewWithFactories creates a Runtime with the provided service factories.
 func NewWithFactories(app any, factories map[string]ServiceFactory) (*Runtime, error) {
-	coreOpts := []Option{WithApp(app)}
+	c := New(Options{{K: "name", V: "core"}})
+	c.app.Runtime = app
+
 	names := slices.Sorted(maps.Keys(factories))
 	for _, name := range names {
 		factory := factories[name]
@@ -105,14 +107,9 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) (*Runtime, e
 		if err != nil {
 			return nil, E("core.NewWithFactories", fmt.Sprintf("failed to create service %q", name), err)
 		}
-		svcCopy := svc
-		coreOpts = append(coreOpts, WithName(name, func(c *Core) (any, error) { return svcCopy, nil }))
+		c.Service(name, svc)
 	}
-	coreInstance, err := New(coreOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return &Runtime{app: app, Core: coreInstance}, nil
+	return &Runtime{app: app, Core: c}, nil
 }
 
 // NewRuntime creates a Runtime with no custom services.

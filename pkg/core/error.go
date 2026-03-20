@@ -21,14 +21,14 @@ import (
 	"time"
 )
 
-// ErrSink is the shared interface for error reporting.
-// Implemented by ErrLog (structured logging) and ErrPan (panic recovery).
-type ErrSink interface {
+// ErrorSink is the shared interface for error reporting.
+// Implemented by ErrorLog (structured logging) and ErrorPanic (panic recovery).
+type ErrorSink interface {
 	Error(msg string, keyvals ...any)
 	Warn(msg string, keyvals ...any)
 }
 
-var _ ErrSink = (*Log)(nil)
+var _ ErrorSink = (*Log)(nil)
 
 // Err represents a structured error with operational context.
 // It implements the error interface and supports unwrapping.
@@ -233,55 +233,45 @@ func FormatStackTrace(err error) string {
 	return strings.Join(ops, " -> ")
 }
 
-// --- ErrLog: Log-and-Return Error Helpers ---
+// --- ErrorLog: Log-and-Return Error Helpers ---
 
-// ErrOpts holds shared options for error subsystems.
-type ErrOpts struct {
-	Log *Log
-}
-
-// ErrLog combines error creation with logging.
+// ErrorLog combines error creation with logging.
 // Primary action: return an error. Secondary: log it.
-type ErrLog struct {
-	*ErrOpts
+type ErrorLog struct {
+	log *Log
 }
 
-// NewErrLog creates an ErrLog (consumer convenience).
-func NewErrLog(opts *ErrOpts) *ErrLog {
-	return &ErrLog{opts}
-}
-
-func (el *ErrLog) log() *Log {
-	if el.ErrOpts != nil && el.Log != nil {
-		return el.Log
+func (el *ErrorLog) logger() *Log {
+	if el.log != nil {
+		return el.log
 	}
 	return defaultLog
 }
 
 // Error logs at Error level and returns a wrapped error.
-func (el *ErrLog) Error(err error, op, msg string) error {
+func (el *ErrorLog) Error(err error, op, msg string) error {
 	if err == nil {
 		return nil
 	}
 	wrapped := Wrap(err, op, msg)
-	el.log().Error(msg, "op", op, "err", err)
+	el.logger().Error(msg, "op", op, "err", err)
 	return wrapped
 }
 
 // Warn logs at Warn level and returns a wrapped error.
-func (el *ErrLog) Warn(err error, op, msg string) error {
+func (el *ErrorLog) Warn(err error, op, msg string) error {
 	if err == nil {
 		return nil
 	}
 	wrapped := Wrap(err, op, msg)
-	el.log().Warn(msg, "op", op, "err", err)
+	el.logger().Warn(msg, "op", op, "err", err)
 	return wrapped
 }
 
 // Must logs and panics if err is not nil.
-func (el *ErrLog) Must(err error, op, msg string) {
+func (el *ErrorLog) Must(err error, op, msg string) {
 	if err != nil {
-		el.log().Error(msg, "op", op, "err", err)
+		el.logger().Error(msg, "op", op, "err", err)
 		panic(Wrap(err, op, msg))
 	}
 }
@@ -304,40 +294,16 @@ type CrashSystem struct {
 	Version string `json:"go_version"`
 }
 
-// ErrPan manages panic recovery and crash reporting.
-type ErrPan struct {
+// ErrorPanic manages panic recovery and crash reporting.
+type ErrorPanic struct {
 	filePath string
 	meta     map[string]string
 	onCrash  func(CrashReport)
 }
 
-// PanOpts configures an ErrPan.
-type PanOpts struct {
-	// FilePath is the crash report JSON output path. Empty disables file output.
-	FilePath string
-	// Meta is metadata included in every crash report.
-	Meta map[string]string
-	// OnCrash is a callback invoked on every crash.
-	OnCrash func(CrashReport)
-}
-
-// NewErrPan creates an ErrPan (consumer convenience).
-func NewErrPan(opts ...PanOpts) *ErrPan {
-	h := &ErrPan{}
-	if len(opts) > 0 {
-		o := opts[0]
-		h.filePath = o.FilePath
-		if o.Meta != nil {
-			h.meta = maps.Clone(o.Meta)
-		}
-		h.onCrash = o.OnCrash
-	}
-	return h
-}
-
 // Recover captures a panic and creates a crash report.
 // Use as: defer c.Error().Recover()
-func (h *ErrPan) Recover() {
+func (h *ErrorPanic) Recover() {
 	if h == nil {
 		return
 	}
@@ -373,7 +339,7 @@ func (h *ErrPan) Recover() {
 }
 
 // SafeGo runs a function in a goroutine with panic recovery.
-func (h *ErrPan) SafeGo(fn func()) {
+func (h *ErrorPanic) SafeGo(fn func()) {
 	go func() {
 		defer h.Recover()
 		fn()
@@ -381,7 +347,7 @@ func (h *ErrPan) SafeGo(fn func()) {
 }
 
 // Reports returns the last n crash reports from the file.
-func (h *ErrPan) Reports(n int) ([]CrashReport, error) {
+func (h *ErrorPanic) Reports(n int) ([]CrashReport, error) {
 	if h.filePath == "" {
 		return nil, nil
 	}
@@ -403,7 +369,7 @@ func (h *ErrPan) Reports(n int) ([]CrashReport, error) {
 
 var crashMu sync.Mutex
 
-func (h *ErrPan) appendReport(report CrashReport) {
+func (h *ErrorPanic) appendReport(report CrashReport) {
 	crashMu.Lock()
 	defer crashMu.Unlock()
 

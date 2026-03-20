@@ -28,11 +28,11 @@ type Service struct {
 func (c *Core) Service(args ...any) any {
 	switch len(args) {
 	case 0:
-		return c.srv
+		return c.service
 	case 1:
 		name, _ := args[0].(string)
 		c.Lock("srv").Mu.RLock()
-		v, ok := c.srv.Services[name]
+		v, ok := c.service.Services[name]
 		c.Lock("srv").Mu.RUnlock()
 		if !ok {
 			return nil
@@ -45,22 +45,22 @@ func (c *Core) Service(args ...any) any {
 		}
 		c.Lock("srv").Mu.Lock()
 		defer c.Lock("srv").Mu.Unlock()
-		if c.srv.locked {
+		if c.service.locked {
 			return E("core.Service", fmt.Sprintf("service %q is not permitted by the serviceLock setting", name), nil)
 		}
-		if _, exists := c.srv.Services[name]; exists {
+		if _, exists := c.service.Services[name]; exists {
 			return E("core.Service", fmt.Sprintf("service %q already registered", name), nil)
 		}
 		svc := args[1]
-		if c.srv.Services == nil {
-			c.srv.Services = make(map[string]any)
+		if c.service.Services == nil {
+			c.service.Services = make(map[string]any)
 		}
-		c.srv.Services[name] = svc
+		c.service.Services[name] = svc
 		if st, ok := svc.(Startable); ok {
-			c.srv.startables = append(c.srv.startables, st)
+			c.service.startables = append(c.service.startables, st)
 		}
 		if st, ok := svc.(Stoppable); ok {
-			c.srv.stoppables = append(c.srv.stoppables, st)
+			c.service.stoppables = append(c.service.stoppables, st)
 		}
 		if lp, ok := svc.(LocaleProvider); ok {
 			c.i18n.AddLocales(lp.Locales())
