@@ -29,6 +29,12 @@ func (c *Core) PerformAsync(t Task) Result {
 	}
 	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Task: t})
 	c.wg.Go(func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				err := E("core.PerformAsync", Sprint("panic: ", rec), nil)
+				c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: nil, Error: err})
+			}
+		}()
 		r := c.PERFORM(t)
 		var err error
 		if !r.OK {
@@ -36,11 +42,11 @@ func (c *Core) PerformAsync(t Task) Result {
 				err = e
 			} else {
 				taskType := reflect.TypeOf(t)
-			typeName := "<nil>"
-			if taskType != nil {
-				typeName = taskType.String()
-			}
-			err = E("core.PerformAsync", Join(" ", "no handler found for task type", typeName), nil)
+				typeName := "<nil>"
+				if taskType != nil {
+					typeName = taskType.String()
+				}
+				err = E("core.PerformAsync", Join(" ", "no handler found for task type", typeName), nil)
 			}
 		}
 		c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: r.Value, Error: err})

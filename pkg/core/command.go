@@ -155,6 +155,15 @@ func (c *Core) Command(path string, command ...Command) Result {
 		cmd.commands = make(map[string]*Command)
 	}
 
+	// Preserve existing subtree when overwriting a placeholder parent
+	if existing, exists := c.commands.commands[path]; exists {
+		for k, v := range existing.commands {
+			if _, has := cmd.commands[k]; !has {
+				cmd.commands[k] = v
+			}
+		}
+	}
+
 	c.commands.commands[path] = cmd
 
 	// Build parent chain — "deploy/to/homelab" creates "deploy" and "deploy/to" if missing
