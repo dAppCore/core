@@ -34,13 +34,7 @@ func (cl *Cli) Run(args ...string) Result[any] {
 		args = os.Args[1:]
 	}
 
-	// Filter out empty args and test flags
-	var clean []string
-	for _, a := range args {
-		if a != "" && !strings.HasPrefix(a, "-test.") {
-			clean = append(clean, a)
-		}
-	}
+	clean := FilterArgs(args)
 
 	if cl.core == nil || cl.core.commands == nil || len(cl.core.commands.commands) == 0 {
 		// No commands registered — print banner and exit
@@ -76,23 +70,17 @@ func (cl *Cli) Run(args ...string) Result[any] {
 	// Build options from remaining args (flags become Options)
 	opts := Options{}
 	for _, arg := range remaining {
-		if strings.HasPrefix(arg, "--") {
-			parts := strings.SplitN(strings.TrimPrefix(arg, "--"), "=", 2)
-			if len(parts) == 2 {
-				opts = append(opts, Option{K: parts[0], V: parts[1]})
+		key, val, valid := ParseFlag(arg)
+		if valid {
+			if val != "" {
+				opts = append(opts, Option{K: key, V: val})
 			} else {
-				opts = append(opts, Option{K: parts[0], V: true})
+				opts = append(opts, Option{K: key, V: true})
 			}
-		} else if strings.HasPrefix(arg, "-") {
-			parts := strings.SplitN(strings.TrimPrefix(arg, "-"), "=", 2)
-			if len(parts) == 2 {
-				opts = append(opts, Option{K: parts[0], V: parts[1]})
-			} else {
-				opts = append(opts, Option{K: parts[0], V: true})
-			}
-		} else {
+		} else if !strings.HasPrefix(arg, "-") {
 			opts = append(opts, Option{K: "_arg", V: arg})
 		}
+		// Invalid flags (e.g. -verbose, --v) are silently ignored
 	}
 
 	return cmd.Run(opts)
