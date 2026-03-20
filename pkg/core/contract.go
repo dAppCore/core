@@ -86,6 +86,7 @@ func New(opts ...Options) *Core {
 		services: &serviceRegistry{services: make(map[string]*Service)},
 		commands: &commandRegistry{commands: make(map[string]*Command)},
 	}
+	c.ctx, c.cancel = context.WithCancel(context.Background())
 
 	if len(opts) > 0 {
 		cp := make(Options, len(opts[0]))

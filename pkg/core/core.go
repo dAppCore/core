@@ -6,6 +6,7 @@
 package core
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 )
@@ -29,6 +30,8 @@ type Core struct {
 	ipc     *Ipc     // c.IPC()            — Message bus for IPC
 	i18n    *I18n    // c.I18n()           — Internationalisation and locale collection
 
+	ctx           context.Context
+	cancel        context.CancelFunc
 	taskIDCounter atomic.Uint64
 	wg            sync.WaitGroup
 	shutdown      atomic.Bool
@@ -48,6 +51,7 @@ func (c *Core) Log() *ErrorLog      { return c.log }
 func (c *Core) Cli() *Cli         { return c.cli }
 func (c *Core) IPC() *Ipc         { return c.ipc }
 func (c *Core) I18n() *I18n       { return c.i18n }
+func (c *Core) Context() context.Context { return c.ctx }
 func (c *Core) Core() *Core       { return c }
 
 // --- IPC (uppercase aliases) ---
