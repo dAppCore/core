@@ -6,12 +6,12 @@
 package core
 
 import (
-	"fmt"
 	goio "io"
 	"os"
 	"os/user"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -68,8 +68,8 @@ type Log struct {
 	StyleSecurity  func(string) string
 }
 
-// RotationLogOpts defines the log rotation and retention policy.
-type RotationLogOpts struct {
+// RotationLogOptions defines the log rotation and retention policy.
+type RotationLogOptions struct {
 	// Filename is the log file path. If empty, rotation is disabled.
 	Filename string
 
@@ -91,24 +91,24 @@ type RotationLogOpts struct {
 	Compress bool
 }
 
-// LogOpts configures a Log.
-type LogOpts struct {
+// LogOptions configures a Log.
+type LogOptions struct {
 	Level Level
 	// Output is the destination for log messages. If Rotation is provided,
 	// Output is ignored and logs are written to the rotating file instead.
 	Output goio.Writer
 	// Rotation enables log rotation to file. If provided, Filename must be set.
-	Rotation *RotationLogOpts
+	Rotation *RotationLogOptions
 	// RedactKeys is a list of keys whose values should be masked in logs.
 	RedactKeys []string
 }
 
 // RotationWriterFactory creates a rotating writer from options.
 // Set this to enable log rotation (provided by core/go-io integration).
-var RotationWriterFactory func(RotationLogOpts) goio.WriteCloser
+var RotationWriterFactory func(RotationLogOptions) goio.WriteCloser
 
 // New creates a new Log with the given options.
-func NewLog(opts LogOpts) *Log {
+func NewLog(opts LogOptions) *Log {
 	output := opts.Output
 	if opts.Rotation != nil && opts.Rotation.Filename != "" && RotationWriterFactory != nil {
 		output = RotationWriterFactory(*opts.Rotation)
@@ -183,7 +183,7 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 	for i := 0; i < origLen; i += 2 {
 		if i+1 < origLen {
 			if err, ok := keyvals[i+1].(error); ok {
-				if op := Op(err); op != "" {
+				if op := Operation(err); op != "" {
 					// Check if op is already in keyvals
 					hasOp := false
 					for j := 0; j < len(keyvals); j += 2 {
@@ -228,21 +228,21 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 			}
 
 			// Redaction logic
-			keyStr := fmt.Sprintf("%v", key)
+			keyStr := Sprint(key)
 			if slices.Contains(redactKeys, keyStr) {
 				val = "[REDACTED]"
 			}
 
 			// Secure formatting to prevent log injection
 			if s, ok := val.(string); ok {
-				kvStr += fmt.Sprintf("%v=%q", key, s)
+				kvStr += Sprintf("%v=%q", key, s)
 			} else {
-				kvStr += fmt.Sprintf("%v=%v", key, val)
+				kvStr += Sprintf("%v=%v", key, val)
 			}
 		}
 	}
 
-	_, _ = fmt.Fprintf(output, "%s %s %s%s\n", timestamp, prefix, msg, kvStr)
+	Print(output, "%s %s %s%s", timestamp, prefix, msg, kvStr)
 }
 
 // Debug logs a debug message with optional key-value pairs.
@@ -297,51 +297,56 @@ func Username() string {
 
 // --- Default logger ---
 
-var defaultLog = NewLog(LogOpts{Level: LevelInfo})
+var defaultLogPtr atomic.Pointer[Log]
+
+func init() {
+	l := NewLog(LogOptions{Level: LevelInfo})
+	defaultLogPtr.Store(l)
+}
 
 // Default returns the default logger.
 func Default() *Log {
-	return defaultLog
+	return defaultLogPtr.Load()
 }
 
 // SetDefault sets the default logger.
 func SetDefault(l *Log) {
-	defaultLog = l
+	defaultLogPtr.Store(l)
 }
 
 // SetLevel sets the default logger's level.
 func SetLevel(level Level) {
-	defaultLog.SetLevel(level)
+	Default().SetLevel(level)
 }
 
 // SetRedactKeys sets the default logger's redaction keys.
 func SetRedactKeys(keys ...string) {
-	defaultLog.SetRedactKeys(keys...)
+	Default().SetRedactKeys(keys...)
 }
 
 // Debug logs to the default logger.
 func Debug(msg string, keyvals ...any) {
-	defaultLog.Debug(msg, keyvals...)
+	Default().Debug(msg, keyvals...)
 }
 
 // Info logs to the default logger.
 func Info(msg string, keyvals ...any) {
-	defaultLog.Info(msg, keyvals...)
+	Default().Info(msg, keyvals...)
 }
 
 // Warn logs to the default logger.
 func Warn(msg string, keyvals ...any) {
-	defaultLog.Warn(msg, keyvals...)
+	Default().Warn(msg, keyvals...)
 }
 
 // Error logs to the default logger.
 func Error(msg string, keyvals ...any) {
-	defaultLog.Error(msg, keyvals...)
+	Default().Error(msg, keyvals...)
 }
 
 // Security logs to the default logger.
 func Security(msg string, keyvals ...any) {
-	defaultLog.Security(msg, keyvals...)
+	Default().Security(msg, keyvals...)
 }
 
 // --- LogErr: Error-Aware Logger ---
@@ -362,36 +367,36 @@ func (le *LogErr) Log(err error) {
 	if err == nil {
 		return
 	}
-	le.log.Error(ErrorMessage(err), "op", Op(err), "code", ErrCode(err), "stack", FormatStackTrace(err))
+	le.log.Error(ErrorMessage(err), "op", Operation(err), "code", ErrorCode(err), "stack", FormatStackTrace(err))
 }
 
-// --- LogPan: Panic-Aware Logger ---
+// --- LogPanic: Panic-Aware Logger ---
 
-// LogPan logs panic context without crash file management.
+// LogPanic logs panic context without crash file management.
 // Primary action: log. Secondary: recover panics.
-type LogPan struct {
+type LogPanic struct {
 	log *Log
 }
 
-// NewLogPan creates a LogPan bound to the given logger.
-func NewLogPan(log *Log) *LogPan {
-	return &LogPan{log: log}
+// NewLogPanic creates a LogPanic bound to the given logger.
+func NewLogPanic(log *Log) *LogPanic {
+	return &LogPanic{log: log}
 }
 
 // Recover captures a panic and logs it. Does not write crash files.
-// Use as: defer core.NewLogPan(logger).Recover()
-func (lp *LogPan) Recover() {
+// Use as: defer core.NewLogPanic(logger).Recover()
+func (lp *LogPanic) Recover() {
 	r := recover()
 	if r == nil {
 		return
 	}
 	err, ok := r.(error)
 	if !ok {
-		err = fmt.Errorf("%v", r)
+		err = NewError(Sprint("panic: ", r))
 	}
 	lp.log.Error("panic recovered",
 		"err", err,
-		"op", Op(err),
+		"op", Operation(err),
 		"stack", FormatStackTrace(err),
 	)
 }

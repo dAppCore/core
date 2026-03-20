@@ -27,13 +27,13 @@ func NewConfigVar[T any](val T) ConfigVar[T] {
 	return ConfigVar[T]{val: val, set: true}
 }
 
-// ConfigOpts holds configuration data.
-type ConfigOpts struct {
+// ConfigOptions holds configuration data.
+type ConfigOptions struct {
 	Settings map[string]any
 	Features map[string]bool
 }
 
-func (o *ConfigOpts) init() {
+func (o *ConfigOptions) init() {
 	if o.Settings == nil {
 		o.Settings = make(map[string]any)
 	}
@@ -44,27 +44,33 @@ func (o *ConfigOpts) init() {
 
 // Config holds configuration settings and feature flags.
 type Config struct {
-	*ConfigOpts
+	*ConfigOptions
 	mu sync.RWMutex
 }
 
 // Set stores a configuration value by key.
 func (e *Config) Set(key string, val any) {
 	e.mu.Lock()
-	e.ConfigOpts.init()
+	if e.ConfigOptions == nil {
+		e.ConfigOptions = &ConfigOptions{}
+	}
+	e.ConfigOptions.init()
 	e.Settings[key] = val
 	e.mu.Unlock()
 }
 
 // Get retrieves a configuration value by key.
-func (e *Config) Get(key string) (any, bool) {
+func (e *Config) Get(key string) Result {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	if e.ConfigOpts == nil || e.Settings == nil {
-		return nil, false
+	if e.ConfigOptions == nil || e.Settings == nil {
+		return Result{}
 	}
 	val, ok := e.Settings[key]
-	return val, ok
+	if !ok {
+		return Result{}
+	}
+	return Result{val, true}
 }
 
 func (e *Config) String(key string) string { return ConfigGet[string](e, key) }
@@ -73,12 +79,12 @@ func (e *Config) Bool(key string) bool     { return ConfigGet[bool](e, key) }
 
 // ConfigGet retrieves a typed configuration value.
 func ConfigGet[T any](e *Config, key string) T {
-	val, ok := e.Get(key)
-	if !ok {
+	r := e.Get(key)
+	if !r.OK {
 		var zero T
 		return zero
 	}
-	typed, _ := val.(T)
+	typed, _ := r.Value.(T)
 	return typed
 }
 
@@ -86,28 +92,39 @@ func ConfigGet[T any](e *Config, key string) T {
 
 func (e *Config) Enable(feature string) {
 	e.mu.Lock()
-	e.ConfigOpts.init()
+	if e.ConfigOptions == nil {
+		e.ConfigOptions = &ConfigOptions{}
+	}
+	e.ConfigOptions.init()
 	e.Features[feature] = true
 	e.mu.Unlock()
 }
 
 func (e *Config) Disable(feature string) {
 	e.mu.Lock()
-	e.ConfigOpts.init()
+	if e.ConfigOptions == nil {
+		e.ConfigOptions = &ConfigOptions{}
+	}
+	e.ConfigOptions.init()
 	e.Features[feature] = false
 	e.mu.Unlock()
 }
 
 func (e *Config) Enabled(feature string) bool {
 	e.mu.RLock()
-	v := e.Features[feature]
-	e.mu.RUnlock()
-	return v
+	defer e.mu.RUnlock()
+	if e.ConfigOptions == nil || e.Features == nil {
+		return false
+	}
+	return e.Features[feature]
 }
 
 func (e *Config) EnabledFeatures() []string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
+	if e.ConfigOptions == nil || e.Features == nil {
+		return nil
+	}
 	var result []string
 	for k, v := range e.Features {
 		if v {

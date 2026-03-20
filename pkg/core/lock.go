@@ -5,7 +5,6 @@
 package core
 
 import (
-	"slices"
 	"sync"
 )
 
@@ -18,7 +17,7 @@ var (
 // Lock is the DTO for a named mutex.
 type Lock struct {
 	Name string
-	Mu   *sync.RWMutex
+	Mutex *sync.RWMutex
 }
 
 // Lock returns a named Lock, creating the mutex if needed.
@@ -30,7 +29,7 @@ func (c *Core) Lock(name string) *Lock {
 		lockMap[name] = m
 	}
 	lockMu.Unlock()
-	return &Lock{Name: name, Mu: m}
+	return &Lock{Name: name, Mutex: m}
 }
 
 // LockEnable marks that the service lock should be applied after initialisation.
@@ -39,9 +38,9 @@ func (c *Core) LockEnable(name ...string) {
 	if len(name) > 0 {
 		n = name[0]
 	}
-	c.Lock(n).Mu.Lock()
-	defer c.Lock(n).Mu.Unlock()
-	c.srv.lockEnabled = true
+	c.Lock(n).Mutex.Lock()
+	defer c.Lock(n).Mutex.Unlock()
+	c.services.lockEnabled = true
 }
 
 // LockApply activates the service lock if it was enabled.
@@ -50,25 +49,41 @@ func (c *Core) LockApply(name ...string) {
 	if len(name) > 0 {
 		n = name[0]
 	}
-	c.Lock(n).Mu.Lock()
-	defer c.Lock(n).Mu.Unlock()
-	if c.srv.lockEnabled {
-		c.srv.locked = true
+	c.Lock(n).Mutex.Lock()
+	defer c.Lock(n).Mutex.Unlock()
+	if c.services.lockEnabled {
+		c.services.locked = true
 	}
 }
 
-// Startables returns a snapshot of services implementing Startable.
-func (c *Core) Startables() []Startable {
-	c.Lock("srv").Mu.RLock()
-	out := slices.Clone(c.srv.startables)
-	c.Lock("srv").Mu.RUnlock()
-	return out
+// Startables returns services that have an OnStart function.
+func (c *Core) Startables() Result {
+	if c.services == nil {
+		return Result{}
+	}
+	c.Lock("srv").Mutex.RLock()
+	defer c.Lock("srv").Mutex.RUnlock()
+	var out []*Service
+	for _, svc := range c.services.services {
+		if svc.OnStart != nil {
+			out = append(out, svc)
+		}
+	}
+	return Result{out, true}
 }
 
-// Stoppables returns a snapshot of services implementing Stoppable.
-func (c *Core) Stoppables() []Stoppable {
-	c.Lock("srv").Mu.RLock()
-	out := slices.Clone(c.srv.stoppables)
-	c.Lock("srv").Mu.RUnlock()
-	return out
+// Stoppables returns services that have an OnStop function.
+func (c *Core) Stoppables() Result {
+	if c.services == nil {
+		return Result{}
+	}
+	c.Lock("srv").Mutex.RLock()
+	defer c.Lock("srv").Mutex.RUnlock()
+	var out []*Service
+	for _, svc := range c.services.services {
+		if svc.OnStop != nil {
+			out = append(out, svc)
+		}
+	}
+	return Result{out, true}
 }

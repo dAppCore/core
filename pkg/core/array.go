@@ -40,14 +40,14 @@ func (s *Array[T]) Contains(val T) bool {
 }
 
 // Filter returns a new Array with elements matching the predicate.
-func (s *Array[T]) Filter(fn func(T) bool) *Array[T] {
-	result := &Array[T]{}
+func (s *Array[T]) Filter(fn func(T) bool) Result {
+	filtered := &Array[T]{}
 	for _, v := range s.items {
 		if fn(v) {
-			result.items = append(result.items, v)
+			filtered.items = append(filtered.items, v)
 		}
 	}
-	return result
+	return Result{filtered, true}
 }
 
 // Each runs a function on every element.
@@ -90,7 +90,12 @@ func (s *Array[T]) Clear() {
 	s.items = nil
 }
 
-// AsSlice returns the underlying slice.
+// AsSlice returns a copy of the underlying slice.
 func (s *Array[T]) AsSlice() []T {
-	return s.items
+	if s.items == nil {
+		return nil
+	}
+	out := make([]T, len(s.items))
+	copy(out, s.items)
+	return out
 }

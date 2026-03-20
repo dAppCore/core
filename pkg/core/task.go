@@ -5,64 +5,81 @@
 package core
 
 import (
-	"fmt"
+	"reflect"
 	"slices"
+	"strconv"
 )
 
 // TaskState holds background task state.
 type TaskState struct {
-	ID     string
+	Identifier string
 	Task   Task
 	Result any
 	Error  error
 }
 
 // PerformAsync dispatches a task in a background goroutine.
-func (c *Core) PerformAsync(t Task) string {
+func (c *Core) PerformAsync(t Task) Result {
 	if c.shutdown.Load() {
-		return ""
+		return Result{}
 	}
-	taskID := fmt.Sprintf("task-%d", c.taskIDCounter.Add(1))
-	if tid, ok := t.(TaskWithID); ok {
-		tid.SetTaskID(taskID)
+	taskID := Concat("task-", strconv.FormatUint(c.taskIDCounter.Add(1), 10))
+	if tid, ok := t.(TaskWithIdentifier); ok {
+		tid.SetTaskIdentifier(taskID)
 	}
-	_ = c.ACTION(ActionTaskStarted{TaskID: taskID, Task: t})
-	c.wg.Go(func() {
-		result, handled, err := c.PERFORM(t)
-		if !handled && err == nil {
-			err = E("core.PerformAsync", fmt.Sprintf("no handler found for task type %T", t), nil)
+	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Task: t})
+	c.waitGroup.Go(func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				err := E("core.PerformAsync", Sprint("panic: ", rec), nil)
+				c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: nil, Error: err})
+			}
+		}()
+		r := c.PERFORM(t)
+		var err error
+		if !r.OK {
+			if e, ok := r.Value.(error); ok {
+				err = e
+			} else {
+				taskType := reflect.TypeOf(t)
+				typeName := "<nil>"
+				if taskType != nil {
+					typeName = taskType.String()
+				}
+				err = E("core.PerformAsync", Join(" ", "no handler found for task type", typeName), nil)
+			}
 		}
-		_ = c.ACTION(ActionTaskCompleted{TaskID: taskID, Task: t, Result: result, Error: err})
+		c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: r.Value, Error: err})
 	})
-	return taskID
+	return Result{taskID, true}
 }
 
 // Progress broadcasts a progress update for a background task.
 func (c *Core) Progress(taskID string, progress float64, message string, t Task) {
-	_ = c.ACTION(ActionTaskProgress{TaskID: taskID, Task: t, Progress: progress, Message: message})
+	c.ACTION(ActionTaskProgress{TaskIdentifier: taskID, Task: t, Progress: progress, Message: message})
 }
 
-func (c *Core) Perform(t Task) (any, bool, error) {
+func (c *Core) Perform(t Task) Result {
 	c.ipc.taskMu.RLock()
 	handlers := slices.Clone(c.ipc.taskHandlers)
 	c.ipc.taskMu.RUnlock()
 
 	for _, h := range handlers {
-		result, handled, err := h(c, t)
-		if handled {
-			return result, true, err
+		r := h(c, t)
+		if r.OK {
+			return r
 		}
 	}
-	return nil, false, nil
+	return Result{}
 }
 
-func (c *Core) RegisterAction(handler func(*Core, Message) error) {
+func (c *Core) RegisterAction(handler func(*Core, Message) Result) {
 	c.ipc.ipcMu.Lock()
 	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handler)
 	c.ipc.ipcMu.Unlock()
 }
 
-func (c *Core) RegisterActions(handlers ...func(*Core, Message) error) {
+func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
 	c.ipc.ipcMu.Lock()
 	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)
 	c.ipc.ipcMu.Unlock()

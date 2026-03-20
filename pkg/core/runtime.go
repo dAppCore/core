@@ -8,8 +8,6 @@ package core
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"maps"
 	"slices"
 )
@@ -27,58 +25,72 @@ func NewServiceRuntime[T any](c *Core, opts T) *ServiceRuntime[T] {
 	return &ServiceRuntime[T]{core: c, opts: opts}
 }
 
-func (r *ServiceRuntime[T]) Core() *Core  { return r.core }
-func (r *ServiceRuntime[T]) Opts() T      { return r.opts }
+func (r *ServiceRuntime[T]) Core() *Core     { return r.core }
+func (r *ServiceRuntime[T]) Options() T      { return r.opts }
 func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 
 // --- Lifecycle ---
 
-// ServiceStartup runs the startup lifecycle for all registered services.
-func (c *Core) ServiceStartup(ctx context.Context, options any) error {
+// ServiceStartup runs OnStart for all registered services that have one.
+func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
+	c.shutdown.Store(false)
+	c.context, c.cancel = context.WithCancel(ctx)
 	startables := c.Startables()
-	var agg error
-	for _, s := range startables {
-		if err := ctx.Err(); err != nil {
-			return errors.Join(agg, err)
-		}
-		if err := s.OnStartup(ctx); err != nil {
-			agg = errors.Join(agg, err)
+	if startables.OK {
+		for _, s := range startables.Value.([]*Service) {
+			if err := ctx.Err(); err != nil {
+				return Result{err, false}
+			}
+			r := s.OnStart()
+			if !r.OK {
+				return r
+			}
 		}
 	}
-	if err := c.ACTION(ActionServiceStartup{}); err != nil {
-		agg = errors.Join(agg, err)
-	}
-	return agg
+	c.ACTION(ActionServiceStartup{})
+	return Result{OK: true}
 }
 
-// ServiceShutdown runs the shutdown lifecycle for all registered services.
-func (c *Core) ServiceShutdown(ctx context.Context) error {
+// ServiceShutdown drains background tasks, then stops all registered services.
+func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	c.shutdown.Store(true)
-	var agg error
-	if err := c.ACTION(ActionServiceShutdown{}); err != nil {
-		agg = errors.Join(agg, err)
-	}
-	stoppables := c.Stoppables()
-	for _, s := range slices.Backward(stoppables) {
-		if err := ctx.Err(); err != nil {
-			agg = errors.Join(agg, err)
-			break
-		}
-		if err := s.OnShutdown(ctx); err != nil {
-			agg = errors.Join(agg, err)
-		}
-	}
+	c.cancel() // signal all context-aware tasks to stop
+	c.ACTION(ActionServiceShutdown{})
+
+	// Drain background tasks before stopping services.
 	done := make(chan struct{})
 	go func() {
-		c.wg.Wait()
+		c.waitGroup.Wait()
 		close(done)
 	}()
 	select {
 	case <-done:
 	case <-ctx.Done():
-		agg = errors.Join(agg, ctx.Err())
+		return Result{ctx.Err(), false}
 	}
-	return agg
+
+	// Stop services
+	var firstErr error
+	stoppables := c.Stoppables()
+	if stoppables.OK {
+		for _, s := range stoppables.Value.([]*Service) {
+			if err := ctx.Err(); err != nil {
+				return Result{err, false}
+			}
+			r := s.OnStop()
+			if !r.OK && firstErr == nil {
+				if e, ok := r.Value.(error); ok {
+					firstErr = e
+				} else {
+					firstErr = E("core.ServiceShutdown", Sprint("service OnStop failed: ", r.Value), nil)
+				}
+			}
+		}
+	}
+	if firstErr != nil {
+		return Result{firstErr, false}
+	}
+	return Result{OK: true}
 }
 
 // --- Runtime DTO (GUI binding) ---
@@ -89,44 +101,49 @@ type Runtime struct {
 	Core *Core
 }
 
-// ServiceFactory defines a function that creates a service instance.
-type ServiceFactory func() (any, error)
+// ServiceFactory defines a function that creates a Service.
+type ServiceFactory func() Result
 
 // NewWithFactories creates a Runtime with the provided service factories.
-func NewWithFactories(app any, factories map[string]ServiceFactory) (*Runtime, error) {
-	coreOpts := []Option{WithApp(app)}
+func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
+	c := New(Options{{Key: "name", Value: "core"}})
+	c.app.Runtime = app
+
 	names := slices.Sorted(maps.Keys(factories))
 	for _, name := range names {
 		factory := factories[name]
 		if factory == nil {
-			return nil, E("core.NewWithFactories", fmt.Sprintf("factory is nil for service %q", name), nil)
+			continue
 		}
-		svc, err := factory()
-		if err != nil {
-			return nil, E("core.NewWithFactories", fmt.Sprintf("failed to create service %q", name), err)
+		r := factory()
+		if !r.OK {
+			cause, _ := r.Value.(error)
+			return Result{E("core.NewWithFactories", Concat("factory \"", name, "\" failed"), cause), false}
 		}
-		svcCopy := svc
-		coreOpts = append(coreOpts, WithName(name, func(c *Core) (any, error) { return svcCopy, nil }))
+		svc, ok := r.Value.(Service)
+		if !ok {
+			return Result{E("core.NewWithFactories", Concat("factory \"", name, "\" returned non-Service type"), nil), false}
+		}
+		sr := c.Service(name, svc)
+		if !sr.OK {
+			return sr
+		}
 	}
-	coreInstance, err := New(coreOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return &Runtime{app: app, Core: coreInstance}, nil
+	return Result{&Runtime{app: app, Core: c}, true}
 }
 
 // NewRuntime creates a Runtime with no custom services.
-func NewRuntime(app any) (*Runtime, error) {
+func NewRuntime(app any) Result {
 	return NewWithFactories(app, map[string]ServiceFactory{})
 }
 
 func (r *Runtime) ServiceName() string { return "Core" }
-func (r *Runtime) ServiceStartup(ctx context.Context, options any) error {
+func (r *Runtime) ServiceStartup(ctx context.Context, options any) Result {
 	return r.Core.ServiceStartup(ctx, options)
 }
-func (r *Runtime) ServiceShutdown(ctx context.Context) error {
+func (r *Runtime) ServiceShutdown(ctx context.Context) Result {
 	if r.Core != nil {
 		return r.Core.ServiceShutdown(ctx)
 	}
-	return nil
+	return Result{OK: true}
 }

@@ -7,7 +7,6 @@
 package core
 
 import (
-	"errors"
 	"slices"
 	"sync"
 )
@@ -15,7 +14,7 @@ import (
 // Ipc holds IPC dispatch data.
 type Ipc struct {
 	ipcMu       sync.RWMutex
-	ipcHandlers []func(*Core, Message) error
+	ipcHandlers []func(*Core, Message) Result
 
 	queryMu       sync.RWMutex
 	queryHandlers []QueryHandler
@@ -24,51 +23,46 @@ type Ipc struct {
 	taskHandlers []TaskHandler
 }
 
-func (c *Core) Action(msg Message) error {
+func (c *Core) Action(msg Message) Result {
 	c.ipc.ipcMu.RLock()
 	handlers := slices.Clone(c.ipc.ipcHandlers)
 	c.ipc.ipcMu.RUnlock()
 
-	var agg error
 	for _, h := range handlers {
-		if err := h(c, msg); err != nil {
-			agg = errors.Join(agg, err)
+		if r := h(c, msg); !r.OK {
+			return r
 		}
 	}
-	return agg
+	return Result{OK: true}
 }
 
-func (c *Core) Query(q Query) (any, bool, error) {
+func (c *Core) Query(q Query) Result {
 	c.ipc.queryMu.RLock()
 	handlers := slices.Clone(c.ipc.queryHandlers)
 	c.ipc.queryMu.RUnlock()
 
 	for _, h := range handlers {
-		result, handled, err := h(c, q)
-		if handled {
-			return result, true, err
+		r := h(c, q)
+		if r.OK {
+			return r
 		}
 	}
-	return nil, false, nil
+	return Result{}
 }
 
-func (c *Core) QueryAll(q Query) ([]any, error) {
+func (c *Core) QueryAll(q Query) Result {
 	c.ipc.queryMu.RLock()
 	handlers := slices.Clone(c.ipc.queryHandlers)
 	c.ipc.queryMu.RUnlock()
 
 	var results []any
-	var agg error
 	for _, h := range handlers {
-		result, handled, err := h(c, q)
-		if err != nil {
-			agg = errors.Join(agg, err)
-		}
-		if handled && result != nil {
-			results = append(results, result)
+		r := h(c, q)
+		if r.OK && r.Value != nil {
+			results = append(results, r.Value)
 		}
 	}
-	return results, agg
+	return Result{results, true}
 }
 
 func (c *Core) RegisterQuery(handler QueryHandler) {

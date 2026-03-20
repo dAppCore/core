@@ -1,1336 +1,208 @@
+// SPDX-License-Identifier: EUPL-1.2
+
+// Command is a DTO representing an executable operation.
+// Commands don't know if they're root, child, or nested — the tree
+// structure comes from composition via path-based registration.
+//
+// Register a command:
+//
+//	c.Command("deploy", func(opts core.Options) core.Result {
+//	    return core.Result{"deployed", true}
+//	})
+//
+// Register a nested command:
+//
+//	c.Command("deploy/to/homelab", handler)
+//
+// Description is an i18n key — derived from path if omitted:
+//
+//	"deploy"             → "cmd.deploy.description"
+//	"deploy/to/homelab"  → "cmd.deploy.to.homelab.description"
 package core
 
 import (
-	"flag"
-	"fmt"
-	"io"
-	"os"
-	"reflect"
-	"strconv"
-	"strings"
+	"sync"
 )
 
-// Command represents a command that may be run by the user
+// CommandAction is the function signature for command handlers.
+//
+//	func(opts core.Options) core.Result
+type CommandAction func(Options) Result
+
+// CommandLifecycle is implemented by commands that support managed lifecycle.
+// Basic commands only need an action. Daemon commands implement Start/Stop/Signal
+// via go-process.
+type CommandLifecycle interface {
+	Start(Options) Result
+	Stop() Result
+	Restart() Result
+	Reload() Result
+	Signal(string) Result
+}
+
+// Command is the DTO for an executable operation.
 type Command struct {
-	name              string
-	commandPath       string
-	shortdescription  string
-	longdescription   string
-	subCommands       []*Command
-	subCommandsMap    map[string]*Command
-	longestSubcommand int
-	actionCallback    CliAction
-	app               *Cli
-	flags             *flag.FlagSet
-	flagCount         int
-	helpFlag          bool
-	hidden            bool
-	positionalArgsMap map[string]reflect.Value
-	sliceSeparator    map[string]string
+	Name        string
+	Description string           // i18n key — derived from path if empty
+	Path        string           // "deploy/to/homelab"
+	Action      CommandAction    // business logic
+	Lifecycle   CommandLifecycle // optional — provided by go-process
+	Flags       Options          // declared flags
+	Hidden      bool
+	commands    map[string]*Command // child commands (internal)
+	mu          sync.RWMutex
 }
 
-// NewCommand creates a new Command.
-// Description is optional — if omitted, i18n resolves it from the command path.
-func NewCommand(name string, description ...string) *Command {
-	desc := ""
-	if len(description) > 0 {
-		desc = description[0]
+// I18nKey returns the i18n key for this command's description.
+//
+//	cmd with path "deploy/to/homelab" → "cmd.deploy.to.homelab.description"
+func (cmd *Command) I18nKey() string {
+	if cmd.Description != "" {
+		return cmd.Description
 	}
-	result := &Command{
-		name:              name,
-		shortdescription:  desc,
-		subCommandsMap:    make(map[string]*Command),
-		hidden:            false,
-		positionalArgsMap: make(map[string]reflect.Value),
-		sliceSeparator:    make(map[string]string),
+	path := cmd.Path
+	if path == "" {
+		path = cmd.Name
 	}
-
-	return result
+	return Concat("cmd.", Replace(path, "/", "."), ".description")
 }
 
-func (c *Command) setParentCommandPath(parentCommandPath string) {
-	// Set up command path
-	if parentCommandPath != "" {
-		c.commandPath += parentCommandPath + " "
+// Run executes the command's action with the given options.
+//
+//	result := cmd.Run(core.Options{{Key: "target", Value: "homelab"}})
+func (cmd *Command) Run(opts Options) Result {
+	if cmd.Action == nil {
+		return Result{E("core.Command.Run", Concat("command \"", cmd.Path, "\" is not executable"), nil), false}
 	}
-	c.commandPath += c.name
-
-	// Set up flag set
-	c.flags = flag.NewFlagSet(c.commandPath, flag.ContinueOnError)
-	c.BoolFlag("help", "Get help on the '"+strings.ToLower(c.commandPath)+"' command.", &c.helpFlag)
-
-	// result.Flags.Usage = result.PrintHelp
-
+	return cmd.Action(opts)
 }
 
-func (c *Command) inheritFlags(inheritFlags *flag.FlagSet) {
-	// inherit flags
-	inheritFlags.VisitAll(func(f *flag.Flag) {
-		if f.Name != "help" {
-			c.flags.Var(f.Value, f.Name, f.Usage)
-		}
-	})
+// Start delegates to the lifecycle implementation if available.
+func (cmd *Command) Start(opts Options) Result {
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Start(opts)
+	}
+	return cmd.Run(opts)
 }
 
-func (c *Command) setApp(app *Cli) {
-	c.app = app
+// Stop delegates to the lifecycle implementation.
+func (cmd *Command) Stop() Result {
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Stop()
+	}
+	return Result{}
 }
 
-// parseFlags parses the given flags
-func (c *Command) parseFlags(args []string) error {
-	// Parse flags
-	// Suppress flag parse errors to stderr
-
-	c.flags.SetOutput(io.Discard)
-
-	// Credit: https://stackoverflow.com/a/74146375
-	var positionalArgs []string
-	for {
-		if err := c.flags.Parse(args); err != nil {
-			return err
-		}
-		// Consume all the flags that were parsed as flags.
-		args = args[len(args)-c.flags.NArg():]
-		if len(args) == 0 {
-			break
-		}
-		// There's at least one flag remaining and it must be a positional arg since
-		// we consumed all args that were parsed as flags. Consume just the first
-		// one, and retry parsing, since subsequent args may be flags.
-		positionalArgs = append(positionalArgs, args[0])
-		args = args[1:]
+// Restart delegates to the lifecycle implementation.
+func (cmd *Command) Restart() Result {
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Restart()
 	}
-
-	// Parse just the positional args so that flagset.Args()/flagset.NArgs()
-	// return the expected value.
-	// Note: This should never return an error.
-	err := c.flags.Parse(positionalArgs)
-	if err != nil {
-		return err
-	}
-
-	if len(positionalArgs) > 0 {
-		return c.parsePositionalArgs(positionalArgs)
-	}
-	return nil
+	return Result{}
 }
 
-// Run - Runs the Command with the given arguments
-func (c *Command) run(args []string) error {
+// Reload delegates to the lifecycle implementation.
+func (cmd *Command) Reload() Result {
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Reload()
+	}
+	return Result{}
+}
 
-	// If we have arguments, process them
-	if len(args) > 0 {
-		// Check for subcommand
-		subcommand := c.subCommandsMap[args[0]]
-		if subcommand != nil {
-			return subcommand.run(args[1:])
-		}
+// Signal delegates to the lifecycle implementation.
+func (cmd *Command) Signal(sig string) Result {
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Signal(sig)
+	}
+	return Result{}
+}
 
-		// Parse flags
-		err := c.parseFlags(args)
-		if err != nil {
-			if c.app.errorHandler != nil {
-				return c.app.errorHandler(c.commandPath, err)
-			}
-			return E("cli.Run", fmt.Sprintf("see '%s --help' for usage", c.commandPath), err)
-		}
+// --- Command Registry (on Core) ---
 
-		// Help takes precedence
-		if c.helpFlag {
-			c.PrintHelp()
-			return nil
-		}
+// commandRegistry holds the command tree.
+type commandRegistry struct {
+	commands map[string]*Command
+	mu       sync.RWMutex
+}
+
+// Command gets or registers a command by path.
+//
+//	c.Command("deploy", Command{Action: handler})
+//	r := c.Command("deploy")
+func (c *Core) Command(path string, command ...Command) Result {
+	if len(command) == 0 {
+		c.commands.mu.RLock()
+		cmd, ok := c.commands.commands[path]
+		c.commands.mu.RUnlock()
+		return Result{cmd, ok}
 	}
 
-	// Do we have an action?
-	if c.actionCallback != nil {
-		return c.actionCallback()
+	if path == "" || HasPrefix(path, "/") || HasSuffix(path, "/") || Contains(path, "//") {
+		return Result{E("core.Command", Concat("invalid command path: \"", path, "\""), nil), false}
 	}
 
-	// If we haven't specified a subcommand
-	// check for an app level default command
-	if c.app.defaultCommand != nil {
-		// Prevent recursion!
-		if c.app.defaultCommand != c {
-			// only run default command if no args passed
-			if len(args) == 0 {
-				return c.app.defaultCommand.run(args)
+	c.commands.mu.Lock()
+	defer c.commands.mu.Unlock()
+
+	if existing, exists := c.commands.commands[path]; exists && (existing.Action != nil || existing.Lifecycle != nil) {
+		return Result{E("core.Command", Concat("command \"", path, "\" already registered"), nil), false}
+	}
+
+	cmd := &command[0]
+	cmd.Name = pathName(path)
+	cmd.Path = path
+	if cmd.commands == nil {
+		cmd.commands = make(map[string]*Command)
+	}
+
+	// Preserve existing subtree when overwriting a placeholder parent
+	if existing, exists := c.commands.commands[path]; exists {
+		for k, v := range existing.commands {
+			if _, has := cmd.commands[k]; !has {
+				cmd.commands[k] = v
 			}
 		}
 	}
 
-	// Nothing left we can do
-	c.PrintHelp()
+	c.commands.commands[path] = cmd
 
-	return nil
-}
-
-// Action - Define an action from this command
-func (c *Command) Action(callback CliAction) *Command {
-	c.actionCallback = callback
-	return c
-}
-
-// PrintHelp - Output the help text for this command
-func (c *Command) PrintHelp() {
-	c.app.PrintBanner()
-
-	commandTitle := c.commandPath
-	if c.shortdescription != "" {
-		commandTitle += " - " + c.shortdescription
-	}
-	// Ignore root command
-	if c.commandPath != c.name {
-		fmt.Println(commandTitle)
-	}
-	if c.longdescription != "" {
-		fmt.Println(c.longdescription + "\n")
-	}
-	if len(c.subCommands) > 0 {
-		fmt.Println("Available commands:")
-		fmt.Println("")
-		for _, subcommand := range c.subCommands {
-			if subcommand.isHidden() {
-				continue
-			}
-			spacer := strings.Repeat(" ", 3+c.longestSubcommand-len(subcommand.name))
-			isDefault := ""
-			if subcommand.isDefaultCommand() {
-				isDefault = "[default]"
-			}
-			fmt.Printf("   %s%s%s %s\n", subcommand.name, spacer, subcommand.shortdescription, isDefault)
-		}
-		fmt.Println("")
-	}
-	if c.flagCount > 0 {
-		fmt.Println("Flags:")
-		fmt.Println()
-		c.flags.SetOutput(os.Stdout)
-		c.flags.PrintDefaults()
-		c.flags.SetOutput(os.Stderr)
-
-	}
-	fmt.Println()
-}
-
-// isDefaultCommand returns true if called on the default command
-func (c *Command) isDefaultCommand() bool {
-	return c.app.defaultCommand == c
-}
-
-// isHidden returns true if the command is a hidden command
-func (c *Command) isHidden() bool {
-	return c.hidden
-}
-
-// Hidden hides the command from the Help system
-func (c *Command) Hidden() {
-	c.hidden = true
-}
-
-// NewChildCommand - Creates a new subcommand
-func (c *Command) NewChildCommand(name string, description ...string) *Command {
-	result := NewCommand(name, description...)
-	c.AddCommand(result)
-	return result
-}
-
-// AddCommand - Adds a subcommand
-func (c *Command) AddCommand(command *Command) {
-	command.setApp(c.app)
-	command.setParentCommandPath(c.commandPath)
-	name := command.name
-	c.subCommands = append(c.subCommands, command)
-	c.subCommandsMap[name] = command
-	if len(name) > c.longestSubcommand {
-		c.longestSubcommand = len(name)
-	}
-}
-
-// NewChildCommandInheritFlags - Creates a new subcommand, inherits flags from command
-func (c *Command) NewChildCommandInheritFlags(name string, description ...string) *Command {
-	result := c.NewChildCommand(name, description...)
-	result.inheritFlags(c.flags)
-	return result
-}
-
-func (c *Command) AddFlags(optionStruct any) *Command {
-	// use reflection to determine if this is a pointer to a struct
-	// if not, panic
-
-	t := reflect.TypeOf(optionStruct)
-
-	// Check for a pointer to a struct
-	if t.Kind() != reflect.Ptr {
-		panic("AddFlags() requires a pointer to a struct")
-	}
-	if t.Elem().Kind() != reflect.Struct {
-		panic("AddFlags() requires a pointer to a struct")
-	}
-
-	// Iterate through the fields of the struct reading the struct tags
-	// and adding the flags
-	v := reflect.ValueOf(optionStruct).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		fieldType := t.Elem().Field(i)
-		if !fieldType.IsExported() {
-			continue
-		}
-		// If this is an embedded struct, recurse
-		if fieldType.Type.Kind() == reflect.Struct {
-			c.AddFlags(field.Addr().Interface())
-			continue
-		}
-
-		tag := t.Elem().Field(i).Tag
-		name := tag.Get("name")
-		description := tag.Get("description")
-		defaultValue := tag.Get("default")
-		pos := tag.Get("pos")
-		sep := tag.Get("sep")
-		c.positionalArgsMap[pos] = field
-		if sep != "" {
-			c.sliceSeparator[pos] = sep
-		}
-		if name == "" {
-			name = strings.ToLower(t.Elem().Field(i).Name)
-		}
-		switch field.Kind() {
-		case reflect.Bool:
-			var defaultValueBool bool
-			if defaultValue != "" {
-				var err error
-				defaultValueBool, err = strconv.ParseBool(defaultValue)
-				if err != nil {
-					panic("Invalid default value for bool flag")
-				}
-			}
-			field.SetBool(defaultValueBool)
-			c.BoolFlag(name, description, field.Addr().Interface().(*bool))
-		case reflect.String:
-			if defaultValue != "" {
-				// set value of field to default value
-				field.SetString(defaultValue)
-			}
-			c.StringFlag(name, description, field.Addr().Interface().(*string))
-		case reflect.Int:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for int flag")
-				}
-				field.SetInt(int64(value))
-			}
-			c.IntFlag(name, description, field.Addr().Interface().(*int))
-		case reflect.Int8:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for int8 flag")
-				}
-				field.SetInt(int64(value))
-			}
-			c.Int8Flag(name, description, field.Addr().Interface().(*int8))
-		case reflect.Int16:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for int16 flag")
-				}
-				field.SetInt(int64(value))
-			}
-			c.Int16Flag(name, description, field.Addr().Interface().(*int16))
-		case reflect.Int32:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for int32 flag")
-				}
-				field.SetInt(int64(value))
-			}
-			c.Int32Flag(name, description, field.Addr().Interface().(*int32))
-		case reflect.Int64:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for int64 flag")
-				}
-				field.SetInt(int64(value))
-			}
-			c.Int64Flag(name, description, field.Addr().Interface().(*int64))
-		case reflect.Uint:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for uint flag")
-				}
-				field.SetUint(uint64(value))
-			}
-			c.UintFlag(name, description, field.Addr().Interface().(*uint))
-		case reflect.Uint8:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for uint8 flag")
-				}
-				field.SetUint(uint64(value))
-			}
-			c.Uint8Flag(name, description, field.Addr().Interface().(*uint8))
-		case reflect.Uint16:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for uint16 flag")
-				}
-				field.SetUint(uint64(value))
-			}
-			c.Uint16Flag(name, description, field.Addr().Interface().(*uint16))
-		case reflect.Uint32:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for uint32 flag")
-				}
-				field.SetUint(uint64(value))
-			}
-			c.Uint32Flag(name, description, field.Addr().Interface().(*uint32))
-		case reflect.Uint64:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.Atoi(defaultValue)
-				if err != nil {
-					panic("Invalid default value for uint64 flag")
-				}
-				field.SetUint(uint64(value))
-			}
-			c.UInt64Flag(name, description, field.Addr().Interface().(*uint64))
-		case reflect.Float32:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.ParseFloat(defaultValue, 64)
-				if err != nil {
-					panic("Invalid default value for float32 flag")
-				}
-				field.SetFloat(value)
-			}
-			c.Float32Flag(name, description, field.Addr().Interface().(*float32))
-		case reflect.Float64:
-			if defaultValue != "" {
-				// set value of field to default value
-				value, err := strconv.ParseFloat(defaultValue, 64)
-				if err != nil {
-					panic("Invalid default value for float64 flag")
-				}
-				field.SetFloat(value)
-			}
-			c.Float64Flag(name, description, field.Addr().Interface().(*float64))
-		case reflect.Slice:
-			c.addSliceField(field, defaultValue, sep)
-			c.addSliceFlags(name, description, field)
-		default:
-			if pos != "" {
-				fmt.Fprintf(os.Stderr, "WARNING: unsupported type for flag: %s %s\n", fieldType.Type.Kind(), name)
+	// Build parent chain — "deploy/to/homelab" creates "deploy" and "deploy/to" if missing
+	parts := Split(path, "/")
+	for i := len(parts) - 1; i > 0; i-- {
+		parentPath := JoinPath(parts[:i]...)
+		if _, exists := c.commands.commands[parentPath]; !exists {
+			c.commands.commands[parentPath] = &Command{
+				Name:     parts[i-1],
+				Path:     parentPath,
+				commands: make(map[string]*Command),
 			}
 		}
+		c.commands.commands[parentPath].commands[parts[i]] = cmd
+		cmd = c.commands.commands[parentPath]
 	}
 
-	return c
+	return Result{OK: true}
 }
 
-func (c *Command) addSliceFlags(name, description string, field reflect.Value) *Command {
-	if field.Kind() != reflect.Slice {
-		panic("addSliceFlags() requires a pointer to a slice")
-	}
-	t := reflect.TypeOf(field.Addr().Interface())
-	if t.Kind() != reflect.Ptr {
-		panic("addSliceFlags() requires a pointer to a slice")
-	}
-	if t.Elem().Kind() != reflect.Slice {
-		panic("addSliceFlags() requires a pointer to a slice")
-	}
-	switch t.Elem().Elem().Kind() {
-	case reflect.Bool:
-		c.BoolsFlag(name, description, field.Addr().Interface().(*[]bool))
-	case reflect.String:
-		c.StringsFlag(name, description, field.Addr().Interface().(*[]string))
-	case reflect.Int:
-		c.IntsFlag(name, description, field.Addr().Interface().(*[]int))
-	case reflect.Int8:
-		c.Int8sFlag(name, description, field.Addr().Interface().(*[]int8))
-	case reflect.Int16:
-		c.Int16sFlag(name, description, field.Addr().Interface().(*[]int16))
-	case reflect.Int32:
-		c.Int32sFlag(name, description, field.Addr().Interface().(*[]int32))
-	case reflect.Int64:
-		c.Int64sFlag(name, description, field.Addr().Interface().(*[]int64))
-	case reflect.Uint:
-		c.UintsFlag(name, description, field.Addr().Interface().(*[]uint))
-	case reflect.Uint8:
-		c.Uint8sFlag(name, description, field.Addr().Interface().(*[]uint8))
-	case reflect.Uint16:
-		c.Uint16sFlag(name, description, field.Addr().Interface().(*[]uint16))
-	case reflect.Uint32:
-		c.Uint32sFlag(name, description, field.Addr().Interface().(*[]uint32))
-	case reflect.Uint64:
-		c.Uint64sFlag(name, description, field.Addr().Interface().(*[]uint64))
-	case reflect.Float32:
-		c.Float32sFlag(name, description, field.Addr().Interface().(*[]float32))
-	case reflect.Float64:
-		c.Float64sFlag(name, description, field.Addr().Interface().(*[]float64))
-	default:
-		panic(fmt.Sprintf("addSliceFlags() not supported slice type %s", t.Elem().Elem().Kind().String()))
-	}
-	return c
-}
-
-func (c *Command) addSliceField(field reflect.Value, defaultValue, separator string) *Command {
-	if defaultValue == "" {
-		return c
-	}
-	if field.Kind() != reflect.Slice {
-		panic("addSliceField() requires a pointer to a slice")
-	}
-	t := reflect.TypeOf(field.Addr().Interface())
-	if t.Kind() != reflect.Ptr {
-		panic("addSliceField() requires a pointer to a slice")
-	}
-	if t.Elem().Kind() != reflect.Slice {
-		panic("addSliceField() requires a pointer to a slice")
-	}
-	defaultSlice := []string{defaultValue}
-	if separator != "" {
-		defaultSlice = strings.Split(defaultValue, separator)
-	}
-	switch t.Elem().Elem().Kind() {
-	case reflect.Bool:
-		defaultValues := make([]bool, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.ParseBool(value)
-			if err != nil {
-				panic("Invalid default value for bool flag")
-			}
-			defaultValues = append(defaultValues, val)
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.String:
-		field.Set(reflect.ValueOf(defaultSlice))
-	case reflect.Int:
-		defaultValues := make([]int, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for int flag")
-			}
-			defaultValues = append(defaultValues, val)
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Int8:
-		defaultValues := make([]int8, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for int8 flag")
-			}
-			defaultValues = append(defaultValues, int8(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Int16:
-		defaultValues := make([]int16, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for int16 flag")
-			}
-			defaultValues = append(defaultValues, int16(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Int32:
-		defaultValues := make([]int32, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.ParseInt(value, 10, 32)
-			if err != nil {
-				panic("Invalid default value for int32 flag")
-			}
-			defaultValues = append(defaultValues, int32(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Int64:
-		defaultValues := make([]int64, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				panic("Invalid default value for int64 flag")
-			}
-			defaultValues = append(defaultValues, val)
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Uint:
-		defaultValues := make([]uint, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for uint flag")
-			}
-			defaultValues = append(defaultValues, uint(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Uint8:
-		defaultValues := make([]uint8, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for uint8 flag")
-			}
-			defaultValues = append(defaultValues, uint8(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Uint16:
-		defaultValues := make([]uint16, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for uint16 flag")
-			}
-			defaultValues = append(defaultValues, uint16(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Uint32:
-		defaultValues := make([]uint32, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for uint32 flag")
-			}
-			defaultValues = append(defaultValues, uint32(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Uint64:
-		defaultValues := make([]uint64, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.Atoi(value)
-			if err != nil {
-				panic("Invalid default value for uint64 flag")
-			}
-			defaultValues = append(defaultValues, uint64(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Float32:
-		defaultValues := make([]float32, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.ParseFloat(value, 32)
-			if err != nil {
-				panic("Invalid default value for float32 flag")
-			}
-			defaultValues = append(defaultValues, float32(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	case reflect.Float64:
-		defaultValues := make([]float64, 0, len(defaultSlice))
-		for _, value := range defaultSlice {
-			val, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				panic("Invalid default value for float64 flag")
-			}
-			defaultValues = append(defaultValues, float64(val))
-		}
-		field.Set(reflect.ValueOf(defaultValues))
-	default:
-		panic(fmt.Sprintf("addSliceField() not supported slice type %s", t.Elem().Elem().Kind().String()))
-	}
-	return c
-}
-
-// BoolFlag - Adds a boolean flag to the command
-func (c *Command) BoolFlag(name, description string, variable *bool) *Command {
-	c.flags.BoolVar(variable, name, *variable, description)
-	c.flagCount++
-	return c
-}
-
-// BoolsFlag - Adds a booleans flag to the command
-func (c *Command) BoolsFlag(name, description string, variable *[]bool) *Command {
-	c.flags.Var(newBoolsValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// StringFlag - Adds a string flag to the command
-func (c *Command) StringFlag(name, description string, variable *string) *Command {
-	c.flags.StringVar(variable, name, *variable, description)
-	c.flagCount++
-	return c
-}
-
-// StringsFlag - Adds a strings flag to the command
-func (c *Command) StringsFlag(name, description string, variable *[]string) *Command {
-	c.flags.Var(newStringsValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// IntFlag - Adds an int flag to the command
-func (c *Command) IntFlag(name, description string, variable *int) *Command {
-	c.flags.IntVar(variable, name, *variable, description)
-	c.flagCount++
-	return c
-}
-
-// IntsFlag - Adds an ints flag to the command
-func (c *Command) IntsFlag(name, description string, variable *[]int) *Command {
-	c.flags.Var(newIntsValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Int8Flag - Adds an int8 flag to the command
-func (c *Command) Int8Flag(name, description string, variable *int8) *Command {
-	c.flags.Var(newInt8Value(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Int8sFlag - Adds an int8 s flag to the command
-func (c *Command) Int8sFlag(name, description string, variable *[]int8) *Command {
-	c.flags.Var(newInt8sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Int16Flag - Adds an int16 flag to the command
-func (c *Command) Int16Flag(name, description string, variable *int16) *Command {
-	c.flags.Var(newInt16Value(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Int16sFlag - Adds an int16s flag to the command
-func (c *Command) Int16sFlag(name, description string, variable *[]int16) *Command {
-	c.flags.Var(newInt16sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Int32Flag - Adds an int32 flag to the command
-func (c *Command) Int32Flag(name, description string, variable *int32) *Command {
-	c.flags.Var(newInt32Value(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Int32sFlag - Adds an int32s flag to the command
-func (c *Command) Int32sFlag(name, description string, variable *[]int32) *Command {
-	c.flags.Var(newInt32sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Int64Flag - Adds an int64 flag to the command
-func (c *Command) Int64Flag(name, description string, variable *int64) *Command {
-	c.flags.Int64Var(variable, name, *variable, description)
-	c.flagCount++
-	return c
-}
-
-// Int64sFlag - Adds an int64s flag to the command
-func (c *Command) Int64sFlag(name, description string, variable *[]int64) *Command {
-	c.flags.Var(newInt64sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// UintFlag - Adds an uint flag to the command
-func (c *Command) UintFlag(name, description string, variable *uint) *Command {
-	c.flags.UintVar(variable, name, *variable, description)
-	c.flagCount++
-	return c
-}
-
-// UintsFlag - Adds an uints flag to the command
-func (c *Command) UintsFlag(name, description string, variable *[]uint) *Command {
-	c.flags.Var(newUintsValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Uint8Flag - Adds an uint8 flag to the command
-func (c *Command) Uint8Flag(name, description string, variable *uint8) *Command {
-	c.flags.Var(newUint8Value(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Uint8sFlag - Adds an uint8 s flag to the command
-func (c *Command) Uint8sFlag(name, description string, variable *[]uint8) *Command {
-	c.flags.Var(newUint8sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Uint16Flag - Adds an uint16 flag to the command
-func (c *Command) Uint16Flag(name, description string, variable *uint16) *Command {
-	c.flags.Var(newUint16Value(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Uint16sFlag - Adds an uint16s flag to the command
-func (c *Command) Uint16sFlag(name, description string, variable *[]uint16) *Command {
-	c.flags.Var(newUint16sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Uint32Flag - Adds an uint32 flag to the command
-func (c *Command) Uint32Flag(name, description string, variable *uint32) *Command {
-	c.flags.Var(newUint32Value(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Uint32sFlag - Adds an uint32s flag to the command
-func (c *Command) Uint32sFlag(name, description string, variable *[]uint32) *Command {
-	c.flags.Var(newUint32sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// UInt64Flag - Adds an uint64 flag to the command
-func (c *Command) UInt64Flag(name, description string, variable *uint64) *Command {
-	c.flags.Uint64Var(variable, name, *variable, description)
-	c.flagCount++
-	return c
-}
-
-// Uint64sFlag - Adds an uint64s flag to the command
-func (c *Command) Uint64sFlag(name, description string, variable *[]uint64) *Command {
-	c.flags.Var(newUint64sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Float64Flag - Adds a float64 flag to the command
-func (c *Command) Float64Flag(name, description string, variable *float64) *Command {
-	c.flags.Float64Var(variable, name, *variable, description)
-	c.flagCount++
-	return c
-}
-
-// Float32Flag - Adds a float32 flag to the command
-func (c *Command) Float32Flag(name, description string, variable *float32) *Command {
-	c.flags.Var(newFloat32Value(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Float32sFlag - Adds a float32s flag to the command
-func (c *Command) Float32sFlag(name, description string, variable *[]float32) *Command {
-	c.flags.Var(newFloat32sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-// Float64sFlag - Adds a float64s flag to the command
-func (c *Command) Float64sFlag(name, description string, variable *[]float64) *Command {
-	c.flags.Var(newFloat64sValue(*variable, variable), name, description)
-	c.flagCount++
-	return c
-}
-
-type boolsFlagVar []bool
-
-func (f *boolsFlagVar) String() string { return fmt.Sprint([]bool(*f)) }
-
-func (f *boolsFlagVar) Set(value string) error {
-	if value == "" {
-		*f = append(*f, false)
+// Commands returns all registered command paths.
+//
+//	paths := c.Commands()
+func (c *Core) Commands() []string {
+	if c.commands == nil {
 		return nil
 	}
-	b, err := strconv.ParseBool(value)
-	if err != nil {
-		return err
+	c.commands.mu.RLock()
+	defer c.commands.mu.RUnlock()
+	var paths []string
+	for k := range c.commands.commands {
+		paths = append(paths, k)
 	}
-	*f = append(*f, b)
-	return nil
+	return paths
 }
 
-func (f *boolsFlagVar) IsBoolFlag() bool {
-	return true
-}
-
-func newBoolsValue(val []bool, p *[]bool) *boolsFlagVar {
-	*p = val
-	return (*boolsFlagVar)(p)
-}
-
-type stringsFlagVar []string
-
-func (f *stringsFlagVar) String() string { return fmt.Sprint([]string(*f)) }
-
-func (f *stringsFlagVar) Set(value string) error {
-	*f = append(*f, value)
-	return nil
-}
-
-func newStringsValue(val []string, p *[]string) *stringsFlagVar {
-	*p = val
-	return (*stringsFlagVar)(p)
-}
-
-type intsFlagVar []int
-
-func (f *intsFlagVar) String() string { return fmt.Sprint([]int(*f)) }
-
-func (f *intsFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, i)
-	return nil
-}
-
-func newIntsValue(val []int, p *[]int) *intsFlagVar {
-	*p = val
-	return (*intsFlagVar)(p)
-}
-
-type int8Value int8
-
-func newInt8Value(val int8, p *int8) *int8Value {
-	*p = val
-	return (*int8Value)(p)
-}
-
-func (f *int8Value) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = int8Value(i)
-	return nil
-}
-
-func (f *int8Value) String() string { return fmt.Sprint(int8(*f)) }
-
-type int8sFlagVar []int8
-
-func (f *int8sFlagVar) String() string { return fmt.Sprint([]int8(*f)) }
-
-func (f *int8sFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, int8(i))
-	return nil
-}
-
-func newInt8sValue(val []int8, p *[]int8) *int8sFlagVar {
-	*p = val
-	return (*int8sFlagVar)(p)
-}
-
-type int16Value int16
-
-func newInt16Value(val int16, p *int16) *int16Value {
-	*p = val
-	return (*int16Value)(p)
-}
-
-func (f *int16Value) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = int16Value(i)
-	return nil
-}
-
-func (f *int16Value) String() string { return fmt.Sprint(int16(*f)) }
-
-type int16sFlagVar []int16
-
-func (f *int16sFlagVar) String() string { return fmt.Sprint([]int16(*f)) }
-
-func (f *int16sFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, int16(i))
-	return nil
-}
-
-func newInt16sValue(val []int16, p *[]int16) *int16sFlagVar {
-	*p = val
-	return (*int16sFlagVar)(p)
-}
-
-type int32Value int32
-
-func newInt32Value(val int32, p *int32) *int32Value {
-	*p = val
-	return (*int32Value)(p)
-}
-
-func (f *int32Value) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = int32Value(i)
-	return nil
-}
-
-func (f *int32Value) String() string { return fmt.Sprint(int32(*f)) }
-
-type int32sFlagVar []int32
-
-func (f *int32sFlagVar) String() string { return fmt.Sprint([]int32(*f)) }
-
-func (f *int32sFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, int32(i))
-	return nil
-}
-
-func newInt32sValue(val []int32, p *[]int32) *int32sFlagVar {
-	*p = val
-	return (*int32sFlagVar)(p)
-}
-
-type int64sFlagVar []int64
-
-func (f *int64sFlagVar) String() string { return fmt.Sprint([]int64(*f)) }
-
-func (f *int64sFlagVar) Set(value string) error {
-	i, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, i)
-	return nil
-}
-
-func newInt64sValue(val []int64, p *[]int64) *int64sFlagVar {
-	*p = val
-	return (*int64sFlagVar)(p)
-}
-
-type uintsFlagVar []uint
-
-func (f *uintsFlagVar) String() string {
-	return fmt.Sprint([]uint(*f))
-}
-
-func (f *uintsFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, uint(i))
-	return nil
-}
-
-func newUintsValue(val []uint, p *[]uint) *uintsFlagVar {
-	*p = val
-	return (*uintsFlagVar)(p)
-}
-
-type uint8FlagVar uint8
-
-func newUint8Value(val uint8, p *uint8) *uint8FlagVar {
-	*p = val
-	return (*uint8FlagVar)(p)
-}
-
-func (f *uint8FlagVar) String() string {
-	return fmt.Sprint(uint8(*f))
-}
-
-func (f *uint8FlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = uint8FlagVar(i)
-	return nil
-}
-
-type uint8sFlagVar []uint8
-
-func (f *uint8sFlagVar) String() string {
-	return fmt.Sprint([]uint8(*f))
-}
-
-func (f *uint8sFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, uint8(i))
-	return nil
-}
-
-func newUint8sValue(val []uint8, p *[]uint8) *uint8sFlagVar {
-	*p = val
-	return (*uint8sFlagVar)(p)
-}
-
-type uint16FlagVar uint16
-
-func newUint16Value(val uint16, p *uint16) *uint16FlagVar {
-	*p = val
-	return (*uint16FlagVar)(p)
-}
-
-func (f *uint16FlagVar) String() string {
-	return fmt.Sprint(uint16(*f))
-}
-
-func (f *uint16FlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = uint16FlagVar(i)
-	return nil
-}
-
-type uint16sFlagVar []uint16
-
-func (f *uint16sFlagVar) String() string {
-	return fmt.Sprint([]uint16(*f))
-}
-
-func (f *uint16sFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, uint16(i))
-	return nil
-}
-
-func newUint16sValue(val []uint16, p *[]uint16) *uint16sFlagVar {
-	*p = val
-	return (*uint16sFlagVar)(p)
-}
-
-type uint32FlagVar uint32
-
-func newUint32Value(val uint32, p *uint32) *uint32FlagVar {
-	*p = val
-	return (*uint32FlagVar)(p)
-}
-
-func (f *uint32FlagVar) String() string {
-	return fmt.Sprint(uint32(*f))
-}
-
-func (f *uint32FlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = uint32FlagVar(i)
-	return nil
-}
-
-type uint32sFlagVar []uint32
-
-func (f *uint32sFlagVar) String() string {
-	return fmt.Sprint([]uint32(*f))
-}
-
-func (f *uint32sFlagVar) Set(value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, uint32(i))
-	return nil
-}
-
-func newUint32sValue(val []uint32, p *[]uint32) *uint32sFlagVar {
-	*p = val
-	return (*uint32sFlagVar)(p)
-}
-
-type uint64sFlagVar []uint64
-
-func (f *uint64sFlagVar) String() string { return fmt.Sprint([]uint64(*f)) }
-
-func (f *uint64sFlagVar) Set(value string) error {
-	i, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, i)
-	return nil
-}
-
-func newUint64sValue(val []uint64, p *[]uint64) *uint64sFlagVar {
-	*p = val
-	return (*uint64sFlagVar)(p)
-}
-
-type float32sFlagVar []float32
-
-func (f *float32sFlagVar) String() string { return fmt.Sprint([]float32(*f)) }
-
-func (f *float32sFlagVar) Set(value string) error {
-	i, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, float32(i))
-	return nil
-}
-
-func newFloat32sValue(val []float32, p *[]float32) *float32sFlagVar {
-	*p = val
-	return (*float32sFlagVar)(p)
-}
-
-type float32FlagVar float32
-
-func (f *float32FlagVar) String() string { return fmt.Sprint(float32(*f)) }
-
-func (f *float32FlagVar) Set(value string) error {
-	i, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return err
-	}
-	*f = float32FlagVar(i)
-	return nil
-}
-
-func newFloat32Value(val float32, p *float32) *float32FlagVar {
-	*p = val
-	return (*float32FlagVar)(p)
-}
-
-type float64sFlagVar []float64
-
-func (f *float64sFlagVar) String() string { return fmt.Sprint([]float64(*f)) }
-
-func (f *float64sFlagVar) Set(value string) error {
-	i, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return err
-	}
-	*f = append(*f, i)
-	return nil
-}
-
-func newFloat64sValue(val []float64, p *[]float64) *float64sFlagVar {
-	*p = val
-	return (*float64sFlagVar)(p)
-}
-
-// LongDescription - Sets the long description for the command
-func (c *Command) LongDescription(longdescription string) *Command {
-	c.longdescription = longdescription
-	return c
-}
-
-// OtherArgs - Returns the non-flag arguments passed to the subcommand. NOTE: This should only be called within the context of an action.
-func (c *Command) OtherArgs() []string {
-	return c.flags.Args()
-}
-
-func (c *Command) NewChildCommandFunction(name string, description string, fn any) *Command {
-	result := c.NewChildCommand(name, description)
-	// use reflection to determine if this is a function
-	// if not, panic
-	t := reflect.TypeOf(fn)
-	if t.Kind() != reflect.Func {
-		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
-	}
-
-	// Check the function has 1 input ant it's a struct pointer
-	fnValue := reflect.ValueOf(fn)
-	if t.NumIn() != 1 {
-		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
-	}
-	// Check the input is a struct pointer
-	if t.In(0).Kind() != reflect.Ptr {
-		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
-	}
-	if t.In(0).Elem().Kind() != reflect.Struct {
-		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
-	}
-	// Check only 1 output and it's an error
-	if t.NumOut() != 1 {
-		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
-	}
-	if t.Out(0) != reflect.TypeOf((*error)(nil)).Elem() {
-		panic("NewChildCommandFunction '" + name + "' requires a function with the signature 'func(*struct) error'")
-	}
-	flags := reflect.New(t.In(0).Elem())
-	result.Action(func() error {
-		result := fnValue.Call([]reflect.Value{flags})[0].Interface()
-		if result != nil {
-			return result.(error)
-		}
-		return nil
-	})
-	result.AddFlags(flags.Interface())
-	return result
-}
-
-func (c *Command) parsePositionalArgs(args []string) error {
-	for index, posArg := range args {
-		// Check the map for a field for this arg
-		key := strconv.Itoa(index + 1)
-		field, ok := c.positionalArgsMap[key]
-		if !ok {
-			continue
-		}
-		fieldType := field.Type()
-		switch fieldType.Kind() {
-		case reflect.Bool:
-			// set value of field to true
-			field.SetBool(true)
-		case reflect.String:
-			field.SetString(posArg)
-		case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
-			value, err := strconv.ParseInt(posArg, 10, 64)
-			if err != nil {
-				return err
-			}
-			field.SetInt(value)
-		case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8, reflect.Uint:
-			value, err := strconv.ParseUint(posArg, 10, 64)
-			if err != nil {
-				return err
-			}
-			field.SetUint(value)
-		case reflect.Float64, reflect.Float32:
-			value, err := strconv.ParseFloat(posArg, 64)
-			if err != nil {
-				return err
-			}
-			field.SetFloat(value)
-		case reflect.Slice:
-			c.addSliceField(field, posArg, c.sliceSeparator[key])
-		default:
-			return E("cli.parsePositionalArgs", "unsupported type for positional argument: "+fieldType.Name(), nil)
-		}
-	}
-	return nil
+// pathName extracts the last segment of a path.
+// "deploy/to/homelab" → "homelab"
+func pathName(path string) string {
+	parts := Split(path, "/")
+	return parts[len(parts)-1]
 }

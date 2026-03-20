@@ -1,0 +1,55 @@
+package core_test
+
+import (
+	"testing"
+
+	. "forge.lthn.ai/core/go/pkg/core"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestLock_Good(t *testing.T) {
+	c := New()
+	lock := c.Lock("test")
+	assert.NotNil(t, lock)
+	assert.NotNil(t, lock.Mutex)
+}
+
+func TestLock_SameName_Good(t *testing.T) {
+	c := New()
+	l1 := c.Lock("shared")
+	l2 := c.Lock("shared")
+	assert.Equal(t, l1, l2)
+}
+
+func TestLock_DifferentName_Good(t *testing.T) {
+	c := New()
+	l1 := c.Lock("a")
+	l2 := c.Lock("b")
+	assert.NotEqual(t, l1, l2)
+}
+
+func TestLockEnable_Good(t *testing.T) {
+	c := New()
+	c.Service("early", Service{})
+	c.LockEnable()
+	c.LockApply()
+
+	r := c.Service("late", Service{})
+	assert.False(t, r.OK)
+}
+
+func TestStartables_Good(t *testing.T) {
+	c := New()
+	c.Service("s", Service{OnStart: func() Result { return Result{OK: true} }})
+	r := c.Startables()
+	assert.True(t, r.OK)
+	assert.Len(t, r.Value.([]*Service), 1)
+}
+
+func TestStoppables_Good(t *testing.T) {
+	c := New()
+	c.Service("s", Service{OnStop: func() Result { return Result{OK: true} }})
+	r := c.Stoppables()
+	assert.True(t, r.OK)
+	assert.Len(t, r.Value.([]*Service), 1)
+}

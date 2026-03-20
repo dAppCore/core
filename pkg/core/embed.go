@@ -34,7 +34,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"text/template"
 )
@@ -65,24 +64,38 @@ func AddAsset(group, name, data string) {
 }
 
 // GetAsset retrieves and decompresses a packed asset.
-func GetAsset(group, name string) (string, error) {
+//
+//	r := core.GetAsset("mygroup", "greeting")
+//	if r.OK { content := r.Value.(string) }
+func GetAsset(group, name string) Result {
 	assetGroupsMu.RLock()
 	g, ok := assetGroups[group]
-	assetGroupsMu.RUnlock()
 	if !ok {
-		return "", E("core.GetAsset", fmt.Sprintf("asset group %q not found", group), nil)
+		assetGroupsMu.RUnlock()
+		return Result{}
 	}
 	data, ok := g.assets[name]
+	assetGroupsMu.RUnlock()
 	if !ok {
-		return "", E("core.GetAsset", fmt.Sprintf("asset %q not found in group %q", name, group), nil)
+		return Result{}
 	}
-	return decompress(data)
+	s, err := decompress(data)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{s, true}
 }
 
 // GetAssetBytes retrieves a packed asset as bytes.
-func GetAssetBytes(group, name string) ([]byte, error) {
-	s, err := GetAsset(group, name)
-	return []byte(s), err
+//
+//	r := core.GetAssetBytes("mygroup", "file")
+//	if r.OK { data := r.Value.([]byte) }
+func GetAssetBytes(group, name string) Result {
+	r := GetAsset(group, name)
+	if !r.OK {
+		return r
+	}
+	return Result{[]byte(r.Value.(string)), true}
 }
 
 // --- Build-time: AST Scanner ---
@@ -97,15 +110,15 @@ type AssetRef struct {
 
 // ScannedPackage holds all asset references from a set of source files.
 type ScannedPackage struct {
-	PackageName string
-	BaseDir     string
-	Groups      []string
-	Assets      []AssetRef
+	PackageName   string
+	BaseDirectory string
+	Groups        []string
+	Assets        []AssetRef
 }
 
 // ScanAssets parses Go source files and finds asset references.
 // Looks for calls to: core.GetAsset("group", "name"), core.AddAsset, etc.
-func ScanAssets(filenames []string) ([]ScannedPackage, error) {
+func ScanAssets(filenames []string) Result {
 	packageMap := make(map[string]*ScannedPackage)
 	var scanErr error
 
@@ -113,13 +126,13 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 		fset := token.NewFileSet()
 		node, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
 		if err != nil {
-			return nil, err
+			return Result{err, false}
 		}
 
 		baseDir := filepath.Dir(filename)
 		pkg, ok := packageMap[baseDir]
 		if !ok {
-			pkg = &ScannedPackage{BaseDir: baseDir}
+			pkg = &ScannedPackage{BaseDirectory: baseDir}
 			packageMap[baseDir] = pkg
 		}
 		pkg.PackageName = node.Name.Name
@@ -149,16 +162,16 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 				case "GetAsset", "GetAssetBytes", "String", "MustString", "Bytes", "MustBytes":
 					if len(call.Args) >= 1 {
 						if lit, ok := call.Args[len(call.Args)-1].(*ast.BasicLit); ok {
-							path := strings.Trim(lit.Value, "\"")
+							path := TrimPrefix(TrimSuffix(lit.Value, "\""), "\"")
 							group := "."
 							if len(call.Args) >= 2 {
 								if glit, ok := call.Args[0].(*ast.BasicLit); ok {
-									group = strings.Trim(glit.Value, "\"")
+									group = TrimPrefix(TrimSuffix(glit.Value, "\""), "\"")
 								}
 							}
 							fullPath, err := filepath.Abs(filepath.Join(baseDir, group, path))
 							if err != nil {
-								scanErr = Wrap(err, "core.ScanAssets", fmt.Sprintf("could not determine absolute path for asset %q in group %q", path, group))
+								scanErr = Wrap(err, "core.ScanAssets", Join(" ", "could not determine absolute path for asset", path, "in group", group))
 								return false
 							}
 							pkg.Assets = append(pkg.Assets, AssetRef{
@@ -173,10 +186,10 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 					// Variable assignment: g := core.Group("./assets")
 					if len(call.Args) == 1 {
 						if lit, ok := call.Args[0].(*ast.BasicLit); ok {
-							path := strings.Trim(lit.Value, "\"")
+							path := TrimPrefix(TrimSuffix(lit.Value, "\""), "\"")
 							fullPath, err := filepath.Abs(filepath.Join(baseDir, path))
 							if err != nil {
-								scanErr = Wrap(err, "core.ScanAssets", fmt.Sprintf("could not determine absolute path for group %q", path))
+								scanErr = Wrap(err, "core.ScanAssets", Join(" ", "could not determine absolute path for group", path))
 								return false
 							}
 							pkg.Groups = append(pkg.Groups, fullPath)
@@ -189,7 +202,7 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 			return true
 		})
 		if scanErr != nil {
-			return nil, scanErr
+			return Result{scanErr, false}
 		}
 	}
 
@@ -197,18 +210,18 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 	for _, pkg := range packageMap {
 		result = append(result, *pkg)
 	}
-	return result, nil
+	return Result{result, true}
 }
 
 // GeneratePack creates Go source code that embeds the scanned assets.
-func GeneratePack(pkg ScannedPackage) (string, error) {
-	var b strings.Builder
+func GeneratePack(pkg ScannedPackage) Result {
+	b := NewBuilder()
 
 	b.WriteString(fmt.Sprintf("package %s\n\n", pkg.PackageName))
 	b.WriteString("// Code generated by core pack. DO NOT EDIT.\n\n")
 
 	if len(pkg.Assets) == 0 && len(pkg.Groups) == 0 {
-		return b.String(), nil
+		return Result{b.String(), true}
 	}
 
 	b.WriteString("import \"forge.lthn.ai/core/go/pkg/core\"\n\n")
@@ -219,7 +232,7 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 	for _, groupPath := range pkg.Groups {
 		files, err := getAllFiles(groupPath)
 		if err != nil {
-			return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("failed to scan asset group %q", groupPath))
+			return Result{err, false}
 		}
 		for _, file := range files {
 			if packed[file] {
@@ -227,12 +240,12 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 			}
 			data, err := compressFile(file)
 			if err != nil {
-				return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("failed to compress asset %q in group %q", file, groupPath))
+				return Result{err, false}
 			}
-			localPath := strings.TrimPrefix(file, groupPath+"/")
-			relGroup, err := filepath.Rel(pkg.BaseDir, groupPath)
+			localPath := TrimPrefix(file, groupPath+"/")
+			relGroup, err := filepath.Rel(pkg.BaseDirectory, groupPath)
 			if err != nil {
-				return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("could not determine relative path for group %q (base %q)", groupPath, pkg.BaseDir))
+				return Result{err, false}
 			}
 			b.WriteString(fmt.Sprintf("\tcore.AddAsset(%q, %q, %q)\n", relGroup, localPath, data))
 			packed[file] = true
@@ -246,14 +259,14 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 		}
 		data, err := compressFile(asset.FullPath)
 		if err != nil {
-			return "", Wrap(err, "core.GeneratePack", fmt.Sprintf("failed to compress asset %q", asset.FullPath))
+			return Result{err, false}
 		}
 		b.WriteString(fmt.Sprintf("\tcore.AddAsset(%q, %q, %q)\n", asset.Group, asset.Name, data))
 		packed[asset.FullPath] = true
 	}
 
 	b.WriteString("}\n")
-	return b.String(), nil
+	return Result{b.String(), true}
 }
 
 // --- Compression ---
@@ -289,7 +302,7 @@ func compress(input string) (string, error) {
 }
 
 func decompress(input string) (string, error) {
-	b64 := base64.NewDecoder(base64.StdEncoding, strings.NewReader(input))
+	b64 := base64.NewDecoder(base64.StdEncoding, NewReader(input))
 	gz, err := gzip.NewReader(b64)
 	if err != nil {
 		return "", err
@@ -330,62 +343,104 @@ type Embed struct {
 }
 
 // Mount creates a scoped view of an fs.FS anchored at basedir.
-// Works with embed.FS, os.DirFS, or any fs.FS implementation.
-func Mount(fsys fs.FS, basedir string) (*Embed, error) {
+//
+//	r := core.Mount(myFS, "lib/prompts")
+//	if r.OK { emb := r.Value.(*Embed) }
+func Mount(fsys fs.FS, basedir string) Result {
 	s := &Embed{fsys: fsys, basedir: basedir}
 
-	// If it's an embed.FS, keep a reference for EmbedFS()
 	if efs, ok := fsys.(embed.FS); ok {
 		s.embedFS = &efs
 	}
 
-	// Verify the basedir exists
-	if _, err := s.ReadDir("."); err != nil {
-		return nil, err
+	if r := s.ReadDir("."); !r.OK {
+		return r
 	}
-	return s, nil
+	return Result{s, true}
 }
 
 // MountEmbed creates a scoped view of an embed.FS.
-func MountEmbed(efs embed.FS, basedir string) (*Embed, error) {
+//
+//	r := core.MountEmbed(myFS, "testdata")
+func MountEmbed(efs embed.FS, basedir string) Result {
 	return Mount(efs, basedir)
 }
 
-func (s *Embed) path(name string) string {
-	return filepath.ToSlash(filepath.Join(s.basedir, name))
+func (s *Embed) path(name string) Result {
+	joined := filepath.ToSlash(filepath.Join(s.basedir, name))
+	if HasPrefix(joined, "..") || Contains(joined, "/../") || HasSuffix(joined, "/..") {
+		return Result{E("embed.path", Concat("path traversal rejected: ", name), nil), false}
+	}
+	return Result{joined, true}
 }
 
 // Open opens the named file for reading.
-func (s *Embed) Open(name string) (fs.File, error) {
-	return s.fsys.Open(s.path(name))
+//
+//	r := emb.Open("test.txt")
+//	if r.OK { file := r.Value.(fs.File) }
+func (s *Embed) Open(name string) Result {
+	r := s.path(name)
+	if !r.OK {
+		return r
+	}
+	f, err := s.fsys.Open(r.Value.(string))
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{f, true}
 }
 
 // ReadDir reads the named directory.
-func (s *Embed) ReadDir(name string) ([]fs.DirEntry, error) {
-	return fs.ReadDir(s.fsys, s.path(name))
+func (s *Embed) ReadDir(name string) Result {
+	r := s.path(name)
+	if !r.OK {
+		return r
+	}
+	return Result{}.Result(fs.ReadDir(s.fsys, r.Value.(string)))
 }
 
 // ReadFile reads the named file.
-func (s *Embed) ReadFile(name string) ([]byte, error) {
-	return fs.ReadFile(s.fsys, s.path(name))
+//
+//	r := emb.ReadFile("test.txt")
+//	if r.OK { data := r.Value.([]byte) }
+func (s *Embed) ReadFile(name string) Result {
+	r := s.path(name)
+	if !r.OK {
+		return r
+	}
+	data, err := fs.ReadFile(s.fsys, r.Value.(string))
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{data, true}
 }
 
 // ReadString reads the named file as a string.
-func (s *Embed) ReadString(name string) (string, error) {
-	data, err := s.ReadFile(name)
-	if err != nil {
-		return "", err
+//
+//	r := emb.ReadString("test.txt")
+//	if r.OK { content := r.Value.(string) }
+func (s *Embed) ReadString(name string) Result {
+	r := s.ReadFile(name)
+	if !r.OK {
+		return r
 	}
-	return string(data), nil
+	return Result{string(r.Value.([]byte)), true}
 }
 
 // Sub returns a new Embed anchored at a subdirectory within this mount.
-func (s *Embed) Sub(subDir string) (*Embed, error) {
-	sub, err := fs.Sub(s.fsys, s.path(subDir))
-	if err != nil {
-		return nil, err
+//
+//	r := emb.Sub("testdata")
+//	if r.OK { sub := r.Value.(*Embed) }
+func (s *Embed) Sub(subDir string) Result {
+	r := s.path(subDir)
+	if !r.OK {
+		return r
 	}
-	return &Embed{fsys: sub, basedir: "."}, nil
+	sub, err := fs.Sub(s.fsys, r.Value.(string))
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{&Embed{fsys: sub, basedir: "."}, true}
 }
 
 // FS returns the underlying fs.FS.
@@ -402,8 +457,8 @@ func (s *Embed) EmbedFS() embed.FS {
 	return embed.FS{}
 }
 
-// BaseDir returns the basedir this Embed is anchored at.
-func (s *Embed) BaseDir() string {
+// BaseDirectory returns the base directory this Embed is anchored at.
+func (s *Embed) BaseDirectory() string {
 	return s.basedir
 }
 
@@ -433,7 +488,7 @@ type ExtractOptions struct {
 // {{.Name}}/main.go → myproject/main.go
 //
 // Data can be any struct or map[string]string for template substitution.
-func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) error {
+func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Result {
 	opt := ExtractOptions{
 		TemplateFilters: []string{".tmpl"},
 		IgnoreFiles:     make(map[string]struct{}),
@@ -454,10 +509,10 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 	// Ensure target directory exists
 	targetDir, err := filepath.Abs(targetDir)
 	if err != nil {
-		return err
+		return Result{err, false}
 	}
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return err
+		return Result{err, false}
 	}
 
 	// Categorise files
@@ -488,14 +543,29 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 		return nil
 	})
 	if err != nil {
-		return err
+		return Result{err, false}
+	}
+
+	// safePath ensures a rendered path stays under targetDir.
+	safePath := func(rendered string) (string, error) {
+		abs, err := filepath.Abs(rendered)
+		if err != nil {
+			return "", err
+		}
+		if !HasPrefix(abs, targetDir+string(filepath.Separator)) && abs != targetDir {
+			return "", E("embed.Extract", Concat("path escapes target: ", abs), nil)
+		}
+		return abs, nil
 	}
 
 	// Create directories (names may contain templates)
 	for _, dir := range dirs {
-		target := renderPath(filepath.Join(targetDir, dir), data)
+		target, err := safePath(renderPath(filepath.Join(targetDir, dir), data))
+		if err != nil {
+			return Result{err, false}
+		}
 		if err := os.MkdirAll(target, 0755); err != nil {
-			return err
+			return Result{err, false}
 		}
 	}
 
@@ -503,7 +573,7 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 	for _, path := range templateFiles {
 		tmpl, err := template.ParseFS(fsys, path)
 		if err != nil {
-			return err
+			return Result{err, false}
 		}
 
 		targetFile := renderPath(filepath.Join(targetDir, path), data)
@@ -512,20 +582,23 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 		dir := filepath.Dir(targetFile)
 		name := filepath.Base(targetFile)
 		for _, filter := range opt.TemplateFilters {
-			name = strings.ReplaceAll(name, filter, "")
+			name = Replace(name, filter, "")
 		}
 		if renamed := opt.RenameFiles[name]; renamed != "" {
 			name = renamed
 		}
-		targetFile = filepath.Join(dir, name)
+		targetFile, err = safePath(filepath.Join(dir, name))
+		if err != nil {
+			return Result{err, false}
+		}
 
 		f, err := os.Create(targetFile)
 		if err != nil {
-			return err
+			return Result{err, false}
 		}
 		if err := tmpl.Execute(f, data); err != nil {
 			f.Close()
-			return err
+			return Result{err, false}
 		}
 		f.Close()
 	}
@@ -537,18 +610,21 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 		if renamed := opt.RenameFiles[name]; renamed != "" {
 			targetPath = filepath.Join(filepath.Dir(path), renamed)
 		}
-		target := renderPath(filepath.Join(targetDir, targetPath), data)
+		target, err := safePath(renderPath(filepath.Join(targetDir, targetPath), data))
+		if err != nil {
+			return Result{err, false}
+		}
 		if err := copyFile(fsys, path, target); err != nil {
-			return err
+			return Result{err, false}
 		}
 	}
 
-	return nil
+	return Result{OK: true}
 }
 
 func isTemplate(filename string, filters []string) bool {
 	for _, f := range filters {
-		if strings.Contains(filename, f) {
+		if Contains(filename, f) {
 			return true
 		}
 	}

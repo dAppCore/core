@@ -13,8 +13,8 @@ import (
 // Translator defines the interface for translation services.
 // Implemented by go-i18n's Srv.
 type Translator interface {
-	// T translates a message by its ID with optional arguments.
-	T(messageID string, args ...any) string
+	// Translate translates a message by its ID with optional arguments.
+	Translate(messageID string, args ...any) Result
 	// SetLanguage sets the active language (BCP47 tag, e.g., "en-GB", "de").
 	SetLanguage(lang string) error
 	// Language returns the current language code.
@@ -43,10 +43,10 @@ type LocaleProvider interface {
 // I18n manages locale collection and translation dispatch.
 type I18n struct {
 	mu         sync.RWMutex
-	locales    []*Embed     // collected from LocaleProvider services
+	locales    []*Embed // collected from LocaleProvider services
+	locale     string
 	translator Translator // registered implementation (nil until set)
 }
-
 
 // AddLocales adds locale mounts (called during service registration).
 func (i *I18n) AddLocales(mounts ...*Embed) {
@@ -56,12 +56,12 @@ func (i *I18n) AddLocales(mounts ...*Embed) {
 }
 
 // Locales returns all collected locale mounts.
-func (i *I18n) Locales() []*Embed {
+func (i *I18n) Locales() Result {
 	i.mu.RLock()
 	out := make([]*Embed, len(i.locales))
 	copy(out, i.locales)
 	i.mu.RUnlock()
-	return out
+	return Result{out, true}
 }
 
 // SetTranslator registers the translation implementation.
@@ -69,46 +69,59 @@ func (i *I18n) Locales() []*Embed {
 func (i *I18n) SetTranslator(t Translator) {
 	i.mu.Lock()
 	i.translator = t
+	locale := i.locale
 	i.mu.Unlock()
+	if t != nil && locale != "" {
+		_ = t.SetLanguage(locale)
+	}
 }
 
 // Translator returns the registered translation implementation, or nil.
-func (i *I18n) Translator() Translator {
+func (i *I18n) Translator() Result {
 	i.mu.RLock()
 	t := i.translator
 	i.mu.RUnlock()
-	return t
+	if t == nil {
+		return Result{}
+	}
+	return Result{t, true}
 }
 
-// T translates a message. Returns the key as-is if no translator is registered.
-func (i *I18n) T(messageID string, args ...any) string {
+// Translate translates a message. Returns the key as-is if no translator is registered.
+func (i *I18n) Translate(messageID string, args ...any) Result {
 	i.mu.RLock()
 	t := i.translator
 	i.mu.RUnlock()
 	if t != nil {
-		return t.T(messageID, args...)
+		return t.Translate(messageID, args...)
 	}
-	return messageID
+	return Result{messageID, true}
 }
 
-// SetLanguage sets the active language. No-op if no translator is registered.
-func (i *I18n) SetLanguage(lang string) error {
-	i.mu.RLock()
+// SetLanguage sets the active language and forwards to the translator if registered.
+func (i *I18n) SetLanguage(lang string) Result {
+	if lang == "" {
+		return Result{OK: true}
+	}
+	i.mu.Lock()
+	i.locale = lang
 	t := i.translator
-	i.mu.RUnlock()
+	i.mu.Unlock()
 	if t != nil {
-		return t.SetLanguage(lang)
+		if err := t.SetLanguage(lang); err != nil {
+			return Result{err, false}
+		}
 	}
-	return nil
+	return Result{OK: true}
 }
 
-// Language returns the current language code, or "en" if no translator.
+// Language returns the current language code, or "en" if not set.
 func (i *I18n) Language() string {
 	i.mu.RLock()
-	t := i.translator
+	locale := i.locale
 	i.mu.RUnlock()
-	if t != nil {
-		return t.Language()
+	if locale != "" {
+		return locale
 	}
 	return "en"
 }

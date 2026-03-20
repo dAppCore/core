@@ -1,71 +1,83 @@
 // SPDX-License-Identifier: EUPL-1.2
 
-// Service registry, lifecycle tracking, and runtime helpers for the Core framework.
+// Service registry for the Core framework.
+//
+// Register a service:
+//
+//	c.Service("auth", core.Service{})
+//
+// Get a service:
+//
+//	r := c.Service("auth")
+//	if r.OK { svc := r.Value }
 
 package core
 
-import "fmt"
+// No imports needed — uses package-level string helpers.
 
-// --- Service Registry DTO ---
-
-// Service holds service registry data.
+// Service is a managed component with optional lifecycle.
 type Service struct {
-	Services    map[string]any
-	startables  []Startable
-	stoppables  []Stoppable
+	Name      string
+	Options   Options
+	OnStart   func() Result
+	OnStop    func() Result
+	OnReload  func() Result
+}
+
+// serviceRegistry holds registered services.
+type serviceRegistry struct {
+	services    map[string]*Service
 	lockEnabled bool
 	locked      bool
 }
 
-
 // --- Core service methods ---
 
-// Service gets or registers a service.
+// Service gets or registers a service by name.
 //
-//	c.Service()                  // returns *Service
-//	c.Service("auth")            // returns the "auth" service
-//	c.Service("auth", myService) // registers "auth"
-func (c *Core) Service(args ...any) any {
-	switch len(args) {
-	case 0:
-		return c.srv
-	case 1:
-		name, _ := args[0].(string)
-		c.Lock("srv").Mu.RLock()
-		v, ok := c.srv.Services[name]
-		c.Lock("srv").Mu.RUnlock()
-		if !ok {
-			return nil
-		}
-		return v
-	default:
-		name, _ := args[0].(string)
-		if name == "" {
-			return E("core.Service", "service name cannot be empty", nil)
-		}
-		c.Lock("srv").Mu.Lock()
-		defer c.Lock("srv").Mu.Unlock()
-		if c.srv.locked {
-			return E("core.Service", fmt.Sprintf("service %q is not permitted by the serviceLock setting", name), nil)
-		}
-		if _, exists := c.srv.Services[name]; exists {
-			return E("core.Service", fmt.Sprintf("service %q already registered", name), nil)
-		}
-		svc := args[1]
-		if c.srv.Services == nil {
-			c.srv.Services = make(map[string]any)
-		}
-		c.srv.Services[name] = svc
-		if st, ok := svc.(Startable); ok {
-			c.srv.startables = append(c.srv.startables, st)
-		}
-		if st, ok := svc.(Stoppable); ok {
-			c.srv.stoppables = append(c.srv.stoppables, st)
-		}
-		if lp, ok := svc.(LocaleProvider); ok {
-			c.i18n.AddLocales(lp.Locales())
-		}
-		return nil
+//	c.Service("auth", core.Service{OnStart: startFn})
+//	r := c.Service("auth")
+func (c *Core) Service(name string, service ...Service) Result {
+	if len(service) == 0 {
+		c.Lock("srv").Mutex.RLock()
+		v, ok := c.services.services[name]
+		c.Lock("srv").Mutex.RUnlock()
+		return Result{v, ok}
 	}
+
+	if name == "" {
+		return Result{E("core.Service", "service name cannot be empty", nil), false}
+	}
+
+	c.Lock("srv").Mutex.Lock()
+	defer c.Lock("srv").Mutex.Unlock()
+
+	if c.services.locked {
+		return Result{E("core.Service", Concat("service \"", name, "\" not permitted — registry locked"), nil), false}
+	}
+	if _, exists := c.services.services[name]; exists {
+		return Result{E("core.Service", Join(" ", "service", name, "already registered"), nil), false}
+	}
+
+	srv := &service[0]
+	srv.Name = name
+	c.services.services[name] = srv
+
+	return Result{OK: true}
 }
 
+// Services returns all registered service names.
+//
+//	names := c.Services()
+func (c *Core) Services() []string {
+	if c.services == nil {
+		return nil
+	}
+	c.Lock("srv").Mutex.RLock()
+	defer c.Lock("srv").Mutex.RUnlock()
+	var names []string
+	for k := range c.services.services {
+		names = append(names, k)
+	}
+	return names
+}

@@ -33,20 +33,22 @@ type App struct {
 }
 
 
-// Find locates a program on PATH and returns a App for it.
-// Returns nil if not found.
-func Find(filename, name string) *App {
+// Find locates a program on PATH and returns a Result containing the App.
+//
+//	r := core.Find("node", "Node.js")
+//	if r.OK { app := r.Value.(*App) }
+func Find(filename, name string) Result {
 	path, err := exec.LookPath(filename)
 	if err != nil {
-		return nil
+		return Result{err, false}
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return nil
+		return Result{err, false}
 	}
-	return &App{
+	return Result{&App{
 		Name:     name,
 		Filename: filename,
 		Path:     abs,
-	}
+	}, true}
 }

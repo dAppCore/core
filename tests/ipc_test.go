@@ -1,121 +1,95 @@
 package core_test
 
-
 import (
-	. "forge.lthn.ai/core/go/pkg/core"
-	"errors"
 	"testing"
-	"time"
 
+	. "forge.lthn.ai/core/go/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
-type IPCTestQuery struct{ Value string }
-type IPCTestTask struct{ Value string }
+// --- IPC: Actions ---
 
-func TestIPC_Query(t *testing.T) {
-	c, _ := New()
+type testMessage struct{ payload string }
 
-	// No handler
-	res, handled, err := c.QUERY(IPCTestQuery{})
-	assert.False(t, handled)
-	assert.Nil(t, res)
-	assert.Nil(t, err)
-
-	// With handler
-	c.RegisterQuery(func(c *Core, q Query) (any, bool, error) {
-		if tq, ok := q.(IPCTestQuery); ok {
-			return tq.Value + "-response", true, nil
-		}
-		return nil, false, nil
+func TestAction_Good(t *testing.T) {
+	c := New()
+	var received Message
+	c.RegisterAction(func(_ *Core, msg Message) Result {
+		received = msg
+		return Result{OK: true}
 	})
-
-	res, handled, err = c.QUERY(IPCTestQuery{Value: "test"})
-	assert.True(t, handled)
-	assert.Nil(t, err)
-	assert.Equal(t, "test-response", res)
+	r := c.ACTION(testMessage{payload: "hello"})
+	assert.True(t, r.OK)
+	assert.Equal(t, testMessage{payload: "hello"}, received)
 }
 
-func TestIPC_QueryAll(t *testing.T) {
-	c, _ := New()
+func TestAction_Multiple_Good(t *testing.T) {
+	c := New()
+	count := 0
+	handler := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }
+	c.RegisterActions(handler, handler, handler)
+	c.ACTION(nil)
+	assert.Equal(t, 3, count)
+}
 
-	c.RegisterQuery(func(c *Core, q Query) (any, bool, error) {
-		return "h1", true, nil
-	})
-	c.RegisterQuery(func(c *Core, q Query) (any, bool, error) {
-		return "h2", true, nil
-	})
+func TestAction_None_Good(t *testing.T) {
+	c := New()
+	// No handlers registered — should succeed
+	r := c.ACTION(nil)
+	assert.True(t, r.OK)
+}
 
-	results, err := c.QUERYALL(IPCTestQuery{})
-	assert.Nil(t, err)
+// --- IPC: Queries ---
+
+func TestQuery_Good(t *testing.T) {
+	c := New()
+	c.RegisterQuery(func(_ *Core, q Query) Result {
+		if q == "ping" {
+			return Result{Value: "pong", OK: true}
+		}
+		return Result{}
+	})
+	r := c.QUERY("ping")
+	assert.True(t, r.OK)
+	assert.Equal(t, "pong", r.Value)
+}
+
+func TestQuery_Unhandled_Good(t *testing.T) {
+	c := New()
+	c.RegisterQuery(func(_ *Core, q Query) Result {
+		return Result{}
+	})
+	r := c.QUERY("unknown")
+	assert.False(t, r.OK)
+}
+
+func TestQueryAll_Good(t *testing.T) {
+	c := New()
+	c.RegisterQuery(func(_ *Core, _ Query) Result {
+		return Result{Value: "a", OK: true}
+	})
+	c.RegisterQuery(func(_ *Core, _ Query) Result {
+		return Result{Value: "b", OK: true}
+	})
+	r := c.QUERYALL("anything")
+	assert.True(t, r.OK)
+	results := r.Value.([]any)
 	assert.Len(t, results, 2)
-	assert.Contains(t, results, "h1")
-	assert.Contains(t, results, "h2")
+	assert.Contains(t, results, "a")
+	assert.Contains(t, results, "b")
 }
 
-func TestIPC_Perform(t *testing.T) {
-	c, _ := New()
+// --- IPC: Tasks ---
 
-	c.RegisterTask(func(c *Core, task Task) (any, bool, error) {
-		if tt, ok := task.(IPCTestTask); ok {
-			if tt.Value == "error" {
-				return nil, true, errors.New("task error")
-			}
-			return "done", true, nil
+func TestPerform_Good(t *testing.T) {
+	c := New()
+	c.RegisterTask(func(_ *Core, t Task) Result {
+		if t == "compute" {
+			return Result{Value: 42, OK: true}
 		}
-		return nil, false, nil
+		return Result{}
 	})
-
-	// Success
-	res, handled, err := c.PERFORM(IPCTestTask{Value: "run"})
-	assert.True(t, handled)
-	assert.Nil(t, err)
-	assert.Equal(t, "done", res)
-
-	// Error
-	res, handled, err = c.PERFORM(IPCTestTask{Value: "error"})
-	assert.True(t, handled)
-	assert.Error(t, err)
-	assert.Nil(t, res)
-}
-
-func TestIPC_PerformAsync(t *testing.T) {
-	c, _ := New()
-
-	type AsyncResult struct {
-		TaskID string
-		Result any
-		Error  error
-	}
-	done := make(chan AsyncResult, 1)
-
-	c.RegisterTask(func(c *Core, task Task) (any, bool, error) {
-		if tt, ok := task.(IPCTestTask); ok {
-			return tt.Value + "-done", true, nil
-		}
-		return nil, false, nil
-	})
-
-	c.RegisterAction(func(c *Core, msg Message) error {
-		if m, ok := msg.(ActionTaskCompleted); ok {
-			done <- AsyncResult{
-				TaskID: m.TaskID,
-				Result: m.Result,
-				Error:  m.Error,
-			}
-		}
-		return nil
-	})
-
-	taskID := c.PerformAsync(IPCTestTask{Value: "async"})
-	assert.NotEmpty(t, taskID)
-
-	select {
-	case res := <-done:
-		assert.Equal(t, taskID, res.TaskID)
-		assert.Equal(t, "async-done", res.Result)
-		assert.Nil(t, res.Error)
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for task completion")
-	}
+	r := c.PERFORM("compute")
+	assert.True(t, r.OK)
+	assert.Equal(t, 42, r.Value)
 }

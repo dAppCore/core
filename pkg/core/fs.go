@@ -2,13 +2,9 @@
 package core
 
 import (
-	"fmt"
-	"io"
-	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -16,7 +12,6 @@ import (
 type Fs struct {
 	root string
 }
-
 
 // path sanitises and returns the full path.
 // Absolute paths are sandboxed under root (unless root is "/").
@@ -47,13 +42,13 @@ func (m *Fs) path(p string) string {
 }
 
 // validatePath ensures the path is within the sandbox, following symlinks if they exist.
-func (m *Fs) validatePath(p string) (string, error) {
+func (m *Fs) validatePath(p string) Result {
 	if m.root == "/" {
-		return m.path(p), nil
+		return Result{m.path(p), true}
 	}
 
 	// Split the cleaned path into components
-	parts := strings.Split(filepath.Clean("/"+p), string(os.PathSeparator))
+	parts := Split(filepath.Clean("/"+p), string(os.PathSeparator))
 	current := m.root
 
 	for _, part := range parts {
@@ -71,67 +66,77 @@ func (m *Fs) validatePath(p string) (string, error) {
 				current = next
 				continue
 			}
-			return "", err
+			return Result{err, false}
 		}
 
 		// Verify the resolved part is still within the root
 		rel, err := filepath.Rel(m.root, realNext)
-		if err != nil || strings.HasPrefix(rel, "..") {
+		if err != nil || HasPrefix(rel, "..") {
 			// Security event: sandbox escape attempt
 			username := "unknown"
 			if u, err := user.Current(); err == nil {
 				username = u.Username
 			}
-			fmt.Fprintf(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s\n",
+			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
 				time.Now().Format(time.RFC3339), m.root, p, realNext, username)
-			return "", os.ErrPermission // Path escapes sandbox
+			if err == nil {
+				err = E("fs.validatePath", Concat("sandbox escape: ", p, " resolves outside ", m.root), nil)
+			}
+			return Result{err, false}
 		}
 		current = realNext
 	}
 
-	return current, nil
+	return Result{current, true}
 }
 
 // Read returns file contents as string.
-func (m *Fs) Read(p string) (string, error) {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return "", err
+func (m *Fs) Read(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
-	data, err := os.ReadFile(full)
+	data, err := os.ReadFile(vp.Value.(string))
 	if err != nil {
-		return "", err
+		return Result{err, false}
 	}
-	return string(data), nil
+	return Result{string(data), true}
 }
 
 // Write saves content to file, creating parent directories as needed.
 // Files are created with mode 0644. For sensitive files (keys, secrets),
 // use WriteMode with 0600.
-func (m *Fs) Write(p, content string) error {
+func (m *Fs) Write(p, content string) Result {
 	return m.WriteMode(p, content, 0644)
 }
 
 // WriteMode saves content to file with explicit permissions.
 // Use 0600 for sensitive files (encryption output, private keys, auth hashes).
-func (m *Fs) WriteMode(p, content string, mode os.FileMode) error {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return err
+func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
+	full := vp.Value.(string)
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return err
+		return Result{err, false}
 	}
-	return os.WriteFile(full, []byte(content), mode)
+	if err := os.WriteFile(full, []byte(content), mode); err != nil {
+		return Result{err, false}
+	}
+	return Result{OK: true}
 }
 
 // EnsureDir creates directory if it doesn't exist.
-func (m *Fs) EnsureDir(p string) error {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return err
+func (m *Fs) EnsureDir(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
-	return os.MkdirAll(full, 0755)
+	if err := os.MkdirAll(vp.Value.(string), 0755); err != nil {
+		return Result{err, false}
+	}
+	return Result{OK: true}
 }
 
 // IsDir returns true if path is a directory.
@@ -139,11 +144,11 @@ func (m *Fs) IsDir(p string) bool {
 	if p == "" {
 		return false
 	}
-	full, err := m.validatePath(p)
-	if err != nil {
+	vp := m.validatePath(p)
+	if !vp.OK {
 		return false
 	}
-	info, err := os.Stat(full)
+	info, err := os.Stat(vp.Value.(string))
 	return err == nil && info.IsDir()
 }
 
@@ -152,118 +157,131 @@ func (m *Fs) IsFile(p string) bool {
 	if p == "" {
 		return false
 	}
-	full, err := m.validatePath(p)
-	if err != nil {
+	vp := m.validatePath(p)
+	if !vp.OK {
 		return false
 	}
-	info, err := os.Stat(full)
+	info, err := os.Stat(vp.Value.(string))
 	return err == nil && info.Mode().IsRegular()
 }
 
 // Exists returns true if path exists.
 func (m *Fs) Exists(p string) bool {
-	full, err := m.validatePath(p)
-	if err != nil {
+	vp := m.validatePath(p)
+	if !vp.OK {
 		return false
 	}
-	_, err = os.Stat(full)
+	_, err := os.Stat(vp.Value.(string))
 	return err == nil
 }
 
 // List returns directory entries.
-func (m *Fs) List(p string) ([]fs.DirEntry, error) {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return nil, err
+func (m *Fs) List(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
-	return os.ReadDir(full)
+	return Result{}.Result(os.ReadDir(vp.Value.(string)))
 }
 
 // Stat returns file info.
-func (m *Fs) Stat(p string) (fs.FileInfo, error) {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return nil, err
+func (m *Fs) Stat(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
-	return os.Stat(full)
+	return Result{}.Result(os.Stat(vp.Value.(string)))
 }
 
 // Open opens the named file for reading.
-func (m *Fs) Open(p string) (fs.File, error) {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return nil, err
+func (m *Fs) Open(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
-	return os.Open(full)
+	return Result{}.Result(os.Open(vp.Value.(string)))
 }
 
 // Create creates or truncates the named file.
-func (m *Fs) Create(p string) (io.WriteCloser, error) {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return nil, err
+func (m *Fs) Create(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
+	full := vp.Value.(string)
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return nil, err
+		return Result{err, false}
 	}
-	return os.Create(full)
+	return Result{}.Result(os.Create(full))
 }
 
 // Append opens the named file for appending, creating it if it doesn't exist.
-func (m *Fs) Append(p string) (io.WriteCloser, error) {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return nil, err
+func (m *Fs) Append(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
+	full := vp.Value.(string)
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return nil, err
+		return Result{err, false}
 	}
-	return os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	return Result{}.Result(os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644))
 }
 
 // ReadStream returns a reader for the file content.
-func (m *Fs) ReadStream(path string) (io.ReadCloser, error) {
+func (m *Fs) ReadStream(path string) Result {
 	return m.Open(path)
 }
 
 // WriteStream returns a writer for the file content.
-func (m *Fs) WriteStream(path string) (io.WriteCloser, error) {
+func (m *Fs) WriteStream(path string) Result {
 	return m.Create(path)
 }
 
 // Delete removes a file or empty directory.
-func (m *Fs) Delete(p string) error {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return err
+func (m *Fs) Delete(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
+	full := vp.Value.(string)
 	if full == "/" || full == os.Getenv("HOME") {
-		return E("core.Delete", "refusing to delete protected path: "+full, nil)
+		return Result{E("fs.Delete", Concat("refusing to delete protected path: ", full), nil), false}
 	}
-	return os.Remove(full)
+	if err := os.Remove(full); err != nil {
+		return Result{err, false}
+	}
+	return Result{OK: true}
 }
 
 // DeleteAll removes a file or directory recursively.
-func (m *Fs) DeleteAll(p string) error {
-	full, err := m.validatePath(p)
-	if err != nil {
-		return err
+func (m *Fs) DeleteAll(p string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
 	}
+	full := vp.Value.(string)
 	if full == "/" || full == os.Getenv("HOME") {
-		return E("core.DeleteAll", "refusing to delete protected path: "+full, nil)
+		return Result{E("fs.DeleteAll", Concat("refusing to delete protected path: ", full), nil), false}
 	}
-	return os.RemoveAll(full)
+	if err := os.RemoveAll(full); err != nil {
+		return Result{err, false}
+	}
+	return Result{OK: true}
 }
 
 // Rename moves a file or directory.
-func (m *Fs) Rename(oldPath, newPath string) error {
-	oldFull, err := m.validatePath(oldPath)
-	if err != nil {
-		return err
+func (m *Fs) Rename(oldPath, newPath string) Result {
+	oldVp := m.validatePath(oldPath)
+	if !oldVp.OK {
+		return oldVp
 	}
-	newFull, err := m.validatePath(newPath)
-	if err != nil {
-		return err
+	newVp := m.validatePath(newPath)
+	if !newVp.OK {
+		return newVp
 	}
-	return os.Rename(oldFull, newFull)
+	if err := os.Rename(oldVp.Value.(string), newVp.Value.(string)); err != nil {
+		return Result{err, false}
+	}
+	return Result{OK: true}
 }
