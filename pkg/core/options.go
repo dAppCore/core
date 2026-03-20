@@ -43,6 +43,31 @@ type Result struct {
 	OK    bool
 }
 
+// New creates a Result from variadic args.
+// Maps Go (value, error) pairs and multi-value returns to Result.
+//
+//	Result{}.New(file, err)       // OK = err == nil, Value = file
+//	Result{}.New(value)           // OK = true, Value = value
+//	Result{}.New()                // OK = false
+//	Result{}.New("1", 1)          // OK = true, Value = first arg
+func (r Result) New(args ...any) Result {
+	if len(args) == 0 {
+		return Result{}
+	}
+
+	// Check if last arg is an error
+	if len(args) >= 2 {
+		if err, ok := args[len(args)-1].(error); ok {
+			if err != nil {
+				return Result{Value: err}
+			}
+			return Result{Value: args[0], OK: true}
+		}
+	}
+
+	return Result{Value: args[0], OK: true}
+}
+
 // Option is a single key-value configuration pair.
 //
 //	core.Option{K: "name", V: "brain"}
