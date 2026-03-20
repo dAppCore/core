@@ -95,5 +95,10 @@ func New(opts ...Options) *Core {
 		}
 	}
 
+	// Init Cli root command from app name
+	c.cli.rootCommand = NewCommand(c.app.Name)
+	c.cli.rootCommand.setParentCommandPath("")
+	c.cli.rootCommand.setApp(c.cli)
+
 	return c
 }

@@ -45,6 +45,9 @@ func NewCommand(name string, description ...string) *Command {
 		sliceSeparator:    make(map[string]string),
 	}
 
+	// Init flagset so flags can be added before Run
+	result.setParentCommandPath("")
+
 	return result
 }
 
