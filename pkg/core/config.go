@@ -27,13 +27,13 @@ func NewConfigVar[T any](val T) ConfigVar[T] {
 	return ConfigVar[T]{val: val, set: true}
 }
 
-// ConfigOpts holds configuration data.
-type ConfigOpts struct {
+// ConfigOptions holds configuration data.
+type ConfigOptions struct {
 	Settings map[string]any
 	Features map[string]bool
 }
 
-func (o *ConfigOpts) init() {
+func (o *ConfigOptions) init() {
 	if o.Settings == nil {
 		o.Settings = make(map[string]any)
 	}
@@ -44,14 +44,14 @@ func (o *ConfigOpts) init() {
 
 // Config holds configuration settings and feature flags.
 type Config struct {
-	*ConfigOpts
+	*ConfigOptions
 	mu sync.RWMutex
 }
 
 // Set stores a configuration value by key.
 func (e *Config) Set(key string, val any) {
 	e.mu.Lock()
-	e.ConfigOpts.init()
+	e.ConfigOptions.init()
 	e.Settings[key] = val
 	e.mu.Unlock()
 }
@@ -60,7 +60,7 @@ func (e *Config) Set(key string, val any) {
 func (e *Config) Get(key string) (any, bool) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	if e.ConfigOpts == nil || e.Settings == nil {
+	if e.ConfigOptions == nil || e.Settings == nil {
 		return nil, false
 	}
 	val, ok := e.Settings[key]
@@ -86,14 +86,14 @@ func ConfigGet[T any](e *Config, key string) T {
 
 func (e *Config) Enable(feature string) {
 	e.mu.Lock()
-	e.ConfigOpts.init()
+	e.ConfigOptions.init()
 	e.Features[feature] = true
 	e.mu.Unlock()
 }
 
 func (e *Config) Disable(feature string) {
 	e.mu.Lock()
-	e.ConfigOpts.init()
+	e.ConfigOptions.init()
 	e.Features[feature] = false
 	e.mu.Unlock()
 }

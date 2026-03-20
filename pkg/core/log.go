@@ -68,8 +68,8 @@ type Log struct {
 	StyleSecurity  func(string) string
 }
 
-// RotationLogOpts defines the log rotation and retention policy.
-type RotationLogOpts struct {
+// RotationLogOptions defines the log rotation and retention policy.
+type RotationLogOptions struct {
 	// Filename is the log file path. If empty, rotation is disabled.
 	Filename string
 
@@ -91,24 +91,24 @@ type RotationLogOpts struct {
 	Compress bool
 }
 
-// LogOpts configures a Log.
-type LogOpts struct {
+// LogOptions configures a Log.
+type LogOptions struct {
 	Level Level
 	// Output is the destination for log messages. If Rotation is provided,
 	// Output is ignored and logs are written to the rotating file instead.
 	Output goio.Writer
 	// Rotation enables log rotation to file. If provided, Filename must be set.
-	Rotation *RotationLogOpts
+	Rotation *RotationLogOptions
 	// RedactKeys is a list of keys whose values should be masked in logs.
 	RedactKeys []string
 }
 
 // RotationWriterFactory creates a rotating writer from options.
 // Set this to enable log rotation (provided by core/go-io integration).
-var RotationWriterFactory func(RotationLogOpts) goio.WriteCloser
+var RotationWriterFactory func(RotationLogOptions) goio.WriteCloser
 
 // New creates a new Log with the given options.
-func NewLog(opts LogOpts) *Log {
+func NewLog(opts LogOptions) *Log {
 	output := opts.Output
 	if opts.Rotation != nil && opts.Rotation.Filename != "" && RotationWriterFactory != nil {
 		output = RotationWriterFactory(*opts.Rotation)
@@ -297,7 +297,7 @@ func Username() string {
 
 // --- Default logger ---
 
-var defaultLog = NewLog(LogOpts{Level: LevelInfo})
+var defaultLog = NewLog(LogOptions{Level: LevelInfo})
 
 // Default returns the default logger.
 func Default() *Log {

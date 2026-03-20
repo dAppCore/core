@@ -25,7 +25,6 @@ package core
 import (
 	"io/fs"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
@@ -96,7 +95,7 @@ func (d *Data) resolve(path string) (*Embed, string) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	parts := strings.SplitN(path, "/", 2)
+	parts := SplitN(path, "/", 2)
 	if len(parts) < 2 {
 		return nil, ""
 	}
@@ -152,7 +151,7 @@ func (d *Data) ListNames(path string) ([]string, error) {
 	for _, e := range entries {
 		name := e.Name()
 		if !e.IsDir() {
-			name = strings.TrimSuffix(name, filepath.Ext(name))
+			name = TrimSuffix(name, filepath.Ext(name))
 		}
 		names = append(names, name)
 	}

@@ -77,7 +77,7 @@ func New(opts ...Options) *Core {
 		data:    &Data{},
 		drive:   &Drive{},
 		fs:      &Fs{root: "/"},
-		config:  &Config{ConfigOpts: &ConfigOpts{}},
+		config:  &Config{ConfigOptions: &ConfigOptions{}},
 		error:   &ErrorPanic{},
 		log:     &ErrorLog{log: defaultLog},
 		lock:    &Lock{},

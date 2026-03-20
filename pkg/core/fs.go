@@ -2,13 +2,11 @@
 package core
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -53,7 +51,7 @@ func (m *Fs) validatePath(p string) (string, error) {
 	}
 
 	// Split the cleaned path into components
-	parts := strings.Split(filepath.Clean("/"+p), string(os.PathSeparator))
+	parts := Split(filepath.Clean("/"+p), string(os.PathSeparator))
 	current := m.root
 
 	for _, part := range parts {
@@ -76,13 +74,13 @@ func (m *Fs) validatePath(p string) (string, error) {
 
 		// Verify the resolved part is still within the root
 		rel, err := filepath.Rel(m.root, realNext)
-		if err != nil || strings.HasPrefix(rel, "..") {
+		if err != nil || HasPrefix(rel, "..") {
 			// Security event: sandbox escape attempt
 			username := "unknown"
 			if u, err := user.Current(); err == nil {
 				username = u.Username
 			}
-			fmt.Fprintf(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s\n",
+			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
 				time.Now().Format(time.RFC3339), m.root, p, realNext, username)
 			return "", os.ErrPermission // Path escapes sandbox
 		}

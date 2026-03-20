@@ -149,11 +149,11 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 				case "GetAsset", "GetAssetBytes", "String", "MustString", "Bytes", "MustBytes":
 					if len(call.Args) >= 1 {
 						if lit, ok := call.Args[len(call.Args)-1].(*ast.BasicLit); ok {
-							path := strings.Trim(lit.Value, "\"")
+							path := TrimPrefix(TrimSuffix(lit.Value, "\""), "\"")
 							group := "."
 							if len(call.Args) >= 2 {
 								if glit, ok := call.Args[0].(*ast.BasicLit); ok {
-									group = strings.Trim(glit.Value, "\"")
+									group = TrimPrefix(TrimSuffix(glit.Value, "\""), "\"")
 								}
 							}
 							fullPath, err := filepath.Abs(filepath.Join(baseDir, group, path))
@@ -173,7 +173,7 @@ func ScanAssets(filenames []string) ([]ScannedPackage, error) {
 					// Variable assignment: g := core.Group("./assets")
 					if len(call.Args) == 1 {
 						if lit, ok := call.Args[0].(*ast.BasicLit); ok {
-							path := strings.Trim(lit.Value, "\"")
+							path := TrimPrefix(TrimSuffix(lit.Value, "\""), "\"")
 							fullPath, err := filepath.Abs(filepath.Join(baseDir, path))
 							if err != nil {
 								scanErr = Wrap(err, "core.ScanAssets", Join(" ", "could not determine absolute path for group", path))
@@ -229,7 +229,7 @@ func GeneratePack(pkg ScannedPackage) (string, error) {
 			if err != nil {
 				return "", Wrap(err, "core.GeneratePack", Join(" ", "failed to compress asset", file, "in group", groupPath))
 			}
-			localPath := strings.TrimPrefix(file, groupPath+"/")
+			localPath := TrimPrefix(file, groupPath+"/")
 			relGroup, err := filepath.Rel(pkg.BaseDir, groupPath)
 			if err != nil {
 				return "", Wrap(err, "core.GeneratePack", Join(" ", "could not determine relative path for group", groupPath, "(base", Concat(pkg.BaseDir, ")")))
@@ -512,7 +512,7 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 		dir := filepath.Dir(targetFile)
 		name := filepath.Base(targetFile)
 		for _, filter := range opt.TemplateFilters {
-			name = strings.ReplaceAll(name, filter, "")
+			name = Replace(name, filter, "")
 		}
 		if renamed := opt.RenameFiles[name]; renamed != "" {
 			name = renamed
@@ -548,7 +548,7 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) err
 
 func isTemplate(filename string, filters []string) bool {
 	for _, f := range filters {
-		if strings.Contains(filename, f) {
+		if Contains(filename, f) {
 			return true
 		}
 	}

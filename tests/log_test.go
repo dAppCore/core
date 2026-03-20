@@ -11,12 +11,12 @@ import (
 // --- Log ---
 
 func TestLog_New_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	assert.NotNil(t, l)
 }
 
 func TestLog_AllLevels_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelDebug})
+	l := NewLog(LogOptions{Level: LevelDebug})
 	l.Debug("debug")
 	l.Info("info")
 	l.Warn("warn")
@@ -26,7 +26,7 @@ func TestLog_AllLevels_Good(t *testing.T) {
 
 func TestLog_LevelFiltering_Good(t *testing.T) {
 	// At Error level, Debug/Info/Warn should be suppressed (no panic)
-	l := NewLog(LogOpts{Level: LevelError})
+	l := NewLog(LogOptions{Level: LevelError})
 	l.Debug("suppressed")
 	l.Info("suppressed")
 	l.Warn("suppressed")
@@ -34,13 +34,13 @@ func TestLog_LevelFiltering_Good(t *testing.T) {
 }
 
 func TestLog_SetLevel_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetLevel(LevelDebug)
 	assert.Equal(t, LevelDebug, l.Level())
 }
 
 func TestLog_SetRedactKeys_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetRedactKeys("password", "token")
 	// Redacted keys should mask values in output
 	l.Info("login", "password", "secret123", "user", "admin")
@@ -59,7 +59,7 @@ func TestLog_CoreLog_Good(t *testing.T) {
 }
 
 func TestLog_ErrorSink_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	var sink ErrorSink = l
 	sink.Error("test")
 	sink.Warn("test")
@@ -76,7 +76,7 @@ func TestLog_SetDefault_Good(t *testing.T) {
 	original := Default()
 	defer SetDefault(original)
 
-	custom := NewLog(LogOpts{Level: LevelDebug})
+	custom := NewLog(LogOptions{Level: LevelDebug})
 	SetDefault(custom)
 	assert.Equal(t, custom, Default())
 }
@@ -106,7 +106,7 @@ func TestLog_Username_Good(t *testing.T) {
 // --- LogErr ---
 
 func TestLogErr_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	le := NewLogErr(l)
 	assert.NotNil(t, le)
 
@@ -115,7 +115,7 @@ func TestLogErr_Good(t *testing.T) {
 }
 
 func TestLogErr_Nil_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	le := NewLogErr(l)
 	le.Log(nil) // should not panic
 }
@@ -123,13 +123,13 @@ func TestLogErr_Nil_Good(t *testing.T) {
 // --- LogPan ---
 
 func TestLogPan_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPan(l)
 	assert.NotNil(t, lp)
 }
 
 func TestLogPan_Recover_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPan(l)
 	assert.NotPanics(t, func() {
 		defer lp.Recover()
@@ -140,7 +140,7 @@ func TestLogPan_Recover_Good(t *testing.T) {
 // --- SetOutput ---
 
 func TestLog_SetOutput_Good(t *testing.T) {
-	l := NewLog(LogOpts{Level: LevelInfo})
+	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetOutput(os.Stderr)
 	// Should not panic — just changes where logs go
 	l.Info("redirected")

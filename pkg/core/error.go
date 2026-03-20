@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 )
@@ -231,7 +230,7 @@ func FormatStackTrace(err error) string {
 	if len(ops) == 0 {
 		return ""
 	}
-	return strings.Join(ops, " -> ")
+	return Join(" -> ", ops...)
 }
 
 // --- ErrorLog: Log-and-Return Error Helpers ---
@@ -315,7 +314,7 @@ func (h *ErrorPanic) Recover() {
 
 	err, ok := r.(error)
 	if !ok {
-		err = fmt.Errorf("%v", r)
+		err = NewError(fmt.Sprint("panic: ", r))
 	}
 
 	report := CrashReport{
