@@ -38,6 +38,18 @@ func IsFlag(arg string) bool {
 	return HasPrefix(arg, "-")
 }
 
+// ArgString extracts a string from a variadic any slice at the given index.
+// Returns empty string if index is out of bounds or value is not a string.
+//
+//	name := core.ArgString(args, 0)
+func ArgString(args []any, index int) string {
+	if index >= len(args) {
+		return ""
+	}
+	s, _ := args[index].(string)
+	return s
+}
+
 // FilterArgs removes empty strings and Go test runner flags from an argument list.
 //
 //	clean := core.FilterArgs(os.Args[1:])
