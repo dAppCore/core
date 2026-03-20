@@ -24,14 +24,16 @@ func TestI18n_AddLocales_Good(t *testing.T) {
 	if r.OK {
 		c.I18n().AddLocales(r.Value.(*Embed))
 	}
-	locales := c.I18n().Locales()
-	assert.Len(t, locales, 1)
+	r2 := c.I18n().Locales()
+	assert.True(t, r2.OK)
+	assert.Len(t, r2.Value.([]*Embed), 1)
 }
 
 func TestI18n_Locales_Empty_Good(t *testing.T) {
 	c := New()
-	locales := c.I18n().Locales()
-	assert.Empty(t, locales)
+	r := c.I18n().Locales()
+	assert.True(t, r.OK)
+	assert.Empty(t, r.Value.([]*Embed))
 }
 
 // --- Translator (no translator registered) ---
@@ -63,7 +65,7 @@ func TestI18n_AvailableLanguages_NoTranslator_Good(t *testing.T) {
 
 func TestI18n_Translator_Nil_Good(t *testing.T) {
 	c := New()
-	assert.Nil(t, c.I18n().Translator())
+	assert.False(t, c.I18n().Translator().OK)
 }
 
 // --- Translator (with mock) ---
@@ -82,7 +84,7 @@ func TestI18n_WithTranslator_Good(t *testing.T) {
 	tr := &mockTranslator{lang: "en"}
 	c.I18n().SetTranslator(tr)
 
-	assert.Equal(t, tr, c.I18n().Translator())
+	assert.Equal(t, tr, c.I18n().Translator().Value)
 	assert.Equal(t, "translated:hello", c.I18n().Translate("hello").Value)
 	assert.Equal(t, "en", c.I18n().Language())
 	assert.Equal(t, []string{"en", "de", "fr"}, c.I18n().AvailableLanguages())

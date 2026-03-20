@@ -121,7 +121,7 @@ func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
 	if err := os.WriteFile(full, []byte(content), mode); err != nil {
 		return Result{err, false}
 	}
-	return Result{nil, true}
+	return Result{OK: true}
 }
 
 // EnsureDir creates directory if it doesn't exist.
@@ -133,7 +133,7 @@ func (m *Fs) EnsureDir(p string) Result {
 	if err := os.MkdirAll(vp.Value.(string), 0755); err != nil {
 		return Result{err, false}
 	}
-	return Result{nil, true}
+	return Result{OK: true}
 }
 
 // IsDir returns true if path is a directory.
@@ -248,7 +248,7 @@ func (m *Fs) Delete(p string) Result {
 	if err := os.Remove(full); err != nil {
 		return Result{err, false}
 	}
-	return Result{nil, true}
+	return Result{OK: true}
 }
 
 // DeleteAll removes a file or directory recursively.
@@ -264,7 +264,7 @@ func (m *Fs) DeleteAll(p string) Result {
 	if err := os.RemoveAll(full); err != nil {
 		return Result{err, false}
 	}
-	return Result{nil, true}
+	return Result{OK: true}
 }
 
 // Rename moves a file or directory.
@@ -280,5 +280,5 @@ func (m *Fs) Rename(oldPath, newPath string) Result {
 	if err := os.Rename(oldVp.Value.(string), newVp.Value.(string)); err != nil {
 		return Result{err, false}
 	}
-	return Result{nil, true}
+	return Result{OK: true}
 }

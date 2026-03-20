@@ -74,21 +74,26 @@ func (d *Drive) New(opts Options) Result {
 
 // Get returns a handle by name.
 //
-//	api := c.Drive().Get("api")
-func (d *Drive) Get(name string) *DriveHandle {
+//	r := c.Drive().Get("api")
+//	if r.OK { handle := r.Value.(*DriveHandle) }
+func (d *Drive) Get(name string) Result {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.handles == nil {
-		return nil
+		return Result{}
 	}
-	return d.handles[name]
+	h, ok := d.handles[name]
+	if !ok {
+		return Result{}
+	}
+	return Result{h, true}
 }
 
 // Has returns true if a handle is registered.
 //
 //	if c.Drive().Has("ssh") { ... }
 func (d *Drive) Has(name string) bool {
-	return d.Get(name) != nil
+	return d.Get(name).OK
 }
 
 // Names returns all registered handle names.

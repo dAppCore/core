@@ -63,8 +63,9 @@ func TestData_ReadFile_Good(t *testing.T) {
 func TestData_Get_Good(t *testing.T) {
 	c := New()
 	c.Data().New(Options{{Key: "name", Value: "brain"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
-	emb := c.Data().Get("brain")
-	assert.NotNil(t, emb)
+	gr := c.Data().Get("brain")
+	assert.True(t, gr.OK)
+	emb := gr.Value.(*Embed)
 
 	r := emb.Open("test.txt")
 	assert.True(t, r.OK)
@@ -76,8 +77,8 @@ func TestData_Get_Good(t *testing.T) {
 
 func TestData_Get_Bad(t *testing.T) {
 	c := New()
-	emb := c.Data().Get("nonexistent")
-	assert.Nil(t, emb)
+	r := c.Data().Get("nonexistent")
+	assert.False(t, r.OK)
 }
 
 func TestData_Mounts_Good(t *testing.T) {

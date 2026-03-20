@@ -63,7 +63,7 @@ func TestEmbed_Sub_Good(t *testing.T) {
 
 func TestEmbed_BaseDir_Good(t *testing.T) {
 	emb := Mount(testFS, "testdata").Value.(*Embed)
-	assert.Equal(t, "testdata", emb.BaseDir())
+	assert.Equal(t, "testdata", emb.BaseDirectory())
 }
 
 func TestEmbed_FS_Good(t *testing.T) {

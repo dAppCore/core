@@ -36,7 +36,9 @@ func TestArray_Contains_Good(t *testing.T) {
 
 func TestArray_Filter_Good(t *testing.T) {
 	a := NewArray(1, 2, 3, 4, 5)
-	evens := a.Filter(func(n int) bool { return n%2 == 0 })
+	r := a.Filter(func(n int) bool { return n%2 == 0 })
+	assert.True(t, r.OK)
+	evens := r.Value.(*Array[int])
 	assert.Equal(t, 2, evens.Len())
 	assert.True(t, evens.Contains(2))
 	assert.True(t, evens.Contains(4))

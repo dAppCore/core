@@ -56,12 +56,12 @@ func (i *I18n) AddLocales(mounts ...*Embed) {
 }
 
 // Locales returns all collected locale mounts.
-func (i *I18n) Locales() []*Embed {
+func (i *I18n) Locales() Result {
 	i.mu.RLock()
 	out := make([]*Embed, len(i.locales))
 	copy(out, i.locales)
 	i.mu.RUnlock()
-	return out
+	return Result{out, true}
 }
 
 // SetTranslator registers the translation implementation.
@@ -73,11 +73,14 @@ func (i *I18n) SetTranslator(t Translator) {
 }
 
 // Translator returns the registered translation implementation, or nil.
-func (i *I18n) Translator() Translator {
+func (i *I18n) Translator() Result {
 	i.mu.RLock()
 	t := i.translator
 	i.mu.RUnlock()
-	return t
+	if t == nil {
+		return Result{}
+	}
+	return Result{t, true}
 }
 
 // Translate translates a message. Returns the key as-is if no translator is registered.

@@ -17,10 +17,10 @@ type Query any
 // Task is the type for IPC requests that perform side effects.
 type Task any
 
-// TaskWithID is an optional interface for tasks that need to know their assigned ID.
-type TaskWithID interface {
+// TaskWithIdentifier is an optional interface for tasks that need to know their assigned identifier.
+type TaskWithIdentifier interface {
 	Task
-	TaskWithIdentifier(id string)
+	SetTaskIdentifier(id string)
 	GetTaskIdentifier() string
 }
 

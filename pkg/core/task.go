@@ -12,7 +12,7 @@ import (
 
 // TaskState holds background task state.
 type TaskState struct {
-	ID     string
+	Identifier string
 	Task   Task
 	Result any
 	Error  error
@@ -24,8 +24,8 @@ func (c *Core) PerformAsync(t Task) Result {
 		return Result{}
 	}
 	taskID := Concat("task-", strconv.FormatUint(c.taskIDCounter.Add(1), 10))
-	if tid, ok := t.(TaskWithID); ok {
-		tid.TaskWithIdentifier(taskID)
+	if tid, ok := t.(TaskWithIdentifier); ok {
+		tid.SetTaskIdentifier(taskID)
 	}
 	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Task: t})
 	c.wg.Go(func() {

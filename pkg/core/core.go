@@ -40,7 +40,7 @@ func (c *Core) Options() *Options { return c.options }
 func (c *Core) App() *App         { return c.app }
 func (c *Core) Data() *Data       { return c.data }
 func (c *Core) Drive() *Drive     { return c.drive }
-func (c *Core) Embed() *Embed     { return c.data.Get("app") } // legacy — use Data()
+func (c *Core) Embed() Result      { return c.data.Get("app") } // legacy — use Data()
 func (c *Core) Fs() *Fs           { return c.fs }
 func (c *Core) Config() *Config   { return c.config }
 func (c *Core) Error() *ErrorPanic    { return c.error }

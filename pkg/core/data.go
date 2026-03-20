@@ -81,14 +81,19 @@ func (d *Data) New(opts Options) Result {
 
 // Get returns the Embed for a named mount point.
 //
-//	brain := c.Data().Get("brain")
-func (d *Data) Get(name string) *Embed {
+//	r := c.Data().Get("brain")
+//	if r.OK { emb := r.Value.(*Embed) }
+func (d *Data) Get(name string) Result {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.mounts == nil {
-		return nil
+		return Result{}
 	}
-	return d.mounts[name]
+	emb, ok := d.mounts[name]
+	if !ok {
+		return Result{}
+	}
+	return Result{emb, true}
 }
 
 // resolve splits a path like "brain/coding.md" into mount name + relative path.

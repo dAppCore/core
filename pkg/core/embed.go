@@ -436,8 +436,8 @@ func (s *Embed) EmbedFS() embed.FS {
 	return embed.FS{}
 }
 
-// BaseDir returns the basedir this Embed is anchored at.
-func (s *Embed) BaseDir() string {
+// BaseDirectory returns the base directory this Embed is anchored at.
+func (s *Embed) BaseDirectory() string {
 	return s.basedir
 }
 

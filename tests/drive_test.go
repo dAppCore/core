@@ -35,15 +35,16 @@ func TestDrive_Get_Good(t *testing.T) {
 		{Key: "name", Value: "ssh"},
 		{Key: "transport", Value: "ssh://claude@10.69.69.165"},
 	})
-	handle := c.Drive().Get("ssh")
-	assert.NotNil(t, handle)
+	r := c.Drive().Get("ssh")
+	assert.True(t, r.OK)
+	handle := r.Value.(*DriveHandle)
 	assert.Equal(t, "ssh://claude@10.69.69.165", handle.Transport)
 }
 
 func TestDrive_Get_Bad(t *testing.T) {
 	c := New()
-	handle := c.Drive().Get("nonexistent")
-	assert.Nil(t, handle)
+	r := c.Drive().Get("nonexistent")
+	assert.False(t, r.OK)
 }
 
 func TestDrive_Has_Good(t *testing.T) {
@@ -72,6 +73,8 @@ func TestDrive_OptionsPreserved_Good(t *testing.T) {
 		{Key: "transport", Value: "https://api.lthn.ai"},
 		{Key: "timeout", Value: 30},
 	})
-	handle := c.Drive().Get("api")
+	r := c.Drive().Get("api")
+	assert.True(t, r.OK)
+	handle := r.Value.(*DriveHandle)
 	assert.Equal(t, 30, handle.Options.Int("timeout"))
 }
