@@ -130,10 +130,6 @@ type commandRegistry struct {
 //	c.Command("deploy", Command{Action: handler})
 //	r := c.Command("deploy")
 func (c *Core) Command(path string, command ...Command) Result {
-	if c.commands == nil {
-		c.commands = &commandRegistry{commands: make(map[string]*Command)}
-	}
-
 	if len(command) == 0 {
 		c.commands.mu.RLock()
 		cmd, ok := c.commands.commands[path]

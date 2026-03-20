@@ -70,11 +70,12 @@ func AddAsset(group, name, data string) {
 func GetAsset(group, name string) Result {
 	assetGroupsMu.RLock()
 	g, ok := assetGroups[group]
-	assetGroupsMu.RUnlock()
 	if !ok {
+		assetGroupsMu.RUnlock()
 		return Result{}
 	}
 	data, ok := g.assets[name]
+	assetGroupsMu.RUnlock()
 	if !ok {
 		return Result{}
 	}

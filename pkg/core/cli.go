@@ -121,8 +121,9 @@ func (cl *Cli) PrintHelp() {
 		if cmd.Hidden {
 			continue
 		}
-		desc := cl.core.I18n().Translate(cmd.I18nKey()).Value.(string)
-		if desc == cmd.I18nKey() {
+		tr := cl.core.I18n().Translate(cmd.I18nKey())
+		desc, _ := tr.Value.(string)
+		if desc == "" || desc == cmd.I18nKey() {
 			cl.Print("  %s", path)
 		} else {
 			cl.Print("  %-30s %s", path, desc)

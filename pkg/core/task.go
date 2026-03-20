@@ -35,7 +35,12 @@ func (c *Core) PerformAsync(t Task) Result {
 			if e, ok := r.Value.(error); ok {
 				err = e
 			} else {
-				err = E("core.PerformAsync", Join(" ", "no handler found for task type", reflect.TypeOf(t).String()), nil)
+				taskType := reflect.TypeOf(t)
+			typeName := "<nil>"
+			if taskType != nil {
+				typeName = taskType.String()
+			}
+			err = E("core.PerformAsync", Join(" ", "no handler found for task type", typeName), nil)
 			}
 		}
 		c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: r.Value, Error: err})

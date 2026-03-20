@@ -202,8 +202,16 @@ func TestResult_Result_WithError_Bad(t *testing.T) {
 	assert.Equal(t, err, r.Value)
 }
 
-func TestResult_Result_ZeroArgs_Ugly(t *testing.T) {
-	assert.Panics(t, func() {
-		Result{}.Result()
-	})
+func TestResult_Result_ZeroArgs_Good(t *testing.T) {
+	r := Result{"hello", true}
+	got := r.Result()
+	assert.Equal(t, "hello", got.Value)
+	assert.True(t, got.OK)
+}
+
+func TestResult_Result_ZeroArgs_Empty_Good(t *testing.T) {
+	r := Result{}
+	got := r.Result()
+	assert.Nil(t, got.Value)
+	assert.False(t, got.OK)
 }

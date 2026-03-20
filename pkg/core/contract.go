@@ -73,16 +73,18 @@ type ActionTaskCompleted struct {
 //	})
 func New(opts ...Options) *Core {
 	c := &Core{
-		app:    &App{},
-		data:   &Data{},
-		drive:  &Drive{},
-		fs:     &Fs{root: "/"},
-		config: &Config{ConfigOptions: &ConfigOptions{}},
-		error:  &ErrorPanic{},
-		log:    &ErrorLog{log: defaultLog},
-		lock:   &Lock{},
-		ipc:    &Ipc{},
-		i18n:   &I18n{},
+		app:      &App{},
+		data:     &Data{},
+		drive:    &Drive{},
+		fs:       &Fs{root: "/"},
+		config:   &Config{ConfigOptions: &ConfigOptions{}},
+		error:    &ErrorPanic{},
+		log:      &ErrorLog{log: defaultLog},
+		lock:     &Lock{},
+		ipc:      &Ipc{},
+		i18n:     &I18n{},
+		services: &serviceRegistry{services: make(map[string]*Service)},
+		commands: &commandRegistry{commands: make(map[string]*Command)},
 	}
 
 	if len(opts) > 0 {

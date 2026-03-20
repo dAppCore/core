@@ -94,19 +94,30 @@ func (i *I18n) Translate(messageID string, args ...any) Result {
 	return Result{messageID, true}
 }
 
-// SetLanguage sets the active language. No-op if no translator is registered.
+// SetLanguage sets the active language and forwards to the translator if registered.
 func (i *I18n) SetLanguage(lang string) Result {
-
-	if lang != "" {
-		i.locale = lang
+	if lang == "" {
+		return Result{OK: true}
+	}
+	i.mu.Lock()
+	i.locale = lang
+	t := i.translator
+	i.mu.Unlock()
+	if t != nil {
+		if err := t.SetLanguage(lang); err != nil {
+			return Result{err, false}
+		}
 	}
 	return Result{OK: true}
 }
 
 // Language returns the current language code, or "en" if not set.
 func (i *I18n) Language() string {
-	if i.locale != "" {
-		return i.locale
+	i.mu.RLock()
+	locale := i.locale
+	i.mu.RUnlock()
+	if locale != "" {
+		return locale
 	}
 	return "en"
 }

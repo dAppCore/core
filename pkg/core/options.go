@@ -50,21 +50,21 @@ type Result struct {
 //	r.Result(value)         // OK = true, Value = value
 //	r.Result()              // after set — returns the value
 func (r Result) Result(args ...any) Result {
+	if len(args) == 0 {
+		return r
+	}
 
 	if len(args) == 1 {
 		return Result{args[0], true}
 	}
 
-	if len(args) >= 2 {
-		if err, ok := args[len(args)-1].(error); ok {
-			if err != nil {
-				return Result{err, false}
-			}
-			return Result{args[0], true}
+	if err, ok := args[len(args)-1].(error); ok {
+		if err != nil {
+			return Result{err, false}
 		}
+		return Result{args[0], true}
 	}
 	return Result{args[0], true}
-
 }
 
 // Option is a single key-value configuration pair.

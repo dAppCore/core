@@ -40,9 +40,6 @@ func (c *Core) LockEnable(name ...string) {
 	}
 	c.Lock(n).Mutex.Lock()
 	defer c.Lock(n).Mutex.Unlock()
-	if c.services == nil {
-		c.services = &serviceRegistry{services: make(map[string]*Service)}
-	}
 	c.services.lockEnabled = true
 }
 

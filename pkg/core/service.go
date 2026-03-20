@@ -38,10 +38,6 @@ type serviceRegistry struct {
 //	c.Service("auth", core.Service{OnStart: startFn})
 //	r := c.Service("auth")
 func (c *Core) Service(name string, service ...Service) Result {
-	if c.services == nil {
-		c.services = &serviceRegistry{services: make(map[string]*Service)}
-	}
-
 	if len(service) == 0 {
 		c.Lock("srv").Mutex.RLock()
 		v, ok := c.services.services[name]
