@@ -34,7 +34,7 @@ func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 // ServiceStartup runs OnStart for all registered services that have one.
 func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
 	c.shutdown.Store(false)
-	c.ctx, c.cancel = context.WithCancel(ctx)
+	c.context, c.cancel = context.WithCancel(ctx)
 	startables := c.Startables()
 	if startables.OK {
 		for _, s := range startables.Value.([]*Service) {
@@ -60,7 +60,7 @@ func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	// Drain background tasks before stopping services.
 	done := make(chan struct{})
 	go func() {
-		c.wg.Wait()
+		c.waitgroup.Wait()
 		close(done)
 	}()
 	select {

@@ -15,51 +15,51 @@ import (
 
 // Core is the central application object that manages services, assets, and communication.
 type Core struct {
-	options *Options // c.Options()        — Input configuration used to create this Core
-	app     *App     // c.App()            — Application identity + optional GUI runtime
-	data    *Data    // c.Data()           — Embedded/stored content from packages
-	drive   *Drive   // c.Drive()          — Resource handle registry (transports)
-	fs      *Fs      // c.Fs()             — Local filesystem I/O (sandboxable)
-	config  *Config  // c.Config()         — Configuration, settings, feature flags
-	error   *ErrorPanic  // c.Error()          — Panic recovery and crash reporting
-	log     *ErrorLog  // c.Log()            — Structured logging + error wrapping
-	cli      *Cli              // c.Cli()            — CLI surface layer
-	commands *commandRegistry  // c.Command("path")  — Command tree
-	services *serviceRegistry  // c.Service("name")  — Service registry
-	lock    *Lock    // c.Lock("name")     — Named mutexes
-	ipc     *Ipc     // c.IPC()            — Message bus for IPC
-	i18n    *I18n    // c.I18n()           — Internationalisation and locale collection
+	options  *Options         // c.Options()        — Input configuration used to create this Core
+	app      *App             // c.App()            — Application identity + optional GUI runtime
+	data     *Data            // c.Data()           — Embedded/stored content from packages
+	drive    *Drive           // c.Drive()          — Resource handle registry (transports)
+	fs       *Fs              // c.Fs()             — Local filesystem I/O (sandboxable)
+	config   *Config          // c.Config()         — Configuration, settings, feature flags
+	error    *ErrorPanic      // c.Error()          — Panic recovery and crash reporting
+	log      *ErrorLog        // c.Log()            — Structured logging + error wrapping
+	cli      *Cli             // c.Cli()            — CLI surface layer
+	commands *commandRegistry // c.Command("path")  — Command tree
+	services *serviceRegistry // c.Service("name")  — Service registry
+	lock     *Lock            // c.Lock("name")     — Named mutexes
+	ipc      *Ipc             // c.IPC()            — Message bus for IPC
+	i18n     *I18n            // c.I18n()           — Internationalisation and locale collection
 
-	ctx           context.Context
+	context       context.Context
 	cancel        context.CancelFunc
 	taskIDCounter atomic.Uint64
-	wg            sync.WaitGroup
+	waitgroup     sync.WaitGroup
 	shutdown      atomic.Bool
 }
 
 // --- Accessors ---
 
-func (c *Core) Options() *Options { return c.options }
-func (c *Core) App() *App         { return c.app }
-func (c *Core) Data() *Data       { return c.data }
-func (c *Core) Drive() *Drive     { return c.drive }
-func (c *Core) Embed() Result      { return c.data.Get("app") } // legacy — use Data()
-func (c *Core) Fs() *Fs           { return c.fs }
-func (c *Core) Config() *Config   { return c.config }
-func (c *Core) Error() *ErrorPanic    { return c.error }
-func (c *Core) Log() *ErrorLog      { return c.log }
-func (c *Core) Cli() *Cli         { return c.cli }
-func (c *Core) IPC() *Ipc         { return c.ipc }
-func (c *Core) I18n() *I18n       { return c.i18n }
-func (c *Core) Context() context.Context { return c.ctx }
-func (c *Core) Core() *Core       { return c }
+func (c *Core) Options() *Options        { return c.options }
+func (c *Core) App() *App                { return c.app }
+func (c *Core) Data() *Data              { return c.data }
+func (c *Core) Drive() *Drive            { return c.drive }
+func (c *Core) Embed() Result            { return c.data.Get("app") } // legacy — use Data()
+func (c *Core) Fs() *Fs                  { return c.fs }
+func (c *Core) Config() *Config          { return c.config }
+func (c *Core) Error() *ErrorPanic       { return c.error }
+func (c *Core) Log() *ErrorLog           { return c.log }
+func (c *Core) Cli() *Cli                { return c.cli }
+func (c *Core) IPC() *Ipc                { return c.ipc }
+func (c *Core) I18n() *I18n              { return c.i18n }
+func (c *Core) Context() context.Context { return c.context }
+func (c *Core) Core() *Core              { return c }
 
 // --- IPC (uppercase aliases) ---
 
-func (c *Core) ACTION(msg Message) Result  { return c.Action(msg) }
-func (c *Core) QUERY(q Query) Result       { return c.Query(q) }
-func (c *Core) QUERYALL(q Query) Result    { return c.QueryAll(q) }
-func (c *Core) PERFORM(t Task) Result      { return c.Perform(t) }
+func (c *Core) ACTION(msg Message) Result { return c.Action(msg) }
+func (c *Core) QUERY(q Query) Result      { return c.Query(q) }
+func (c *Core) QUERYALL(q Query) Result   { return c.QueryAll(q) }
+func (c *Core) PERFORM(t Task) Result     { return c.Perform(t) }
 
 // --- Error+Log ---
 

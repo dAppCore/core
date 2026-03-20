@@ -28,7 +28,7 @@ func (c *Core) PerformAsync(t Task) Result {
 		tid.SetTaskIdentifier(taskID)
 	}
 	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Task: t})
-	c.wg.Go(func() {
+	c.waitgroup.Go(func() {
 		defer func() {
 			if rec := recover(); rec != nil {
 				err := E("core.PerformAsync", Sprint("panic: ", rec), nil)
