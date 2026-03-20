@@ -246,7 +246,7 @@ func (m *Fs) Delete(p string) Result {
 	}
 	full := vp.Value.(string)
 	if full == "/" || full == os.Getenv("HOME") {
-		return Result{}
+		return Result{E("fs.Delete", Concat("refusing to delete protected path: ", full), nil), false}
 	}
 	if err := os.Remove(full); err != nil {
 		return Result{err, false}
@@ -262,7 +262,7 @@ func (m *Fs) DeleteAll(p string) Result {
 	}
 	full := vp.Value.(string)
 	if full == "/" || full == os.Getenv("HOME") {
-		return Result{}
+		return Result{E("fs.DeleteAll", Concat("refusing to delete protected path: ", full), nil), false}
 	}
 	if err := os.RemoveAll(full); err != nil {
 		return Result{err, false}

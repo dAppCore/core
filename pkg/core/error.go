@@ -380,8 +380,16 @@ func (h *ErrorPanic) appendReport(report CrashReport) {
 	}
 
 	reports = append(reports, report)
-	if data, err := json.MarshalIndent(reports, "", "  "); err == nil {
-		_ = os.MkdirAll(filepath.Dir(h.filePath), 0755)
-		_ = os.WriteFile(h.filePath, data, 0600)
+	data, err := json.MarshalIndent(reports, "", "  ")
+	if err != nil {
+		Default().Error(Concat("crash report marshal failed: ", err.Error()))
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(h.filePath), 0755); err != nil {
+		Default().Error(Concat("crash report dir failed: ", err.Error()))
+		return
+	}
+	if err := os.WriteFile(h.filePath, data, 0600); err != nil {
+		Default().Error(Concat("crash report write failed: ", err.Error()))
 	}
 }

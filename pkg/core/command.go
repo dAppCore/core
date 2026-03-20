@@ -72,7 +72,7 @@ func (cmd *Command) I18nKey() string {
 //	result := cmd.Run(core.Options{{Key: "target", Value: "homelab"}})
 func (cmd *Command) Run(opts Options) Result {
 	if cmd.Action == nil {
-		return Result{}
+		return Result{E("core.Command.Run", Concat("command \"", cmd.Path, "\" is not executable"), nil), false}
 	}
 	return cmd.Action(opts)
 }
@@ -144,7 +144,7 @@ func (c *Core) Command(path string, command ...Command) Result {
 	c.commands.mu.Lock()
 	defer c.commands.mu.Unlock()
 
-	if existing, exists := c.commands.commands[path]; exists && existing.Action != nil {
+	if existing, exists := c.commands.commands[path]; exists && (existing.Action != nil || existing.Lifecycle != nil) {
 		return Result{E("core.Command", Concat("command \"", path, "\" already registered"), nil), false}
 	}
 

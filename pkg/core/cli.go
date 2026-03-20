@@ -96,7 +96,7 @@ func (cl *Cli) Run(args ...string) Result {
 	for _, arg := range remaining {
 		key, val, valid := ParseFlag(arg)
 		if valid {
-			if val != "" {
+			if Contains(arg, "=") {
 				opts = append(opts, Option{Key: key, Value: val})
 			} else {
 				opts = append(opts, Option{Key: key, Value: true})
@@ -131,7 +131,7 @@ func (cl *Cli) PrintHelp() {
 	defer cl.core.commands.mu.RUnlock()
 
 	for path, cmd := range cl.core.commands.commands {
-		if cmd.Hidden {
+		if cmd.Hidden || (cmd.Action == nil && cmd.Lifecycle == nil) {
 			continue
 		}
 		tr := cl.core.I18n().Translate(cmd.I18nKey())

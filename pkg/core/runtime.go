@@ -81,6 +81,8 @@ func (c *Core) ServiceShutdown(ctx context.Context) Result {
 			if !r.OK && firstErr == nil {
 				if e, ok := r.Value.(error); ok {
 					firstErr = e
+				} else {
+					firstErr = E("core.ServiceShutdown", Sprint("service OnStop failed: ", r.Value), nil)
 				}
 			}
 		}
