@@ -42,14 +42,14 @@ type CommandLifecycle interface {
 
 // Command is the DTO for an executable operation.
 type Command struct {
-	name        string
-	description string               // i18n key — derived from path if empty
-	path        string               // "deploy/to/homelab"
-	commands    map[string]*Command   // child commands
-	action      CommandAction         // business logic
-	lifecycle   CommandLifecycle      // optional — provided by go-process
-	flags       Options              // declared flags
-	hidden      bool
+	Name        string
+	Description string               // i18n key — derived from path if empty
+	Path        string               // "deploy/to/homelab"
+	Action      CommandAction         // business logic
+	Lifecycle   CommandLifecycle      // optional — provided by go-process
+	Flags       Options              // declared flags
+	Hidden      bool
+	commands    map[string]*Command   // child commands (internal)
 	mu          sync.RWMutex
 }
 
@@ -57,12 +57,12 @@ type Command struct {
 //
 //	cmd with path "deploy/to/homelab" → "cmd.deploy.to.homelab.description"
 func (cmd *Command) I18nKey() string {
-	if cmd.description != "" {
-		return cmd.description
+	if cmd.Description != "" {
+		return cmd.Description
 	}
-	path := cmd.path
+	path := cmd.Path
 	if path == "" {
-		path = cmd.name
+		path = cmd.Name
 	}
 	return Concat("cmd.", Replace(path, "/", "."), ".description")
 }
@@ -71,48 +71,48 @@ func (cmd *Command) I18nKey() string {
 //
 //	result := cmd.Run(core.Options{{K: "target", V: "homelab"}})
 func (cmd *Command) Run(opts Options) Result {
-	if cmd.action == nil {
+	if cmd.Action == nil {
 		return Result{}
 	}
-	return cmd.action(opts)
+	return cmd.Action(opts)
 }
 
 // Start delegates to the lifecycle implementation if available.
 func (cmd *Command) Start(opts Options) Result {
-	if cmd.lifecycle != nil {
-		return cmd.lifecycle.Start(opts)
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Start(opts)
 	}
 	return cmd.Run(opts)
 }
 
 // Stop delegates to the lifecycle implementation.
 func (cmd *Command) Stop() Result {
-	if cmd.lifecycle != nil {
-		return cmd.lifecycle.Stop()
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Stop()
 	}
 	return Result{}
 }
 
 // Restart delegates to the lifecycle implementation.
 func (cmd *Command) Restart() Result {
-	if cmd.lifecycle != nil {
-		return cmd.lifecycle.Restart()
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Restart()
 	}
 	return Result{}
 }
 
 // Reload delegates to the lifecycle implementation.
 func (cmd *Command) Reload() Result {
-	if cmd.lifecycle != nil {
-		return cmd.lifecycle.Reload()
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Reload()
 	}
 	return Result{}
 }
 
 // Signal delegates to the lifecycle implementation.
 func (cmd *Command) Signal(sig string) Result {
-	if cmd.lifecycle != nil {
-		return cmd.lifecycle.Signal(sig)
+	if cmd.Lifecycle != nil {
+		return cmd.Lifecycle.Signal(sig)
 	}
 	return Result{}
 }
@@ -125,79 +125,54 @@ type commandRegistry struct {
 	mu       sync.RWMutex
 }
 
-// CommandHandler registers or retrieves commands on Core.
-// Same pattern as Service() — zero args returns registry, one arg gets, two args registers.
+// Command gets or registers a command by path.
 //
-//	c.Command("deploy", handler)           // register
-//	c.Command("deploy/to/homelab", handler) // register nested
-//	cmd := c.Command("deploy")              // get
-func (c *Core) Command(args ...any) any {
+//	c.Command("deploy", Command{Action: handler})
+//	r := c.Command("deploy")
+func (c *Core) Command(path string, command ...Command) Result {
 	if c.commands == nil {
 		c.commands = &commandRegistry{commands: make(map[string]*Command)}
 	}
 
-	switch len(args) {
-	case 0:
-		return c.commands
-	case 1:
-		path, _ := Arg(0, args...).Value.(string)
+	if len(command) == 0 {
 		c.commands.mu.RLock()
-		cmd := c.commands.commands[path]
+		cmd, ok := c.commands.commands[path]
 		c.commands.mu.RUnlock()
-		return cmd
-	default:
-		path, _ := Arg(0, args...).Value.(string)
-		if path == "" {
-			return E("core.Command", "command path cannot be empty", nil)
-		}
-
-		c.commands.mu.Lock()
-		defer c.commands.mu.Unlock()
-
-		cmd := &Command{
-			name:     pathName(path),
-			path:     path,
-			commands: make(map[string]*Command),
-		}
-
-		// Second arg: action function or Options
-		switch v := args[1].(type) {
-		case CommandAction:
-			cmd.action = v
-		case func(Options) Result:
-			cmd.action = v
-		case Options:
-			cmd.description = v.String("description")
-			cmd.hidden = v.Bool("hidden")
-		}
-
-		// Third arg if present: Options for metadata
-		if len(args) > 2 {
-			if opts, ok := args[2].(Options); ok {
-				cmd.description = opts.String("description")
-				cmd.hidden = opts.Bool("hidden")
-			}
-		}
-
-		c.commands.commands[path] = cmd
-
-		// Build parent chain — "deploy/to/homelab" creates "deploy" and "deploy/to" if missing
-		parts := Split(path, "/")
-		for i := len(parts) - 1; i > 0; i-- {
-			parentPath := JoinPath(parts[:i]...)
-			if _, exists := c.commands.commands[parentPath]; !exists {
-				c.commands.commands[parentPath] = &Command{
-					name:     parts[i-1],
-					path:     parentPath,
-					commands: make(map[string]*Command),
-				}
-			}
-			c.commands.commands[parentPath].commands[parts[i]] = cmd
-			cmd = c.commands.commands[parentPath]
-		}
-
-		return nil
+		return Result{Value: cmd, OK: ok}
 	}
+
+	if path == "" {
+		return Result{Value: E("core.Command", "command path cannot be empty", nil)}
+	}
+
+	c.commands.mu.Lock()
+	defer c.commands.mu.Unlock()
+
+	cmd := &command[0]
+	cmd.Name = pathName(path)
+	cmd.Path = path
+	if cmd.commands == nil {
+		cmd.commands = make(map[string]*Command)
+	}
+
+	c.commands.commands[path] = cmd
+
+	// Build parent chain — "deploy/to/homelab" creates "deploy" and "deploy/to" if missing
+	parts := Split(path, "/")
+	for i := len(parts) - 1; i > 0; i-- {
+		parentPath := JoinPath(parts[:i]...)
+		if _, exists := c.commands.commands[parentPath]; !exists {
+			c.commands.commands[parentPath] = &Command{
+				Name:     parts[i-1],
+				Path:     parentPath,
+				commands: make(map[string]*Command),
+			}
+		}
+		c.commands.commands[parentPath].commands[parts[i]] = cmd
+		cmd = c.commands.commands[parentPath]
+	}
+
+	return Result{OK: true}
 }
 
 // Commands returns all registered command paths.

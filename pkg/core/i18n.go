@@ -92,14 +92,16 @@ func (i *I18n) T(messageID string, args ...any) string {
 }
 
 // SetLanguage sets the active language. No-op if no translator is registered.
-func (i *I18n) SetLanguage(lang string) error {
+func (i *I18n) SetLanguage(lang string) Result {
 	i.mu.RLock()
 	t := i.translator
 	i.mu.RUnlock()
 	if t != nil {
-		return t.SetLanguage(lang)
+		r := &Result{}
+		r.Result(nil, t.SetLanguage(lang))
+		return *r
 	}
-	return nil
+	return Result{OK: true}
 }
 
 // Language returns the current language code, or "en" if no translator.

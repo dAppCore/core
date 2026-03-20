@@ -45,8 +45,8 @@ func TestI18n_T_NoTranslator_Good(t *testing.T) {
 
 func TestI18n_SetLanguage_NoTranslator_Good(t *testing.T) {
 	c := New()
-	err := c.I18n().SetLanguage("de")
-	assert.NoError(t, err) // no-op without translator
+	r := c.I18n().SetLanguage("de")
+	assert.True(t, r.OK) // no-op without translator
 }
 
 func TestI18n_Language_NoTranslator_Good(t *testing.T) {

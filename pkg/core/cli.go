@@ -118,7 +118,7 @@ func (cl *Cli) PrintHelp() {
 	defer cl.core.commands.mu.RUnlock()
 
 	for path, cmd := range cl.core.commands.commands {
-		if cmd.hidden {
+		if cmd.Hidden {
 			continue
 		}
 		desc := cl.core.I18n().T(cmd.I18nKey())
