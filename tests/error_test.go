@@ -187,10 +187,10 @@ func TestNewError_Good(t *testing.T) {
 	assert.Equal(t, "simple error", err.Error())
 }
 
-func TestJoin_Good(t *testing.T) {
+func TestErrorJoin_Good(t *testing.T) {
 	e1 := errors.New("first")
 	e2 := errors.New("second")
-	joined := Join(e1, e2)
+	joined := ErrorJoin(e1, e2)
 	assert.ErrorIs(t, joined, e1)
 	assert.ErrorIs(t, joined, e2)
 }

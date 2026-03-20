@@ -43,8 +43,8 @@ func TestSplitN_Good(t *testing.T) {
 	assert.Equal(t, []string{"key", "value=extra"}, SplitN("key=value=extra", "=", 2))
 }
 
-func TestStringJoin_Good(t *testing.T) {
-	assert.Equal(t, "a/b/c", StringJoin([]string{"a", "b", "c"}, "/"))
+func TestJoin_Good(t *testing.T) {
+	assert.Equal(t, "a/b/c", Join("/", "a", "b", "c"))
 }
 
 func TestReplace_Good(t *testing.T) {

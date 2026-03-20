@@ -60,11 +60,19 @@ func SplitN(s, sep string, n int) []string {
 	return strings.SplitN(s, sep, n)
 }
 
-// StringJoin joins segments with separator.
+// Join joins parts with a separator, building via Concat.
 //
-//	core.StringJoin([]string{"a", "b", "c"}, "/")  // "a/b/c"
-func StringJoin(elems []string, sep string) string {
-	return strings.Join(elems, sep)
+//	core.Join("/", "deploy", "to", "homelab")      // "deploy/to/homelab"
+//	core.Join(".", "cmd", "deploy", "description")  // "cmd.deploy.description"
+func Join(sep string, parts ...string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	result := parts[0]
+	for _, p := range parts[1:] {
+		result = Concat(result, sep, p)
+	}
+	return result
 }
 
 // Replace replaces all occurrences of old with new in s.

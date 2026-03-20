@@ -26,7 +26,7 @@ func Print(w io.Writer, format string, args ...any) {
 //
 //	core.JoinPath("deploy", "to", "homelab")  // → "deploy/to/homelab"
 func JoinPath(segments ...string) string {
-	return StringJoin(segments, "/")
+	return Join("/", segments...)
 }
 
 // IsFlag returns true if the argument starts with a dash.

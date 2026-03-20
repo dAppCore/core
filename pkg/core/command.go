@@ -184,7 +184,7 @@ func (c *Core) Command(args ...any) any {
 		// Build parent chain — "deploy/to/homelab" creates "deploy" and "deploy/to" if missing
 		parts := Split(path, "/")
 		for i := len(parts) - 1; i > 0; i-- {
-			parentPath := StringJoin(parts[:i], "/")
+			parentPath := JoinPath(parts[:i]...)
 			if _, exists := c.commands.commands[parentPath]; !exists {
 				c.commands.commands[parentPath] = &Command{
 					name:     parts[i-1],

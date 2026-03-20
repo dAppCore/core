@@ -138,9 +138,10 @@ func NewError(text string) error {
 	return errors.New(text)
 }
 
-// Join combines multiple errors into one.
-// Wrapper around errors.Join for convenience.
-func Join(errs ...error) error {
+// ErrorJoin combines multiple errors into one.
+//
+//	core.ErrorJoin(err1, err2, err3)
+func ErrorJoin(errs ...error) error {
 	return errors.Join(errs...)
 }
 
