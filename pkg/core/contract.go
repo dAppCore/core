@@ -79,7 +79,7 @@ func New(opts ...Options) *Core {
 		fs:       &Fs{root: "/"},
 		config:   &Config{ConfigOptions: &ConfigOptions{}},
 		error:    &ErrorPanic{},
-		log:      &ErrorLog{log: defaultLog},
+		log:      &ErrorLog{log: Default()},
 		lock:     &Lock{},
 		ipc:      &Ipc{},
 		i18n:     &I18n{},

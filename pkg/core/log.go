@@ -11,6 +11,7 @@ import (
 	"os/user"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -296,51 +297,56 @@ func Username() string {
 
 // --- Default logger ---
 
-var defaultLog = NewLog(LogOptions{Level: LevelInfo})
+var defaultLogPtr atomic.Pointer[Log]
+
+func init() {
+	l := NewLog(LogOptions{Level: LevelInfo})
+	defaultLogPtr.Store(l)
+}
 
 // Default returns the default logger.
 func Default() *Log {
-	return defaultLog
+	return defaultLogPtr.Load()
 }
 
 // SetDefault sets the default logger.
 func SetDefault(l *Log) {
-	defaultLog = l
+	defaultLogPtr.Store(l)
 }
 
 // SetLevel sets the default logger's level.
 func SetLevel(level Level) {
-	defaultLog.SetLevel(level)
+	Default().SetLevel(level)
 }
 
 // SetRedactKeys sets the default logger's redaction keys.
 func SetRedactKeys(keys ...string) {
-	defaultLog.SetRedactKeys(keys...)
+	Default().SetRedactKeys(keys...)
 }
 
 // Debug logs to the default logger.
 func Debug(msg string, keyvals ...any) {
-	defaultLog.Debug(msg, keyvals...)
+	Default().Debug(msg, keyvals...)
 }
 
 // Info logs to the default logger.
 func Info(msg string, keyvals ...any) {
-	defaultLog.Info(msg, keyvals...)
+	Default().Info(msg, keyvals...)
 }
 
 // Warn logs to the default logger.
 func Warn(msg string, keyvals ...any) {
-	defaultLog.Warn(msg, keyvals...)
+	Default().Warn(msg, keyvals...)
 }
 
 // Error logs to the default logger.
 func Error(msg string, keyvals ...any) {
-	defaultLog.Error(msg, keyvals...)
+	Default().Error(msg, keyvals...)
 }
 
 // Security logs to the default logger.
 func Security(msg string, keyvals ...any) {
-	defaultLog.Security(msg, keyvals...)
+	Default().Security(msg, keyvals...)
 }
 
 // --- LogErr: Error-Aware Logger ---

@@ -90,7 +90,12 @@ func (s *Array[T]) Clear() {
 	s.items = nil
 }
 
-// AsSlice returns the underlying slice.
+// AsSlice returns a copy of the underlying slice.
 func (s *Array[T]) AsSlice() []T {
-	return s.items
+	if s.items == nil {
+		return nil
+	}
+	out := make([]T, len(s.items))
+	copy(out, s.items)
+	return out
 }

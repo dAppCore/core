@@ -51,6 +51,9 @@ type Config struct {
 // Set stores a configuration value by key.
 func (e *Config) Set(key string, val any) {
 	e.mu.Lock()
+	if e.ConfigOptions == nil {
+		e.ConfigOptions = &ConfigOptions{}
+	}
 	e.ConfigOptions.init()
 	e.Settings[key] = val
 	e.mu.Unlock()
@@ -89,6 +92,9 @@ func ConfigGet[T any](e *Config, key string) T {
 
 func (e *Config) Enable(feature string) {
 	e.mu.Lock()
+	if e.ConfigOptions == nil {
+		e.ConfigOptions = &ConfigOptions{}
+	}
 	e.ConfigOptions.init()
 	e.Features[feature] = true
 	e.mu.Unlock()
@@ -96,6 +102,9 @@ func (e *Config) Enable(feature string) {
 
 func (e *Config) Disable(feature string) {
 	e.mu.Lock()
+	if e.ConfigOptions == nil {
+		e.ConfigOptions = &ConfigOptions{}
+	}
 	e.ConfigOptions.init()
 	e.Features[feature] = false
 	e.mu.Unlock()
@@ -103,14 +112,19 @@ func (e *Config) Disable(feature string) {
 
 func (e *Config) Enabled(feature string) bool {
 	e.mu.RLock()
-	v := e.Features[feature]
-	e.mu.RUnlock()
-	return v
+	defer e.mu.RUnlock()
+	if e.ConfigOptions == nil || e.Features == nil {
+		return false
+	}
+	return e.Features[feature]
 }
 
 func (e *Config) EnabledFeatures() []string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
+	if e.ConfigOptions == nil || e.Features == nil {
+		return nil
+	}
 	var result []string
 	for k, v := range e.Features {
 		if v {

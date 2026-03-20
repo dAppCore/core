@@ -79,6 +79,9 @@ func (m *Fs) validatePath(p string) Result {
 			}
 			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
 				time.Now().Format(time.RFC3339), m.root, p, realNext, username)
+			if err == nil {
+				err = E("fs.validatePath", Concat("sandbox escape: ", p, " resolves outside ", m.root), nil)
+			}
 			return Result{err, false}
 		}
 		current = realNext

@@ -244,7 +244,7 @@ func (el *ErrorLog) logger() *Log {
 	if el.log != nil {
 		return el.log
 	}
-	return defaultLog
+	return Default()
 }
 
 // Error logs at Error level and returns a Result with the wrapped error.

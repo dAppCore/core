@@ -53,13 +53,19 @@ func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
 func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	c.shutdown.Store(true)
 	c.ACTION(ActionServiceShutdown{})
+	var firstErr error
 	stoppables := c.Stoppables()
 	if stoppables.OK {
 		for _, s := range stoppables.Value.([]*Service) {
 			if err := ctx.Err(); err != nil {
 				return Result{err, false}
 			}
-			s.OnStop()
+			r := s.OnStop()
+			if !r.OK && firstErr == nil {
+				if e, ok := r.Value.(error); ok {
+					firstErr = e
+				}
+			}
 		}
 	}
 	done := make(chan struct{})
@@ -71,6 +77,9 @@ func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	case <-done:
 	case <-ctx.Done():
 		return Result{ctx.Err(), false}
+	}
+	if firstErr != nil {
+		return Result{firstErr, false}
 	}
 	return Result{OK: true}
 }

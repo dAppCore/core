@@ -144,6 +144,10 @@ func (c *Core) Command(path string, command ...Command) Result {
 	c.commands.mu.Lock()
 	defer c.commands.mu.Unlock()
 
+	if _, exists := c.commands.commands[path]; exists {
+		return Result{E("core.Command", Concat("command \"", path, "\" already registered"), nil), false}
+	}
+
 	cmd := &command[0]
 	cmd.Name = pathName(path)
 	cmd.Path = path
