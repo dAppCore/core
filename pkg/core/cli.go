@@ -15,6 +15,7 @@ package core
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -22,7 +23,26 @@ import (
 // Cli is the CLI surface for the Core command tree.
 type Cli struct {
 	core   *Core
+	output io.Writer
 	banner func(*Cli) string
+}
+
+// Print writes to the CLI output (defaults to os.Stdout).
+//
+//	c.Cli().Print("hello %s", "world")
+func (cl *Cli) Print(format string, args ...any) {
+	w := cl.output
+	if w == nil {
+		w = os.Stdout
+	}
+	fmt.Fprintf(w, format+"\n", args...)
+}
+
+// SetOutput sets the CLI output writer.
+//
+//	c.Cli().SetOutput(os.Stderr)
+func (cl *Cli) SetOutput(w io.Writer) {
+	cl.output = w
 }
 
 // Run resolves os.Args to a command path and executes it.
@@ -37,15 +57,13 @@ func (cl *Cli) Run(args ...string) Result[any] {
 	clean := FilterArgs(args)
 
 	if cl.core == nil || cl.core.commands == nil || len(cl.core.commands.commands) == 0 {
-		// No commands registered — print banner and exit
 		if cl.banner != nil {
-			fmt.Println(cl.banner(cl))
+			cl.Print(cl.banner(cl))
 		}
 		return Result[any]{}
 	}
 
 	// Resolve command path from args
-	// "deploy to homelab" → try "deploy/to/homelab", then "deploy/to", then "deploy"
 	var cmd *Command
 	var remaining []string
 
@@ -59,15 +77,14 @@ func (cl *Cli) Run(args ...string) Result[any] {
 	}
 
 	if cmd == nil {
-		// No matching command — try root-level action or print help
 		if cl.banner != nil {
-			fmt.Println(cl.banner(cl))
+			cl.Print(cl.banner(cl))
 		}
 		cl.PrintHelp()
 		return Result[any]{}
 	}
 
-	// Build options from remaining args (flags become Options)
+	// Build options from remaining args
 	opts := Options{}
 	for _, arg := range remaining {
 		key, val, valid := ParseFlag(arg)
@@ -80,7 +97,6 @@ func (cl *Cli) Run(args ...string) Result[any] {
 		} else if !strings.HasPrefix(arg, "-") {
 			opts = append(opts, Option{K: "_arg", V: arg})
 		}
-		// Invalid flags (e.g. -verbose, --v) are silently ignored
 	}
 
 	return cmd.Run(opts)
@@ -99,9 +115,9 @@ func (cl *Cli) PrintHelp() {
 		name = cl.core.app.Name
 	}
 	if name != "" {
-		fmt.Printf("%s commands:\n\n", name)
+		cl.Print("%s commands:", name)
 	} else {
-		fmt.Println("Commands:\n")
+		cl.Print("Commands:")
 	}
 
 	cl.core.commands.mu.RLock()
@@ -112,11 +128,10 @@ func (cl *Cli) PrintHelp() {
 			continue
 		}
 		desc := cl.core.I18n().T(cmd.I18nKey())
-		// If i18n returned the key itself (no translation), show path only
 		if desc == cmd.I18nKey() {
-			fmt.Printf("  %s\n", path)
+			cl.Print("  %s", path)
 		} else {
-			fmt.Printf("  %-30s %s\n", path, desc)
+			cl.Print("  %-30s %s", path, desc)
 		}
 	}
 }
