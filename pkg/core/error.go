@@ -33,7 +33,7 @@ var _ ErrorSink = (*Log)(nil)
 type Err struct {
 	Operation string // Operation being performed (e.g., "user.Save")
 	Message   string // Human-readable message
-	Err       error  // Underlying error (optional)
+	Cause     error  // Underlying error (optional)
 	Code      string // Error code (optional, e.g., "VALIDATION_FAILED")
 }
 
@@ -43,11 +43,11 @@ func (e *Err) Error() string {
 	if e.Operation != "" {
 		prefix = e.Operation + ": "
 	}
-	if e.Err != nil {
+	if e.Cause != nil {
 		if e.Code != "" {
-			return Concat(prefix, e.Message, " [", e.Code, "]: ", e.Err.Error())
+			return Concat(prefix, e.Message, " [", e.Code, "]: ", e.Cause.Error())
 		}
-		return Concat(prefix, e.Message, ": ", e.Err.Error())
+		return Concat(prefix, e.Message, ": ", e.Cause.Error())
 	}
 	if e.Code != "" {
 		return Concat(prefix, e.Message, " [", e.Code, "]")
@@ -57,7 +57,7 @@ func (e *Err) Error() string {
 
 // Unwrap returns the underlying error for use with errors.Is and errors.As.
 func (e *Err) Unwrap() error {
-	return e.Err
+	return e.Cause
 }
 
 // --- Error Creation Functions ---
@@ -70,7 +70,7 @@ func (e *Err) Unwrap() error {
 //	return log.E("user.Save", "failed to save user", err)
 //	return log.E("api.Call", "rate limited", nil)  // No underlying cause
 func E(op, msg string, err error) error {
-	return &Err{Operation: op, Message: msg, Err: err}
+	return &Err{Operation: op, Message: msg, Cause: err}
 }
 
 // Wrap wraps an error with operation context.
@@ -87,9 +87,9 @@ func Wrap(err error, op, msg string) error {
 	// Preserve Code from wrapped *Err
 	var logErr *Err
 	if As(err, &logErr) && logErr.Code != "" {
-		return &Err{Operation: op, Message: msg, Err: err, Code: logErr.Code}
+		return &Err{Operation: op, Message: msg, Cause: err, Code: logErr.Code}
 	}
-	return &Err{Operation: op, Message: msg, Err: err}
+	return &Err{Operation: op, Message: msg, Cause: err}
 }
 
 // WrapCode wraps an error with operation context and error code.
@@ -103,7 +103,7 @@ func WrapCode(err error, code, op, msg string) error {
 	if err == nil && code == "" {
 		return nil
 	}
-	return &Err{Operation: op, Message: msg, Err: err, Code: code}
+	return &Err{Operation: op, Message: msg, Cause: err, Code: code}
 }
 
 // NewCode creates an error with just code and message (no underlying error).
@@ -138,7 +138,7 @@ func NewError(text string) error {
 
 // ErrorJoin combines multiple errors into one.
 //
-//	core.ErrorJoin(err1, err2, err3)
+//	core.CauseorJoin(err1, err2, err3)
 func ErrorJoin(errs ...error) error {
 	return errors.Join(errs...)
 }
