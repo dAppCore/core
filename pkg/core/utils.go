@@ -38,53 +38,68 @@ func IsFlag(arg string) bool {
 	return HasPrefix(arg, "-")
 }
 
-// Arg extracts a value from a variadic any slice at the given index.
-// Returns nil if index is out of bounds.
+// Arg extracts a value from variadic args at the given index.
+// Type-checks and delegates to the appropriate typed extractor.
+// Returns the typed value — string for strings, int for ints, etc.
 //
-//	val := core.Arg(args, 0)             // any
-//	name := core.ArgString(args, 0)      // string
-//	port := core.ArgInt(args, 1)         // int
-//	debug := core.ArgBool(args, 2)       // bool
-func Arg(args []any, index int) any {
+//	path := core.Arg(0, args...).(string)
+//	name := core.Arg(0, "hello", 42)      // returns "hello"
+func Arg(index int, args ...any) any {
 	if index >= len(args) {
 		return nil
 	}
-	return args[index]
+	v := args[index]
+	switch v.(type) {
+	case string:
+		return ArgString(index, args...)
+	case int:
+		return ArgInt(index, args...)
+	case bool:
+		return ArgBool(index, args...)
+	default:
+		return v
+	}
 }
 
-// ArgString extracts a string from a variadic any slice at the given index.
+// ArgString extracts a string at the given index.
 //
-//	name := core.ArgString(args, 0)
-func ArgString(args []any, index int) string {
-	v := Arg(args, index)
-	if v == nil {
+//	name := core.ArgString(0, args...)
+func ArgString(index int, args ...any) string {
+	if index >= len(args) {
 		return ""
 	}
-	s, _ := v.(string)
+	s, ok := args[index].(string)
+	if !ok {
+		return ""
+	}
 	return s
 }
 
-// ArgInt extracts an int from a variadic any slice at the given index.
+// ArgInt extracts an int at the given index.
 //
-//	port := core.ArgInt(args, 1)
-func ArgInt(args []any, index int) int {
-	v := Arg(args, index)
-	if v == nil {
+//	port := core.ArgInt(1, args...)
+func ArgInt(index int, args ...any) int {
+	if index >= len(args) {
 		return 0
 	}
-	i, _ := v.(int)
+	i, ok := args[index].(int)
+	if !ok {
+		return 0
+	}
 	return i
 }
 
-// ArgBool extracts a bool from a variadic any slice at the given index.
+// ArgBool extracts a bool at the given index.
 //
-//	debug := core.ArgBool(args, 2)
-func ArgBool(args []any, index int) bool {
-	v := Arg(args, index)
-	if v == nil {
+//	debug := core.ArgBool(2, args...)
+func ArgBool(index int, args ...any) bool {
+	if index >= len(args) {
 		return false
 	}
-	b, _ := v.(bool)
+	b, ok := args[index].(bool)
+	if !ok {
+		return false
+	}
 	return b
 }
 

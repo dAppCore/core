@@ -30,7 +30,7 @@ func (c *Core) Service(args ...any) any {
 	case 0:
 		return c.service
 	case 1:
-		name := ArgString(args, 0)
+		name := ArgString(0, args...)
 		c.Lock("srv").Mu.RLock()
 		v, ok := c.service.Services[name]
 		c.Lock("srv").Mu.RUnlock()
@@ -39,7 +39,7 @@ func (c *Core) Service(args ...any) any {
 		}
 		return v
 	default:
-		name := ArgString(args, 0)
+		name := ArgString(0, args...)
 		if name == "" {
 			return E("core.Service", "service name cannot be empty", nil)
 		}

@@ -140,13 +140,13 @@ func (c *Core) Command(args ...any) any {
 	case 0:
 		return c.commands
 	case 1:
-		path := ArgString(args, 0)
+		path := ArgString(0, args...)
 		c.commands.mu.RLock()
 		cmd := c.commands.commands[path]
 		c.commands.mu.RUnlock()
 		return cmd
 	default:
-		path := ArgString(args, 0)
+		path := ArgString(0, args...)
 		if path == "" {
 			return E("core.Command", "command path cannot be empty", nil)
 		}
