@@ -32,29 +32,27 @@ func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 // --- Lifecycle ---
 
 // ServiceStartup runs OnStart for all registered services that have one.
-func (c *Core) ServiceStartup(ctx context.Context, options any) error {
+func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
 	for _, s := range c.Startables() {
 		if err := ctx.Err(); err != nil {
-			return err
+			return Result{Value: err}
 		}
 		r := s.OnStart()
 		if !r.OK {
-			if err, ok := r.Value.(error); ok {
-				return err
-			}
+			return r
 		}
 	}
-	_ = c.ACTION(ActionServiceStartup{})
-	return nil
+	c.ACTION(ActionServiceStartup{})
+	return Result{OK: true}
 }
 
 // ServiceShutdown runs OnStop for all registered services that have one.
-func (c *Core) ServiceShutdown(ctx context.Context) error {
+func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	c.shutdown.Store(true)
-	_ = c.ACTION(ActionServiceShutdown{})
+	c.ACTION(ActionServiceShutdown{})
 	for _, s := range c.Stoppables() {
 		if err := ctx.Err(); err != nil {
-			return err
+			return Result{Value: err}
 		}
 		s.OnStop()
 	}
@@ -66,9 +64,9 @@ func (c *Core) ServiceShutdown(ctx context.Context) error {
 	select {
 	case <-done:
 	case <-ctx.Done():
-		return ctx.Err()
+		return Result{Value: ctx.Err()}
 	}
-	return nil
+	return Result{OK: true}
 }
 
 // --- Runtime DTO (GUI binding) ---
@@ -110,12 +108,12 @@ func NewRuntime(app any) Result {
 }
 
 func (r *Runtime) ServiceName() string { return "Core" }
-func (r *Runtime) ServiceStartup(ctx context.Context, options any) error {
+func (r *Runtime) ServiceStartup(ctx context.Context, options any) Result {
 	return r.Core.ServiceStartup(ctx, options)
 }
-func (r *Runtime) ServiceShutdown(ctx context.Context) error {
+func (r *Runtime) ServiceShutdown(ctx context.Context) Result {
 	if r.Core != nil {
 		return r.Core.ServiceShutdown(ctx)
 	}
-	return nil
+	return Result{OK: true}
 }

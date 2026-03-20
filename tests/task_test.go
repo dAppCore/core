@@ -16,11 +16,11 @@ func TestPerformAsync_Good(t *testing.T) {
 	var mu sync.Mutex
 	var result string
 
-	c.RegisterTask(func(_ *Core, task Task) (any, bool, error) {
+	c.RegisterTask(func(_ *Core, task Task) Result {
 		mu.Lock()
 		result = "done"
 		mu.Unlock()
-		return "completed", true, nil
+		return Result{Value: "completed", OK: true}
 	})
 
 	taskID := c.PerformAsync("work")
@@ -35,8 +35,8 @@ func TestPerformAsync_Good(t *testing.T) {
 
 func TestPerformAsync_Progress_Good(t *testing.T) {
 	c := New()
-	c.RegisterTask(func(_ *Core, task Task) (any, bool, error) {
-		return nil, true, nil
+	c.RegisterTask(func(_ *Core, task Task) Result {
+		return Result{OK: true}
 	})
 
 	taskID := c.PerformAsync("work")
@@ -48,19 +48,19 @@ func TestPerformAsync_Progress_Good(t *testing.T) {
 func TestRegisterAction_Good(t *testing.T) {
 	c := New()
 	called := false
-	c.RegisterAction(func(_ *Core, _ Message) error {
+	c.RegisterAction(func(_ *Core, _ Message) Result {
 		called = true
-		return nil
+		return Result{OK: true}
 	})
-	_ = c.Action(nil)
+	c.Action(nil)
 	assert.True(t, called)
 }
 
 func TestRegisterActions_Good(t *testing.T) {
 	c := New()
 	count := 0
-	h := func(_ *Core, _ Message) error { count++; return nil }
+	h := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }
 	c.RegisterActions(h, h)
-	_ = c.Action(nil)
+	c.Action(nil)
 	assert.Equal(t, 2, count)
 }

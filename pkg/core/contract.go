@@ -24,11 +24,11 @@ type TaskWithID interface {
 	GetTaskID() string
 }
 
-// QueryHandler handles Query requests. Returns (result, handled, error).
-type QueryHandler func(*Core, Query) (any, bool, error)
+// QueryHandler handles Query requests. Returns Result{Value, OK}.
+type QueryHandler func(*Core, Query) Result
 
-// TaskHandler handles Task requests. Returns (result, handled, error).
-type TaskHandler func(*Core, Task) (any, bool, error)
+// TaskHandler handles Task requests. Returns Result{Value, OK}.
+type TaskHandler func(*Core, Task) Result
 
 // Startable is implemented by services that need startup initialisation.
 type Startable interface {

@@ -27,43 +27,48 @@ func (c *Core) PerformAsync(t Task) string {
 	if tid, ok := t.(TaskWithID); ok {
 		tid.SetTaskID(taskID)
 	}
-	_ = c.ACTION(ActionTaskStarted{TaskID: taskID, Task: t})
+	c.ACTION(ActionTaskStarted{TaskID: taskID, Task: t})
 	c.wg.Go(func() {
-		result, handled, err := c.PERFORM(t)
-		if !handled && err == nil {
-			err = E("core.PerformAsync", Join(" ", "no handler found for task type", reflect.TypeOf(t).String()), nil)
+		r := c.PERFORM(t)
+		var err error
+		if !r.OK {
+			if e, ok := r.Value.(error); ok {
+				err = e
+			} else {
+				err = E("core.PerformAsync", Join(" ", "no handler found for task type", reflect.TypeOf(t).String()), nil)
+			}
 		}
-		_ = c.ACTION(ActionTaskCompleted{TaskID: taskID, Task: t, Result: result, Error: err})
+		c.ACTION(ActionTaskCompleted{TaskID: taskID, Task: t, Result: r.Value, Error: err})
 	})
 	return taskID
 }
 
 // Progress broadcasts a progress update for a background task.
 func (c *Core) Progress(taskID string, progress float64, message string, t Task) {
-	_ = c.ACTION(ActionTaskProgress{TaskID: taskID, Task: t, Progress: progress, Message: message})
+	c.ACTION(ActionTaskProgress{TaskID: taskID, Task: t, Progress: progress, Message: message})
 }
 
-func (c *Core) Perform(t Task) (any, bool, error) {
+func (c *Core) Perform(t Task) Result {
 	c.ipc.taskMu.RLock()
 	handlers := slices.Clone(c.ipc.taskHandlers)
 	c.ipc.taskMu.RUnlock()
 
 	for _, h := range handlers {
-		result, handled, err := h(c, t)
-		if handled {
-			return result, true, err
+		r := h(c, t)
+		if r.OK {
+			return r
 		}
 	}
-	return nil, false, nil
+	return Result{}
 }
 
-func (c *Core) RegisterAction(handler func(*Core, Message) error) {
+func (c *Core) RegisterAction(handler func(*Core, Message) Result) {
 	c.ipc.ipcMu.Lock()
 	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handler)
 	c.ipc.ipcMu.Unlock()
 }
 
-func (c *Core) RegisterActions(handlers ...func(*Core, Message) error) {
+func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
 	c.ipc.ipcMu.Lock()
 	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)
 	c.ipc.ipcMu.Unlock()

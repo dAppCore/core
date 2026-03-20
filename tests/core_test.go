@@ -67,15 +67,19 @@ func TestOptions_Accessor_Nil(t *testing.T) {
 func TestCore_LogError_Good(t *testing.T) {
 	c := New()
 	cause := assert.AnError
-	err := c.LogError(cause, "test.Op", "something broke")
-	assert.Error(t, err)
+	r := c.LogError(cause, "test.Op", "something broke")
+	assert.False(t, r.OK)
+	err, ok := r.Value.(error)
+	assert.True(t, ok)
 	assert.ErrorIs(t, err, cause)
 }
 
 func TestCore_LogWarn_Good(t *testing.T) {
 	c := New()
-	err := c.LogWarn(assert.AnError, "test.Op", "heads up")
-	assert.Error(t, err)
+	r := c.LogWarn(assert.AnError, "test.Op", "heads up")
+	assert.False(t, r.OK)
+	_, ok := r.Value.(error)
+	assert.True(t, ok)
 }
 
 func TestCore_Must_Ugly(t *testing.T) {

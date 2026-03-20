@@ -52,21 +52,29 @@ func (c *Core) Core() *Core       { return c }
 
 // --- IPC (uppercase aliases) ---
 
-func (c *Core) ACTION(msg Message) error          { return c.Action(msg) }
-func (c *Core) QUERY(q Query) (any, bool, error)  { return c.Query(q) }
-func (c *Core) QUERYALL(q Query) ([]any, error)   { return c.QueryAll(q) }
-func (c *Core) PERFORM(t Task) (any, bool, error) { return c.Perform(t) }
+func (c *Core) ACTION(msg Message) Result  { return c.Action(msg) }
+func (c *Core) QUERY(q Query) Result       { return c.Query(q) }
+func (c *Core) QUERYALL(q Query) Result    { return c.QueryAll(q) }
+func (c *Core) PERFORM(t Task) Result      { return c.Perform(t) }
 
 // --- Error+Log ---
 
-// LogError logs an error and returns a wrapped error.
-func (c *Core) LogError(err error, op, msg string) error {
-	return c.log.Error(err, op, msg)
+// LogError logs an error and returns a Result with the wrapped error.
+func (c *Core) LogError(err error, op, msg string) Result {
+	wrapped := c.log.Error(err, op, msg)
+	if wrapped == nil {
+		return Result{OK: true}
+	}
+	return Result{Value: wrapped}
 }
 
-// LogWarn logs a warning and returns a wrapped error.
-func (c *Core) LogWarn(err error, op, msg string) error {
-	return c.log.Warn(err, op, msg)
+// LogWarn logs a warning and returns a Result with the wrapped error.
+func (c *Core) LogWarn(err error, op, msg string) Result {
+	wrapped := c.log.Warn(err, op, msg)
+	if wrapped == nil {
+		return Result{OK: true}
+	}
+	return Result{Value: wrapped}
 }
 
 // Must logs and panics if err is not nil.

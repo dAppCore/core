@@ -70,7 +70,7 @@ func TestRuntime_Lifecycle_Good(t *testing.T) {
 	assert.True(t, r.OK)
 	rt := r.Value.(*Runtime)
 
-	err := rt.ServiceStartup(context.Background(), nil)
-	assert.NoError(t, err)
+	result := rt.ServiceStartup(context.Background(), nil)
+	assert.True(t, result.OK)
 	assert.True(t, started)
 }
