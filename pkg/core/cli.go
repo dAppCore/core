@@ -106,7 +106,13 @@ func (cl *Cli) Run(args ...string) Result {
 		}
 	}
 
-	return cmd.Run(opts)
+	if cmd.Action != nil {
+		return cmd.Run(opts)
+	}
+	if cmd.Lifecycle != nil {
+		return cmd.Start(opts)
+	}
+	return Result{E("core.Cli.Run", Concat("command \"", cmd.Path, "\" is not executable"), nil), false}
 }
 
 // PrintHelp prints available commands.

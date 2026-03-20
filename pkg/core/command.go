@@ -137,8 +137,8 @@ func (c *Core) Command(path string, command ...Command) Result {
 		return Result{cmd, ok}
 	}
 
-	if path == "" {
-		return Result{E("core.Command", "command path cannot be empty", nil), false}
+	if path == "" || HasPrefix(path, "/") || HasSuffix(path, "/") || Contains(path, "//") {
+		return Result{E("core.Command", Concat("invalid command path: \"", path, "\""), nil), false}
 	}
 
 	c.commands.mu.Lock()
