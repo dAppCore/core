@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// --- I18n ---
+
 func TestI18n_Good(t *testing.T) {
 	c := New()
 	assert.NotNil(t, c.I18n())
@@ -14,7 +16,6 @@ func TestI18n_Good(t *testing.T) {
 
 func TestI18n_AddLocales_Good(t *testing.T) {
 	c := New()
-	// AddLocales takes *Embed mounts — mount testdata and add it
 	r := c.Data().New(Options{
 		{K: "name", V: "lang"},
 		{K: "source", V: testFS},
@@ -23,4 +24,68 @@ func TestI18n_AddLocales_Good(t *testing.T) {
 	if r.OK {
 		c.I18n().AddLocales(r.Value)
 	}
+	locales := c.I18n().Locales()
+	assert.Len(t, locales, 1)
+}
+
+func TestI18n_Locales_Empty_Good(t *testing.T) {
+	c := New()
+	locales := c.I18n().Locales()
+	assert.Empty(t, locales)
+}
+
+// --- Translator (no translator registered) ---
+
+func TestI18n_T_NoTranslator_Good(t *testing.T) {
+	c := New()
+	// Without a translator, T returns the key as-is
+	result := c.I18n().T("greeting.hello")
+	assert.Equal(t, "greeting.hello", result)
+}
+
+func TestI18n_SetLanguage_NoTranslator_Good(t *testing.T) {
+	c := New()
+	err := c.I18n().SetLanguage("de")
+	assert.NoError(t, err) // no-op without translator
+}
+
+func TestI18n_Language_NoTranslator_Good(t *testing.T) {
+	c := New()
+	assert.Equal(t, "en", c.I18n().Language())
+}
+
+func TestI18n_AvailableLanguages_NoTranslator_Good(t *testing.T) {
+	c := New()
+	langs := c.I18n().AvailableLanguages()
+	assert.Equal(t, []string{"en"}, langs)
+}
+
+func TestI18n_Translator_Nil_Good(t *testing.T) {
+	c := New()
+	assert.Nil(t, c.I18n().Translator())
+}
+
+// --- Translator (with mock) ---
+
+type mockTranslator struct {
+	lang string
+}
+
+func (m *mockTranslator) T(id string, args ...any) string     { return "translated:" + id }
+func (m *mockTranslator) SetLanguage(lang string) error        { m.lang = lang; return nil }
+func (m *mockTranslator) Language() string                     { return m.lang }
+func (m *mockTranslator) AvailableLanguages() []string         { return []string{"en", "de", "fr"} }
+
+func TestI18n_WithTranslator_Good(t *testing.T) {
+	c := New()
+	tr := &mockTranslator{lang: "en"}
+	c.I18n().SetTranslator(tr)
+
+	assert.Equal(t, tr, c.I18n().Translator())
+	assert.Equal(t, "translated:hello", c.I18n().T("hello"))
+	assert.Equal(t, "en", c.I18n().Language())
+	assert.Equal(t, []string{"en", "de", "fr"}, c.I18n().AvailableLanguages())
+
+	c.I18n().SetLanguage("de")
+	assert.Equal(t, "de", c.I18n().Language())
 }

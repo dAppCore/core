@@ -125,3 +125,60 @@ func TestEmbed_Legacy_Good(t *testing.T) {
 	emb := c.Embed()
 	assert.NotNil(t, emb)
 }
+
+// --- Data List / ListNames ---
+
+func TestData_List_Good(t *testing.T) {
+	c := New()
+	c.Data().New(Options{
+		{K: "name", V: "app"},
+		{K: "source", V: testFS},
+		{K: "path", V: "."},
+	})
+	entries, err := c.Data().List("app/testdata")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, entries)
+}
+
+func TestData_List_Bad(t *testing.T) {
+	c := New()
+	_, err := c.Data().List("nonexistent/path")
+	assert.Error(t, err)
+}
+
+func TestData_ListNames_Good(t *testing.T) {
+	c := New()
+	c.Data().New(Options{
+		{K: "name", V: "app"},
+		{K: "source", V: testFS},
+		{K: "path", V: "."},
+	})
+	names, err := c.Data().ListNames("app/testdata")
+	assert.NoError(t, err)
+	assert.Contains(t, names, "test")
+}
+
+// --- Data Extract ---
+
+func TestData_Extract_Good(t *testing.T) {
+	c := New()
+	c.Data().New(Options{
+		{K: "name", V: "app"},
+		{K: "source", V: testFS},
+		{K: "path", V: "."},
+	})
+	dir := t.TempDir()
+	err := c.Data().Extract("app/testdata", dir, nil)
+	assert.NoError(t, err)
+
+	// Verify extracted file
+	content, err := c.Fs().Read(dir + "/test.txt")
+	assert.NoError(t, err)
+	assert.Equal(t, "hello from testdata\n", content)
+}
+
+func TestData_Extract_Bad(t *testing.T) {
+	c := New()
+	err := c.Data().Extract("nonexistent/path", t.TempDir(), nil)
+	assert.Error(t, err)
+}

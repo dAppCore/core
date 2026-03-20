@@ -61,3 +61,33 @@ func TestOptions_Accessor_Nil(t *testing.T) {
 	// No options passed — Options() returns nil
 	assert.Nil(t, c.Options())
 }
+
+// --- Core Error/Log Helpers ---
+
+func TestCore_LogError_Good(t *testing.T) {
+	c := New()
+	cause := assert.AnError
+	err := c.LogError(cause, "test.Op", "something broke")
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, cause)
+}
+
+func TestCore_LogWarn_Good(t *testing.T) {
+	c := New()
+	err := c.LogWarn(assert.AnError, "test.Op", "heads up")
+	assert.Error(t, err)
+}
+
+func TestCore_Must_Ugly(t *testing.T) {
+	c := New()
+	assert.Panics(t, func() {
+		c.Must(assert.AnError, "test.Op", "fatal")
+	})
+}
+
+func TestCore_Must_Nil_Good(t *testing.T) {
+	c := New()
+	assert.NotPanics(t, func() {
+		c.Must(nil, "test.Op", "no error")
+	})
+}

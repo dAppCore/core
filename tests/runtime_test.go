@@ -95,3 +95,8 @@ func TestRuntime_Lifecycle_Good(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, svc.stopped)
 }
+
+func TestRuntime_ServiceName_Good(t *testing.T) {
+	rt, _ := NewRuntime(nil)
+	assert.Equal(t, "Core", rt.ServiceName())
+}
