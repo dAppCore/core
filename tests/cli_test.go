@@ -7,70 +7,72 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// --- Cli ---
+// --- Cli Surface ---
 
 func TestCli_Good(t *testing.T) {
 	c := New()
 	assert.NotNil(t, c.Cli())
-	assert.NotNil(t, c.Cli().Command())
 }
 
-func TestCli_Named_Good(t *testing.T) {
+func TestCli_Banner_Good(t *testing.T) {
 	c := New(Options{{K: "name", V: "myapp"}})
-	assert.NotNil(t, c.Cli().Command())
+	assert.Equal(t, "myapp", c.Cli().Banner())
 }
 
-func TestCli_NewChildCommand_Good(t *testing.T) {
-	c := New(Options{{K: "name", V: "myapp"}})
-	child := c.Cli().NewChildCommand("test", "a test command")
-	assert.NotNil(t, child)
-}
-
-func TestCli_AddCommand_Good(t *testing.T) {
+func TestCli_SetBanner_Good(t *testing.T) {
 	c := New()
-	cmd := NewCommand("hello", "says hello")
-	c.Cli().AddCommand(cmd)
-}
-
-func TestCli_Flags_Good(t *testing.T) {
-	c := New()
-	var name string
-	var debug bool
-	var port int
-	c.Cli().StringFlag("name", "app name", &name)
-	c.Cli().BoolFlag("debug", "enable debug", &debug)
-	c.Cli().IntFlag("port", "port number", &port)
+	c.Cli().SetBanner(func(_ *Cli) string { return "Custom Banner" })
+	assert.Equal(t, "Custom Banner", c.Cli().Banner())
 }
 
 func TestCli_Run_Good(t *testing.T) {
 	c := New()
 	executed := false
-	c.Cli().Command().Action(func() error {
+	c.Command("hello", func(_ Options) Result[any] {
 		executed = true
-		return nil
+		return Result[any]{Value: "world", OK: true}
 	})
-	err := c.Cli().Run("")
-	assert.NoError(t, err)
+	r := c.Cli().Run("hello")
+	assert.True(t, r.OK)
+	assert.Equal(t, "world", r.Value)
 	assert.True(t, executed)
 }
 
-// --- Command ---
-
-func TestCommand_New_Good(t *testing.T) {
-	cmd := NewCommand("test", "a test command")
-	assert.NotNil(t, cmd)
+func TestCli_Run_Nested_Good(t *testing.T) {
+	c := New()
+	executed := false
+	c.Command("deploy/to/homelab", func(_ Options) Result[any] {
+		executed = true
+		return Result[any]{OK: true}
+	})
+	r := c.Cli().Run("deploy", "to", "homelab")
+	assert.True(t, r.OK)
+	assert.True(t, executed)
 }
 
-func TestCommand_Child_Good(t *testing.T) {
-	parent := NewCommand("root")
-	child := parent.NewChildCommand("sub", "a subcommand")
-	assert.NotNil(t, child)
+func TestCli_Run_WithFlags_Good(t *testing.T) {
+	c := New()
+	var received Options
+	c.Command("serve", func(opts Options) Result[any] {
+		received = opts
+		return Result[any]{OK: true}
+	})
+	c.Cli().Run("serve", "--port=8080", "--debug")
+	assert.Equal(t, "8080", received.String("port"))
+	assert.True(t, received.Bool("debug"))
 }
 
-func TestCommand_Flags_Good(t *testing.T) {
-	cmd := NewCommand("test")
-	var name string
-	var debug bool
-	cmd.StringFlag("name", "app name", &name)
-	cmd.BoolFlag("debug", "enable debug", &debug)
+func TestCli_Run_NoCommand_Good(t *testing.T) {
+	c := New()
+	// No commands registered — should not panic
+	r := c.Cli().Run()
+	assert.False(t, r.OK)
+}
+
+func TestCli_PrintHelp_Good(t *testing.T) {
+	c := New(Options{{K: "name", V: "myapp"}})
+	c.Command("deploy", func(_ Options) Result[any] { return Result[any]{OK: true} })
+	c.Command("serve", func(_ Options) Result[any] { return Result[any]{OK: true} })
+	// Should not panic
+	c.Cli().PrintHelp()
 }

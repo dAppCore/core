@@ -1,200 +1,152 @@
 // SPDX-License-Identifier: EUPL-1.2
 
-// CLI command framework for the Core framework.
-// Based on leaanthony/clir — zero-dependency command line interface.
-
+// Cli is the CLI surface layer for the Core command tree.
+// It reads commands from Core's registry and wires them to terminal I/O.
+//
+// Run the CLI:
+//
+//	c := core.New(core.Options{{K: "name", V: "myapp"}})
+//	c.Command("deploy", handler)
+//	c.Cli().Run()
+//
+// The Cli resolves os.Args to a command path, parses flags,
+// and calls the command's action with parsed options.
 package core
 
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
-// CliAction represents a function called when a command is invoked.
-type CliAction func() error
-
-// CliOpts configures a Cli.
-type CliOpts struct {
-	Version     string
-	Name        string
-	Description string
-}
-
-// Cli is the CLI command framework.
+// Cli is the CLI surface for the Core command tree.
 type Cli struct {
-	opts           *CliOpts
-	rootCommand    *Command
-	defaultCommand *Command
-	preRunCommand  func(*Cli) error
-	postRunCommand func(*Cli) error
-	bannerFunction func(*Cli) string
-	errorHandler   func(string, error) error
+	core   *Core
+	banner func(*Cli) string
 }
 
-// defaultBannerFunction prints a banner for the application.
-func defaultBannerFunction(c *Cli) string {
-	version := ""
-	if c.opts != nil && c.opts.Version != "" {
-		version = " " + c.opts.Version
-	}
-	name := ""
-	description := ""
-	if c.opts != nil {
-		name = c.opts.Name
-		description = c.opts.Description
-	}
-	if description != "" {
-		return fmt.Sprintf("%s%s - %s", name, version, description)
-	}
-	return fmt.Sprintf("%s%s", name, version)
-}
-
-
-// Command returns the root command.
-func (c *Cli) Command() *Command {
-	return c.rootCommand
-}
-
-// Version returns the application version string.
-func (c *Cli) Version() string {
-	if c.opts != nil {
-		return c.opts.Version
-	}
-	return ""
-}
-
-// Name returns the application name.
-func (c *Cli) Name() string {
-	if c.opts != nil {
-		return c.opts.Name
-	}
-	return c.rootCommand.name
-}
-
-// ShortDescription returns the application short description.
-func (c *Cli) ShortDescription() string {
-	if c.opts != nil {
-		return c.opts.Description
-	}
-	return c.rootCommand.shortdescription
-}
-
-// SetBannerFunction sets the function that generates the banner string.
-func (c *Cli) SetBannerFunction(fn func(*Cli) string) {
-	c.bannerFunction = fn
-}
-
-// SetErrorFunction sets a custom error handler for undefined flags.
-func (c *Cli) SetErrorFunction(fn func(string, error) error) {
-	c.errorHandler = fn
-}
-
-// AddCommand adds a command to the application.
-func (c *Cli) AddCommand(command *Command) {
-	c.rootCommand.AddCommand(command)
-}
-
-// PrintBanner prints the application banner.
-func (c *Cli) PrintBanner() {
-	fmt.Println(c.bannerFunction(c))
-	fmt.Println("")
-}
-
-// PrintHelp prints the application help.
-func (c *Cli) PrintHelp() {
-	c.rootCommand.PrintHelp()
-}
-
-// Run runs the application with the given arguments.
-func (c *Cli) Run(args ...string) error {
-	if c.preRunCommand != nil {
-		if err := c.preRunCommand(c); err != nil {
-			return err
-		}
-	}
+// Run resolves os.Args to a command path and executes it.
+//
+//	c.Cli().Run()
+//	c.Cli().Run("deploy", "to", "homelab")
+func (cl *Cli) Run(args ...string) Result[any] {
 	if len(args) == 0 {
 		args = os.Args[1:]
 	}
-	if err := c.rootCommand.run(args); err != nil {
-		return err
-	}
-	if c.postRunCommand != nil {
-		if err := c.postRunCommand(c); err != nil {
-			return err
+
+	// Filter out empty args and test flags
+	var clean []string
+	for _, a := range args {
+		if a != "" && !strings.HasPrefix(a, "-test.") {
+			clean = append(clean, a)
 		}
 	}
-	return nil
+
+	if cl.core == nil || cl.core.commands == nil || len(cl.core.commands.commands) == 0 {
+		// No commands registered — print banner and exit
+		if cl.banner != nil {
+			fmt.Println(cl.banner(cl))
+		}
+		return Result[any]{}
+	}
+
+	// Resolve command path from args
+	// "deploy to homelab" → try "deploy/to/homelab", then "deploy/to", then "deploy"
+	var cmd *Command
+	var remaining []string
+
+	for i := len(clean); i > 0; i-- {
+		path := strings.Join(clean[:i], "/")
+		if c, ok := cl.core.commands.commands[path]; ok {
+			cmd = c
+			remaining = clean[i:]
+			break
+		}
+	}
+
+	if cmd == nil {
+		// No matching command — try root-level action or print help
+		if cl.banner != nil {
+			fmt.Println(cl.banner(cl))
+		}
+		cl.PrintHelp()
+		return Result[any]{}
+	}
+
+	// Build options from remaining args (flags become Options)
+	opts := Options{}
+	for _, arg := range remaining {
+		if strings.HasPrefix(arg, "--") {
+			parts := strings.SplitN(strings.TrimPrefix(arg, "--"), "=", 2)
+			if len(parts) == 2 {
+				opts = append(opts, Option{K: parts[0], V: parts[1]})
+			} else {
+				opts = append(opts, Option{K: parts[0], V: true})
+			}
+		} else if strings.HasPrefix(arg, "-") {
+			parts := strings.SplitN(strings.TrimPrefix(arg, "-"), "=", 2)
+			if len(parts) == 2 {
+				opts = append(opts, Option{K: parts[0], V: parts[1]})
+			} else {
+				opts = append(opts, Option{K: parts[0], V: true})
+			}
+		} else {
+			opts = append(opts, Option{K: "_arg", V: arg})
+		}
+	}
+
+	return cmd.Run(opts)
 }
 
-// DefaultCommand sets the command to run when no other commands are given.
-func (c *Cli) DefaultCommand(defaultCommand *Command) *Cli {
-	c.defaultCommand = defaultCommand
-	return c
+// PrintHelp prints available commands.
+//
+//	c.Cli().PrintHelp()
+func (cl *Cli) PrintHelp() {
+	if cl.core == nil || cl.core.commands == nil {
+		return
+	}
+
+	name := ""
+	if cl.core.app != nil {
+		name = cl.core.app.Name
+	}
+	if name != "" {
+		fmt.Printf("%s commands:\n\n", name)
+	} else {
+		fmt.Println("Commands:\n")
+	}
+
+	cl.core.commands.mu.RLock()
+	defer cl.core.commands.mu.RUnlock()
+
+	for path, cmd := range cl.core.commands.commands {
+		if cmd.hidden {
+			continue
+		}
+		desc := cl.core.I18n().T(cmd.I18nKey())
+		// If i18n returned the key itself (no translation), show path only
+		if desc == cmd.I18nKey() {
+			fmt.Printf("  %s\n", path)
+		} else {
+			fmt.Printf("  %-30s %s\n", path, desc)
+		}
+	}
 }
 
-// NewChildCommand creates a new subcommand.
-func (c *Cli) NewChildCommand(name string, description ...string) *Command {
-	return c.rootCommand.NewChildCommand(name, description...)
+// SetBanner sets the banner function.
+//
+//	c.Cli().SetBanner(func(_ *core.Cli) string { return "My App v1.0" })
+func (cl *Cli) SetBanner(fn func(*Cli) string) {
+	cl.banner = fn
 }
 
-// NewChildCommandInheritFlags creates a new subcommand that inherits parent flags.
-func (c *Cli) NewChildCommandInheritFlags(name string, description ...string) *Command {
-	return c.rootCommand.NewChildCommandInheritFlags(name, description...)
-}
-
-// PreRun sets a function to call before running the command.
-func (c *Cli) PreRun(callback func(*Cli) error) {
-	c.preRunCommand = callback
-}
-
-// PostRun sets a function to call after running the command.
-func (c *Cli) PostRun(callback func(*Cli) error) {
-	c.postRunCommand = callback
-}
-
-// BoolFlag adds a boolean flag to the root command.
-func (c *Cli) BoolFlag(name, description string, variable *bool) *Cli {
-	c.rootCommand.BoolFlag(name, description, variable)
-	return c
-}
-
-// StringFlag adds a string flag to the root command.
-func (c *Cli) StringFlag(name, description string, variable *string) *Cli {
-	c.rootCommand.StringFlag(name, description, variable)
-	return c
-}
-
-// IntFlag adds an int flag to the root command.
-func (c *Cli) IntFlag(name, description string, variable *int) *Cli {
-	c.rootCommand.IntFlag(name, description, variable)
-	return c
-}
-
-// AddFlags adds struct-tagged flags to the root command.
-func (c *Cli) AddFlags(flags any) *Cli {
-	c.rootCommand.AddFlags(flags)
-	return c
-}
-
-// Action defines an action for the root command.
-func (c *Cli) Action(callback CliAction) *Cli {
-	c.rootCommand.Action(callback)
-	return c
-}
-
-// LongDescription sets the long description for the root command.
-func (c *Cli) LongDescription(longdescription string) *Cli {
-	c.rootCommand.LongDescription(longdescription)
-	return c
-}
-
-// OtherArgs returns the non-flag arguments passed to the CLI.
-func (c *Cli) OtherArgs() []string {
-	return c.rootCommand.flags.Args()
-}
-
-// NewChildCommandFunction creates a subcommand from a function with struct flags.
-func (c *Cli) NewChildCommandFunction(name string, description string, fn any) *Cli {
-	c.rootCommand.NewChildCommandFunction(name, description, fn)
-	return c
+// Banner returns the banner string.
+func (cl *Cli) Banner() string {
+	if cl.banner != nil {
+		return cl.banner(cl)
+	}
+	if cl.core != nil && cl.core.app != nil && cl.core.app.Name != "" {
+		return cl.core.app.Name
+	}
+	return ""
 }

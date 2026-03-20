@@ -22,8 +22,9 @@ type Core struct {
 	config  *Config  // c.Config()         — Configuration, settings, feature flags
 	error   *ErrorPanic  // c.Error()          — Panic recovery and crash reporting
 	log     *ErrorLog  // c.Log()            — Structured logging + error wrapping
-	cli     *Cli     // c.Cli()            — CLI command framework
-	service *Service // c.Service("name")  — Service registry and lifecycle
+	cli      *Cli              // c.Cli()            — CLI surface layer
+	commands *commandRegistry  // c.Command("path")  — Command tree
+	service  *Service          // c.Service("name")  — Service registry and lifecycle
 	lock    *Lock    // c.Lock("name")     — Named mutexes
 	ipc     *Ipc     // c.IPC()            — Message bus for IPC
 	i18n    *I18n    // c.I18n()           — Internationalisation and locale collection
