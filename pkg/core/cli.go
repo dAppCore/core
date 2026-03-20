@@ -63,7 +63,7 @@ func (cl *Cli) Run(args ...string) Result[any] {
 	var remaining []string
 
 	for i := len(clean); i > 0; i-- {
-		path := strings.Join(clean[:i], "/")
+		path := JoinPath(clean[:i]...)
 		if c, ok := cl.core.commands.commands[path]; ok {
 			cmd = c
 			remaining = clean[i:]

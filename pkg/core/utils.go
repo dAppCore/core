@@ -23,6 +23,14 @@ func Print(w io.Writer, format string, args ...any) {
 	fmt.Fprintf(w, format+"\n", args...)
 }
 
+// JoinPath joins string segments into a path with "/" separator.
+//
+//	core.JoinPath("deploy", "to", "homelab")  // → "deploy/to/homelab"
+//	core.JoinPath(args[:3]...)                 // → first 3 args as path
+func JoinPath(segments ...string) string {
+	return strings.Join(segments, "/")
+}
+
 // FilterArgs removes empty strings and Go test runner flags from an argument list.
 //
 //	clean := core.FilterArgs(os.Args[1:])
