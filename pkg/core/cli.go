@@ -16,7 +16,6 @@ package core
 import (
 	"io"
 	"os"
-	"strings"
 )
 
 // Cli is the CLI surface for the Core command tree.
@@ -89,7 +88,7 @@ func (cl *Cli) Run(args ...string) Result[any] {
 			} else {
 				opts = append(opts, Option{K: key, V: true})
 			}
-		} else if !strings.HasPrefix(arg, "-") {
+		} else if !IsFlag(arg) {
 			opts = append(opts, Option{K: "_arg", V: arg})
 		}
 	}

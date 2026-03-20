@@ -31,6 +31,15 @@ func JoinPath(segments ...string) string {
 	return strings.Join(segments, "/")
 }
 
+// IsFlag returns true if the argument starts with a dash.
+//
+//	core.IsFlag("--verbose")  // true
+//	core.IsFlag("-v")         // true
+//	core.IsFlag("deploy")    // false
+func IsFlag(arg string) bool {
+	return strings.HasPrefix(arg, "-")
+}
+
 // FilterArgs removes empty strings and Go test runner flags from an argument list.
 //
 //	clean := core.FilterArgs(os.Args[1:])
