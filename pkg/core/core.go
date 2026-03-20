@@ -33,7 +33,7 @@ type Core struct {
 	context       context.Context
 	cancel        context.CancelFunc
 	taskIDCounter atomic.Uint64
-	waitgroup     sync.WaitGroup
+	waitGroup     sync.WaitGroup
 	shutdown      atomic.Bool
 }
 

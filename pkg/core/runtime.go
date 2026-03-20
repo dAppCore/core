@@ -60,7 +60,7 @@ func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	// Drain background tasks before stopping services.
 	done := make(chan struct{})
 	go func() {
-		c.waitgroup.Wait()
+		c.waitGroup.Wait()
 		close(done)
 	}()
 	select {
