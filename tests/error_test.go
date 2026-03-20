@@ -39,13 +39,13 @@ func TestWrapCode_Good(t *testing.T) {
 	cause := errors.New("invalid email")
 	err := WrapCode(cause, "VALIDATION_ERROR", "user.Validate", "bad input")
 	assert.Error(t, err)
-	assert.Equal(t, "VALIDATION_ERROR", ErrCode(err))
+	assert.Equal(t, "VALIDATION_ERROR", ErrorCode(err))
 }
 
 func TestNewCode_Good(t *testing.T) {
 	err := NewCode("NOT_FOUND", "resource not found")
 	assert.Error(t, err)
-	assert.Equal(t, "NOT_FOUND", ErrCode(err))
+	assert.Equal(t, "NOT_FOUND", ErrorCode(err))
 }
 
 // --- Error Introspection ---

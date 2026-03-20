@@ -111,13 +111,29 @@ func RuneCount(s string) int {
 	return utf8.RuneCountInString(s)
 }
 
+// NewBuilder returns a new strings.Builder.
+//
+//	b := core.NewBuilder()
+//	b.WriteString("hello")
+//	b.String() // "hello"
+func NewBuilder() *strings.Builder {
+	return &strings.Builder{}
+}
+
+// NewReader returns a strings.NewReader for the given string.
+//
+//	r := core.NewReader("hello world")
+func NewReader(s string) *strings.Reader {
+	return strings.NewReader(s)
+}
+
 // Concat joins variadic string parts into one string.
 // Hook point for validation, sanitisation, and security checks.
 //
 //	core.Concat("cmd.", "deploy.to.homelab", ".description")
 //	core.Concat("https://", host, "/api/v1")
 func Concat(parts ...string) string {
-	var b strings.Builder
+	b := NewBuilder()
 	for _, p := range parts {
 		b.WriteString(p)
 	}

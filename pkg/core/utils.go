@@ -51,13 +51,13 @@ func Arg(index int, args ...any) Result {
 	v := args[index]
 	switch v.(type) {
 	case string:
-		return Result{Value: ArgString(index, args...), OK: true}
+		return Result{ArgString(index, args...), true}
 	case int:
-		return Result{Value: ArgInt(index, args...), OK: true}
+		return Result{ArgInt(index, args...), true}
 	case bool:
-		return Result{Value: ArgBool(index, args...), OK: true}
+		return Result{ArgBool(index, args...), true}
 	default:
-		return Result{Value: v, OK: true}
+		return Result{v, true}
 	}
 }
 

@@ -362,32 +362,32 @@ func (le *LogErr) Log(err error) {
 	if err == nil {
 		return
 	}
-	le.log.Error(ErrorMessage(err), "op", Op(err), "code", ErrCode(err), "stack", FormatStackTrace(err))
+	le.log.Error(ErrorMessage(err), "op", Op(err), "code", ErrorCode(err), "stack", FormatStackTrace(err))
 }
 
-// --- LogPan: Panic-Aware Logger ---
+// --- LogPanic: Panic-Aware Logger ---
 
-// LogPan logs panic context without crash file management.
+// LogPanic logs panic context without crash file management.
 // Primary action: log. Secondary: recover panics.
-type LogPan struct {
+type LogPanic struct {
 	log *Log
 }
 
-// NewLogPan creates a LogPan bound to the given logger.
-func NewLogPan(log *Log) *LogPan {
-	return &LogPan{log: log}
+// NewLogPanic creates a LogPanic bound to the given logger.
+func NewLogPanic(log *Log) *LogPanic {
+	return &LogPanic{log: log}
 }
 
 // Recover captures a panic and logs it. Does not write crash files.
-// Use as: defer core.NewLogPan(logger).Recover()
-func (lp *LogPan) Recover() {
+// Use as: defer core.NewLogPanic(logger).Recover()
+func (lp *LogPanic) Recover() {
 	r := recover()
 	if r == nil {
 		return
 	}
 	err, ok := r.(error)
 	if !ok {
-		err = fmt.Errorf("%v", r)
+		err = NewError(fmt.Sprint("panic: ", r))
 	}
 	lp.log.Error("panic recovered",
 		"err", err,

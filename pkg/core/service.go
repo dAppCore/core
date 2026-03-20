@@ -46,21 +46,21 @@ func (c *Core) Service(name string, service ...Service) Result {
 		c.Lock("srv").Mu.RLock()
 		v, ok := c.services.services[name]
 		c.Lock("srv").Mu.RUnlock()
-		return Result{Value: v, OK: ok}
+		return Result{v, ok}
 	}
 
 	if name == "" {
-		return Result{Value: E("core.Service", "service name cannot be empty", nil)}
+		return Result{E("core.Service", "service name cannot be empty", nil), false}
 	}
 
 	c.Lock("srv").Mu.Lock()
 	defer c.Lock("srv").Mu.Unlock()
 
 	if c.services.locked {
-		return Result{Value: E("core.Service", Concat("service \"", name, "\" not permitted — registry locked"), nil)}
+		return Result{E("core.Service", Concat("service \"", name, "\" not permitted — registry locked"), nil), false}
 	}
 	if _, exists := c.services.services[name]; exists {
-		return Result{Value: E("core.Service", Join(" ", "service", name, "already registered"), nil)}
+		return Result{E("core.Service", Join(" ", "service", name, "already registered"), nil), false}
 	}
 
 	srv := &service[0]

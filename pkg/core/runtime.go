@@ -35,7 +35,7 @@ func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
 	for _, s := range c.Startables() {
 		if err := ctx.Err(); err != nil {
-			return Result{Value: err}
+			return Result{err, false}
 		}
 		r := s.OnStart()
 		if !r.OK {
@@ -52,7 +52,7 @@ func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	c.ACTION(ActionServiceShutdown{})
 	for _, s := range c.Stoppables() {
 		if err := ctx.Err(); err != nil {
-			return Result{Value: err}
+			return Result{err, false}
 		}
 		s.OnStop()
 	}
@@ -64,7 +64,7 @@ func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	select {
 	case <-done:
 	case <-ctx.Done():
-		return Result{Value: ctx.Err()}
+		return Result{ctx.Err(), false}
 	}
 	return Result{OK: true}
 }
@@ -99,7 +99,7 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
 			c.Service(name, svc)
 		}
 	}
-	return Result{Value: &Runtime{app: app, Core: c}, OK: true}
+	return Result{&Runtime{app: app, Core: c}, true}
 }
 
 // NewRuntime creates a Runtime with no custom services.

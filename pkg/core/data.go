@@ -71,12 +71,12 @@ func (d *Data) New(opts Options) Result {
 
 	r := Mount(fsys, path)
 	if !r.OK {
-		return Result{}
+		return r
 	}
 
 	emb := r.Value.(*Embed)
 	d.mounts[name] = emb
-	return Result{Value: emb, OK: true}
+	return Result{emb, true}
 }
 
 // Get returns the Embed for a named mount point.
@@ -128,7 +128,7 @@ func (d *Data) ReadString(path string) Result {
 	if !r.OK {
 		return r
 	}
-	return Result{Value: string(r.Value.([]byte)), OK: true}
+	return Result{string(r.Value.([]byte)), true}
 }
 
 // List returns directory entries at a path.
@@ -142,9 +142,9 @@ func (d *Data) List(path string) Result {
 	}
 	entries, err := emb.ReadDir(rel)
 	if err != nil {
-		return Result{}
+		return Result{err, false}
 	}
-	return Result{Value: entries, OK: true}
+	return Result{entries, true}
 }
 
 // ListNames returns filenames (without extensions) at a path.
@@ -165,7 +165,7 @@ func (d *Data) ListNames(path string) Result {
 		}
 		names = append(names, name)
 	}
-	return Result{Value: names, OK: true}
+	return Result{names, true}
 }
 
 // Extract copies a template directory to targetDir.

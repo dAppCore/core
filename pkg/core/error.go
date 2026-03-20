@@ -156,9 +156,9 @@ func Op(err error) string {
 	return ""
 }
 
-// ErrCode extracts the error code from an error.
+// ErrorCode extracts the error code from an error.
 // Returns empty string if the error is not an *Err or has no code.
-func ErrCode(err error) string {
+func ErrorCode(err error) string {
 	var e *Err
 	if As(err, &e) {
 		return e.Code

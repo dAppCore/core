@@ -120,17 +120,17 @@ func TestLogErr_Nil_Good(t *testing.T) {
 	le.Log(nil) // should not panic
 }
 
-// --- LogPan ---
+// --- LogPanic ---
 
-func TestLogPan_Good(t *testing.T) {
+func TestLogPanic_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
-	lp := NewLogPan(l)
+	lp := NewLogPanic(l)
 	assert.NotNil(t, lp)
 }
 
-func TestLogPan_Recover_Good(t *testing.T) {
+func TestLogPanic_Recover_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
-	lp := NewLogPan(l)
+	lp := NewLogPanic(l)
 	assert.NotPanics(t, func() {
 		defer lp.Recover()
 		panic("caught")

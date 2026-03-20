@@ -62,7 +62,7 @@ func (c *Core) QueryAll(q Query) Result {
 			results = append(results, r.Value)
 		}
 	}
-	return Result{Value: results, OK: true}
+	return Result{results, true}
 }
 
 func (c *Core) RegisterQuery(handler QueryHandler) {

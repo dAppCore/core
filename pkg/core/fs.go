@@ -44,7 +44,7 @@ func (m *Fs) path(p string) string {
 // validatePath ensures the path is within the sandbox, following symlinks if they exist.
 func (m *Fs) validatePath(p string) Result {
 	if m.root == "/" {
-		return Result{Value: m.path(p), OK: true}
+		return Result{m.path(p), true}
 	}
 
 	// Split the cleaned path into components
@@ -66,7 +66,7 @@ func (m *Fs) validatePath(p string) Result {
 				current = next
 				continue
 			}
-			return Result{}
+			return Result{err, false}
 		}
 
 		// Verify the resolved part is still within the root
@@ -79,12 +79,12 @@ func (m *Fs) validatePath(p string) Result {
 			}
 			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
 				time.Now().Format(time.RFC3339), m.root, p, realNext, username)
-			return Result{}
+			return Result{err, false}
 		}
 		current = realNext
 	}
 
-	return Result{Value: current, OK: true}
+	return Result{current, true}
 }
 
 // Read returns file contents as string.
@@ -93,14 +93,11 @@ func (m *Fs) Read(p string) Result {
 	if !vp.OK {
 		return Result{}
 	}
-	r := &Result{}
 	data, err := os.ReadFile(vp.Value.(string))
 	if err != nil {
-		return Result{}
+		return Result{err, false}
 	}
-	r.Value = string(data)
-	r.OK = true
-	return *r
+	return Result{string(data), true}
 }
 
 // Write saves content to file, creating parent directories as needed.
@@ -115,28 +112,28 @@ func (m *Fs) Write(p, content string) Result {
 func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	full := vp.Value.(string)
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
 	if err := os.WriteFile(full, []byte(content), mode); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
-	return Result{OK: true}
+	return Result{nil, true}
 }
 
 // EnsureDir creates directory if it doesn't exist.
 func (m *Fs) EnsureDir(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	if err := os.MkdirAll(vp.Value.(string), 0755); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
-	return Result{OK: true}
+	return Result{nil, true}
 }
 
 // IsDir returns true if path is a directory.
@@ -206,11 +203,11 @@ func (m *Fs) Open(p string) Result {
 func (m *Fs) Create(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	full := vp.Value.(string)
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
 	return Result{}.Result(os.Create(full))
 }
@@ -219,11 +216,11 @@ func (m *Fs) Create(p string) Result {
 func (m *Fs) Append(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	full := vp.Value.(string)
 	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
 	return Result{}.Result(os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644))
 }
@@ -242,32 +239,32 @@ func (m *Fs) WriteStream(path string) Result {
 func (m *Fs) Delete(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	full := vp.Value.(string)
 	if full == "/" || full == os.Getenv("HOME") {
 		return Result{}
 	}
 	if err := os.Remove(full); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
-	return Result{OK: true}
+	return Result{nil, true}
 }
 
 // DeleteAll removes a file or directory recursively.
 func (m *Fs) DeleteAll(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	full := vp.Value.(string)
 	if full == "/" || full == os.Getenv("HOME") {
 		return Result{}
 	}
 	if err := os.RemoveAll(full); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
-	return Result{OK: true}
+	return Result{nil, true}
 }
 
 // Rename moves a file or directory.
@@ -281,7 +278,7 @@ func (m *Fs) Rename(oldPath, newPath string) Result {
 		return Result{}
 	}
 	if err := os.Rename(oldVp.Value.(string), newVp.Value.(string)); err != nil {
-		return Result{}
+		return Result{err, false}
 	}
-	return Result{OK: true}
+	return Result{nil, true}
 }

@@ -69,7 +69,7 @@ func (d *Drive) New(opts Options) Result {
 	}
 
 	d.handles[name] = handle
-	return Result{Value: handle, OK: true}
+	return Result{handle, true}
 }
 
 // Get returns a handle by name.

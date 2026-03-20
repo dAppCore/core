@@ -7,7 +7,7 @@
 // Register a command:
 //
 //	c.Command("deploy", func(opts core.Options) core.Result {
-//	    return core.Result{Value: "deployed", OK: true}
+//	    return core.Result{"deployed", true}
 //	})
 //
 // Register a nested command:
@@ -138,11 +138,11 @@ func (c *Core) Command(path string, command ...Command) Result {
 		c.commands.mu.RLock()
 		cmd, ok := c.commands.commands[path]
 		c.commands.mu.RUnlock()
-		return Result{Value: cmd, OK: ok}
+		return Result{cmd, ok}
 	}
 
 	if path == "" {
-		return Result{Value: E("core.Command", "command path cannot be empty", nil)}
+		return Result{E("core.Command", "command path cannot be empty", nil), false}
 	}
 
 	c.commands.mu.Lock()
