@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"os"
 	"testing"
 
 	. "forge.lthn.ai/core/go/pkg/core"
@@ -134,4 +135,13 @@ func TestLogPan_Recover_Good(t *testing.T) {
 		defer lp.Recover()
 		panic("caught")
 	})
+}
+
+// --- SetOutput ---
+
+func TestLog_SetOutput_Good(t *testing.T) {
+	l := NewLog(LogOpts{Level: LevelInfo})
+	l.SetOutput(os.Stderr)
+	// Should not panic — just changes where logs go
+	l.Info("redirected")
 }

@@ -169,3 +169,35 @@ func TestGeneratePack_Empty_Good(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, source, "package empty")
 }
+
+// --- GeneratePack with real files ---
+
+func TestGeneratePack_WithFiles_Good(t *testing.T) {
+	// Create a Go source that references an asset, with the asset file present
+	dir := t.TempDir()
+
+	// Create the asset file
+	assetDir := dir + "/mygroup"
+	os.MkdirAll(assetDir, 0755)
+	os.WriteFile(assetDir+"/hello.txt", []byte("hello world"), 0644)
+
+	// Create the Go source referencing it
+	source := `package test
+import "forge.lthn.ai/core/go/pkg/core"
+func example() {
+	_, _ = core.GetAsset("mygroup", "hello.txt")
+}
+`
+	goFile := dir + "/test.go"
+	os.WriteFile(goFile, []byte(source), 0644)
+
+	pkgs, err := ScanAssets([]string{goFile})
+	assert.NoError(t, err)
+	assert.Len(t, pkgs, 1)
+
+	// GeneratePack compresses the file and generates init() code
+	code, err := GeneratePack(pkgs[0])
+	assert.NoError(t, err)
+	assert.Contains(t, code, "package test")
+	assert.Contains(t, code, "core.AddAsset")
+}

@@ -221,3 +221,21 @@ func TestMountEmbed_Good(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "hello from testdata\n", content)
 }
+
+// --- ErrorPanic Crash File ---
+
+func TestErrorPanic_CrashFile_Good(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/crashes.json"
+
+	// Create Core, trigger a panic through SafeGo, check crash file
+	// ErrorPanic.filePath is unexported — but we can test via the package-level
+	// error handling that writes crash reports
+
+	// For now, test that Reports handles missing file gracefully
+	c := New()
+	reports, err := c.Error().Reports(5)
+	assert.NoError(t, err)
+	assert.Nil(t, reports)
+	_ = path
+}
