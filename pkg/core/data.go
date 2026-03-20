@@ -42,20 +42,20 @@ type Data struct {
 //	    {K: "source", V: brainFS},
 //	    {K: "path", V: "prompts"},
 //	})
-func (d *Data) New(opts Options) Result[*Embed] {
+func (d *Data) New(opts Options) Result {
 	name := opts.String("name")
 	if name == "" {
-		return Result[*Embed]{}
+		return Result{}
 	}
 
 	source, ok := opts.Get("source")
 	if !ok {
-		return Result[*Embed]{}
+		return Result{}
 	}
 
 	fsys, ok := source.(fs.FS)
 	if !ok {
-		return Result[*Embed]{}
+		return Result{}
 	}
 
 	path := opts.String("path")
@@ -72,11 +72,11 @@ func (d *Data) New(opts Options) Result[*Embed] {
 
 	emb, err := Mount(fsys, path)
 	if err != nil {
-		return Result[*Embed]{}
+		return Result{}
 	}
 
 	d.mounts[name] = emb
-	return Result[*Embed]{Value: emb, OK: true}
+	return Result{Value: emb, OK: true}
 }
 
 // Get returns the Embed for a named mount point.

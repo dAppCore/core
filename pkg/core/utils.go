@@ -40,24 +40,24 @@ func IsFlag(arg string) bool {
 
 // Arg extracts a value from variadic args at the given index.
 // Type-checks and delegates to the appropriate typed extractor.
-// Returns the typed value — string for strings, int for ints, etc.
+// Returns Result — OK is false if index is out of bounds.
 //
-//	path := core.Arg(0, args...).(string)
-//	name := core.Arg(0, "hello", 42)      // returns "hello"
-func Arg(index int, args ...any) any {
+//	r := core.Arg(0, args...)
+//	if r.OK { path = r.Value.(string) }
+func Arg(index int, args ...any) Result {
 	if index >= len(args) {
-		return nil
+		return Result{}
 	}
 	v := args[index]
 	switch v.(type) {
 	case string:
-		return ArgString(index, args...)
+		return Result{Value: ArgString(index, args...), OK: true}
 	case int:
-		return ArgInt(index, args...)
+		return Result{Value: ArgInt(index, args...), OK: true}
 	case bool:
-		return ArgBool(index, args...)
+		return Result{Value: ArgBool(index, args...), OK: true}
 	default:
-		return v
+		return Result{Value: v, OK: true}
 	}
 }
 

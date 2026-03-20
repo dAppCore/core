@@ -47,10 +47,10 @@ type Drive struct {
 //	    {K: "name", V: "api"},
 //	    {K: "transport", V: "https://api.lthn.ai"},
 //	})
-func (d *Drive) New(opts Options) Result[*DriveHandle] {
+func (d *Drive) New(opts Options) Result {
 	name := opts.String("name")
 	if name == "" {
-		return Result[*DriveHandle]{}
+		return Result{}
 	}
 
 	transport := opts.String("transport")
@@ -69,7 +69,7 @@ func (d *Drive) New(opts Options) Result[*DriveHandle] {
 	}
 
 	d.handles[name] = handle
-	return Result[*DriveHandle]{Value: handle, OK: true}
+	return Result{Value: handle, OK: true}
 }
 
 // Get returns a handle by name.

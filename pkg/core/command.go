@@ -6,8 +6,8 @@
 //
 // Register a command:
 //
-//	c.Command("deploy", func(opts core.Options) core.Result[any] {
-//	    return core.Result[any]{Value: "deployed", OK: true}
+//	c.Command("deploy", func(opts core.Options) core.Result {
+//	    return core.Result{Value: "deployed", OK: true}
 //	})
 //
 // Register a nested command:
@@ -26,18 +26,18 @@ import (
 
 // CommandAction is the function signature for command handlers.
 //
-//	func(opts core.Options) core.Result[any]
-type CommandAction func(Options) Result[any]
+//	func(opts core.Options) core.Result
+type CommandAction func(Options) Result
 
 // CommandLifecycle is implemented by commands that support managed lifecycle.
 // Basic commands only need an action. Daemon commands implement Start/Stop/Signal
 // via go-process.
 type CommandLifecycle interface {
-	Start(Options) Result[any]
-	Stop() Result[any]
-	Restart() Result[any]
-	Reload() Result[any]
-	Signal(string) Result[any]
+	Start(Options) Result
+	Stop() Result
+	Restart() Result
+	Reload() Result
+	Signal(string) Result
 }
 
 // Command is the DTO for an executable operation.
@@ -70,15 +70,15 @@ func (cmd *Command) I18nKey() string {
 // Run executes the command's action with the given options.
 //
 //	result := cmd.Run(core.Options{{K: "target", V: "homelab"}})
-func (cmd *Command) Run(opts Options) Result[any] {
+func (cmd *Command) Run(opts Options) Result {
 	if cmd.action == nil {
-		return Result[any]{}
+		return Result{}
 	}
 	return cmd.action(opts)
 }
 
 // Start delegates to the lifecycle implementation if available.
-func (cmd *Command) Start(opts Options) Result[any] {
+func (cmd *Command) Start(opts Options) Result {
 	if cmd.lifecycle != nil {
 		return cmd.lifecycle.Start(opts)
 	}
@@ -86,35 +86,35 @@ func (cmd *Command) Start(opts Options) Result[any] {
 }
 
 // Stop delegates to the lifecycle implementation.
-func (cmd *Command) Stop() Result[any] {
+func (cmd *Command) Stop() Result {
 	if cmd.lifecycle != nil {
 		return cmd.lifecycle.Stop()
 	}
-	return Result[any]{}
+	return Result{}
 }
 
 // Restart delegates to the lifecycle implementation.
-func (cmd *Command) Restart() Result[any] {
+func (cmd *Command) Restart() Result {
 	if cmd.lifecycle != nil {
 		return cmd.lifecycle.Restart()
 	}
-	return Result[any]{}
+	return Result{}
 }
 
 // Reload delegates to the lifecycle implementation.
-func (cmd *Command) Reload() Result[any] {
+func (cmd *Command) Reload() Result {
 	if cmd.lifecycle != nil {
 		return cmd.lifecycle.Reload()
 	}
-	return Result[any]{}
+	return Result{}
 }
 
 // Signal delegates to the lifecycle implementation.
-func (cmd *Command) Signal(sig string) Result[any] {
+func (cmd *Command) Signal(sig string) Result {
 	if cmd.lifecycle != nil {
 		return cmd.lifecycle.Signal(sig)
 	}
-	return Result[any]{}
+	return Result{}
 }
 
 // --- Command Registry (on Core) ---
@@ -140,13 +140,13 @@ func (c *Core) Command(args ...any) any {
 	case 0:
 		return c.commands
 	case 1:
-		path := Arg(0, args...).(string)
+		path, _ := Arg(0, args...).Value.(string)
 		c.commands.mu.RLock()
 		cmd := c.commands.commands[path]
 		c.commands.mu.RUnlock()
 		return cmd
 	default:
-		path := Arg(0, args...).(string)
+		path, _ := Arg(0, args...).Value.(string)
 		if path == "" {
 			return E("core.Command", "command path cannot be empty", nil)
 		}
@@ -164,7 +164,7 @@ func (c *Core) Command(args ...any) any {
 		switch v := args[1].(type) {
 		case CommandAction:
 			cmd.action = v
-		case func(Options) Result[any]:
+		case func(Options) Result:
 			cmd.action = v
 		case Options:
 			cmd.description = v.String("description")

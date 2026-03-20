@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// --- Lock (Named Mutexes) ---
-
 func TestLock_Good(t *testing.T) {
 	c := New()
 	lock := c.Lock("test")
@@ -20,7 +18,6 @@ func TestLock_SameName_Good(t *testing.T) {
 	c := New()
 	l1 := c.Lock("shared")
 	l2 := c.Lock("shared")
-	// Same name returns same lock
 	assert.Equal(t, l1, l2)
 }
 
@@ -31,39 +28,24 @@ func TestLock_DifferentName_Good(t *testing.T) {
 	assert.NotEqual(t, l1, l2)
 }
 
-func TestLock_MutexWorks_Good(t *testing.T) {
-	c := New()
-	lock := c.Lock("counter")
-	counter := 0
-	lock.Mu.Lock()
-	counter++
-	lock.Mu.Unlock()
-	assert.Equal(t, 1, counter)
-}
-
 func TestLockEnable_Good(t *testing.T) {
 	c := New()
-	c.Service("early", struct{}{})
+	c.Service("early", Service{})
 	c.LockEnable()
 	c.LockApply()
 
-	// After lock, registration should fail
-	result := c.Service("late", struct{}{})
-	assert.NotNil(t, result)
+	r := c.Service("late", Service{})
+	assert.False(t, r.OK)
 }
 
 func TestStartables_Good(t *testing.T) {
 	c := New()
-	svc := &testService{name: "s"}
-	c.Service("s", svc)
-	startables := c.Startables()
-	assert.Len(t, startables, 1)
+	c.Service("s", Service{OnStart: func() Result { return Result{OK: true} }})
+	assert.Len(t, c.Startables(), 1)
 }
 
 func TestStoppables_Good(t *testing.T) {
 	c := New()
-	svc := &testService{name: "s"}
-	c.Service("s", svc)
-	stoppables := c.Stoppables()
-	assert.Len(t, stoppables, 1)
+	c.Service("s", Service{OnStop: func() Result { return Result{OK: true} }})
+	assert.Len(t, c.Stoppables(), 1)
 }

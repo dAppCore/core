@@ -38,8 +38,8 @@ package core
 //
 //	r := c.Data().New(core.Options{{K: "name", V: "brain"}})
 //	if r.OK { use(r.Value) }
-type Result[T any] struct {
-	Value T
+type Result struct {
+	Value any
 	OK    bool
 }
 

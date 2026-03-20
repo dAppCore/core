@@ -16,8 +16,8 @@ func TestDrive_New_Good(t *testing.T) {
 		{K: "transport", V: "https://api.lthn.ai"},
 	})
 	assert.True(t, r.OK)
-	assert.Equal(t, "api", r.Value.Name)
-	assert.Equal(t, "https://api.lthn.ai", r.Value.Transport)
+	assert.Equal(t, "api", r.Value.(*DriveHandle).Name)
+	assert.Equal(t, "https://api.lthn.ai", r.Value.(*DriveHandle).Transport)
 }
 
 func TestDrive_New_Bad(t *testing.T) {

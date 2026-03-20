@@ -80,7 +80,6 @@ func New(opts ...Options) *Core {
 		config:  &Config{ConfigOpts: &ConfigOpts{}},
 		error:   &ErrorPanic{},
 		log:     &ErrorLog{log: defaultLog},
-		service: &Service{},
 		lock:    &Lock{},
 		ipc:     &Ipc{},
 		i18n:    &I18n{},

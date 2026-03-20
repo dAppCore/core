@@ -22,7 +22,7 @@ func TestI18n_AddLocales_Good(t *testing.T) {
 		{K: "path", V: "testdata"},
 	})
 	if r.OK {
-		c.I18n().AddLocales(r.Value)
+		c.I18n().AddLocales(r.Value.(*Embed))
 	}
 	locales := c.I18n().Locales()
 	assert.Len(t, locales, 1)

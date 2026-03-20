@@ -43,7 +43,7 @@ func (cl *Cli) SetOutput(w io.Writer) {
 //
 //	c.Cli().Run()
 //	c.Cli().Run("deploy", "to", "homelab")
-func (cl *Cli) Run(args ...string) Result[any] {
+func (cl *Cli) Run(args ...string) Result {
 	if len(args) == 0 {
 		args = os.Args[1:]
 	}
@@ -54,7 +54,7 @@ func (cl *Cli) Run(args ...string) Result[any] {
 		if cl.banner != nil {
 			cl.Print(cl.banner(cl))
 		}
-		return Result[any]{}
+		return Result{}
 	}
 
 	// Resolve command path from args
@@ -75,7 +75,7 @@ func (cl *Cli) Run(args ...string) Result[any] {
 			cl.Print(cl.banner(cl))
 		}
 		cl.PrintHelp()
-		return Result[any]{}
+		return Result{}
 	}
 
 	// Build options from remaining args

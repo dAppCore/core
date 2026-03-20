@@ -24,7 +24,7 @@ type Core struct {
 	log     *ErrorLog  // c.Log()            — Structured logging + error wrapping
 	cli      *Cli              // c.Cli()            — CLI surface layer
 	commands *commandRegistry  // c.Command("path")  — Command tree
-	service  *Service          // c.Service("name")  — Service registry and lifecycle
+	services *serviceRegistry  // c.Service("name")  — Service registry
 	lock    *Lock    // c.Lock("name")     — Named mutexes
 	ipc     *Ipc     // c.IPC()            — Message bus for IPC
 	i18n    *I18n    // c.I18n()           — Internationalisation and locale collection

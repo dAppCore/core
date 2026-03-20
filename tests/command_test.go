@@ -11,16 +11,16 @@ import (
 
 func TestCommand_Register_Good(t *testing.T) {
 	c := New()
-	result := c.Command("deploy", func(_ Options) Result[any] {
-		return Result[any]{Value: "deployed", OK: true}
+	result := c.Command("deploy", func(_ Options) Result {
+		return Result{Value: "deployed", OK: true}
 	})
 	assert.Nil(t, result) // nil = success
 }
 
 func TestCommand_Get_Good(t *testing.T) {
 	c := New()
-	c.Command("deploy", func(_ Options) Result[any] {
-		return Result[any]{OK: true}
+	c.Command("deploy", func(_ Options) Result {
+		return Result{OK: true}
 	})
 	cmd := c.Command("deploy")
 	assert.NotNil(t, cmd)
@@ -34,8 +34,8 @@ func TestCommand_Get_Bad(t *testing.T) {
 
 func TestCommand_Run_Good(t *testing.T) {
 	c := New()
-	c.Command("greet", func(opts Options) Result[any] {
-		return Result[any]{Value: "hello " + opts.String("name"), OK: true}
+	c.Command("greet", func(opts Options) Result {
+		return Result{Value: "hello " + opts.String("name"), OK: true}
 	})
 	cmd := c.Command("greet").(*Command)
 	r := cmd.Run(Options{{K: "name", V: "world"}})
@@ -55,8 +55,8 @@ func TestCommand_Run_NoAction_Good(t *testing.T) {
 
 func TestCommand_Nested_Good(t *testing.T) {
 	c := New()
-	c.Command("deploy/to/homelab", func(_ Options) Result[any] {
-		return Result[any]{Value: "deployed to homelab", OK: true}
+	c.Command("deploy/to/homelab", func(_ Options) Result {
+		return Result{Value: "deployed to homelab", OK: true}
 	})
 
 	// Direct path lookup
@@ -73,9 +73,9 @@ func TestCommand_Nested_Good(t *testing.T) {
 
 func TestCommand_Paths_Good(t *testing.T) {
 	c := New()
-	c.Command("deploy", func(_ Options) Result[any] { return Result[any]{OK: true} })
-	c.Command("serve", func(_ Options) Result[any] { return Result[any]{OK: true} })
-	c.Command("deploy/to/homelab", func(_ Options) Result[any] { return Result[any]{OK: true} })
+	c.Command("deploy", func(_ Options) Result { return Result{OK: true} })
+	c.Command("serve", func(_ Options) Result { return Result{OK: true} })
+	c.Command("deploy/to/homelab", func(_ Options) Result { return Result{OK: true} })
 
 	paths := c.Commands()
 	assert.Contains(t, paths, "deploy")
@@ -88,21 +88,21 @@ func TestCommand_Paths_Good(t *testing.T) {
 
 func TestCommand_I18nKey_Good(t *testing.T) {
 	c := New()
-	c.Command("deploy/to/homelab", func(_ Options) Result[any] { return Result[any]{OK: true} })
+	c.Command("deploy/to/homelab", func(_ Options) Result { return Result{OK: true} })
 	cmd := c.Command("deploy/to/homelab").(*Command)
 	assert.Equal(t, "cmd.deploy.to.homelab.description", cmd.I18nKey())
 }
 
 func TestCommand_I18nKey_Custom_Good(t *testing.T) {
 	c := New()
-	c.Command("deploy", func(_ Options) Result[any] { return Result[any]{OK: true} }, Options{{K: "description", V: "custom.deploy.key"}})
+	c.Command("deploy", func(_ Options) Result { return Result{OK: true} }, Options{{K: "description", V: "custom.deploy.key"}})
 	cmd := c.Command("deploy").(*Command)
 	assert.Equal(t, "custom.deploy.key", cmd.I18nKey())
 }
 
 func TestCommand_I18nKey_Simple_Good(t *testing.T) {
 	c := New()
-	c.Command("serve", func(_ Options) Result[any] { return Result[any]{OK: true} })
+	c.Command("serve", func(_ Options) Result { return Result{OK: true} })
 	cmd := c.Command("serve").(*Command)
 	assert.Equal(t, "cmd.serve.description", cmd.I18nKey())
 }
@@ -111,8 +111,8 @@ func TestCommand_I18nKey_Simple_Good(t *testing.T) {
 
 func TestCommand_Lifecycle_NoImpl_Good(t *testing.T) {
 	c := New()
-	c.Command("serve", func(_ Options) Result[any] {
-		return Result[any]{Value: "running", OK: true}
+	c.Command("serve", func(_ Options) Result {
+		return Result{Value: "running", OK: true}
 	})
 	cmd := c.Command("serve").(*Command)
 
@@ -132,6 +132,6 @@ func TestCommand_Lifecycle_NoImpl_Good(t *testing.T) {
 
 func TestCommand_EmptyPath_Bad(t *testing.T) {
 	c := New()
-	result := c.Command("", func(_ Options) Result[any] { return Result[any]{OK: true} })
+	result := c.Command("", func(_ Options) Result { return Result{OK: true} })
 	assert.NotNil(t, result) // error
 }

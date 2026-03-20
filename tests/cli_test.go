@@ -28,9 +28,9 @@ func TestCli_SetBanner_Good(t *testing.T) {
 func TestCli_Run_Good(t *testing.T) {
 	c := New()
 	executed := false
-	c.Command("hello", func(_ Options) Result[any] {
+	c.Command("hello", func(_ Options) Result {
 		executed = true
-		return Result[any]{Value: "world", OK: true}
+		return Result{Value: "world", OK: true}
 	})
 	r := c.Cli().Run("hello")
 	assert.True(t, r.OK)
@@ -41,9 +41,9 @@ func TestCli_Run_Good(t *testing.T) {
 func TestCli_Run_Nested_Good(t *testing.T) {
 	c := New()
 	executed := false
-	c.Command("deploy/to/homelab", func(_ Options) Result[any] {
+	c.Command("deploy/to/homelab", func(_ Options) Result {
 		executed = true
-		return Result[any]{OK: true}
+		return Result{OK: true}
 	})
 	r := c.Cli().Run("deploy", "to", "homelab")
 	assert.True(t, r.OK)
@@ -53,9 +53,9 @@ func TestCli_Run_Nested_Good(t *testing.T) {
 func TestCli_Run_WithFlags_Good(t *testing.T) {
 	c := New()
 	var received Options
-	c.Command("serve", func(opts Options) Result[any] {
+	c.Command("serve", func(opts Options) Result {
 		received = opts
-		return Result[any]{OK: true}
+		return Result{OK: true}
 	})
 	c.Cli().Run("serve", "--port=8080", "--debug")
 	assert.Equal(t, "8080", received.String("port"))
@@ -71,8 +71,8 @@ func TestCli_Run_NoCommand_Good(t *testing.T) {
 
 func TestCli_PrintHelp_Good(t *testing.T) {
 	c := New(Options{{K: "name", V: "myapp"}})
-	c.Command("deploy", func(_ Options) Result[any] { return Result[any]{OK: true} })
-	c.Command("serve", func(_ Options) Result[any] { return Result[any]{OK: true} })
+	c.Command("deploy", func(_ Options) Result { return Result{OK: true} })
+	c.Command("serve", func(_ Options) Result { return Result{OK: true} })
 	// Should not panic
 	c.Cli().PrintHelp()
 }
