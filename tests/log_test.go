@@ -110,7 +110,7 @@ func TestLogErr_Good(t *testing.T) {
 	le := NewLogErr(l)
 	assert.NotNil(t, le)
 
-	err := E("test.Op", "something broke", nil)
+	err := E("test.Operation", "something broke", nil)
 	le.Log(err)
 }
 

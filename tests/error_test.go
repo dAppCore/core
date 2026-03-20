@@ -104,35 +104,35 @@ func TestFormatStackTrace_Good(t *testing.T) {
 func TestErrorLog_Good(t *testing.T) {
 	c := New()
 	cause := errors.New("boom")
-	r := c.Log().Error(cause, "test.Op", "something broke")
+	r := c.Log().Error(cause, "test.Operation", "something broke")
 	assert.False(t, r.OK)
 	assert.ErrorIs(t, r.Value.(error), cause)
 }
 
 func TestErrorLog_Nil_Good(t *testing.T) {
 	c := New()
-	r := c.Log().Error(nil, "test.Op", "no error")
+	r := c.Log().Error(nil, "test.Operation", "no error")
 	assert.True(t, r.OK)
 }
 
 func TestErrorLog_Warn_Good(t *testing.T) {
 	c := New()
 	cause := errors.New("warning")
-	r := c.Log().Warn(cause, "test.Op", "heads up")
+	r := c.Log().Warn(cause, "test.Operation", "heads up")
 	assert.False(t, r.OK)
 }
 
 func TestErrorLog_Must_Ugly(t *testing.T) {
 	c := New()
 	assert.Panics(t, func() {
-		c.Log().Must(errors.New("fatal"), "test.Op", "must fail")
+		c.Log().Must(errors.New("fatal"), "test.Operation", "must fail")
 	})
 }
 
 func TestErrorLog_Must_Nil_Good(t *testing.T) {
 	c := New()
 	assert.NotPanics(t, func() {
-		c.Log().Must(nil, "test.Op", "no error")
+		c.Log().Must(nil, "test.Operation", "no error")
 	})
 }
 
@@ -179,7 +179,7 @@ func TestAs_Good(t *testing.T) {
 	err := E("op", "msg", nil)
 	var e *Err
 	assert.True(t, As(err, &e))
-	assert.Equal(t, "op", e.Op)
+	assert.Equal(t, "op", e.Operation)
 }
 
 func TestNewError_Good(t *testing.T) {

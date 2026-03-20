@@ -7,16 +7,16 @@
 // Register a transport:
 //
 //	c.Drive().New(core.Options{
-//	    {K: "name", V: "api"},
-//	    {K: "transport", V: "https://api.lthn.ai"},
+//	    {Key: "name", Value: "api"},
+//	    {Key: "transport", Value: "https://api.lthn.ai"},
 //	})
 //	c.Drive().New(core.Options{
-//	    {K: "name", V: "ssh"},
-//	    {K: "transport", V: "ssh://claude@10.69.69.165"},
+//	    {Key: "name", Value: "ssh"},
+//	    {Key: "transport", Value: "ssh://claude@10.69.69.165"},
 //	})
 //	c.Drive().New(core.Options{
-//	    {K: "name", V: "mcp"},
-//	    {K: "transport", V: "mcp://mcp.lthn.sh"},
+//	    {Key: "name", Value: "mcp"},
+//	    {Key: "transport", Value: "mcp://mcp.lthn.sh"},
 //	})
 //
 // Retrieve a handle:
@@ -44,8 +44,8 @@ type Drive struct {
 // New registers a transport handle.
 //
 //	c.Drive().New(core.Options{
-//	    {K: "name", V: "api"},
-//	    {K: "transport", V: "https://api.lthn.ai"},
+//	    {Key: "name", Value: "api"},
+//	    {Key: "transport", Value: "https://api.lthn.ai"},
 //	})
 func (d *Drive) New(opts Options) Result {
 	name := opts.String("name")

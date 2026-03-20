@@ -8,8 +8,8 @@
 // Create options:
 //
 //	opts := core.Options{
-//	    {K: "name", V: "brain"},
-//	    {K: "path", V: "prompts"},
+//	    {Key: "name", Value: "brain"},
+//	    {Key: "path", Value: "prompts"},
 //	}
 //
 // Read options:
@@ -21,22 +21,22 @@
 // Use with subsystems:
 //
 //	c.Drive().New(core.Options{
-//	    {K: "name", V: "brain"},
-//	    {K: "source", V: brainFS},
-//	    {K: "path", V: "prompts"},
+//	    {Key: "name", Value: "brain"},
+//	    {Key: "source", Value: brainFS},
+//	    {Key: "path", Value: "prompts"},
 //	})
 //
 // Use with New:
 //
 //	c := core.New(core.Options{
-//	    {K: "name", V: "myapp"},
+//	    {Key: "name", Value: "myapp"},
 //	})
 package core
 
 // Result is the universal return type for Core operations.
 // Replaces the (value, error) pattern — errors flow through Core internally.
 //
-//	r := c.Data().New(core.Options{{K: "name", V: "brain"}})
+//	r := c.Data().New(core.Options{{Key: "name", Value: "brain"}})
 //	if r.OK { use(r.Result()) }
 type Result struct {
 	Value any
@@ -69,49 +69,49 @@ func (r Result) Result(args ...any) Result {
 
 // Option is a single key-value configuration pair.
 //
-//	core.Option{K: "name", V: "brain"}
-//	core.Option{K: "port", V: 8080}
+//	core.Option{Key: "name", Value: "brain"}
+//	core.Option{Key: "port", Value: 8080}
 type Option struct {
-	K string
-	V any
+	Key   string
+	Value any
 }
 
 // Options is a collection of Option items.
 // The universal input type for Core operations.
 //
-//	opts := core.Options{{K: "name", V: "myapp"}}
+//	opts := core.Options{{Key: "name", Value: "myapp"}}
 //	name := opts.String("name")
 type Options []Option
 
 // Get retrieves a value by key.
 //
-//	val, ok := opts.Get("name")
-func (o Options) Get(key string) (any, bool) {
+//	r := opts.Get("name")
+//	if r.OK { name := r.Value.(string) }
+func (o Options) Get(key string) Result {
 	for _, opt := range o {
-		if opt.K == key {
-			return opt.V, true
+		if opt.Key == key {
+			return Result{opt.Value, true}
 		}
 	}
-	return nil, false
+	return Result{}
 }
 
 // Has returns true if a key exists.
 //
 //	if opts.Has("debug") { ... }
 func (o Options) Has(key string) bool {
-	_, ok := o.Get(key)
-	return ok
+	return o.Get(key).OK
 }
 
 // String retrieves a string value, empty string if missing.
 //
 //	name := opts.String("name")
 func (o Options) String(key string) string {
-	val, ok := o.Get(key)
-	if !ok {
+	r := o.Get(key)
+	if !r.OK {
 		return ""
 	}
-	s, _ := val.(string)
+	s, _ := r.Value.(string)
 	return s
 }
 
@@ -119,11 +119,11 @@ func (o Options) String(key string) string {
 //
 //	port := opts.Int("port")
 func (o Options) Int(key string) int {
-	val, ok := o.Get(key)
-	if !ok {
+	r := o.Get(key)
+	if !r.OK {
 		return 0
 	}
-	i, _ := val.(int)
+	i, _ := r.Value.(int)
 	return i
 }
 
@@ -131,10 +131,10 @@ func (o Options) Int(key string) int {
 //
 //	debug := opts.Bool("debug")
 func (o Options) Bool(key string) bool {
-	val, ok := o.Get(key)
-	if !ok {
+	r := o.Get(key)
+	if !r.OK {
 		return false
 	}
-	b, _ := val.(bool)
+	b, _ := r.Value.(bool)
 	return b
 }

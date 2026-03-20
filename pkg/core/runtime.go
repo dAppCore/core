@@ -26,7 +26,7 @@ func NewServiceRuntime[T any](c *Core, opts T) *ServiceRuntime[T] {
 }
 
 func (r *ServiceRuntime[T]) Core() *Core     { return r.core }
-func (r *ServiceRuntime[T]) Options() T       { return r.opts }
+func (r *ServiceRuntime[T]) Options() T      { return r.opts }
 func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 
 // --- Lifecycle ---
@@ -88,7 +88,7 @@ type ServiceFactory func() Result
 
 // NewWithFactories creates a Runtime with the provided service factories.
 func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
-	c := New(Options{{K: "name", V: "core"}})
+	c := New(Options{{Key: "name", Value: "core"}})
 	c.app.Runtime = app
 
 	names := slices.Sorted(maps.Keys(factories))

@@ -12,8 +12,8 @@ import (
 func TestDrive_New_Good(t *testing.T) {
 	c := New()
 	r := c.Drive().New(Options{
-		{K: "name", V: "api"},
-		{K: "transport", V: "https://api.lthn.ai"},
+		{Key: "name", Value: "api"},
+		{Key: "transport", Value: "https://api.lthn.ai"},
 	})
 	assert.True(t, r.OK)
 	assert.Equal(t, "api", r.Value.(*DriveHandle).Name)
@@ -24,7 +24,7 @@ func TestDrive_New_Bad(t *testing.T) {
 	c := New()
 	// Missing name
 	r := c.Drive().New(Options{
-		{K: "transport", V: "https://api.lthn.ai"},
+		{Key: "transport", Value: "https://api.lthn.ai"},
 	})
 	assert.False(t, r.OK)
 }
@@ -32,8 +32,8 @@ func TestDrive_New_Bad(t *testing.T) {
 func TestDrive_Get_Good(t *testing.T) {
 	c := New()
 	c.Drive().New(Options{
-		{K: "name", V: "ssh"},
-		{K: "transport", V: "ssh://claude@10.69.69.165"},
+		{Key: "name", Value: "ssh"},
+		{Key: "transport", Value: "ssh://claude@10.69.69.165"},
 	})
 	handle := c.Drive().Get("ssh")
 	assert.NotNil(t, handle)
@@ -48,16 +48,16 @@ func TestDrive_Get_Bad(t *testing.T) {
 
 func TestDrive_Has_Good(t *testing.T) {
 	c := New()
-	c.Drive().New(Options{{K: "name", V: "mcp"}, {K: "transport", V: "mcp://mcp.lthn.sh"}})
+	c.Drive().New(Options{{Key: "name", Value: "mcp"}, {Key: "transport", Value: "mcp://mcp.lthn.sh"}})
 	assert.True(t, c.Drive().Has("mcp"))
 	assert.False(t, c.Drive().Has("missing"))
 }
 
 func TestDrive_Names_Good(t *testing.T) {
 	c := New()
-	c.Drive().New(Options{{K: "name", V: "api"}, {K: "transport", V: "https://api.lthn.ai"}})
-	c.Drive().New(Options{{K: "name", V: "ssh"}, {K: "transport", V: "ssh://claude@10.69.69.165"}})
-	c.Drive().New(Options{{K: "name", V: "mcp"}, {K: "transport", V: "mcp://mcp.lthn.sh"}})
+	c.Drive().New(Options{{Key: "name", Value: "api"}, {Key: "transport", Value: "https://api.lthn.ai"}})
+	c.Drive().New(Options{{Key: "name", Value: "ssh"}, {Key: "transport", Value: "ssh://claude@10.69.69.165"}})
+	c.Drive().New(Options{{Key: "name", Value: "mcp"}, {Key: "transport", Value: "mcp://mcp.lthn.sh"}})
 	names := c.Drive().Names()
 	assert.Len(t, names, 3)
 	assert.Contains(t, names, "api")
@@ -68,9 +68,9 @@ func TestDrive_Names_Good(t *testing.T) {
 func TestDrive_OptionsPreserved_Good(t *testing.T) {
 	c := New()
 	c.Drive().New(Options{
-		{K: "name", V: "api"},
-		{K: "transport", V: "https://api.lthn.ai"},
-		{K: "timeout", V: 30},
+		{Key: "name", Value: "api"},
+		{Key: "transport", Value: "https://api.lthn.ai"},
+		{Key: "timeout", Value: 30},
 	})
 	handle := c.Drive().Get("api")
 	assert.Equal(t, 30, handle.Options.Int("timeout"))

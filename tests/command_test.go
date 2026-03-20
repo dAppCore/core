@@ -37,7 +37,7 @@ func TestCommand_Run_Good(t *testing.T) {
 		return Result{Value: Concat("hello ", opts.String("name")), OK: true}
 	}})
 	cmd := c.Command("greet").Value.(*Command)
-	r := cmd.Run(Options{{K: "name", V: "world"}})
+	r := cmd.Run(Options{{Key: "name", Value: "world"}})
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello world", r.Value)
 }

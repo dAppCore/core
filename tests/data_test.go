@@ -17,9 +17,9 @@ var testFS embed.FS
 func TestData_New_Good(t *testing.T) {
 	c := New()
 	r := c.Data().New(Options{
-		{K: "name", V: "test"},
-		{K: "source", V: testFS},
-		{K: "path", V: "testdata"},
+		{Key: "name", Value: "test"},
+		{Key: "source", Value: testFS},
+		{Key: "path", Value: "testdata"},
 	})
 	assert.True(t, r.OK)
 	assert.NotNil(t, r.Value)
@@ -28,19 +28,19 @@ func TestData_New_Good(t *testing.T) {
 func TestData_New_Bad(t *testing.T) {
 	c := New()
 
-	r := c.Data().New(Options{{K: "source", V: testFS}})
+	r := c.Data().New(Options{{Key: "source", Value: testFS}})
 	assert.False(t, r.OK)
 
-	r = c.Data().New(Options{{K: "name", V: "test"}})
+	r = c.Data().New(Options{{Key: "name", Value: "test"}})
 	assert.False(t, r.OK)
 
-	r = c.Data().New(Options{{K: "name", V: "test"}, {K: "source", V: "not-an-fs"}})
+	r = c.Data().New(Options{{Key: "name", Value: "test"}, {Key: "source", Value: "not-an-fs"}})
 	assert.False(t, r.OK)
 }
 
 func TestData_ReadString_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	r := c.Data().ReadString("app/test.txt")
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello from testdata\n", r.Value.(string))
@@ -54,7 +54,7 @@ func TestData_ReadString_Bad(t *testing.T) {
 
 func TestData_ReadFile_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	r := c.Data().ReadFile("app/test.txt")
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello from testdata\n", string(r.Value.([]byte)))
@@ -62,7 +62,7 @@ func TestData_ReadFile_Good(t *testing.T) {
 
 func TestData_Get_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "brain"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	c.Data().New(Options{{Key: "name", Value: "brain"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	emb := c.Data().Get("brain")
 	assert.NotNil(t, emb)
 
@@ -82,21 +82,21 @@ func TestData_Get_Bad(t *testing.T) {
 
 func TestData_Mounts_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "a"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
-	c.Data().New(Options{{K: "name", V: "b"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	c.Data().New(Options{{Key: "name", Value: "a"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
+	c.Data().New(Options{{Key: "name", Value: "b"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	mounts := c.Data().Mounts()
 	assert.Len(t, mounts, 2)
 }
 
 func TestEmbed_Legacy_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "testdata"}})
+	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	assert.NotNil(t, c.Embed())
 }
 
 func TestData_List_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "."}})
+	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "."}})
 	r := c.Data().List("app/testdata")
 	assert.True(t, r.OK)
 }
@@ -109,7 +109,7 @@ func TestData_List_Bad(t *testing.T) {
 
 func TestData_ListNames_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "."}})
+	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "."}})
 	r := c.Data().ListNames("app/testdata")
 	assert.True(t, r.OK)
 	assert.Contains(t, r.Value.([]string), "test")
@@ -117,7 +117,7 @@ func TestData_ListNames_Good(t *testing.T) {
 
 func TestData_Extract_Good(t *testing.T) {
 	c := New()
-	c.Data().New(Options{{K: "name", V: "app"}, {K: "source", V: testFS}, {K: "path", V: "."}})
+	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "."}})
 	r := c.Data().Extract("app/testdata", t.TempDir(), nil)
 	assert.True(t, r.OK)
 }

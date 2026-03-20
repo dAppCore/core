@@ -43,13 +43,13 @@ type CommandLifecycle interface {
 // Command is the DTO for an executable operation.
 type Command struct {
 	Name        string
-	Description string               // i18n key — derived from path if empty
-	Path        string               // "deploy/to/homelab"
-	Action      CommandAction         // business logic
-	Lifecycle   CommandLifecycle      // optional — provided by go-process
-	Flags       Options              // declared flags
+	Description string           // i18n key — derived from path if empty
+	Path        string           // "deploy/to/homelab"
+	Action      CommandAction    // business logic
+	Lifecycle   CommandLifecycle // optional — provided by go-process
+	Flags       Options          // declared flags
 	Hidden      bool
-	commands    map[string]*Command   // child commands (internal)
+	commands    map[string]*Command // child commands (internal)
 	mu          sync.RWMutex
 }
 
@@ -69,7 +69,7 @@ func (cmd *Command) I18nKey() string {
 
 // Run executes the command's action with the given options.
 //
-//	result := cmd.Run(core.Options{{K: "target", V: "homelab"}})
+//	result := cmd.Run(core.Options{{Key: "target", Value: "homelab"}})
 func (cmd *Command) Run(opts Options) Result {
 	if cmd.Action == nil {
 		return Result{}

@@ -14,7 +14,7 @@ import (
 // Implemented by go-i18n's Srv.
 type Translator interface {
 	// Translate translates a message by its ID with optional arguments.
-	Translate(messageID string, args ...any) string
+	Translate(messageID string, args ...any) Result
 	// SetLanguage sets the active language (BCP47 tag, e.g., "en-GB", "de").
 	SetLanguage(lang string) error
 	// Language returns the current language code.
@@ -81,14 +81,14 @@ func (i *I18n) Translator() Translator {
 }
 
 // Translate translates a message. Returns the key as-is if no translator is registered.
-func (i *I18n) Translate(messageID string, args ...any) string {
+func (i *I18n) Translate(messageID string, args ...any) Result {
 	i.mu.RLock()
 	t := i.translator
 	i.mu.RUnlock()
 	if t != nil {
 		return t.Translate(messageID, args...)
 	}
-	return messageID
+	return Result{messageID, true}
 }
 
 // SetLanguage sets the active language. No-op if no translator is registered.

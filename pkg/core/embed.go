@@ -109,10 +109,10 @@ type AssetRef struct {
 
 // ScannedPackage holds all asset references from a set of source files.
 type ScannedPackage struct {
-	PackageName string
-	BaseDir     string
-	Groups      []string
-	Assets      []AssetRef
+	PackageName   string
+	BaseDirectory string
+	Groups        []string
+	Assets        []AssetRef
 }
 
 // ScanAssets parses Go source files and finds asset references.
@@ -131,7 +131,7 @@ func ScanAssets(filenames []string) Result {
 		baseDir := filepath.Dir(filename)
 		pkg, ok := packageMap[baseDir]
 		if !ok {
-			pkg = &ScannedPackage{BaseDir: baseDir}
+			pkg = &ScannedPackage{BaseDirectory: baseDir}
 			packageMap[baseDir] = pkg
 		}
 		pkg.PackageName = node.Name.Name
@@ -242,7 +242,7 @@ func GeneratePack(pkg ScannedPackage) Result {
 				return Result{err, false}
 			}
 			localPath := TrimPrefix(file, groupPath+"/")
-			relGroup, err := filepath.Rel(pkg.BaseDir, groupPath)
+			relGroup, err := filepath.Rel(pkg.BaseDirectory, groupPath)
 			if err != nil {
 				return Result{err, false}
 			}
@@ -352,8 +352,8 @@ func Mount(fsys fs.FS, basedir string) Result {
 		s.embedFS = &efs
 	}
 
-	if _, err := s.ReadDir("."); err != nil {
-		return Result{err, false}
+	if r := s.ReadDir("."); !r.OK {
+		return r
 	}
 	return Result{s, true}
 }
@@ -382,8 +382,8 @@ func (s *Embed) Open(name string) Result {
 }
 
 // ReadDir reads the named directory.
-func (s *Embed) ReadDir(name string) ([]fs.DirEntry, error) {
-	return fs.ReadDir(s.fsys, s.path(name))
+func (s *Embed) ReadDir(name string) Result {
+	return Result{}.Result(fs.ReadDir(s.fsys, s.path(name)))
 }
 
 // ReadFile reads the named file.

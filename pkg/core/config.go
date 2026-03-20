@@ -57,14 +57,17 @@ func (e *Config) Set(key string, val any) {
 }
 
 // Get retrieves a configuration value by key.
-func (e *Config) Get(key string) (any, bool) {
+func (e *Config) Get(key string) Result {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	if e.ConfigOptions == nil || e.Settings == nil {
-		return nil, false
+		return Result{}
 	}
 	val, ok := e.Settings[key]
-	return val, ok
+	if !ok {
+		return Result{}
+	}
+	return Result{val, true}
 }
 
 func (e *Config) String(key string) string { return ConfigGet[string](e, key) }
@@ -73,12 +76,12 @@ func (e *Config) Bool(key string) bool     { return ConfigGet[bool](e, key) }
 
 // ConfigGet retrieves a typed configuration value.
 func ConfigGet[T any](e *Config, key string) T {
-	val, ok := e.Get(key)
-	if !ok {
+	r := e.Get(key)
+	if !r.OK {
 		var zero T
 		return zero
 	}
-	typed, _ := val.(T)
+	typed, _ := r.Value.(T)
 	return typed
 }
 

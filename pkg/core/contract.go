@@ -20,8 +20,8 @@ type Task any
 // TaskWithID is an optional interface for tasks that need to know their assigned ID.
 type TaskWithID interface {
 	Task
-	SetTaskID(id string)
-	GetTaskID() string
+	TaskWithIdentifier(id string)
+	GetTaskIdentifier() string
 }
 
 // QueryHandler handles Query requests. Returns Result{Value, OK}.
@@ -46,22 +46,22 @@ type ActionServiceStartup struct{}
 type ActionServiceShutdown struct{}
 
 type ActionTaskStarted struct {
-	TaskID string
-	Task   Task
+	TaskIdentifier string
+	Task           Task
 }
 
 type ActionTaskProgress struct {
-	TaskID   string
-	Task     Task
-	Progress float64
-	Message  string
+	TaskIdentifier string
+	Task           Task
+	Progress       float64
+	Message        string
 }
 
 type ActionTaskCompleted struct {
-	TaskID string
-	Task   Task
-	Result any
-	Error  error
+	TaskIdentifier string
+	Task           Task
+	Result         any
+	Error          error
 }
 
 // --- Constructor ---
@@ -69,20 +69,20 @@ type ActionTaskCompleted struct {
 // New creates a Core instance.
 //
 //	c := core.New(core.Options{
-//	    {K: "name", V: "myapp"},
+//	    {Key: "name", Value: "myapp"},
 //	})
 func New(opts ...Options) *Core {
 	c := &Core{
-		app:     &App{},
-		data:    &Data{},
-		drive:   &Drive{},
-		fs:      &Fs{root: "/"},
-		config:  &Config{ConfigOptions: &ConfigOptions{}},
-		error:   &ErrorPanic{},
-		log:     &ErrorLog{log: defaultLog},
-		lock:    &Lock{},
-		ipc:     &Ipc{},
-		i18n:    &I18n{},
+		app:    &App{},
+		data:   &Data{},
+		drive:  &Drive{},
+		fs:     &Fs{root: "/"},
+		config: &Config{ConfigOptions: &ConfigOptions{}},
+		error:  &ErrorPanic{},
+		log:    &ErrorLog{log: defaultLog},
+		lock:   &Lock{},
+		ipc:    &Ipc{},
+		i18n:   &I18n{},
 	}
 
 	if len(opts) > 0 {

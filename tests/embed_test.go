@@ -47,9 +47,9 @@ func TestEmbed_Open_Good(t *testing.T) {
 
 func TestEmbed_ReadDir_Good(t *testing.T) {
 	emb := Mount(testFS, "testdata").Value.(*Embed)
-	entries, err := emb.ReadDir(".")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, entries)
+	r := emb.ReadDir(".")
+	assert.True(t, r.OK)
+	assert.NotEmpty(t, r.Value)
 }
 
 func TestEmbed_Sub_Good(t *testing.T) {

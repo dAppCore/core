@@ -10,7 +10,7 @@ import (
 // --- App ---
 
 func TestApp_Good(t *testing.T) {
-	c := New(Options{{K: "name", V: "myapp"}})
+	c := New(Options{{Key: "name", Value: "myapp"}})
 	assert.Equal(t, "myapp", c.App().Name)
 }
 

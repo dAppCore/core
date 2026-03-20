@@ -25,9 +25,9 @@ func (c *Core) PerformAsync(t Task) Result {
 	}
 	taskID := Concat("task-", strconv.FormatUint(c.taskIDCounter.Add(1), 10))
 	if tid, ok := t.(TaskWithID); ok {
-		tid.SetTaskID(taskID)
+		tid.TaskWithIdentifier(taskID)
 	}
-	c.ACTION(ActionTaskStarted{TaskID: taskID, Task: t})
+	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Task: t})
 	c.wg.Go(func() {
 		r := c.PERFORM(t)
 		var err error
@@ -38,14 +38,14 @@ func (c *Core) PerformAsync(t Task) Result {
 				err = E("core.PerformAsync", Join(" ", "no handler found for task type", reflect.TypeOf(t).String()), nil)
 			}
 		}
-		c.ACTION(ActionTaskCompleted{TaskID: taskID, Task: t, Result: r.Value, Error: err})
+		c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: r.Value, Error: err})
 	})
 	return Result{taskID, true}
 }
 
 // Progress broadcasts a progress update for a background task.
 func (c *Core) Progress(taskID string, progress float64, message string, t Task) {
-	c.ACTION(ActionTaskProgress{TaskID: taskID, Task: t, Progress: progress, Message: message})
+	c.ACTION(ActionTaskProgress{TaskIdentifier: taskID, Task: t, Progress: progress, Message: message})
 }
 
 func (c *Core) Perform(t Task) Result {

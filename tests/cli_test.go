@@ -15,7 +15,7 @@ func TestCli_Good(t *testing.T) {
 }
 
 func TestCli_Banner_Good(t *testing.T) {
-	c := New(Options{{K: "name", V: "myapp"}})
+	c := New(Options{{Key: "name", Value: "myapp"}})
 	assert.Equal(t, "myapp", c.Cli().Banner())
 }
 
@@ -69,7 +69,7 @@ func TestCli_Run_NoCommand_Good(t *testing.T) {
 }
 
 func TestCli_PrintHelp_Good(t *testing.T) {
-	c := New(Options{{K: "name", V: "myapp"}})
+	c := New(Options{{Key: "name", Value: "myapp"}})
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Cli().PrintHelp()

@@ -5,7 +5,7 @@
 //
 // Run the CLI:
 //
-//	c := core.New(core.Options{{K: "name", V: "myapp"}})
+//	c := core.New(core.Options{{Key: "name", Value: "myapp"}})
 //	c.Command("deploy", handler)
 //	c.Cli().Run()
 //
@@ -84,12 +84,12 @@ func (cl *Cli) Run(args ...string) Result {
 		key, val, valid := ParseFlag(arg)
 		if valid {
 			if val != "" {
-				opts = append(opts, Option{K: key, V: val})
+				opts = append(opts, Option{Key: key, Value: val})
 			} else {
-				opts = append(opts, Option{K: key, V: true})
+				opts = append(opts, Option{Key: key, Value: true})
 			}
 		} else if !IsFlag(arg) {
-			opts = append(opts, Option{K: "_arg", V: arg})
+			opts = append(opts, Option{Key: "_arg", Value: arg})
 		}
 	}
 
@@ -121,7 +121,7 @@ func (cl *Cli) PrintHelp() {
 		if cmd.Hidden {
 			continue
 		}
-		desc := cl.core.I18n().Translate(cmd.I18nKey())
+		desc := cl.core.I18n().Translate(cmd.I18nKey()).Value.(string)
 		if desc == cmd.I18nKey() {
 			cl.Print("  %s", path)
 		} else {

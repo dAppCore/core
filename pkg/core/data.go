@@ -7,9 +7,9 @@
 // Mount a package's assets:
 //
 //	c.Data().New(core.Options{
-//	    {K: "name", V: "brain"},
-//	    {K: "source", V: brainFS},
-//	    {K: "path", V: "prompts"},
+//	    {Key: "name", Value: "brain"},
+//	    {Key: "source", Value: brainFS},
+//	    {Key: "path", Value: "prompts"},
 //	})
 //
 // Read from any mounted path:
@@ -37,9 +37,9 @@ type Data struct {
 // New registers an embedded filesystem under a named prefix.
 //
 //	c.Data().New(core.Options{
-//	    {K: "name", V: "brain"},
-//	    {K: "source", V: brainFS},
-//	    {K: "path", V: "prompts"},
+//	    {Key: "name", Value: "brain"},
+//	    {Key: "source", Value: brainFS},
+//	    {Key: "path", Value: "prompts"},
 //	})
 func (d *Data) New(opts Options) Result {
 	name := opts.String("name")
@@ -47,14 +47,14 @@ func (d *Data) New(opts Options) Result {
 		return Result{}
 	}
 
-	source, ok := opts.Get("source")
-	if !ok {
-		return Result{}
+	r := opts.Get("source")
+	if !r.OK {
+		return r
 	}
 
-	fsys, ok := source.(fs.FS)
+	fsys, ok := r.Value.(fs.FS)
 	if !ok {
-		return Result{}
+		return Result{E("data.New", "source is not fs.FS", nil), false}
 	}
 
 	path := opts.String("path")
@@ -69,12 +69,12 @@ func (d *Data) New(opts Options) Result {
 		d.mounts = make(map[string]*Embed)
 	}
 
-	r := Mount(fsys, path)
-	if !r.OK {
-		return r
+	mr := Mount(fsys, path)
+	if !mr.OK {
+		return mr
 	}
 
-	emb := r.Value.(*Embed)
+	emb := mr.Value.(*Embed)
 	d.mounts[name] = emb
 	return Result{emb, true}
 }
@@ -140,11 +140,11 @@ func (d *Data) List(path string) Result {
 	if emb == nil {
 		return Result{}
 	}
-	entries, err := emb.ReadDir(rel)
-	if err != nil {
-		return Result{err, false}
+	r := emb.ReadDir(rel)
+	if !r.OK {
+		return r
 	}
-	return Result{entries, true}
+	return Result{r.Value, true}
 }
 
 // ListNames returns filenames (without extensions) at a path.

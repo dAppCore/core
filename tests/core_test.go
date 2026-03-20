@@ -15,7 +15,7 @@ func TestNew_Good(t *testing.T) {
 }
 
 func TestNew_WithOptions_Good(t *testing.T) {
-	c := New(Options{{K: "name", V: "myapp"}})
+	c := New(Options{{Key: "name", Value: "myapp"}})
 	assert.NotNil(t, c)
 	assert.Equal(t, "myapp", c.App().Name)
 }
@@ -45,9 +45,9 @@ func TestAccessors_Good(t *testing.T) {
 
 func TestOptions_Accessor_Good(t *testing.T) {
 	c := New(Options{
-		{K: "name", V: "testapp"},
-		{K: "port", V: 8080},
-		{K: "debug", V: true},
+		{Key: "name", Value: "testapp"},
+		{Key: "port", Value: 8080},
+		{Key: "debug", Value: true},
 	})
 	opts := c.Options()
 	assert.NotNil(t, opts)
@@ -67,7 +67,7 @@ func TestOptions_Accessor_Nil(t *testing.T) {
 func TestCore_LogError_Good(t *testing.T) {
 	c := New()
 	cause := assert.AnError
-	r := c.LogError(cause, "test.Op", "something broke")
+	r := c.LogError(cause, "test.Operation", "something broke")
 	assert.False(t, r.OK)
 	err, ok := r.Value.(error)
 	assert.True(t, ok)
@@ -76,7 +76,7 @@ func TestCore_LogError_Good(t *testing.T) {
 
 func TestCore_LogWarn_Good(t *testing.T) {
 	c := New()
-	r := c.LogWarn(assert.AnError, "test.Op", "heads up")
+	r := c.LogWarn(assert.AnError, "test.Operation", "heads up")
 	assert.False(t, r.OK)
 	_, ok := r.Value.(error)
 	assert.True(t, ok)
@@ -85,13 +85,13 @@ func TestCore_LogWarn_Good(t *testing.T) {
 func TestCore_Must_Ugly(t *testing.T) {
 	c := New()
 	assert.Panics(t, func() {
-		c.Must(assert.AnError, "test.Op", "fatal")
+		c.Must(assert.AnError, "test.Operation", "fatal")
 	})
 }
 
 func TestCore_Must_Nil_Good(t *testing.T) {
 	c := New()
 	assert.NotPanics(t, func() {
-		c.Must(nil, "test.Op", "no error")
+		c.Must(nil, "test.Operation", "no error")
 	})
 }

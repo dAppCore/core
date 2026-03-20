@@ -31,28 +31,28 @@ var _ ErrorSink = (*Log)(nil)
 // Err represents a structured error with operational context.
 // It implements the error interface and supports unwrapping.
 type Err struct {
-	Op   string // Operation being performed (e.g., "user.Save")
-	Msg  string // Human-readable message
-	Err  error  // Underlying error (optional)
-	Code string // Error code (optional, e.g., "VALIDATION_FAILED")
+	Operation string // Operation being performed (e.g., "user.Save")
+	Message   string // Human-readable message
+	Err       error  // Underlying error (optional)
+	Code      string // Error code (optional, e.g., "VALIDATION_FAILED")
 }
 
 // Error implements the error interface.
 func (e *Err) Error() string {
 	var prefix string
-	if e.Op != "" {
-		prefix = e.Op + ": "
+	if e.Operation != "" {
+		prefix = e.Operation + ": "
 	}
 	if e.Err != nil {
 		if e.Code != "" {
-			return Concat(prefix, e.Msg, " [", e.Code, "]: ", e.Err.Error())
+			return Concat(prefix, e.Message, " [", e.Code, "]: ", e.Err.Error())
 		}
-		return Concat(prefix, e.Msg, ": ", e.Err.Error())
+		return Concat(prefix, e.Message, ": ", e.Err.Error())
 	}
 	if e.Code != "" {
-		return Concat(prefix, e.Msg, " [", e.Code, "]")
+		return Concat(prefix, e.Message, " [", e.Code, "]")
 	}
-	return Concat(prefix, e.Msg)
+	return Concat(prefix, e.Message)
 }
 
 // Unwrap returns the underlying error for use with errors.Is and errors.As.
@@ -70,7 +70,7 @@ func (e *Err) Unwrap() error {
 //	return log.E("user.Save", "failed to save user", err)
 //	return log.E("api.Call", "rate limited", nil)  // No underlying cause
 func E(op, msg string, err error) error {
-	return &Err{Op: op, Msg: msg, Err: err}
+	return &Err{Operation: op, Message: msg, Err: err}
 }
 
 // Wrap wraps an error with operation context.
@@ -87,9 +87,9 @@ func Wrap(err error, op, msg string) error {
 	// Preserve Code from wrapped *Err
 	var logErr *Err
 	if As(err, &logErr) && logErr.Code != "" {
-		return &Err{Op: op, Msg: msg, Err: err, Code: logErr.Code}
+		return &Err{Operation: op, Message: msg, Err: err, Code: logErr.Code}
 	}
-	return &Err{Op: op, Msg: msg, Err: err}
+	return &Err{Operation: op, Message: msg, Err: err}
 }
 
 // WrapCode wraps an error with operation context and error code.
@@ -103,7 +103,7 @@ func WrapCode(err error, code, op, msg string) error {
 	if err == nil && code == "" {
 		return nil
 	}
-	return &Err{Op: op, Msg: msg, Err: err, Code: code}
+	return &Err{Operation: op, Message: msg, Err: err, Code: code}
 }
 
 // NewCode creates an error with just code and message (no underlying error).
@@ -113,7 +113,7 @@ func WrapCode(err error, code, op, msg string) error {
 //
 //	var ErrNotFound = log.NewCode("NOT_FOUND", "resource not found")
 func NewCode(code, msg string) error {
-	return &Err{Msg: msg, Code: code}
+	return &Err{Message: msg, Code: code}
 }
 
 // --- Standard Library Wrappers ---
@@ -150,7 +150,7 @@ func ErrorJoin(errs ...error) error {
 func Operation(err error) string {
 	var e *Err
 	if As(err, &e) {
-		return e.Op
+		return e.Operation
 	}
 	return ""
 }
@@ -173,7 +173,7 @@ func ErrorMessage(err error) string {
 	}
 	var e *Err
 	if As(err, &e) {
-		return e.Msg
+		return e.Message
 	}
 	return err.Error()
 }
@@ -199,8 +199,8 @@ func AllOperations(err error) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		for err != nil {
 			if e, ok := err.(*Err); ok {
-				if e.Op != "" {
-					if !yield(e.Op) {
+				if e.Operation != "" {
+					if !yield(e.Operation) {
 						return
 					}
 				}
@@ -288,9 +288,9 @@ type CrashReport struct {
 
 // CrashSystem holds system information at crash time.
 type CrashSystem struct {
-	OS      string `json:"os"`
-	Arch    string `json:"arch"`
-	Version string `json:"go_version"`
+	OperatingSystem string `json:"operatingsystem"`
+	Architecture    string `json:"architecture"`
+	Version         string `json:"go_version"`
 }
 
 // ErrorPanic manages panic recovery and crash reporting.
@@ -321,9 +321,9 @@ func (h *ErrorPanic) Recover() {
 		Error:     err.Error(),
 		Stack:     string(debug.Stack()),
 		System: CrashSystem{
-			OS:      runtime.GOOS,
-			Arch:    runtime.GOARCH,
-			Version: runtime.Version(),
+			OperatingSystem: runtime.GOOS,
+			Architecture:    runtime.GOARCH,
+			Version:         runtime.Version(),
 		},
 		Meta: maps.Clone(h.meta),
 	}

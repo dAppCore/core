@@ -14,16 +14,16 @@ func TestConfig_SetGet_Good(t *testing.T) {
 	c.Config().Set("api_url", "https://api.lthn.ai")
 	c.Config().Set("max_agents", 5)
 
-	val, ok := c.Config().Get("api_url")
-	assert.True(t, ok)
-	assert.Equal(t, "https://api.lthn.ai", val)
+	r := c.Config().Get("api_url")
+	assert.True(t, r.OK)
+	assert.Equal(t, "https://api.lthn.ai", r.Value)
 }
 
 func TestConfig_Get_Bad(t *testing.T) {
 	c := New()
-	val, ok := c.Config().Get("missing")
-	assert.False(t, ok)
-	assert.Nil(t, val)
+	r := c.Config().Get("missing")
+	assert.False(t, r.OK)
+	assert.Nil(t, r.Value)
 }
 
 func TestConfig_TypedAccessors_Good(t *testing.T) {

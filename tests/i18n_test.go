@@ -17,9 +17,9 @@ func TestI18n_Good(t *testing.T) {
 func TestI18n_AddLocales_Good(t *testing.T) {
 	c := New()
 	r := c.Data().New(Options{
-		{K: "name", V: "lang"},
-		{K: "source", V: testFS},
-		{K: "path", V: "testdata"},
+		{Key: "name", Value: "lang"},
+		{Key: "source", Value: testFS},
+		{Key: "path", Value: "testdata"},
 	})
 	if r.OK {
 		c.I18n().AddLocales(r.Value.(*Embed))
@@ -38,9 +38,10 @@ func TestI18n_Locales_Empty_Good(t *testing.T) {
 
 func TestI18n_Translate_NoTranslator_Good(t *testing.T) {
 	c := New()
-	// Without a translator, T returns the key as-is
-	result := c.I18n().Translate("greeting.hello")
-	assert.Equal(t, "greeting.hello", result)
+	// Without a translator, Translate returns the key as-is
+	r := c.I18n().Translate("greeting.hello")
+	assert.True(t, r.OK)
+	assert.Equal(t, "greeting.hello", r.Value)
 }
 
 func TestI18n_SetLanguage_NoTranslator_Good(t *testing.T) {
@@ -71,10 +72,10 @@ type mockTranslator struct {
 	lang string
 }
 
-func (m *mockTranslator) Translate(id string, args ...any) string     { return "translated:" + id }
-func (m *mockTranslator) SetLanguage(lang string) error        { m.lang = lang; return nil }
-func (m *mockTranslator) Language() string                     { return m.lang }
-func (m *mockTranslator) AvailableLanguages() []string         { return []string{"en", "de", "fr"} }
+func (m *mockTranslator) Translate(id string, args ...any) Result { return Result{"translated:" + id, true} }
+func (m *mockTranslator) SetLanguage(lang string) error           { m.lang = lang; return nil }
+func (m *mockTranslator) Language() string                        { return m.lang }
+func (m *mockTranslator) AvailableLanguages() []string            { return []string{"en", "de", "fr"} }
 
 func TestI18n_WithTranslator_Good(t *testing.T) {
 	c := New()
@@ -82,7 +83,7 @@ func TestI18n_WithTranslator_Good(t *testing.T) {
 	c.I18n().SetTranslator(tr)
 
 	assert.Equal(t, tr, c.I18n().Translator())
-	assert.Equal(t, "translated:hello", c.I18n().Translate("hello"))
+	assert.Equal(t, "translated:hello", c.I18n().Translate("hello").Value)
 	assert.Equal(t, "en", c.I18n().Language())
 	assert.Equal(t, []string{"en", "de", "fr"}, c.I18n().AvailableLanguages())
 
