@@ -37,35 +37,46 @@ package core
 // Replaces the (value, error) pattern — errors flow through Core internally.
 //
 //	r := c.Data().New(core.Options{{K: "name", V: "brain"}})
-//	if r.OK { use(r.Value) }
+//	if r.OK { use(r.Result()) }
 type Result struct {
 	Value any
 	OK    bool
 }
 
-// New creates a Result from variadic args.
-// Maps Go (value, error) pairs and multi-value returns to Result.
+// Result returns the value.
 //
-//	Result{}.New(file, err)       // OK = err == nil, Value = file
-//	Result{}.New(value)           // OK = true, Value = value
-//	Result{}.New()                // OK = false
-//	Result{}.New("1", 1)          // OK = true, Value = first arg
-func (r Result) New(args ...any) Result {
+//	val := r.Result()
+func (r *Result) Result() any { return r.Value }
+
+// New creates a Result from variadic args.
+// Maps Go (value, error) pairs to Result.
+//
+//	r.New(file, err)       // OK = err == nil, Value = file
+//	r.New(value)           // OK = true, Value = value
+//	r.New()                // OK = false
+func (r *Result) New(args ...any) *Result {
 	if len(args) == 0 {
-		return Result{}
+		r.OK = false
+		return r
 	}
 
 	// Check if last arg is an error
 	if len(args) >= 2 {
 		if err, ok := args[len(args)-1].(error); ok {
 			if err != nil {
-				return Result{Value: err}
+				r.Value = err
+				r.OK = false
+				return r
 			}
-			return Result{Value: args[0], OK: true}
+			r.Value = args[0]
+			r.OK = true
+			return r
 		}
 	}
 
-	return Result{Value: args[0], OK: true}
+	r.Value = args[0]
+	r.OK = true
+	return r
 }
 
 // Option is a single key-value configuration pair.
