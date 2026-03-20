@@ -185,7 +185,7 @@ func (m *Fs) List(p string) Result {
 func (m *Fs) Stat(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	return Result{}.Result(os.Stat(vp.Value.(string)))
 }
@@ -194,7 +194,7 @@ func (m *Fs) Stat(p string) Result {
 func (m *Fs) Open(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
-		return Result{}
+		return vp
 	}
 	return Result{}.Result(os.Open(vp.Value.(string)))
 }

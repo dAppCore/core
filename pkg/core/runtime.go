@@ -33,13 +33,16 @@ func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 
 // ServiceStartup runs OnStart for all registered services that have one.
 func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
-	for _, s := range c.Startables() {
-		if err := ctx.Err(); err != nil {
-			return Result{err, false}
-		}
-		r := s.OnStart()
-		if !r.OK {
-			return r
+	startables := c.Startables()
+	if startables.OK {
+		for _, s := range startables.Value.([]*Service) {
+			if err := ctx.Err(); err != nil {
+				return Result{err, false}
+			}
+			r := s.OnStart()
+			if !r.OK {
+				return r
+			}
 		}
 	}
 	c.ACTION(ActionServiceStartup{})
@@ -50,11 +53,14 @@ func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
 func (c *Core) ServiceShutdown(ctx context.Context) Result {
 	c.shutdown.Store(true)
 	c.ACTION(ActionServiceShutdown{})
-	for _, s := range c.Stoppables() {
-		if err := ctx.Err(); err != nil {
-			return Result{err, false}
+	stoppables := c.Stoppables()
+	if stoppables.OK {
+		for _, s := range stoppables.Value.([]*Service) {
+			if err := ctx.Err(); err != nil {
+				return Result{err, false}
+			}
+			s.OnStop()
 		}
-		s.OnStop()
 	}
 	done := make(chan struct{})
 	go func() {

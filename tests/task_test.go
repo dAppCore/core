@@ -20,10 +20,12 @@ func TestPerformAsync_Good(t *testing.T) {
 		mu.Lock()
 		result = "done"
 		mu.Unlock()
-		return Result{Value: "completed", OK: true}
+		return Result{"completed", true}
 	})
 
-	taskID := c.PerformAsync("work")
+	r := c.PerformAsync("work")
+	assert.True(t, r.OK)
+	taskID := r.Value.(string)
 	assert.NotEmpty(t, taskID)
 
 	time.Sleep(100 * time.Millisecond)
@@ -39,7 +41,8 @@ func TestPerformAsync_Progress_Good(t *testing.T) {
 		return Result{OK: true}
 	})
 
-	taskID := c.PerformAsync("work")
+	r := c.PerformAsync("work")
+	taskID := r.Value.(string)
 	c.Progress(taskID, 0.5, "halfway", "work")
 }
 

@@ -65,7 +65,7 @@ func (c *Core) LogError(err error, op, msg string) Result {
 	if wrapped == nil {
 		return Result{OK: true}
 	}
-	return Result{Value: wrapped}
+	return Result{wrapped, false}
 }
 
 // LogWarn logs a warning and returns a Result with the wrapped error.
@@ -74,7 +74,7 @@ func (c *Core) LogWarn(err error, op, msg string) Result {
 	if wrapped == nil {
 		return Result{OK: true}
 	}
-	return Result{Value: wrapped}
+	return Result{wrapped, false}
 }
 
 // Must logs and panics if err is not nil.

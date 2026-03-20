@@ -63,12 +63,16 @@ func TestService_Lifecycle_Good(t *testing.T) {
 		OnStop:  func() Result { stopped = true; return Result{OK: true} },
 	})
 
-	startables := c.Startables()
+	sr := c.Startables()
+	assert.True(t, sr.OK)
+	startables := sr.Value.([]*Service)
 	assert.Len(t, startables, 1)
 	startables[0].OnStart()
 	assert.True(t, started)
 
-	stoppables := c.Stoppables()
+	tr := c.Stoppables()
+	assert.True(t, tr.OK)
+	stoppables := tr.Value.([]*Service)
 	assert.Len(t, stoppables, 1)
 	stoppables[0].OnStop()
 	assert.True(t, stopped)

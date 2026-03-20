@@ -41,11 +41,15 @@ func TestLockEnable_Good(t *testing.T) {
 func TestStartables_Good(t *testing.T) {
 	c := New()
 	c.Service("s", Service{OnStart: func() Result { return Result{OK: true} }})
-	assert.Len(t, c.Startables(), 1)
+	r := c.Startables()
+	assert.True(t, r.OK)
+	assert.Len(t, r.Value.([]*Service), 1)
 }
 
 func TestStoppables_Good(t *testing.T) {
 	c := New()
 	c.Service("s", Service{OnStop: func() Result { return Result{OK: true} }})
-	assert.Len(t, c.Stoppables(), 1)
+	r := c.Stoppables()
+	assert.True(t, r.OK)
+	assert.Len(t, r.Value.([]*Service), 1)
 }

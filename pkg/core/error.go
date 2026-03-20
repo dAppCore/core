@@ -9,7 +9,6 @@ package core
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"iter"
 	"maps"
 	"os"
@@ -314,7 +313,7 @@ func (h *ErrorPanic) Recover() {
 
 	err, ok := r.(error)
 	if !ok {
-		err = NewError(fmt.Sprint("panic: ", r))
+		err = NewError(Sprint("panic: ", r))
 	}
 
 	report := CrashReport{

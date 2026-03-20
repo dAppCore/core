@@ -60,9 +60,9 @@ func (c *Core) LockApply(name ...string) {
 }
 
 // Startables returns services that have an OnStart function.
-func (c *Core) Startables() []*Service {
+func (c *Core) Startables() Result {
 	if c.services == nil {
-		return nil
+		return Result{}
 	}
 	c.Lock("srv").Mu.RLock()
 	defer c.Lock("srv").Mu.RUnlock()
@@ -72,13 +72,13 @@ func (c *Core) Startables() []*Service {
 			out = append(out, svc)
 		}
 	}
-	return out
+	return Result{out, true}
 }
 
 // Stoppables returns services that have an OnStop function.
-func (c *Core) Stoppables() []*Service {
+func (c *Core) Stoppables() Result {
 	if c.services == nil {
-		return nil
+		return Result{}
 	}
 	c.Lock("srv").Mu.RLock()
 	defer c.Lock("srv").Mu.RUnlock()
@@ -88,5 +88,5 @@ func (c *Core) Stoppables() []*Service {
 			out = append(out, svc)
 		}
 	}
-	return out
+	return Result{out, true}
 }

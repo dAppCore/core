@@ -19,9 +19,9 @@ type TaskState struct {
 }
 
 // PerformAsync dispatches a task in a background goroutine.
-func (c *Core) PerformAsync(t Task) string {
+func (c *Core) PerformAsync(t Task) Result {
 	if c.shutdown.Load() {
-		return ""
+		return Result{}
 	}
 	taskID := Concat("task-", strconv.FormatUint(c.taskIDCounter.Add(1), 10))
 	if tid, ok := t.(TaskWithID); ok {
@@ -40,7 +40,7 @@ func (c *Core) PerformAsync(t Task) string {
 		}
 		c.ACTION(ActionTaskCompleted{TaskID: taskID, Task: t, Result: r.Value, Error: err})
 	})
-	return taskID
+	return Result{taskID, true}
 }
 
 // Progress broadcasts a progress update for a background task.
