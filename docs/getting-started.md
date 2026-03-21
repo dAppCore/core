@@ -1,191 +1,208 @@
 ---
 title: Getting Started
-description: How to create a Core application and register services.
+description: Build a first CoreGO application with the current API.
 ---
 
 # Getting Started
 
-This guide walks you through creating a Core application, registering services, and running the lifecycle.
+This page shows the shortest path to a useful CoreGO application using the API that exists in this repository today.
 
-## Installation
+## Install
 
 ```bash
-go get forge.lthn.ai/core/go
+go get dappco.re/go/core
 ```
 
-## Creating a Core Instance
+## Create a Core
 
-Everything starts with `core.New()`. It accepts a variadic list of `Option` functions that configure the container before it is returned.
+`New` takes zero or more `core.Options` slices, but the current implementation only reads the first one. In practice, treat the constructor as `core.New(core.Options{...})`.
 
 ```go
 package main
 
-import "forge.lthn.ai/core/go/pkg/core"
+import "dappco.re/go/core"
 
 func main() {
-    c, err := core.New()
-    if err != nil {
-        panic(err)
-    }
-    _ = c // empty container, ready for use
+	c := core.New(core.Options{
+		{Key: "name", Value: "agent-workbench"},
+	})
+
+	_ = c
 }
 ```
 
-In practice you will pass options to register services, embed assets, or lock the registry:
+The `name` option is copied into `c.App().Name`.
+
+## Register a Service
+
+Services are registered explicitly with a name and a `core.Service` DTO.
 
 ```go
-c, err := core.New(
-    core.WithService(mypackage.NewService),
-    core.WithAssets(embeddedFS),
-    core.WithServiceLock(),
-)
+c.Service("audit", core.Service{
+	OnStart: func() core.Result {
+		core.Info("audit service started", "app", c.App().Name)
+		return core.Result{OK: true}
+	},
+	OnStop: func() core.Result {
+		core.Info("audit service stopped", "app", c.App().Name)
+		return core.Result{OK: true}
+	},
+})
 ```
 
-See [Configuration](configuration.md) for the full list of options.
+This registry stores `core.Service` values. It is a lifecycle registry, not a typed object container.
 
-## Registering a Service
-
-Services are registered via **factory functions**. A factory receives the `*Core` and returns `(any, error)`:
+## Register a Query, Task, and Command
 
 ```go
-package greeter
+type workspaceCountQuery struct{}
 
-import "forge.lthn.ai/core/go/pkg/core"
-
-type Service struct {
-    greeting string
+type createWorkspaceTask struct {
+	Name string
 }
 
-func (s *Service) Hello(name string) string {
-    return s.greeting + ", " + name + "!"
+c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result {
+	switch q.(type) {
+	case workspaceCountQuery:
+		return core.Result{Value: 1, OK: true}
+	}
+	return core.Result{}
+})
+
+c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
+	switch task := t.(type) {
+	case createWorkspaceTask:
+		path := "/tmp/agent-workbench/" + task.Name
+		return core.Result{Value: path, OK: true}
+	}
+	return core.Result{}
+})
+
+c.Command("workspace/create", core.Command{
+	Action: func(opts core.Options) core.Result {
+		return c.PERFORM(createWorkspaceTask{
+			Name: opts.String("name"),
+		})
+	},
+})
+```
+
+## Start the Runtime
+
+```go
+if !c.ServiceStartup(context.Background(), nil).OK {
+	panic("startup failed")
 }
+```
 
-func NewService(c *core.Core) (any, error) {
-    return &Service{greeting: "Hello"}, nil
+`ServiceStartup` returns `core.Result`, not `error`.
+
+## Run Through the CLI Surface
+
+```go
+r := c.Cli().Run("workspace", "create", "--name=alpha")
+if r.OK {
+	fmt.Println("created:", r.Value)
 }
 ```
 
-Register it with `WithService`:
+For flags with values, the CLI stores the value as a string. `--name=alpha` becomes `opts.String("name") == "alpha"`.
+
+## Query the System
 
 ```go
-c, err := core.New(
-    core.WithService(greeter.NewService),
-)
+count := c.QUERY(workspaceCountQuery{})
+if count.OK {
+	fmt.Println("workspace count:", count.Value)
+}
 ```
 
-`WithService` automatically discovers the service name from the package path. In this case, the service is registered under the name `"greeter"`.
-
-If you need to control the name explicitly, use `WithName`:
+## Shut Down Cleanly
 
 ```go
-c, err := core.New(
-    core.WithName("greet", greeter.NewService),
-)
+_ = c.ServiceShutdown(context.Background())
 ```
 
-See [Services](services.md) for the full registration API and the `ServiceRuntime` helper.
+Shutdown cancels `c.Context()`, broadcasts `ActionServiceShutdown{}`, waits for background tasks to finish, and then runs service stop hooks.
 
-## Retrieving a Service
-
-Once registered, services can be retrieved by name:
-
-```go
-// Untyped retrieval (returns any)
-svc := c.Service("greeter")
-
-// Type-safe retrieval (returns error if not found or wrong type)
-greet, err := core.ServiceFor[*greeter.Service](c, "greeter")
-
-// Panicking retrieval (for init-time wiring where failure is fatal)
-greet := core.MustServiceFor[*greeter.Service](c, "greeter")
-```
-
-## Running the Lifecycle
-
-Services that implement `Startable` and/or `Stoppable` are automatically called during startup and shutdown:
-
-```go
-import "context"
-
-// Start all Startable services (in registration order)
-err := c.ServiceStartup(context.Background(), nil)
-
-// ... application runs ...
-
-// Stop all Stoppable services (in reverse registration order)
-err = c.ServiceShutdown(context.Background())
-```
-
-See [Lifecycle](lifecycle.md) for details on the `Startable` and `Stoppable` interfaces.
-
-## Sending Messages
-
-Services communicate through the message bus without needing direct imports of each other:
-
-```go
-// Broadcast to all handlers (fire-and-forget)
-err := c.ACTION(MyEvent{Data: "something happened"})
-
-// Request data from the first handler that responds
-result, handled, err := c.QUERY(MyQuery{Key: "setting"})
-
-// Ask a handler to perform work
-result, handled, err := c.PERFORM(MyTask{Input: "data"})
-```
-
-See [Messaging](messaging.md) for the full message bus API.
-
-## Putting It All Together
-
-Here is a minimal but complete application:
+## Full Example
 
 ```go
 package main
 
 import (
-    "context"
-    "fmt"
+	"context"
+	"fmt"
 
-    "forge.lthn.ai/core/go/pkg/core"
-    "forge.lthn.ai/core/go/pkg/log"
+	"dappco.re/go/core"
 )
 
+type workspaceCountQuery struct{}
+
+type createWorkspaceTask struct {
+	Name string
+}
+
 func main() {
-    c, err := core.New(
-        core.WithName("log", log.NewService(log.Options{Level: log.LevelInfo})),
-        core.WithServiceLock(),
-    )
-    if err != nil {
-        panic(err)
-    }
+	c := core.New(core.Options{
+		{Key: "name", Value: "agent-workbench"},
+	})
 
-    // Start lifecycle
-    if err := c.ServiceStartup(context.Background(), nil); err != nil {
-        panic(err)
-    }
+	c.Config().Set("workspace.root", "/tmp/agent-workbench")
+	c.Config().Enable("workspace.templates")
 
-    // Use services
-    logger := core.MustServiceFor[*log.Service](c, "log")
-    fmt.Println("Logger started at level:", logger.Level())
+	c.Service("audit", core.Service{
+		OnStart: func() core.Result {
+			core.Info("service started", "service", "audit")
+			return core.Result{OK: true}
+		},
+		OnStop: func() core.Result {
+			core.Info("service stopped", "service", "audit")
+			return core.Result{OK: true}
+		},
+	})
 
-    // Query the log level through the message bus
-    level, handled, _ := c.QUERY(log.QueryLevel{})
-    if handled {
-        fmt.Println("Log level via QUERY:", level)
-    }
+	c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result {
+		switch q.(type) {
+		case workspaceCountQuery:
+			return core.Result{Value: 1, OK: true}
+		}
+		return core.Result{}
+	})
 
-    // Clean shutdown
-    if err := c.ServiceShutdown(context.Background()); err != nil {
-        fmt.Println("shutdown error:", err)
-    }
+	c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
+		switch task := t.(type) {
+		case createWorkspaceTask:
+			path := c.Config().String("workspace.root") + "/" + task.Name
+			return core.Result{Value: path, OK: true}
+		}
+		return core.Result{}
+	})
+
+	c.Command("workspace/create", core.Command{
+		Action: func(opts core.Options) core.Result {
+			return c.PERFORM(createWorkspaceTask{
+				Name: opts.String("name"),
+			})
+		},
+	})
+
+	if !c.ServiceStartup(context.Background(), nil).OK {
+		panic("startup failed")
+	}
+
+	created := c.Cli().Run("workspace", "create", "--name=alpha")
+	fmt.Println("created:", created.Value)
+
+	count := c.QUERY(workspaceCountQuery{})
+	fmt.Println("workspace count:", count.Value)
+
+	_ = c.ServiceShutdown(context.Background())
 }
 ```
 
 ## Next Steps
 
-- [Services](services.md) -- service registration patterns in depth
-- [Lifecycle](lifecycle.md) -- startup/shutdown ordering and error handling
-- [Messaging](messaging.md) -- ACTION, QUERY, and PERFORM
-- [Configuration](configuration.md) -- all `With*` options
-- [Errors](errors.md) -- the `E()` error helper
-- [Testing](testing.md) -- test conventions and helpers
+- Read [primitives.md](primitives.md) next so the repeated shapes are clear.
+- Read [commands.md](commands.md) if you are building a CLI-first system.
+- Read [messaging.md](messaging.md) if services need to collaborate without direct imports.

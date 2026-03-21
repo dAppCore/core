@@ -1,139 +1,120 @@
 ---
 title: Errors
-description: The E() helper function and Error struct for contextual error handling.
+description: Structured errors, logging helpers, and panic recovery.
 ---
 
 # Errors
 
-Core provides a standardised error type and constructor for wrapping errors with operational context. This makes it easier to trace where an error originated and provide meaningful feedback.
+CoreGO treats failures as structured operational data.
 
-## The Error Struct
+Repository convention: use `E()` instead of `fmt.Errorf` for framework and service errors.
 
-```go
-type Error struct {
-    Op  string // the operation, e.g. "config.Load"
-    Msg string // human-readable explanation
-    Err error  // the underlying error (may be nil)
-}
-```
+## `Err`
 
-- **Op** identifies the operation that failed. Use the format `package.Function` or `service.Method`.
-- **Msg** is a human-readable message explaining what went wrong.
-- **Err** is the underlying error being wrapped. May be `nil` for root errors.
-
-## The E() Helper
-
-`E()` is the primary way to create contextual errors:
+The structured error type is:
 
 ```go
-func E(op, msg string, err error) error
+type Err struct {
+	Operation string
+	Message   string
+	Cause     error
+	Code      string
+}
 ```
 
-### With an Underlying Error
+## Create Errors
+
+### `E`
 
 ```go
-data, err := os.ReadFile(path)
-if err != nil {
-    return core.E("config.Load", "failed to read config file", err)
-}
+err := core.E("workspace.Load", "failed to read workspace manifest", cause)
 ```
 
-This produces: `config.Load: failed to read config file: open /path/to/file: no such file or directory`
-
-### Without an Underlying Error (Root Error)
+### `Wrap`
 
 ```go
-if name == "" {
-    return core.E("user.Create", "name cannot be empty", nil)
-}
+err := core.Wrap(cause, "workspace.Load", "manifest parse failed")
 ```
 
-This produces: `user.Create: name cannot be empty`
-
-When `err` is `nil`, the `Err` field is not set and the output omits the trailing error.
-
-## Error Output Format
-
-The `Error()` method produces a string in one of two formats:
-
-```
-// With underlying error:
-op: msg: underlying error text
-
-// Without underlying error:
-op: msg
-```
-
-## Unwrapping
-
-`Error` implements the `Unwrap() error` method, making it compatible with Go's `errors.Is` and `errors.As`:
+### `WrapCode`
 
 ```go
-originalErr := errors.New("connection refused")
-wrapped := core.E("db.Connect", "failed to connect", originalErr)
-
-// errors.Is traverses the chain
-errors.Is(wrapped, originalErr) // true
-
-// errors.As extracts the Error
-var coreErr *core.Error
-if errors.As(wrapped, &coreErr) {
-    fmt.Println(coreErr.Op)  // "db.Connect"
-    fmt.Println(coreErr.Msg) // "failed to connect"
-}
+err := core.WrapCode(cause, "WORKSPACE_INVALID", "workspace.Load", "manifest parse failed")
 ```
 
-## Building Error Chains
-
-Because `E()` wraps errors, you can build a logical call stack by wrapping at each layer:
+### `NewCode`
 
 ```go
-// Low-level
-func readConfig(path string) ([]byte, error) {
-    data, err := os.ReadFile(path)
-    if err != nil {
-        return nil, core.E("config.readConfig", "failed to read file", err)
-    }
-    return data, nil
-}
-
-// Mid-level
-func loadConfig() (*Config, error) {
-    data, err := readConfig("/etc/app/config.yaml")
-    if err != nil {
-        return nil, core.E("config.Load", "failed to load configuration", err)
-    }
-    // parse data...
-    return cfg, nil
-}
-
-// Top-level
-func (s *Service) OnStartup(ctx context.Context) error {
-    cfg, err := loadConfig()
-    if err != nil {
-        return core.E("service.OnStartup", "startup failed", err)
-    }
-    s.config = cfg
-    return nil
-}
+err := core.NewCode("NOT_FOUND", "workspace not found")
 ```
 
-The resulting error message reads like a stack trace:
+## Inspect Errors
 
+```go
+op := core.Operation(err)
+code := core.ErrorCode(err)
+msg := core.ErrorMessage(err)
+root := core.Root(err)
+stack := core.StackTrace(err)
+pretty := core.FormatStackTrace(err)
 ```
-service.OnStartup: startup failed: config.Load: failed to load configuration: config.readConfig: failed to read file: open /etc/app/config.yaml: no such file or directory
+
+These helpers keep the operational chain visible without extra type assertions.
+
+## Join and Standard Wrappers
+
+```go
+combined := core.ErrorJoin(err1, err2)
+same := core.Is(combined, err1)
 ```
 
-## Conventions
+`core.As` and `core.NewError` mirror the standard library for convenience.
 
-1. **Op format**: Use `package.Function` or `service.Method`. Keep it short and specific.
-2. **Msg format**: Use lowercase, describe what failed (not what succeeded). Write messages that make sense to a developer reading logs.
-3. **Wrap at boundaries**: Wrap with `E()` when crossing package or layer boundaries, not at every function call.
-4. **Always return `error`**: `E()` returns the `error` interface, not `*Error`. Callers should not need to know the concrete type.
-5. **Nil underlying error**: Pass `nil` for `err` when creating root errors (errors that do not wrap another error).
+## Log-and-Return Helpers
 
-## Related Pages
+`Core` exposes two convenience wrappers:
 
-- [Services](services.md) -- services that return errors
-- [Lifecycle](lifecycle.md) -- lifecycle error aggregation
-- [Testing](testing.md) -- testing error conditions (`_Bad` suffix)
+```go
+r1 := c.LogError(err, "workspace.Load", "workspace load failed")
+r2 := c.LogWarn(err, "workspace.Load", "workspace load degraded")
+```
+
+These log through the default logger and return `core.Result`.
+
+You can also use the underlying `ErrorLog` directly:
+
+```go
+r := c.Log().Error(err, "workspace.Load", "workspace load failed")
+```
+
+`Must` logs and then panics when the error is non-nil:
+
+```go
+c.Must(err, "workspace.Load", "workspace load failed")
+```
+
+## Panic Recovery
+
+`ErrorPanic` handles process-safe panic capture.
+
+```go
+defer c.Error().Recover()
+```
+
+Run background work with recovery:
+
+```go
+c.Error().SafeGo(func() {
+	panic("captured")
+})
+```
+
+If `ErrorPanic` has a configured crash file path, it appends JSON crash reports and `Reports(n)` reads them back.
+
+That crash file path is currently internal state on `ErrorPanic`, not a public constructor option on `Core.New()`.
+
+## Logging and Error Context
+
+The logging subsystem automatically extracts `op` and logical stack information from structured errors when those values are present in the key-value list.
+
+That makes errors created with `E`, `Wrap`, or `WrapCode` much easier to follow in logs.

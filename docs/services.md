@@ -1,215 +1,152 @@
 ---
 title: Services
-description: Service registration, retrieval, ServiceRuntime, and factory patterns.
+description: Register, inspect, and lock CoreGO services.
 ---
 
 # Services
 
-Services are the building blocks of a Core application. They are plain Go structs registered into a named registry and retrieved by name with optional type assertions.
+In CoreGO, a service is a named lifecycle entry stored in the Core registry.
 
-## Registration
-
-### Factory Functions
-
-The primary way to register a service is via a **factory function** -- a function with the signature `func(*Core) (any, error)`. The factory receives the `Core` instance so it can access other services or register message handlers during construction.
+## Register a Service
 
 ```go
-func NewMyService(c *core.Core) (any, error) {
-    return &MyService{}, nil
-}
-```
+c := core.New()
 
-### WithService (auto-named)
-
-`WithService` registers a service and automatically discovers its name from the Go package path. The last segment of the package path becomes the service name, lowercased.
-
-```go
-// If MyService lives in package "myapp/services/calculator",
-// it is registered as "calculator".
-c, err := core.New(
-    core.WithService(calculator.NewService),
-)
-```
-
-`WithService` also performs **IPC handler discovery**: if the returned service has a method named `HandleIPCEvents` with the signature `func(*Core, Message) error`, it is automatically registered as an action handler.
-
-```go
-type Service struct{}
-
-func (s *Service) HandleIPCEvents(c *core.Core, msg core.Message) error {
-    // Handle messages
-    return nil
-}
-```
-
-### WithName (explicitly named)
-
-When you need to control the service name (or the factory is an anonymous function), use `WithName`:
-
-```go
-c, err := core.New(
-    core.WithName("my-service", func(c *core.Core) (any, error) {
-        return &MyService{}, nil
-    }),
-)
-```
-
-Unlike `WithService`, `WithName` does **not** auto-discover IPC handlers. Register them manually if needed.
-
-### Direct Registration
-
-You can also register a service directly on an existing `Core` instance:
-
-```go
-err := c.RegisterService("my-service", &MyService{})
-```
-
-This is useful for tests or when constructing services outside the `New()` options flow.
-
-### Registration Rules
-
-- Service names **must not be empty**.
-- **Duplicate names** are rejected with an error.
-- If `WithServiceLock()` was passed to `New()`, registration after initialisation is rejected.
-
-## Retrieval
-
-### By Name (untyped)
-
-```go
-svc := c.Service("calculator")
-if svc == nil {
-    // not found
-}
-```
-
-Returns `nil` if no service is registered under that name.
-
-### Type-Safe Retrieval
-
-`ServiceFor[T]` retrieves and type-asserts in one step:
-
-```go
-calc, err := core.ServiceFor[*calculator.Service](c, "calculator")
-if err != nil {
-    // "service 'calculator' not found"
-    // or "service 'calculator' is of type *Foo, but expected *calculator.Service"
-}
-```
-
-### Panicking Retrieval
-
-For init-time wiring where a missing service is a fatal programming error:
-
-```go
-calc := core.MustServiceFor[*calculator.Service](c, "calculator")
-// panics if not found or wrong type
-```
-
-## ServiceRuntime
-
-`ServiceRuntime[T]` is a generic helper you embed in your service struct. It provides typed access to the `Core` instance and your service's options struct.
-
-```go
-type Options struct {
-    Precision int
-}
-
-type Service struct {
-    *core.ServiceRuntime[Options]
-}
-
-func NewService(opts Options) func(*core.Core) (any, error) {
-    return func(c *core.Core) (any, error) {
-        return &Service{
-            ServiceRuntime: core.NewServiceRuntime(c, opts),
-        }, nil
-    }
-}
-```
-
-`ServiceRuntime` provides these methods:
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `Core()` | `*Core` | The central Core instance |
-| `Opts()` | `T` | The service's typed options |
-| `Config()` | `Config` | Convenience shortcut for `Core().Config()` |
-
-### Real-World Example: The Log Service
-
-The `pkg/log` package in this repository is the reference implementation of a Core service:
-
-```go
-type Service struct {
-    *core.ServiceRuntime[Options]
-    *Logger
-}
-
-func NewService(opts Options) func(*core.Core) (any, error) {
-    return func(c *core.Core) (any, error) {
-        logger := New(opts)
-        return &Service{
-            ServiceRuntime: core.NewServiceRuntime(c, opts),
-            Logger:         logger,
-        }, nil
-    }
-}
-
-func (s *Service) OnStartup(ctx context.Context) error {
-    s.Core().RegisterQuery(s.handleQuery)
-    s.Core().RegisterTask(s.handleTask)
-    return nil
-}
-```
-
-Key patterns to note:
-
-1. The factory is a **closure** -- `NewService` takes options and returns a factory function.
-2. `ServiceRuntime` is embedded, giving access to `Core()` and `Opts()`.
-3. The service implements `Startable` to register its query/task handlers at startup.
-
-## Runtime and NewWithFactories
-
-For applications that wire services from a map of named factories, `NewWithFactories` offers a bulk registration path:
-
-```go
-type ServiceFactory func() (any, error)
-
-rt, err := core.NewWithFactories(app, map[string]core.ServiceFactory{
-    "config":   configFactory,
-    "database": dbFactory,
-    "cache":    cacheFactory,
+r := c.Service("audit", core.Service{
+	OnStart: func() core.Result {
+		core.Info("audit started")
+		return core.Result{OK: true}
+	},
+	OnStop: func() core.Result {
+		core.Info("audit stopped")
+		return core.Result{OK: true}
+	},
 })
 ```
 
-Factories are called in sorted key order. The resulting `Runtime` wraps a `Core` and exposes `ServiceStartup`/`ServiceShutdown` for GUI runtime integration.
+Registration succeeds when:
 
-For the simplest case with no custom services:
+- the name is not empty
+- the registry is not locked
+- the name is not already in use
+
+## Read a Service Back
 
 ```go
-rt, err := core.NewRuntime(app)
+r := c.Service("audit")
+if r.OK {
+	svc := r.Value.(*core.Service)
+	_ = svc
+}
 ```
 
-## Well-Known Services
+The returned value is `*core.Service`.
 
-Core provides convenience methods for commonly needed services. These use `MustServiceFor` internally and will panic if the service is not registered:
+## List Registered Services
 
-| Method | Expected Name | Expected Interface |
-|--------|--------------|-------------------|
-| `c.Config()` | `"config"` | `Config` |
-| `c.Display()` | `"display"` | `Display` |
-| `c.Workspace()` | `"workspace"` | `Workspace` |
-| `c.Crypt()` | `"crypt"` | `Crypt` |
+```go
+names := c.Services()
+```
 
-These are optional -- only call them if you have registered the corresponding service.
+### Important Detail
 
-## Thread Safety
+The current registry is map-backed. `Services()`, `Startables()`, and `Stoppables()` do not promise a stable order.
 
-The service registry is protected by `sync.RWMutex`. Registration, retrieval, and lifecycle operations are safe to call from multiple goroutines.
+## Lifecycle Snapshots
 
-## Related Pages
+Use these helpers when you want the current set of startable or stoppable services:
 
-- [Lifecycle](lifecycle.md) -- `Startable` and `Stoppable` interfaces
-- [Messaging](messaging.md) -- how services communicate
-- [Configuration](configuration.md) -- all `With*` options
+```go
+startables := c.Startables()
+stoppables := c.Stoppables()
+```
+
+They return `[]*core.Service` inside `Result.Value`.
+
+## Lock the Registry
+
+CoreGO has a service-lock mechanism, but it is explicit.
+
+```go
+c := core.New()
+
+c.LockEnable()
+c.Service("audit", core.Service{})
+c.Service("cache", core.Service{})
+c.LockApply()
+```
+
+After `LockApply`, new registrations fail:
+
+```go
+r := c.Service("late", core.Service{})
+fmt.Println(r.OK) // false
+```
+
+The default lock name is `"srv"`. You can pass a different name if you need a custom lock namespace.
+
+For the service registry itself, use the default `"srv"` lock path. That is the path used by `Core.Service(...)`.
+
+## `NewWithFactories`
+
+For GUI runtimes or factory-driven setup, CoreGO provides `NewWithFactories`.
+
+```go
+r := core.NewWithFactories(nil, map[string]core.ServiceFactory{
+	"audit": func() core.Result {
+		return core.Result{Value: core.Service{
+			OnStart: func() core.Result {
+				return core.Result{OK: true}
+			},
+		}, OK: true}
+	},
+	"cache": func() core.Result {
+		return core.Result{Value: core.Service{}, OK: true}
+	},
+})
+```
+
+### Important Details
+
+- each factory must return a `core.Service` in `Result.Value`
+- factories are executed in sorted key order
+- nil factories are skipped
+- the return value is `*core.Runtime`
+
+## `Runtime`
+
+`Runtime` is a small wrapper used for external runtimes such as GUI bindings.
+
+```go
+r := core.NewRuntime(nil)
+rt := r.Value.(*core.Runtime)
+
+_ = rt.ServiceStartup(context.Background(), nil)
+_ = rt.ServiceShutdown(context.Background())
+```
+
+`Runtime.ServiceName()` returns `"Core"`.
+
+## `ServiceRuntime[T]` for Package Authors
+
+If you are writing a package on top of CoreGO, use `ServiceRuntime[T]` to keep a typed options struct and the parent `Core` together.
+
+```go
+type repositoryServiceOptions struct {
+	BaseDirectory string
+}
+
+type repositoryService struct {
+	*core.ServiceRuntime[repositoryServiceOptions]
+}
+
+func newRepositoryService(c *core.Core) *repositoryService {
+	return &repositoryService{
+		ServiceRuntime: core.NewServiceRuntime(c, repositoryServiceOptions{
+			BaseDirectory: "/srv/repos",
+		}),
+	}
+}
+```
+
+This is a package-authoring helper. It does not replace the `core.Service` registry entry.
