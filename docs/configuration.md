@@ -1,178 +1,96 @@
 ---
-title: Configuration Options
-description: WithService, WithName, WithApp, WithAssets, and WithServiceLock options.
+title: Configuration
+description: Constructor options, runtime settings, and feature flags.
 ---
 
-# Configuration Options
+# Configuration
 
-The `Core` is configured through **options** -- functions with the signature `func(*Core) error`. These are passed to `core.New()` and applied in order during initialisation.
+CoreGO uses two different configuration layers:
+
+- constructor-time `core.Options`
+- runtime `c.Config()`
+
+## Constructor-Time Options
 
 ```go
-type Option func(*Core) error
+c := core.New(core.Options{
+	{Key: "name", Value: "agent-workbench"},
+})
 ```
 
-## Available Options
+### Current Behavior
 
-### WithService
+- `New` accepts `opts ...Options`
+- the current implementation copies only the first `Options` slice
+- the `name` key is applied to `c.App().Name`
+
+If you need more constructor data, put it in the first `core.Options` slice.
+
+## Runtime Settings with `Config`
+
+Use `c.Config()` for mutable process settings.
 
 ```go
-func WithService(factory func(*Core) (any, error)) Option
+c.Config().Set("workspace.root", "/srv/workspaces")
+c.Config().Set("max_agents", 8)
+c.Config().Set("debug", true)
 ```
 
-Registers a service using a factory function. The service name is **auto-discovered** from the Go package path of the returned type (the last path segment, lowercased).
+Read them back with:
 
 ```go
-// If the returned type is from package "myapp/services/calculator",
-// the service name becomes "calculator".
-core.New(
-    core.WithService(calculator.NewService),
-)
+root := c.Config().String("workspace.root")
+maxAgents := c.Config().Int("max_agents")
+debug := c.Config().Bool("debug")
+raw := c.Config().Get("workspace.root")
 ```
 
-`WithService` also performs two automatic behaviours:
+### Important Details
 
-1. **Name discovery** -- uses `reflect` to extract the package name from the returned type.
-2. **IPC handler discovery** -- if the service has a `HandleIPCEvents(c *Core, msg Message) error` method, it is registered as an action handler automatically.
+- missing keys return zero values
+- typed accessors do not coerce strings into ints or bools
+- `Get` returns `core.Result`
 
-If the factory returns an error or `nil`, `New()` fails with an error.
+## Feature Flags
 
-If the returned type has no package path (e.g. a primitive or anonymous type), `New()` fails with a descriptive error.
-
-### WithName
+`Config` also tracks named feature flags.
 
 ```go
-func WithName(name string, factory func(*Core) (any, error)) Option
+c.Config().Enable("workspace.templates")
+c.Config().Enable("agent.review")
+c.Config().Disable("agent.review")
 ```
 
-Registers a service with an **explicit name**. Use this when the auto-discovered name would be wrong (e.g. anonymous functions, or when you want a different name).
+Read them with:
 
 ```go
-core.New(
-    core.WithName("greet", func(c *core.Core) (any, error) {
-        return &Greeter{}, nil
-    }),
-)
+enabled := c.Config().Enabled("workspace.templates")
+features := c.Config().EnabledFeatures()
 ```
 
-Unlike `WithService`, `WithName` does **not** auto-discover IPC handlers. If your service needs to handle actions, register the handler manually:
+Feature names are case-sensitive.
+
+## `ConfigVar[T]`
+
+Use `ConfigVar[T]` when you need a typed value that can also represent “set versus unset”.
 
 ```go
-core.WithName("greet", func(c *core.Core) (any, error) {
-    svc := &Greeter{}
-    c.RegisterAction(svc.HandleIPCEvents)
-    return svc, nil
-}),
-```
+theme := core.NewConfigVar("amber")
 
-### WithApp
-
-```go
-func WithApp(app any) Option
-```
-
-Injects a GUI runtime (e.g. a Wails App instance) into the Core. The app is stored in the `Core.App` field and can be accessed globally via `core.App()` after `SetInstance` is called.
-
-```go
-core.New(
-    core.WithApp(wailsApp),
-)
-```
-
-This is primarily used for desktop applications where services need access to the windowing runtime.
-
-### WithAssets
-
-```go
-func WithAssets(fs embed.FS) Option
-```
-
-Registers the application's embedded assets filesystem. Retrieve it later with `c.Assets()`.
-
-```go
-//go:embed frontend/dist
-var assets embed.FS
-
-core.New(
-    core.WithAssets(assets),
-)
-```
-
-### WithServiceLock
-
-```go
-func WithServiceLock() Option
-```
-
-Prevents any services from being registered after `New()` returns. Any call to `RegisterService` after initialisation will return an error.
-
-```go
-c, err := core.New(
-    core.WithService(myService),
-    core.WithServiceLock(), // no more services can be added
-)
-// c.RegisterService("late", &svc) -> error
-```
-
-This is a safety measure to ensure all services are declared upfront, preventing accidental late-binding that could cause ordering or lifecycle issues.
-
-**How it works:** The lock is recorded during option processing but only **applied** after all options have been processed. This means options that register services (like `WithService`) can appear in any order relative to `WithServiceLock`.
-
-## Option Ordering
-
-Options are applied in the order they are passed to `New()`. This means:
-
-- Services registered earlier are available to later factories (via `c.Service()`).
-- `WithServiceLock()` can appear at any position -- it only takes effect after all options have been processed.
-- `WithApp` and `WithAssets` can appear at any position.
-
-```go
-core.New(
-    core.WithServiceLock(),           // recorded, not yet applied
-    core.WithService(factory1),       // succeeds (lock not yet active)
-    core.WithService(factory2),       // succeeds
-    // After New() returns, the lock is applied
-)
-```
-
-## Global Instance
-
-For applications that need global access to the Core (typically GUI runtimes), there is a global instance mechanism:
-
-```go
-// Set the global instance (typically during app startup)
-core.SetInstance(c)
-
-// Retrieve it (panics if not set)
-app := core.App()
-
-// Non-panicking access
-c := core.GetInstance()
-if c == nil {
-    // not set
+if theme.IsSet() {
+	fmt.Println(theme.Get())
 }
 
-// Clear it (useful in tests)
-core.ClearInstance()
+theme.Unset()
 ```
 
-These functions are thread-safe.
+This is useful for package-local state where zero values are not enough to describe configuration presence.
 
-## Features
+## Recommended Pattern
 
-The `Core` struct includes a `Features` field for simple feature flagging:
+Use the two layers for different jobs:
 
-```go
-c.Features.Flags = []string{"experimental-ui", "beta-api"}
+- put startup identity such as `name` into `core.Options`
+- put mutable runtime values and feature switches into `c.Config()`
 
-if c.Features.IsEnabled("experimental-ui") {
-    // enable experimental UI
-}
-```
-
-Feature flags are string-matched (case-sensitive). This is a lightweight mechanism -- for complex feature management, register a dedicated service.
-
-## Related Pages
-
-- [Services](services.md) -- service registration and retrieval
-- [Lifecycle](lifecycle.md) -- startup/shutdown after configuration
-- [Getting Started](getting-started.md) -- end-to-end example
+That keeps constructor intent separate from live process state.

@@ -1,340 +1,118 @@
 ---
 title: Testing
-description: Test naming conventions, test helpers, and patterns for Core applications.
+description: Test naming and testing patterns used by CoreGO.
 ---
 
 # Testing
 
-Core uses `github.com/stretchr/testify` for assertions and follows a structured test naming convention. This page covers the patterns used in the framework itself and recommended for services built on it.
+The repository uses `github.com/stretchr/testify/assert` and a simple AX-friendly naming pattern.
 
-## Naming Convention
+## Test Names
 
-Tests use a `_Good`, `_Bad`, `_Ugly` suffix pattern:
+Use:
 
-| Suffix | Purpose | Example |
-|--------|---------|---------|
-| `_Good` | Happy path -- expected behaviour | `TestCore_New_Good` |
-| `_Bad` | Expected error conditions | `TestCore_WithService_Bad` |
-| `_Ugly` | Panics, edge cases, degenerate input | `TestCore_MustServiceFor_Ugly` |
+- `_Good` for expected success
+- `_Bad` for expected failure
+- `_Ugly` for panics, degenerate input, and edge behavior
 
-The format is `Test{Component}_{Method}_{Suffix}`:
+Examples from this repository:
 
 ```go
-func TestCore_New_Good(t *testing.T) {
-    c, err := New()
-    assert.NoError(t, err)
-    assert.NotNil(t, c)
-}
-
-func TestCore_WithService_Bad(t *testing.T) {
-    factory := func(c *Core) (any, error) {
-        return nil, assert.AnError
-    }
-    _, err := New(WithService(factory))
-    assert.Error(t, err)
-    assert.ErrorIs(t, err, assert.AnError)
-}
-
-func TestCore_MustServiceFor_Ugly(t *testing.T) {
-    c, _ := New()
-    assert.Panics(t, func() {
-        MustServiceFor[*MockService](c, "nonexistent")
-    })
-}
+func TestNew_Good(t *testing.T) {}
+func TestService_Register_Duplicate_Bad(t *testing.T) {}
+func TestCore_Must_Ugly(t *testing.T) {}
 ```
 
-## Creating a Test Core
-
-For unit tests, create a minimal Core with only the services needed:
+## Start with a Small Core
 
 ```go
-func TestMyFeature(t *testing.T) {
-    c, err := core.New()
-    assert.NoError(t, err)
-
-    // Register only what the test needs
-    err = c.RegisterService("my-service", &MyService{})
-    assert.NoError(t, err)
-}
+c := core.New(core.Options{
+	{Key: "name", Value: "test-core"},
+})
 ```
 
-## Mock Services
+Then register only the pieces your test needs.
 
-Define mock services as test-local structs. Core's interface-based design makes this straightforward:
+## Test a Service
 
 ```go
-// Mock a Startable service
-type MockStartable struct {
-    started bool
-    err     error
-}
+started := false
 
-func (m *MockStartable) OnStartup(ctx context.Context) error {
-    m.started = true
-    return m.err
-}
+c.Service("audit", core.Service{
+	OnStart: func() core.Result {
+		started = true
+		return core.Result{OK: true}
+	},
+})
 
-// Mock a Stoppable service
-type MockStoppable struct {
-    stopped bool
-    err     error
-}
-
-func (m *MockStoppable) OnShutdown(ctx context.Context) error {
-    m.stopped = true
-    return m.err
-}
+r := c.ServiceStartup(context.Background(), nil)
+assert.True(t, r.OK)
+assert.True(t, started)
 ```
 
-For services implementing both lifecycle interfaces:
+## Test a Command
 
 ```go
-type MockLifecycle struct {
-    MockStartable
-    MockStoppable
-}
+c.Command("greet", core.Command{
+	Action: func(opts core.Options) core.Result {
+		return core.Result{Value: "hello " + opts.String("name"), OK: true}
+	},
+})
+
+r := c.Cli().Run("greet", "--name=world")
+assert.True(t, r.OK)
+assert.Equal(t, "hello world", r.Value)
 ```
 
-## Testing Lifecycle
-
-Verify that startup and shutdown are called in the correct order:
+## Test a Query or Task
 
 ```go
-func TestLifecycleOrder(t *testing.T) {
-    c, _ := core.New()
-    var callOrder []string
+c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result {
+	if q == "ping" {
+		return core.Result{Value: "pong", OK: true}
+	}
+	return core.Result{}
+})
 
-    s1 := &OrderTracker{id: "1", log: &callOrder}
-    s2 := &OrderTracker{id: "2", log: &callOrder}
-
-    _ = c.RegisterService("s1", s1)
-    _ = c.RegisterService("s2", s2)
-
-    _ = c.ServiceStartup(context.Background(), nil)
-    assert.Equal(t, []string{"start-1", "start-2"}, callOrder)
-
-    callOrder = nil
-    _ = c.ServiceShutdown(context.Background())
-    assert.Equal(t, []string{"stop-2", "stop-1"}, callOrder) // reverse order
-}
+assert.Equal(t, "pong", c.QUERY("ping").Value)
 ```
-
-## Testing Message Handlers
-
-### Actions
-
-Register an action handler and verify it receives the expected message:
 
 ```go
-func TestAction(t *testing.T) {
-    c, _ := core.New()
-    var received core.Message
+c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
+	if t == "compute" {
+		return core.Result{Value: 42, OK: true}
+	}
+	return core.Result{}
+})
 
-    c.RegisterAction(func(c *core.Core, msg core.Message) error {
-        received = msg
-        return nil
-    })
-
-    _ = c.ACTION(MyEvent{Data: "test"})
-    event, ok := received.(MyEvent)
-    assert.True(t, ok)
-    assert.Equal(t, "test", event.Data)
-}
+assert.Equal(t, 42, c.PERFORM("compute").Value)
 ```
 
-### Queries
+## Test Async Work
+
+For `PerformAsync`, observe completion through the action bus.
 
 ```go
-func TestQuery(t *testing.T) {
-    c, _ := core.New()
+completed := make(chan core.ActionTaskCompleted, 1)
 
-    c.RegisterQuery(func(c *core.Core, q core.Query) (any, bool, error) {
-        if _, ok := q.(GetStatus); ok {
-            return "healthy", true, nil
-        }
-        return nil, false, nil
-    })
-
-    result, handled, err := c.QUERY(GetStatus{})
-    assert.NoError(t, err)
-    assert.True(t, handled)
-    assert.Equal(t, "healthy", result)
-}
+c.RegisterAction(func(_ *core.Core, msg core.Message) core.Result {
+	if event, ok := msg.(core.ActionTaskCompleted); ok {
+		completed <- event
+	}
+	return core.Result{OK: true}
+})
 ```
 
-### Tasks
+Then wait with normal Go test tools such as channels, timers, or `assert.Eventually`.
 
-```go
-func TestTask(t *testing.T) {
-    c, _ := core.New()
+## Use Real Temporary Paths
 
-    c.RegisterTask(func(c *core.Core, t core.Task) (any, bool, error) {
-        if m, ok := t.(ProcessItem); ok {
-            return "processed-" + m.ID, true, nil
-        }
-        return nil, false, nil
-    })
+When testing `Fs`, `Data.Extract`, or other I/O helpers, use `t.TempDir()` and create realistic paths instead of mocking the filesystem by default.
 
-    result, handled, err := c.PERFORM(ProcessItem{ID: "42"})
-    assert.NoError(t, err)
-    assert.True(t, handled)
-    assert.Equal(t, "processed-42", result)
-}
-```
-
-### Async Tasks
-
-Use `assert.Eventually` to wait for background task completion:
-
-```go
-func TestAsyncTask(t *testing.T) {
-    c, _ := core.New()
-
-    var completed atomic.Bool
-    var resultReceived any
-
-    c.RegisterAction(func(c *core.Core, msg core.Message) error {
-        if tc, ok := msg.(core.ActionTaskCompleted); ok {
-            resultReceived = tc.Result
-            completed.Store(true)
-        }
-        return nil
-    })
-
-    c.RegisterTask(func(c *core.Core, task core.Task) (any, bool, error) {
-        return "async-result", true, nil
-    })
-
-    taskID := c.PerformAsync(MyTask{})
-    assert.NotEmpty(t, taskID)
-
-    assert.Eventually(t, func() bool {
-        return completed.Load()
-    }, 1*time.Second, 10*time.Millisecond)
-
-    assert.Equal(t, "async-result", resultReceived)
-}
-```
-
-## Testing with Context Cancellation
-
-Verify that lifecycle methods respect context cancellation:
-
-```go
-func TestStartupCancellation(t *testing.T) {
-    c, _ := core.New()
-    ctx, cancel := context.WithCancel(context.Background())
-    cancel() // cancel immediately
-
-    s := &MockStartable{}
-    _ = c.RegisterService("s1", s)
-
-    err := c.ServiceStartup(ctx, nil)
-    assert.Error(t, err)
-    assert.ErrorIs(t, err, context.Canceled)
-    assert.False(t, s.started)
-}
-```
-
-## Global Instance in Tests
-
-If your code under test uses `core.App()` or `core.GetInstance()`, save and restore the global instance:
-
-```go
-func TestWithGlobalInstance(t *testing.T) {
-    original := core.GetInstance()
-    defer core.SetInstance(original)
-
-    c, _ := core.New(core.WithApp(&mockApp{}))
-    core.SetInstance(c)
-
-    // Test code that calls core.App()
-    assert.NotNil(t, core.App())
-}
-```
-
-Or use `ClearInstance()` to ensure a clean state:
-
-```go
-func TestAppPanicsWhenNotSet(t *testing.T) {
-    original := core.GetInstance()
-    core.ClearInstance()
-    defer core.SetInstance(original)
-
-    assert.Panics(t, func() {
-        core.App()
-    })
-}
-```
-
-## Fuzz Testing
-
-Core includes fuzz tests for critical paths. The pattern is to exercise constructors and registries with arbitrary input:
-
-```go
-func FuzzE(f *testing.F) {
-    f.Add("svc.Method", "something broke", true)
-    f.Add("", "", false)
-
-    f.Fuzz(func(t *testing.T, op, msg string, withErr bool) {
-        var underlying error
-        if withErr {
-            underlying = errors.New("wrapped")
-        }
-        e := core.E(op, msg, underlying)
-        if e == nil {
-            t.Fatal("E() returned nil")
-        }
-    })
-}
-```
-
-Run fuzz tests with:
+## Repository Commands
 
 ```bash
-core go test --run Fuzz --fuzz FuzzE
-```
-
-Or directly with `go test`:
-
-```bash
-go test -fuzz FuzzE ./pkg/core/
-```
-
-## Benchmarks
-
-Core includes benchmarks for the message bus. Run them with:
-
-```bash
-go test -bench . ./pkg/core/
-```
-
-Available benchmarks:
-
-- `BenchmarkMessageBus_Action` -- ACTION dispatch throughput
-- `BenchmarkMessageBus_Query` -- QUERY dispatch throughput
-- `BenchmarkMessageBus_Perform` -- PERFORM dispatch throughput
-
-## Running Tests
-
-```bash
-# All tests
 core go test
-
-# Single test
-core go test --run TestCore_New_Good
-
-# With race detector
-go test -race ./pkg/core/
-
-# Coverage
-core go cov
-core go cov --open  # opens HTML report in browser
+core go test --run TestPerformAsync_Good
+go test ./...
 ```
-
-## Related Pages
-
-- [Services](services.md) -- what you are testing
-- [Lifecycle](lifecycle.md) -- startup/shutdown behaviour
-- [Messaging](messaging.md) -- ACTION/QUERY/PERFORM
-- [Errors](errors.md) -- the `E()` helper used in tests

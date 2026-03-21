@@ -1,616 +1,138 @@
-# Core Package Standards
+# AX Package Standards
 
-This document defines the standards for creating packages in the Core framework. The `pkg/log` service is the reference implementation within this repo; standalone packages (go-session, go-store, etc.) follow the same patterns.
+This page describes how to build packages on top of CoreGO in the style described by RFC-025.
 
-## Package Structure
+## 1. Prefer Predictable Names
 
-A well-structured Core package follows this layout:
+Use names that tell an agent what the thing is without translation.
 
-```
-pkg/mypackage/
-├── types.go           # Public types, constants, interfaces
-├── service.go         # Service struct with framework integration
-├── mypackage.go       # Global convenience functions
-├── actions.go         # ACTION messages for Core IPC (if needed)
-├── hooks.go           # Event hooks with atomic handlers (if needed)
-├── [feature].go       # Additional feature files
-├── [feature]_test.go  # Tests alongside implementation
-└── service_test.go    # Service tests
-```
+Good:
 
-## Core Principles
+- `RepositoryService`
+- `RepositoryServiceOptions`
+- `WorkspaceCountQuery`
+- `SyncRepositoryTask`
 
-1. **Service-oriented**: Packages expose a `Service` struct that integrates with the Core framework
-2. **Thread-safe**: All public APIs must be safe for concurrent use
-3. **Global convenience**: Provide package-level functions that use a default service instance
-4. **Options pattern**: Use functional options for configuration
-5. **ACTION-based IPC**: Communicate via Core's ACTION system, not callbacks
+Avoid shortening names unless the abbreviation is already universal.
 
----
+## 2. Put Real Usage in Comments
 
-## Service Pattern
+Write comments that show a real call with realistic values.
 
-### Service Struct
-
-Embed `framework.ServiceRuntime[T]` for Core integration:
+Good:
 
 ```go
-// pkg/mypackage/service.go
-package mypackage
-
-import (
-    "sync"
-    "forge.lthn.ai/core/go/pkg/core"
-)
-
-// Service provides mypackage functionality with Core integration.
-type Service struct {
-    *core.ServiceRuntime[Options]
-
-    // Internal state (protected by mutex)
-    data map[string]any
-    mu   sync.RWMutex
-}
-
-// Options configures the service.
-type Options struct {
-    // Document each option
-    BufferSize int
-    EnableFoo  bool
-}
+// Sync a repository into the local workspace cache.
+// svc.SyncRepository("core-go", "/srv/repos/core-go")
 ```
 
-### Service Factory
+Avoid comments that only repeat the signature.
 
-Create a factory function for Core registration:
+## 3. Keep Paths Semantic
+
+If a command or template lives at a path, let the path explain the intent.
+
+Good:
+
+```text
+deploy/to/homelab
+workspace/create
+template/workspace/go
+```
+
+That keeps the CLI, tests, docs, and message vocabulary aligned.
+
+## 4. Reuse CoreGO Primitives
+
+At Core boundaries, prefer the shared shapes:
+
+- `core.Options` for lightweight input
+- `core.Result` for output
+- `core.Service` for lifecycle registration
+- `core.Message`, `core.Query`, `core.Task` for bus protocols
+
+Inside your package, typed structs are still good. Use `ServiceRuntime[T]` when you want typed package options plus a `Core` reference.
 
 ```go
-// NewService creates a service factory for Core registration.
-//
-//    core, _ := core.New(
-//        core.WithName("mypackage", mypackage.NewService(mypackage.Options{})),
-//    )
-func NewService(opts Options) func(*core.Core) (any, error) {
-    return func(c *core.Core) (any, error) {
-        // Apply defaults
-        if opts.BufferSize == 0 {
-            opts.BufferSize = DefaultBufferSize
-        }
+type repositoryServiceOptions struct {
+	BaseDirectory string
+}
 
-        svc := &Service{
-            ServiceRuntime: core.NewServiceRuntime(c, opts),
-            data:           make(map[string]any),
-        }
-        return svc, nil
-    }
+type repositoryService struct {
+	*core.ServiceRuntime[repositoryServiceOptions]
 }
 ```
 
-### Lifecycle Hooks
+## 5. Prefer Explicit Registration
 
-Implement `core.Startable` and/or `core.Stoppable`:
+Register services and commands with names and paths that stay readable in grep results.
 
 ```go
-// OnStartup implements core.Startable.
-func (s *Service) OnStartup(ctx context.Context) error {
-    // Register query/task handlers
-    s.Core().RegisterQuery(s.handleQuery)
-    s.Core().RegisterAction(s.handleAction)
-    return nil
-}
-
-// OnShutdown implements core.Stoppable.
-func (s *Service) OnShutdown(ctx context.Context) error {
-    // Cleanup resources
-    return nil
-}
+c.Service("repository", core.Service{...})
+c.Command("repository/sync", core.Command{...})
 ```
 
----
+## 6. Use the Bus for Decoupling
 
-## Global Default Pattern
-
-Provide a global default service with atomic access:
+When one package needs another package’s behavior, prefer queries and tasks over tight package coupling.
 
 ```go
-// pkg/mypackage/mypackage.go
-package mypackage
-
-import (
-    "sync"
-    "sync/atomic"
-
-    "forge.lthn.ai/core/go/pkg/core"
-)
-
-// Global default service
-var (
-    defaultService atomic.Pointer[Service]
-    defaultOnce    sync.Once
-    defaultErr     error
-)
-
-// Default returns the global service instance.
-// Returns nil if not initialised.
-func Default() *Service {
-    return defaultService.Load()
-}
-
-// SetDefault sets the global service instance.
-// Thread-safe. Panics if s is nil.
-func SetDefault(s *Service) {
-    if s == nil {
-        panic("mypackage: SetDefault called with nil service")
-    }
-    defaultService.Store(s)
-}
-
-// Init initialises the default service with a Core instance.
-func Init(c *core.Core) error {
-    defaultOnce.Do(func() {
-        factory := NewService(Options{})
-        svc, err := factory(c)
-        if err != nil {
-            defaultErr = err
-            return
-        }
-        defaultService.Store(svc.(*Service))
-    })
-    return defaultErr
+type repositoryCountQuery struct{}
+type syncRepositoryTask struct {
+	Name string
 }
 ```
 
-### Global Convenience Functions
+That keeps the protocol visible in code and easy for agents to follow.
 
-Expose the most common operations at package level:
+## 7. Use Structured Errors
+
+Use `core.E`, `core.Wrap`, and `core.WrapCode`.
 
 ```go
-// ErrServiceNotInitialised is returned when the service is not initialised.
-var ErrServiceNotInitialised = errors.New("mypackage: service not initialised")
-
-// DoSomething performs an operation using the default service.
-func DoSomething(arg string) (string, error) {
-    svc := Default()
-    if svc == nil {
-        return "", ErrServiceNotInitialised
-    }
-    return svc.DoSomething(arg)
+return core.Result{
+	Value: core.E("repository.Sync", "git fetch failed", err),
+	OK:    false,
 }
 ```
 
----
+Do not introduce free-form `fmt.Errorf` chains in framework code.
 
-## Options Pattern
+## 8. Keep Testing Names Predictable
 
-Use functional options for complex configuration:
+Follow the repository pattern:
+
+- `_Good`
+- `_Bad`
+- `_Ugly`
+
+Example:
 
 ```go
-// Option configures a Service during construction.
-type Option func(*Service)
-
-// WithBufferSize sets the buffer size.
-func WithBufferSize(size int) Option {
-    return func(s *Service) {
-        s.bufSize = size
-    }
-}
-
-// WithFoo enables foo feature.
-func WithFoo(enabled bool) Option {
-    return func(s *Service) {
-        s.fooEnabled = enabled
-    }
-}
-
-// New creates a service with options.
-func New(opts ...Option) (*Service, error) {
-    s := &Service{
-        bufSize: DefaultBufferSize,
-    }
-    for _, opt := range opts {
-        opt(s)
-    }
-    return s, nil
-}
+func TestRepositorySync_Good(t *testing.T) {}
+func TestRepositorySync_Bad(t *testing.T) {}
+func TestRepositorySync_Ugly(t *testing.T) {}
 ```
 
----
+## 9. Prefer Stable Shapes Over Clever APIs
 
-## ACTION Messages (IPC)
+For package APIs, avoid patterns that force an agent to infer too much hidden control flow.
 
-For services that need to communicate events, define ACTION message types:
+Prefer:
 
-```go
-// pkg/mypackage/actions.go
-package mypackage
+- clear structs
+- explicit names
+- path-based commands
+- visible message types
 
-import "time"
+Avoid:
 
-// ActionItemCreated is broadcast when an item is created.
-type ActionItemCreated struct {
-    ID        string
-    Name      string
-    CreatedAt time.Time
-}
+- implicit global state unless it is truly a default service
+- panic-hiding constructors
+- dense option chains when a small explicit struct would do
 
-// ActionItemUpdated is broadcast when an item changes.
-type ActionItemUpdated struct {
-    ID      string
-    Changes map[string]any
-}
+## 10. Document the Current Reality
 
-// ActionItemDeleted is broadcast when an item is removed.
-type ActionItemDeleted struct {
-    ID string
-}
-```
+If the implementation is in transition, document what the code does now, not the API shape you plan to have later.
 
-Dispatch actions via `s.Core().ACTION()`:
-
-```go
-func (s *Service) CreateItem(name string) (*Item, error) {
-    item := &Item{ID: generateID(), Name: name}
-
-    // Store item...
-
-    // Broadcast to listeners
-    s.Core().ACTION(ActionItemCreated{
-        ID:        item.ID,
-        Name:      item.Name,
-        CreatedAt: time.Now(),
-    })
-
-    return item, nil
-}
-```
-
-Consumers register handlers:
-
-```go
-core.RegisterAction(func(c *core.Core, msg core.Message) error {
-    switch m := msg.(type) {
-    case mypackage.ActionItemCreated:
-        log.Printf("Item created: %s", m.Name)
-    case mypackage.ActionItemDeleted:
-        log.Printf("Item deleted: %s", m.ID)
-    }
-    return nil
-})
-```
-
----
-
-## Hooks Pattern
-
-For user-customisable behaviour, use atomic handlers:
-
-```go
-// pkg/mypackage/hooks.go
-package mypackage
-
-import (
-    "sync/atomic"
-)
-
-// ErrorHandler is called when an error occurs.
-type ErrorHandler func(err error)
-
-var errorHandler atomic.Value // stores ErrorHandler
-
-// OnError registers an error handler.
-// Thread-safe. Pass nil to clear.
-func OnError(h ErrorHandler) {
-    if h == nil {
-        errorHandler.Store((ErrorHandler)(nil))
-        return
-    }
-    errorHandler.Store(h)
-}
-
-// dispatchError calls the registered error handler.
-func dispatchError(err error) {
-    v := errorHandler.Load()
-    if v == nil {
-        return
-    }
-    h, ok := v.(ErrorHandler)
-    if !ok || h == nil {
-        return
-    }
-    h(err)
-}
-```
-
----
-
-## Thread Safety
-
-### Mutex Patterns
-
-Use `sync.RWMutex` for state that is read more than written:
-
-```go
-type Service struct {
-    data map[string]any
-    mu   sync.RWMutex
-}
-
-func (s *Service) Get(key string) (any, bool) {
-    s.mu.RLock()
-    defer s.mu.RUnlock()
-    v, ok := s.data[key]
-    return v, ok
-}
-
-func (s *Service) Set(key string, value any) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    s.data[key] = value
-}
-```
-
-### Atomic Values
-
-Use `atomic.Pointer[T]` for single values accessed frequently:
-
-```go
-var config atomic.Pointer[Config]
-
-func GetConfig() *Config {
-    return config.Load()
-}
-
-func SetConfig(c *Config) {
-    config.Store(c)
-}
-```
-
----
-
-## Error Handling
-
-### Error Types
-
-Define package-level errors:
-
-```go
-// Errors
-var (
-    ErrNotFound    = errors.New("mypackage: not found")
-    ErrInvalidArg  = errors.New("mypackage: invalid argument")
-    ErrNotRunning  = errors.New("mypackage: not running")
-)
-```
-
-### Wrapped Errors
-
-Use `fmt.Errorf` with `%w` for context:
-
-```go
-func (s *Service) Load(path string) error {
-    data, err := os.ReadFile(path)
-    if err != nil {
-        return fmt.Errorf("failed to load config: %w", err)
-    }
-    // ...
-}
-```
-
-### Error Struct (optional)
-
-For errors needing additional context:
-
-```go
-type ServiceError struct {
-    Op      string // Operation that failed
-    Path    string // Resource path
-    Err     error  // Underlying error
-}
-
-func (e *ServiceError) Error() string {
-    return fmt.Sprintf("%s %s: %v", e.Op, e.Path, e.Err)
-}
-
-func (e *ServiceError) Unwrap() error {
-    return e.Err
-}
-```
-
----
-
-## Testing
-
-### Test File Organisation
-
-Place tests alongside implementation:
-
-```
-mypackage.go      → mypackage_test.go
-service.go        → service_test.go
-buffer.go         → buffer_test.go
-```
-
-### Test Helpers
-
-Create helpers for common setup:
-
-```go
-func newTestService(t *testing.T) (*Service, *core.Core) {
-    t.Helper()
-
-    core, err := core.New(
-        core.WithName("mypackage", NewService(Options{})),
-    )
-    require.NoError(t, err)
-
-    svc, err := core.ServiceFor[*Service](core, "mypackage")
-    require.NoError(t, err)
-
-    return svc, core
-}
-```
-
-### Test Naming Convention
-
-Use descriptive subtests:
-
-```go
-func TestService_DoSomething(t *testing.T) {
-    t.Run("valid input", func(t *testing.T) {
-        // ...
-    })
-
-    t.Run("empty input returns error", func(t *testing.T) {
-        // ...
-    })
-
-    t.Run("concurrent access", func(t *testing.T) {
-        // ...
-    })
-}
-```
-
-### Testing Actions
-
-Verify ACTION broadcasts:
-
-```go
-func TestService_BroadcastsActions(t *testing.T) {
-    core, _ := core.New(
-        core.WithName("mypackage", NewService(Options{})),
-    )
-
-    var received []ActionItemCreated
-    var mu sync.Mutex
-
-    core.RegisterAction(func(c *core.Core, msg core.Message) error {
-        if m, ok := msg.(ActionItemCreated); ok {
-            mu.Lock()
-            received = append(received, m)
-            mu.Unlock()
-        }
-        return nil
-    })
-
-    svc, _ := core.ServiceFor[*Service](core, "mypackage")
-    svc.CreateItem("test")
-
-    mu.Lock()
-    assert.Len(t, received, 1)
-    assert.Equal(t, "test", received[0].Name)
-    mu.Unlock()
-}
-```
-
----
-
-## Documentation
-
-### Package Doc
-
-Every package needs a doc comment in the main file:
-
-```go
-// Package mypackage provides functionality for X.
-//
-// # Getting Started
-//
-//    svc, err := mypackage.New()
-//    result := svc.DoSomething("input")
-//
-// # Core Integration
-//
-//    core, _ := core.New(
-//        core.WithName("mypackage", mypackage.NewService(mypackage.Options{})),
-//    )
-package mypackage
-```
-
-### Function Documentation
-
-Document public functions with examples:
-
-```go
-// DoSomething performs X operation with the given input.
-// Returns ErrInvalidArg if input is empty.
-//
-//    result, err := svc.DoSomething("hello")
-//    if err != nil {
-//        return err
-//    }
-func (s *Service) DoSomething(input string) (string, error) {
-    // ...
-}
-```
-
----
-
-## Checklist
-
-When creating a new package, ensure:
-
-- [ ] `Service` struct embeds `framework.ServiceRuntime[Options]`
-- [ ] `NewService()` factory function for Core registration
-- [ ] `Default()` / `SetDefault()` with `atomic.Pointer`
-- [ ] Package-level convenience functions
-- [ ] Thread-safe public APIs (mutex or atomic)
-- [ ] ACTION messages for events (if applicable)
-- [ ] Hooks with atomic handlers (if applicable)
-- [ ] Comprehensive tests with helpers
-- [ ] Package documentation with examples
-
-## Reference Implementations
-
-- **`pkg/log`** (this repo) — Service struct with Core integration, query/task handlers
-- **`core/go-store`** — SQLite KV store with Watch/OnChange, full service pattern
-- **`core/go-session`** — Transcript parser with analytics, factory pattern
-
----
-
-## Background Operations
-
-For long-running operations that could block the UI, use the framework's background task mechanism.
-
-### Principles
-
-1. **Non-blocking**: Long-running operations must not block the main IPC thread.
-2. **Lifecycle Events**: Use `PerformAsync` to automatically broadcast start and completion events.
-3. **Progress Reporting**: Services should broadcast `ActionTaskProgress` for granular updates.
-
-### Using PerformAsync
-
-The `Core.PerformAsync(task)` method runs any registered task in a background goroutine and returns a unique `TaskID` immediately.
-
-```go
-// From the frontend or another service
-taskID := core.PerformAsync(git.TaskPush{Path: "/repo"})
-// taskID is returned immediately, e.g., "task-123"
-```
-
-The framework automatically broadcasts lifecycle actions:
-- `ActionTaskStarted`: When the background goroutine begins.
-- `ActionTaskCompleted`: When the task finishes (contains Result and Error).
-
-### Reporting Progress
-
-For very long operations, the service handler should broadcast progress:
-
-```go
-func (s *Service) handleTask(c *core.Core, t core.Task) (any, bool, error) {
-    switch m := t.(type) {
-    case MyLongTask:
-        // Optional: If you need to report progress, you might need to pass
-        // a TaskID or use a specific progress channel.
-        // For now, simple tasks just use ActionTaskCompleted.
-        return s.doLongWork(m), true, nil
-    }
-    return nil, false, nil
-}
-```
-
-### Implementing Background-Safe Handlers
-
-Ensure that handlers for long-running tasks:
-1. Use `context.Background()` or a long-lived context, as the request context might expire.
-2. Are thread-safe and don't hold global locks for the duration of the work.
-3. Do not use interactive CLI functions like `cli.Scanln` if they are intended for GUI use.
+That keeps agents correct on first pass, which is the real AX metric.

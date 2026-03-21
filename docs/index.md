@@ -1,36 +1,33 @@
 ---
-title: Core Go Framework
-description: Dependency injection and service lifecycle framework for Go.
+title: CoreGO
+description: AX-first documentation for the CoreGO framework.
 ---
 
-# Core Go Framework
+# CoreGO
 
-Core (`forge.lthn.ai/core/go`) is a dependency injection and service lifecycle framework for Go. It provides a typed service registry, lifecycle hooks, and a message-passing bus for decoupled communication between services.
+CoreGO is the foundation layer for the Core ecosystem. It gives you one container, one command tree, one message bus, and a small set of shared primitives that repeat across the whole framework.
 
-This is the foundation layer of the ecosystem. It has no CLI, no GUI, and minimal dependencies.
+The current module path is `dappco.re/go/core`.
 
-## Installation
+## AX View
 
-```bash
-go get forge.lthn.ai/core/go
-```
+CoreGO already follows the main AX ideas from RFC-025:
 
-Requires Go 1.26 or later.
+- predictable names such as `Core`, `Service`, `Command`, `Options`, `Result`, `Message`
+- path-shaped command registration such as `deploy/to/homelab`
+- one repeated input shape (`Options`) and one repeated return shape (`Result`)
+- comments and examples that show real usage instead of restating the type signature
 
-## What It Does
+## What CoreGO Owns
 
-Core solves three problems that every non-trivial Go application eventually faces:
-
-1. **Service wiring** -- how do you register, retrieve, and type-check services without import cycles?
-2. **Lifecycle management** -- how do you start and stop services in the right order?
-3. **Decoupled communication** -- how do services talk to each other without knowing each other's types?
-
-## Packages
-
-| Package | Purpose |
+| Surface | Purpose |
 |---------|---------|
-| [`pkg/core`](services.md) | DI container, service registry, lifecycle, message bus |
-| `pkg/log` | Structured logger service with Core integration |
+| `Core` | Central container and access point |
+| `Service` | Managed lifecycle component |
+| `Command` | Path-based command tree node |
+| `ACTION`, `QUERY`, `PERFORM` | Decoupled communication between components |
+| `Data`, `Drive`, `Fs`, `Config`, `I18n`, `Cli` | Built-in subsystems for common runtime work |
+| `E`, `Wrap`, `ErrorLog`, `ErrorPanic` | Structured failures and panic recovery |
 
 ## Quick Example
 
@@ -38,59 +35,78 @@ Core solves three problems that every non-trivial Go application eventually face
 package main
 
 import (
-    "context"
-    "fmt"
+	"context"
+	"fmt"
 
-    "forge.lthn.ai/core/go/pkg/core"
-    "forge.lthn.ai/core/go/pkg/log"
+	"dappco.re/go/core"
 )
 
+type flushCacheTask struct {
+	Name string
+}
+
 func main() {
-    c, err := core.New(
-        core.WithName("log", log.NewService(log.Options{Level: log.LevelInfo})),
-        core.WithServiceLock(), // Prevent late registration
-    )
-    if err != nil {
-        panic(err)
-    }
+	c := core.New(core.Options{
+		{Key: "name", Value: "agent-workbench"},
+	})
 
-    // Start all services
-    if err := c.ServiceStartup(context.Background(), nil); err != nil {
-        panic(err)
-    }
+	c.Service("cache", core.Service{
+		OnStart: func() core.Result {
+			core.Info("cache ready", "app", c.App().Name)
+			return core.Result{OK: true}
+		},
+		OnStop: func() core.Result {
+			core.Info("cache stopped", "app", c.App().Name)
+			return core.Result{OK: true}
+		},
+	})
 
-    // Type-safe retrieval
-    logger, err := core.ServiceFor[*log.Service](c, "log")
-    if err != nil {
-        panic(err)
-    }
-    fmt.Println("Log level:", logger.Level())
+	c.RegisterTask(func(_ *core.Core, task core.Task) core.Result {
+		switch task.(type) {
+		case flushCacheTask:
+			return core.Result{Value: "cache flushed", OK: true}
+		}
+		return core.Result{}
+	})
 
-    // Shut down (reverse order)
-    _ = c.ServiceShutdown(context.Background())
+	c.Command("cache/flush", core.Command{
+		Action: func(opts core.Options) core.Result {
+			return c.PERFORM(flushCacheTask{Name: opts.String("name")})
+		},
+	})
+
+	if !c.ServiceStartup(context.Background(), nil).OK {
+		panic("startup failed")
+	}
+
+	r := c.Cli().Run("cache", "flush", "--name=session-store")
+	fmt.Println(r.Value)
+
+	_ = c.ServiceShutdown(context.Background())
 }
 ```
 
-## Documentation
+## Documentation Paths
 
-| Page | Covers |
+| Path | Covers |
 |------|--------|
-| [Getting Started](getting-started.md) | Creating a Core app, registering your first service |
-| [Services](services.md) | Service registration, `ServiceRuntime`, factory pattern |
-| [Lifecycle](lifecycle.md) | `Startable`/`Stoppable` interfaces, startup/shutdown order |
-| [Messaging](messaging.md) | ACTION, QUERY, PERFORM -- the message bus |
-| [Configuration](configuration.md) | `WithService`, `WithName`, `WithAssets`, `WithServiceLock` options |
-| [Testing](testing.md) | Test naming conventions, test helpers, fuzz testing |
-| [Errors](errors.md) | `E()` helper, `Error` struct, unwrapping |
+| [getting-started.md](getting-started.md) | First runnable CoreGO app |
+| [primitives.md](primitives.md) | `Options`, `Result`, `Service`, `Message`, `Query`, `Task` |
+| [services.md](services.md) | Service registry, service locks, runtime helpers |
+| [commands.md](commands.md) | Path-based commands and CLI execution |
+| [messaging.md](messaging.md) | `ACTION`, `QUERY`, `QUERYALL`, `PERFORM`, `PerformAsync` |
+| [lifecycle.md](lifecycle.md) | Startup, shutdown, context, background task draining |
+| [configuration.md](configuration.md) | Constructor options, config state, feature flags |
+| [subsystems.md](subsystems.md) | `App`, `Data`, `Drive`, `Fs`, `I18n`, `Cli` |
+| [errors.md](errors.md) | Structured errors, logging helpers, panic recovery |
+| [testing.md](testing.md) | Test naming and framework-level testing patterns |
+| [pkg/core.md](pkg/core.md) | Package-level reference summary |
+| [pkg/log.md](pkg/log.md) | Logging reference for the root package |
+| [pkg/PACKAGE_STANDARDS.md](pkg/PACKAGE_STANDARDS.md) | AX package-authoring guidance |
 
-## Dependencies
+## Good Reading Order
 
-Core is deliberately minimal:
-
-- `forge.lthn.ai/core/go-io` -- abstract storage (local, S3, SFTP, WebDAV)
-- `forge.lthn.ai/core/go-log` -- structured logging
-- `github.com/stretchr/testify` -- test assertions (test-only)
-
-## Licence
-
-EUPL-1.2
+1. Start with [getting-started.md](getting-started.md).
+2. Learn the repeated shapes in [primitives.md](primitives.md).
+3. Pick the integration path you need next: [services.md](services.md), [commands.md](commands.md), or [messaging.md](messaging.md).
+4. Use [subsystems.md](subsystems.md), [errors.md](errors.md), and [testing.md](testing.md) as reference pages while building.
