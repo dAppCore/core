@@ -1,110 +1,96 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code and Codex when working with this repository.
 
-## Session Context
+## Module
 
-Running on **Claude Max20 plan** with **1M context window** (Opus 4.6). This enables marathon sessions — use the full context for complex multi-repo work, dispatch coordination, and ecosystem-wide operations. Compact when needed, but don't be afraid of long sessions.
+`dappco.re/go/core` — dependency injection, service lifecycle, command routing, and message-passing for Go.
 
-## Project Overview
+Source files live at the module root (not `pkg/core/`). Tests live in `tests/`.
 
-Core (`forge.lthn.ai/core/go`) is a **dependency injection and service lifecycle framework** for Go. It provides a typed service registry, lifecycle hooks, and a message-passing bus for decoupled communication between services.
-
-This is the foundation layer — it has no CLI, no GUI, and minimal dependencies (`go-io`, `go-log`, `testify`).
-
-## Build & Development Commands
-
-This project uses `core go` commands (no Taskfile). Build configuration lives in `.core/build.yaml`.
+## Build & Test
 
 ```bash
-# Run all tests
+go test ./tests/...          # run all tests
+go build .                   # verify compilation
+GOWORK=off go test ./tests/  # test without workspace
+```
+
+Or via the Core CLI:
+
+```bash
 core go test
-
-# Generate test coverage
-core go cov
-core go cov --open      # Opens coverage HTML report
-
-# Format, lint, vet
-core go fmt
-core go lint
-core go vet
-
-# Quality assurance
-core go qa              # fmt + vet + lint + test
-core go qa full         # + race, vuln, security
-
-# Build
-core build              # Auto-detects project type
-core build --ci         # All targets, JSON output
+core go qa                   # fmt + vet + lint + test
 ```
 
-Run a single test: `core go test --run TestName`
+## API Shape
 
-## Architecture
+CoreGO uses the DTO/Options/Result pattern, not functional options:
 
-### Core Framework (`pkg/core/`)
-
-The `Core` struct is the central application container managing:
-- **Services**: Named service registry with type-safe retrieval via `ServiceFor[T]()`
-- **Actions/IPC**: Message-passing system where services communicate via `ACTION(msg Message)` and register handlers via `RegisterAction()`
-- **Lifecycle**: Services implementing `Startable` (OnStartup) and/or `Stoppable` (OnShutdown) interfaces are automatically called during app lifecycle
-
-Creating a Core instance:
 ```go
-core, err := core.New(
-    core.WithService(myServiceFactory),
-    core.WithAssets(assets),
-    core.WithServiceLock(),  // Prevents late service registration
-)
+c := core.New(core.Options{
+    {Key: "name", Value: "myapp"},
+})
+
+c.Service("cache", core.Service{
+    OnStart: func() core.Result { return core.Result{OK: true} },
+    OnStop:  func() core.Result { return core.Result{OK: true} },
+})
+
+c.Command("deploy/to/homelab", core.Command{
+    Action: func(opts core.Options) core.Result {
+        return core.Result{Value: "deployed", OK: true}
+    },
+})
+
+r := c.Cli().Run("deploy", "to", "homelab")
 ```
 
-### Service Registration Pattern
+**Do not use:** `WithService`, `WithName`, `WithApp`, `WithServiceLock`, `Must*`, `ServiceFor[T]` — these no longer exist.
 
-Services are registered via factory functions that receive the Core instance:
-```go
-func NewMyService(c *core.Core) (any, error) {
-    return &MyService{runtime: core.NewServiceRuntime(c, opts)}, nil
-}
+## Subsystems
 
-core.New(core.WithService(NewMyService))
-```
+| Accessor | Returns | Purpose |
+|----------|---------|---------|
+| `c.Options()` | `*Options` | Input configuration |
+| `c.App()` | `*App` | Application identity |
+| `c.Data()` | `*Data` | Embedded filesystem mounts |
+| `c.Drive()` | `*Drive` | Named transport handles |
+| `c.Fs()` | `*Fs` | Local filesystem I/O |
+| `c.Config()` | `*Config` | Runtime settings |
+| `c.Cli()` | `*Cli` | CLI surface |
+| `c.Command("path")` | `Result` | Command tree |
+| `c.Service("name")` | `Result` | Service registry |
+| `c.Lock("name")` | `*Lock` | Named mutexes |
+| `c.IPC()` | `*Ipc` | Message bus |
+| `c.I18n()` | `*I18n` | Locale + translation |
 
-- `WithService`: Auto-discovers service name from package path, registers IPC handler if service has `HandleIPCEvents` method
-- `WithName`: Explicitly names a service
+## Messaging
 
-### ServiceRuntime Generic Helper (`runtime_pkg.go`)
+| Method | Pattern |
+|--------|---------|
+| `c.ACTION(msg)` | Broadcast to all handlers |
+| `c.QUERY(q)` | First responder wins |
+| `c.QUERYALL(q)` | Collect all responses |
+| `c.PERFORM(task)` | First executor wins |
+| `c.PerformAsync(task)` | Background goroutine |
 
-Embed `ServiceRuntime[T]` in services to get access to Core and typed options:
-```go
-type MyService struct {
-    *core.ServiceRuntime[MyServiceOptions]
-}
-```
+## Error Handling
 
-### Error Handling (go-log)
+Use `core.E()` for structured errors:
 
-All errors MUST use `E()` from `go-log` (re-exported in `e.go`), never `fmt.Errorf`:
 ```go
 return core.E("service.Method", "what failed", underlyingErr)
-return core.E("service.Method", fmt.Sprintf("service %q not found", name), nil)
 ```
 
-### Test Naming Convention
+## Test Naming
 
-Tests use `_Good`, `_Bad`, `_Ugly` suffix pattern:
-- `_Good`: Happy path tests
-- `_Bad`: Expected error conditions
-- `_Ugly`: Panic/edge cases
+`_Good` (happy path), `_Bad` (expected errors), `_Ugly` (panics/edge cases).
 
-## Packages
+## Docs
 
-| Package | Description |
-|---------|-------------|
-| `pkg/core` | DI container, service registry, lifecycle, query/task bus |
-| `pkg/log` | Structured logger service with Core integration |
+Full documentation in `docs/`. Start with `docs/getting-started.md`.
 
 ## Go Workspace
 
-Uses Go 1.26 workspaces. This module is part of the workspace at `~/Code/go.work`.
-
-After adding modules: `go work sync`
+Part of `~/Code/go.work`. Use `GOWORK=off` to test in isolation.
