@@ -15,7 +15,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Run tests with coverage
-        run: go test -coverprofile=coverage.out ./tests/...
+        run: |
+          go test -coverprofile=coverage.out ./tests/...
+          sed -i 's|dappco.re/go/core/||g' coverage.out
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
