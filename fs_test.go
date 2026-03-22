@@ -184,3 +184,74 @@ func TestFs_WriteMode_Good(t *testing.T) {
 	assert.True(t, r.OK)
 	assert.Equal(t, "secret.txt", r.Value.(os.FileInfo).Name())
 }
+
+// --- Zero Value ---
+
+func TestFs_ZeroValue_Good(t *testing.T) {
+	dir := t.TempDir()
+	zeroFs := &Fs{}
+
+	path := filepath.Join(dir, "zero.txt")
+	assert.True(t, zeroFs.Write(path, "zero value works").OK)
+	r := zeroFs.Read(path)
+	assert.True(t, r.OK)
+	assert.Equal(t, "zero value works", r.Value.(string))
+	assert.True(t, zeroFs.IsFile(path))
+	assert.True(t, zeroFs.Exists(path))
+	assert.True(t, zeroFs.IsDir(dir))
+}
+
+func TestFs_ZeroValue_List_Good(t *testing.T) {
+	dir := t.TempDir()
+	zeroFs := &Fs{}
+
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
+	r := zeroFs.List(dir)
+	assert.True(t, r.OK)
+	entries := r.Value.([]fs.DirEntry)
+	assert.Len(t, entries, 1)
+}
+
+func TestFs_Exists_NotFound_Bad(t *testing.T) {
+	c := New()
+	assert.False(t, c.Fs().Exists("/nonexistent/path/xyz"))
+}
+
+// --- Fs path/validatePath edge cases ---
+
+func TestFs_Read_EmptyPath_Ugly(t *testing.T) {
+	c := New()
+	r := c.Fs().Read("")
+	assert.False(t, r.OK)
+}
+
+func TestFs_Write_EmptyPath_Ugly(t *testing.T) {
+	c := New()
+	r := c.Fs().Write("", "data")
+	assert.False(t, r.OK)
+}
+
+func TestFs_Delete_Protected_Ugly(t *testing.T) {
+	c := New()
+	r := c.Fs().Delete("/")
+	assert.False(t, r.OK)
+}
+
+func TestFs_DeleteAll_Protected_Ugly(t *testing.T) {
+	c := New()
+	r := c.Fs().DeleteAll("/")
+	assert.False(t, r.OK)
+}
+
+func TestFs_ReadStream_WriteStream_Good(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := filepath.Join(dir, "stream.txt")
+	c.Fs().Write(path, "streamed")
+
+	r := c.Fs().ReadStream(path)
+	assert.True(t, r.OK)
+
+	w := c.Fs().WriteStream(path)
+	assert.True(t, w.OK)
+}

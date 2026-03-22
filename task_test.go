@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -44,6 +45,61 @@ func TestPerformAsync_Progress_Good(t *testing.T) {
 	r := c.PerformAsync("work")
 	taskID := r.Value.(string)
 	c.Progress(taskID, 0.5, "halfway", "work")
+}
+
+func TestPerformAsync_Completion_Good(t *testing.T) {
+	c := New()
+	completed := make(chan ActionTaskCompleted, 1)
+
+	c.RegisterTask(func(_ *Core, task Task) Result {
+		return Result{Value: "result", OK: true}
+	})
+	c.RegisterAction(func(_ *Core, msg Message) Result {
+		if evt, ok := msg.(ActionTaskCompleted); ok {
+			completed <- evt
+		}
+		return Result{OK: true}
+	})
+
+	c.PerformAsync("work")
+
+	select {
+	case evt := <-completed:
+		assert.Nil(t, evt.Error)
+		assert.Equal(t, "result", evt.Result)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for completion")
+	}
+}
+
+func TestPerformAsync_NoHandler_Good(t *testing.T) {
+	c := New()
+	completed := make(chan ActionTaskCompleted, 1)
+
+	c.RegisterAction(func(_ *Core, msg Message) Result {
+		if evt, ok := msg.(ActionTaskCompleted); ok {
+			completed <- evt
+		}
+		return Result{OK: true}
+	})
+
+	c.PerformAsync("unhandled")
+
+	select {
+	case evt := <-completed:
+		assert.NotNil(t, evt.Error)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out")
+	}
+}
+
+func TestPerformAsync_AfterShutdown_Bad(t *testing.T) {
+	c := New()
+	c.ServiceStartup(context.Background(), nil)
+	c.ServiceShutdown(context.Background())
+
+	r := c.PerformAsync("should not run")
+	assert.False(t, r.OK)
 }
 
 // --- RegisterAction + RegisterActions ---
