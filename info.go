@@ -44,10 +44,12 @@ type SysInfo struct {
 	values map[string]string
 }
 
-var systemInfo = newSysInfo()
+// systemInfo is declared empty — populated in init() so Path() can be used
+// without creating an init cycle.
+var systemInfo = &SysInfo{values: make(map[string]string)}
 
-func newSysInfo() *SysInfo {
-	i := &SysInfo{values: make(map[string]string)}
+func init() {
+	i := systemInfo
 
 	// System
 	i.values["OS"] = runtime.GOOS
@@ -63,12 +65,17 @@ func newSysInfo() *SysInfo {
 		i.values["HOSTNAME"] = h
 	}
 
-	// Directories
-	if d, err := os.UserHomeDir(); err == nil {
+	// Directories — DS and DIR_HOME set first so Path() can use them.
+	// CORE_HOME overrides os.UserHomeDir() (e.g., agent workspaces).
+	if d := os.Getenv("CORE_HOME"); d != "" {
 		i.values["DIR_HOME"] = d
-		i.values["DIR_DOWNLOADS"] = d + string(os.PathSeparator) + "Downloads"
-		i.values["DIR_CODE"] = d + string(os.PathSeparator) + "Code"
+	} else if d, err := os.UserHomeDir(); err == nil {
+		i.values["DIR_HOME"] = d
 	}
+
+	// Derived directories via Path() — single point of responsibility
+	i.values["DIR_DOWNLOADS"] = Path("Downloads")
+	i.values["DIR_CODE"] = Path("Code")
 	if d, err := os.UserConfigDir(); err == nil {
 		i.values["DIR_CONFIG"] = d
 	}
@@ -83,7 +90,7 @@ func newSysInfo() *SysInfo {
 	// Platform-specific data directory
 	switch runtime.GOOS {
 	case "darwin":
-		i.values["DIR_DATA"] = i.values["DIR_HOME"] + "/Library"
+		i.values["DIR_DATA"] = Path(Env("DIR_HOME"), "Library")
 	case "windows":
 		if d := os.Getenv("LOCALAPPDATA"); d != "" {
 			i.values["DIR_DATA"] = d
@@ -91,25 +98,28 @@ func newSysInfo() *SysInfo {
 	default:
 		if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
 			i.values["DIR_DATA"] = xdg
-		} else if home := i.values["DIR_HOME"]; home != "" {
-			i.values["DIR_DATA"] = home + "/.local/share"
+		} else if Env("DIR_HOME") != "" {
+			i.values["DIR_DATA"] = Path(Env("DIR_HOME"), ".local", "share")
 		}
 	}
 
 	// Timestamps
 	i.values["CORE_START"] = time.Now().UTC().Format(time.RFC3339)
-
-	return i
 }
 
 // Env returns a system information value by key.
-// Returns empty string for unknown keys.
+// Core keys (OS, DIR_HOME, DS, etc.) are pre-populated at init.
+// Unknown keys fall through to os.Getenv — making Env a universal
+// replacement for os.Getenv.
 //
-//	core.Env("OS")        // "darwin"
-//	core.Env("DIR_HOME")  // "/Users/snider"
-//	core.Env("DS")        // "/"
+//	core.Env("OS")           // "darwin" (pre-populated)
+//	core.Env("DIR_HOME")     // "/Users/snider" (pre-populated)
+//	core.Env("FORGE_TOKEN")  // falls through to os.Getenv
 func Env(key string) string {
-	return systemInfo.values[key]
+	if v := systemInfo.values[key]; v != "" {
+		return v
+	}
+	return os.Getenv(key)
 }
 
 // EnvKeys returns all available environment keys.
