@@ -19,7 +19,8 @@ func TestPath_Relative(t *testing.T) {
 }
 
 func TestPath_Absolute(t *testing.T) {
-	assert.Equal(t, "/tmp/workspace", core.Path("/tmp", "workspace"))
+	ds := core.Env("DS")
+	assert.Equal(t, "/tmp"+ds+"workspace", core.Path("/tmp", "workspace"))
 }
 
 func TestPath_Empty(t *testing.T) {
@@ -35,7 +36,8 @@ func TestPath_Cleans(t *testing.T) {
 }
 
 func TestPath_CleanDoubleSlash(t *testing.T) {
-	assert.Equal(t, "/tmp/file", core.Path("/tmp//file"))
+	ds := core.Env("DS")
+	assert.Equal(t, ds+"tmp"+ds+"file", core.Path("/tmp//file"))
 }
 
 func TestPathBase(t *testing.T) {

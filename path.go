@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 // OS-aware filesystem path operations for the Core framework.
-// Zero filepath import — uses Env("DS") for the separator and
-// Core string primitives for all path manipulation.
+// Uses Env("DS") for the separator and Core string primitives
+// for path manipulation. filepath imported only for PathGlob.
 //
 // Path anchors relative segments to DIR_HOME:
 //
@@ -29,6 +29,9 @@ import "path/filepath"
 func Path(segments ...string) string {
 	ds := Env("DS")
 	home := Env("DIR_HOME")
+	if home == "" {
+		home = "."
+	}
 	if len(segments) == 0 {
 		return home
 	}

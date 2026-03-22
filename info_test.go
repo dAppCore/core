@@ -34,6 +34,10 @@ func TestEnv_PS(t *testing.T) {
 }
 
 func TestEnv_DIR_HOME(t *testing.T) {
+	if ch := os.Getenv("CORE_HOME"); ch != "" {
+		assert.Equal(t, ch, core.Env("DIR_HOME"))
+		return
+	}
 	home, err := os.UserHomeDir()
 	require.NoError(t, err)
 	assert.Equal(t, home, core.Env("DIR_HOME"))
