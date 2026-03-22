@@ -28,6 +28,7 @@ type Core struct {
 	services *serviceRegistry // c.Service("name")  — Service registry
 	lock     *Lock            // c.Lock("name")     — Named mutexes
 	ipc      *Ipc             // c.IPC()            — Message bus for IPC
+	info     *SysInfo         // c.Env("key")        — Read-only system/environment information
 	i18n     *I18n            // c.I18n()           — Internationalisation and locale collection
 
 	context       context.Context
@@ -51,6 +52,7 @@ func (c *Core) Log() *ErrorLog           { return c.log }
 func (c *Core) Cli() *Cli                { return c.cli }
 func (c *Core) IPC() *Ipc                { return c.ipc }
 func (c *Core) I18n() *I18n              { return c.i18n }
+func (c *Core) Env(key string) string    { return Env(key) }
 func (c *Core) Context() context.Context { return c.context }
 func (c *Core) Core() *Core              { return c }
 

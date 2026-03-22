@@ -82,6 +82,7 @@ func New(opts ...Options) *Core {
 		log:      &ErrorLog{log: Default()},
 		lock:     &Lock{},
 		ipc:      &Ipc{},
+		info:     systemInfo,
 		i18n:     &I18n{},
 		services: &serviceRegistry{services: make(map[string]*Service)},
 		commands: &commandRegistry{commands: make(map[string]*Command)},
