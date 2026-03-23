@@ -106,7 +106,6 @@ func TestCleanPath_Good(t *testing.T) {
 }
 
 func TestPathDir_TrailingSlash(t *testing.T) {
-	// Trailing slash is stripped, then dir of /Users/snider/Code = /Users/snider
 	result := core.PathDir("/Users/snider/Code/")
 	assert.Equal(t, "/Users/snider/Code", result)
 }
