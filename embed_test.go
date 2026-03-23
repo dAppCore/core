@@ -157,6 +157,94 @@ func TestGeneratePack_WithFiles_Good(t *testing.T) {
 	assert.Contains(t, r.Value.(string), "core.AddAsset")
 }
 
+// --- Extract (template + nested) ---
+
+func TestExtract_WithTemplate_Good(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create an in-memory FS with a template file and a plain file
+	tmplDir := os.DirFS(t.TempDir())
+
+	// Use a real temp dir with files
+	srcDir := t.TempDir()
+	os.WriteFile(srcDir+"/plain.txt", []byte("static content"), 0644)
+	os.WriteFile(srcDir+"/greeting.tmpl", []byte("Hello {{.Name}}!"), 0644)
+	os.MkdirAll(srcDir+"/sub", 0755)
+	os.WriteFile(srcDir+"/sub/nested.txt", []byte("nested"), 0644)
+
+	_ = tmplDir
+	fsys := os.DirFS(srcDir)
+	data := map[string]string{"Name": "World"}
+
+	r := Extract(fsys, dir, data)
+	assert.True(t, r.OK)
+
+	// Plain file copied
+	content, err := os.ReadFile(dir + "/plain.txt")
+	assert.NoError(t, err)
+	assert.Equal(t, "static content", string(content))
+
+	// Template processed and .tmpl stripped
+	greeting, err := os.ReadFile(dir + "/greeting")
+	assert.NoError(t, err)
+	assert.Equal(t, "Hello World!", string(greeting))
+
+	// Nested directory preserved
+	nested, err := os.ReadFile(dir + "/sub/nested.txt")
+	assert.NoError(t, err)
+	assert.Equal(t, "nested", string(nested))
+}
+
+func TestExtract_BadTargetDir_Ugly(t *testing.T) {
+	srcDir := t.TempDir()
+	os.WriteFile(srcDir+"/f.txt", []byte("x"), 0644)
+	r := Extract(os.DirFS(srcDir), "/nonexistent/deeply/nested/impossible", nil)
+	// Should fail gracefully, not panic
+	_ = r
+}
+
+func TestEmbed_PathTraversal_Ugly(t *testing.T) {
+	emb := Mount(testFS, "testdata").Value.(*Embed)
+	r := emb.ReadFile("../../etc/passwd")
+	assert.False(t, r.OK)
+}
+
+func TestEmbed_Sub_BaseDir_Good(t *testing.T) {
+	emb := Mount(testFS, "testdata").Value.(*Embed)
+	r := emb.Sub("scantest")
+	assert.True(t, r.OK)
+	sub := r.Value.(*Embed)
+	assert.Equal(t, ".", sub.BaseDirectory())
+}
+
+func TestEmbed_Open_Bad(t *testing.T) {
+	emb := Mount(testFS, "testdata").Value.(*Embed)
+	r := emb.Open("nonexistent.txt")
+	assert.False(t, r.OK)
+}
+
+func TestEmbed_ReadDir_Bad(t *testing.T) {
+	emb := Mount(testFS, "testdata").Value.(*Embed)
+	r := emb.ReadDir("nonexistent")
+	assert.False(t, r.OK)
+}
+
+func TestEmbed_EmbedFS_Original_Good(t *testing.T) {
+	emb := Mount(testFS, "testdata").Value.(*Embed)
+	efs := emb.EmbedFS()
+	_, err := efs.ReadFile("testdata/test.txt")
+	assert.NoError(t, err)
+}
+
+func TestExtract_NilData_Good(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := t.TempDir()
+	os.WriteFile(srcDir+"/file.txt", []byte("no template"), 0644)
+
+	r := Extract(os.DirFS(srcDir), dir, nil)
+	assert.True(t, r.OK)
+}
+
 func mustCompress(input string) string {
 	var buf bytes.Buffer
 	b64 := base64.NewEncoder(base64.StdEncoding, &buf)

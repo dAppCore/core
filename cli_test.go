@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"bytes"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -73,4 +74,12 @@ func TestCli_PrintHelp_Good(t *testing.T) {
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Cli().PrintHelp()
+}
+
+func TestCli_SetOutput_Good(t *testing.T) {
+	c := New()
+	var buf bytes.Buffer
+	c.Cli().SetOutput(&buf)
+	c.Cli().Print("hello %s", "world")
+	assert.Contains(t, buf.String(), "hello world")
 }

@@ -227,3 +227,46 @@ func TestErrorPanic_CrashFile_Good(t *testing.T) {
 	assert.Nil(t, r.Value)
 	_ = path
 }
+
+// --- Error formatting branches ---
+
+func TestErr_Error_WithCode_Good(t *testing.T) {
+	err := WrapCode(errors.New("bad"), "INVALID", "validate", "input failed")
+	assert.Contains(t, err.Error(), "[INVALID]")
+	assert.Contains(t, err.Error(), "validate")
+	assert.Contains(t, err.Error(), "bad")
+}
+
+func TestErr_Error_CodeNoCause_Good(t *testing.T) {
+	err := NewCode("NOT_FOUND", "resource missing")
+	assert.Contains(t, err.Error(), "[NOT_FOUND]")
+	assert.Contains(t, err.Error(), "resource missing")
+}
+
+func TestErr_Error_NoOp_Good(t *testing.T) {
+	err := &Err{Message: "bare error"}
+	assert.Equal(t, "bare error", err.Error())
+}
+
+func TestWrapCode_NilErr_EmptyCode_Good(t *testing.T) {
+	err := WrapCode(nil, "", "op", "msg")
+	assert.Nil(t, err)
+}
+
+func TestWrap_PreservesCode_Good(t *testing.T) {
+	inner := WrapCode(errors.New("root"), "AUTH_FAIL", "auth", "denied")
+	outer := Wrap(inner, "handler", "request failed")
+	assert.Equal(t, "AUTH_FAIL", ErrorCode(outer))
+}
+
+func TestErrorLog_Warn_Nil_Good(t *testing.T) {
+	c := New()
+	r := c.LogWarn(nil, "op", "msg")
+	assert.True(t, r.OK)
+}
+
+func TestErrorLog_Error_Nil_Good(t *testing.T) {
+	c := New()
+	r := c.LogError(nil, "op", "msg")
+	assert.True(t, r.OK)
+}

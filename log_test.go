@@ -142,6 +142,24 @@ func TestLogPanic_Recover_Good(t *testing.T) {
 func TestLog_SetOutput_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetOutput(os.Stderr)
-	// Should not panic — just changes where logs go
 	l.Info("redirected")
+}
+
+// --- Log suppression by level ---
+
+func TestLog_Quiet_Suppresses_Ugly(t *testing.T) {
+	l := NewLog(LogOptions{Level: LevelQuiet})
+	// These should not panic even though nothing is logged
+	l.Debug("suppressed")
+	l.Info("suppressed")
+	l.Warn("suppressed")
+	l.Error("suppressed")
+}
+
+func TestLog_ErrorLevel_Suppresses_Ugly(t *testing.T) {
+	l := NewLog(LogOptions{Level: LevelError})
+	l.Debug("suppressed") // below threshold
+	l.Info("suppressed")  // below threshold
+	l.Warn("suppressed")  // below threshold
+	l.Error("visible")    // at threshold
 }

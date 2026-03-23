@@ -15,15 +15,20 @@ type Fs struct {
 
 // path sanitises and returns the full path.
 // Absolute paths are sandboxed under root (unless root is "/").
+// Empty root defaults to "/" — the zero value of Fs is usable.
 func (m *Fs) path(p string) string {
+	root := m.root
+	if root == "" {
+		root = "/"
+	}
 	if p == "" {
-		return m.root
+		return root
 	}
 
 	// If the path is relative and the medium is rooted at "/",
 	// treat it as relative to the current working directory.
 	// This makes io.Local behave more like the standard 'os' package.
-	if m.root == "/" && !filepath.IsAbs(p) {
+	if root == "/" && !filepath.IsAbs(p) {
 		cwd, _ := os.Getwd()
 		return filepath.Join(cwd, p)
 	}
@@ -33,23 +38,27 @@ func (m *Fs) path(p string) string {
 	clean := filepath.Clean("/" + p)
 
 	// If root is "/", allow absolute paths through
-	if m.root == "/" {
+	if root == "/" {
 		return clean
 	}
 
 	// Strip leading "/" so Join works correctly with root
-	return filepath.Join(m.root, clean[1:])
+	return filepath.Join(root, clean[1:])
 }
 
 // validatePath ensures the path is within the sandbox, following symlinks if they exist.
 func (m *Fs) validatePath(p string) Result {
-	if m.root == "/" {
+	root := m.root
+	if root == "" {
+		root = "/"
+	}
+	if root == "/" {
 		return Result{m.path(p), true}
 	}
 
 	// Split the cleaned path into components
 	parts := Split(filepath.Clean("/"+p), string(os.PathSeparator))
-	current := m.root
+	current := root
 
 	for _, part := range parts {
 		if part == "" {
@@ -70,7 +79,7 @@ func (m *Fs) validatePath(p string) Result {
 		}
 
 		// Verify the resolved part is still within the root
-		rel, err := filepath.Rel(m.root, realNext)
+		rel, err := filepath.Rel(root, realNext)
 		if err != nil || HasPrefix(rel, "..") {
 			// Security event: sandbox escape attempt
 			username := "unknown"
@@ -78,7 +87,7 @@ func (m *Fs) validatePath(p string) Result {
 				username = u.Username
 			}
 			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
-				time.Now().Format(time.RFC3339), m.root, p, realNext, username)
+				time.Now().Format(time.RFC3339), root, p, realNext, username)
 			if err == nil {
 				err = E("fs.validatePath", Concat("sandbox escape: ", p, " resolves outside ", m.root), nil)
 			}

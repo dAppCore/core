@@ -121,6 +121,93 @@ func TestCommand_Lifecycle_NoImpl_Good(t *testing.T) {
 	assert.False(t, cmd.Signal("HUP").OK)
 }
 
+// --- Lifecycle with Implementation ---
+
+type testLifecycle struct {
+	started   bool
+	stopped   bool
+	restarted bool
+	reloaded  bool
+	signalled string
+}
+
+func (l *testLifecycle) Start(opts Options) Result {
+	l.started = true
+	return Result{Value: "started", OK: true}
+}
+func (l *testLifecycle) Stop() Result {
+	l.stopped = true
+	return Result{OK: true}
+}
+func (l *testLifecycle) Restart() Result {
+	l.restarted = true
+	return Result{OK: true}
+}
+func (l *testLifecycle) Reload() Result {
+	l.reloaded = true
+	return Result{OK: true}
+}
+func (l *testLifecycle) Signal(sig string) Result {
+	l.signalled = sig
+	return Result{Value: sig, OK: true}
+}
+
+func TestCommand_Lifecycle_WithImpl_Good(t *testing.T) {
+	c := New()
+	lc := &testLifecycle{}
+	c.Command("daemon", Command{Lifecycle: lc})
+	cmd := c.Command("daemon").Value.(*Command)
+
+	r := cmd.Start(Options{})
+	assert.True(t, r.OK)
+	assert.True(t, lc.started)
+
+	assert.True(t, cmd.Stop().OK)
+	assert.True(t, lc.stopped)
+
+	assert.True(t, cmd.Restart().OK)
+	assert.True(t, lc.restarted)
+
+	assert.True(t, cmd.Reload().OK)
+	assert.True(t, lc.reloaded)
+
+	r = cmd.Signal("HUP")
+	assert.True(t, r.OK)
+	assert.Equal(t, "HUP", lc.signalled)
+}
+
+func TestCommand_Duplicate_Bad(t *testing.T) {
+	c := New()
+	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	r := c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	assert.False(t, r.OK)
+}
+
+func TestCommand_InvalidPath_Bad(t *testing.T) {
+	c := New()
+	assert.False(t, c.Command("/leading", Command{}).OK)
+	assert.False(t, c.Command("trailing/", Command{}).OK)
+	assert.False(t, c.Command("double//slash", Command{}).OK)
+}
+
+// --- Cli Run with Lifecycle ---
+
+func TestCli_Run_Lifecycle_Good(t *testing.T) {
+	c := New()
+	lc := &testLifecycle{}
+	c.Command("serve", Command{Lifecycle: lc})
+	r := c.Cli().Run("serve")
+	assert.True(t, r.OK)
+	assert.True(t, lc.started)
+}
+
+func TestCli_Run_NoActionNoLifecycle_Bad(t *testing.T) {
+	c := New()
+	c.Command("empty", Command{})
+	r := c.Cli().Run("empty")
+	assert.False(t, r.OK)
+}
+
 // --- Empty path ---
 
 func TestCommand_EmptyPath_Bad(t *testing.T) {

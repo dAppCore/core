@@ -4,6 +4,7 @@ package core_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	core "dappco.re/go/core"
@@ -72,6 +73,39 @@ func TestPathExt(t *testing.T) {
 }
 
 func TestPath_EnvConsistency(t *testing.T) {
-	// Path() and Env("DIR_HOME") should agree
 	assert.Equal(t, core.Env("DIR_HOME"), core.Path())
+}
+
+func TestPathGlob_Good(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0644)
+	os.WriteFile(filepath.Join(dir, "c.log"), []byte("c"), 0644)
+
+	matches := core.PathGlob(filepath.Join(dir, "*.txt"))
+	assert.Len(t, matches, 2)
+}
+
+func TestPathGlob_NoMatch(t *testing.T) {
+	matches := core.PathGlob("/nonexistent/pattern-*.xyz")
+	assert.Empty(t, matches)
+}
+
+func TestPathIsAbs_Good(t *testing.T) {
+	assert.True(t, core.PathIsAbs("/tmp"))
+	assert.True(t, core.PathIsAbs("/"))
+	assert.False(t, core.PathIsAbs("relative"))
+	assert.False(t, core.PathIsAbs(""))
+}
+
+func TestCleanPath_Good(t *testing.T) {
+	assert.Equal(t, "/a/b", core.CleanPath("/a//b", "/"))
+	assert.Equal(t, "/a/c", core.CleanPath("/a/b/../c", "/"))
+	assert.Equal(t, "/", core.CleanPath("/", "/"))
+	assert.Equal(t, ".", core.CleanPath("", "/"))
+}
+
+func TestPathDir_TrailingSlash(t *testing.T) {
+	result := core.PathDir("/Users/snider/Code/")
+	assert.Equal(t, "/Users/snider/Code", result)
 }
