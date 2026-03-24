@@ -169,15 +169,7 @@ func WithService(factory func(*Core) Result) CoreOption {
 			return Result{E("core.WithService", Sprintf("service name could not be discovered for type %T", instance), nil), false}
 		}
 
-		// IPC handler discovery
-		instanceValue := reflect.ValueOf(instance)
-		handlerMethod := instanceValue.MethodByName("HandleIPCEvents")
-		if handlerMethod.IsValid() {
-			if handler, ok := handlerMethod.Interface().(func(*Core, Message) Result); ok {
-				c.RegisterAction(handler)
-			}
-		}
-
+		// RegisterService handles Startable/Stoppable/HandleIPCEvents discovery
 		return c.RegisterService(name, instance)
 	}
 }

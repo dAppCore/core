@@ -80,7 +80,7 @@ func (c *Core) Run() {
 		r = cli.Run()
 	}
 
-	c.ServiceShutdown(c.context)
+	c.ServiceShutdown(context.Background())
 
 	if !r.OK {
 		if err, ok := r.Value.(error); ok {
