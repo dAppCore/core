@@ -146,10 +146,10 @@ func WithService(factory func(*Core) Result) CoreOption {
 			return r
 		}
 
-		// If the factory returned a service instance, auto-discover and register
+		// If the factory returned a service instance, auto-discover and register.
+		// Only applies when the factory didn't register the service itself.
 		if r.Value != nil {
 			instance := r.Value
-			// Service name discovery from package path
 			typeOf := reflect.TypeOf(instance)
 			if typeOf.Kind() == reflect.Ptr {
 				typeOf = typeOf.Elem()
@@ -159,18 +159,19 @@ func WithService(factory func(*Core) Result) CoreOption {
 			name := Lower(parts[len(parts)-1])
 
 			if name != "" {
-				// IPC handler discovery
-				instanceValue := reflect.ValueOf(instance)
-				handlerMethod := instanceValue.MethodByName("HandleIPCEvents")
-				if handlerMethod.IsValid() {
-					if handler, ok := handlerMethod.Interface().(func(*Core, Message) Result); ok {
-						c.RegisterAction(handler)
-					}
-				}
-
-				// Register the service if not already registered by the factory
+				// Only auto-register if the factory didn't already do it
 				if sr := c.Service(name); !sr.OK {
 					c.Service(name, Service{})
+
+					// IPC handler discovery — only on auto-registered services
+					// to avoid double-registration when the factory already wired handlers
+					instanceValue := reflect.ValueOf(instance)
+					handlerMethod := instanceValue.MethodByName("HandleIPCEvents")
+					if handlerMethod.IsValid() {
+						if handler, ok := handlerMethod.Interface().(func(*Core, Message) Result); ok {
+							c.RegisterAction(handler)
+						}
+					}
 				}
 			}
 		}
