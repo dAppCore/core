@@ -6,6 +6,7 @@ package core
 
 import (
 	"context"
+	"reflect"
 )
 
 // Message is the type for IPC broadcasts (fire-and-forget).
@@ -120,8 +121,10 @@ func New(opts ...CoreOption) Result {
 //	core.WithOptions(core.Options{{Key: "name", Value: "myapp"}})
 func WithOptions(opts Options) CoreOption {
 	return func(c *Core) Result {
-		c.options = &opts
-		if name := opts.String("name"); name != "" {
+		cp := make(Options, len(opts))
+		copy(cp, opts)
+		c.options = &cp
+		if name := cp.String("name"); name != "" {
 			c.app.Name = name
 		}
 		return Result{OK: true}
@@ -138,7 +141,41 @@ func WithOptions(opts Options) CoreOption {
 //	core.WithService(display.Register(nil))
 func WithService(factory func(*Core) Result) CoreOption {
 	return func(c *Core) Result {
-		return factory(c)
+		r := factory(c)
+		if !r.OK {
+			return r
+		}
+
+		// If the factory returned a service instance, auto-discover and register
+		if r.Value != nil {
+			instance := r.Value
+			// Service name discovery from package path
+			typeOf := reflect.TypeOf(instance)
+			if typeOf.Kind() == reflect.Ptr {
+				typeOf = typeOf.Elem()
+			}
+			pkgPath := typeOf.PkgPath()
+			parts := Split(pkgPath, "/")
+			name := Lower(parts[len(parts)-1])
+
+			if name != "" {
+				// IPC handler discovery
+				instanceValue := reflect.ValueOf(instance)
+				handlerMethod := instanceValue.MethodByName("HandleIPCEvents")
+				if handlerMethod.IsValid() {
+					if handler, ok := handlerMethod.Interface().(func(*Core, Message) Result); ok {
+						c.RegisterAction(handler)
+					}
+				}
+
+				// Register the service if not already registered by the factory
+				if sr := c.Service(name); !sr.OK {
+					c.Service(name, Service{})
+				}
+			}
+		}
+
+		return Result{OK: true}
 	}
 }
 

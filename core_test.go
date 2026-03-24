@@ -64,6 +64,21 @@ func TestNew_WithServiceLock_Good(t *testing.T) {
 	assert.False(t, reg.OK)
 }
 
+func TestNew_WithService_Bad_FailingOption(t *testing.T) {
+	secondCalled := false
+	r := New(
+		WithService(func(c *Core) Result {
+			return Result{Value: E("test", "intentional failure", nil), OK: false}
+		}),
+		WithService(func(c *Core) Result {
+			secondCalled = true
+			return Result{OK: true}
+		}),
+	)
+	assert.False(t, r.OK)
+	assert.False(t, secondCalled, "second option should not run after first fails")
+}
+
 // --- Accessors ---
 
 func TestAccessors_Good(t *testing.T) {
