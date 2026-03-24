@@ -13,6 +13,14 @@ import (
 
 // --- Mount ---
 
+func mustMountTestFS(t *testing.T, basedir string) *Embed {
+	t.Helper()
+
+	r := Mount(testFS, basedir)
+	assert.True(t, r.OK)
+	return r.Value.(*Embed)
+}
+
 func TestMount_Good(t *testing.T) {
 	r := Mount(testFS, "testdata")
 	assert.True(t, r.OK)
@@ -26,34 +34,34 @@ func TestMount_Bad(t *testing.T) {
 // --- Embed methods ---
 
 func TestEmbed_ReadFile_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.ReadFile("test.txt")
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello from testdata\n", string(r.Value.([]byte)))
 }
 
 func TestEmbed_ReadString_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.ReadString("test.txt")
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello from testdata\n", r.Value.(string))
 }
 
 func TestEmbed_Open_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.Open("test.txt")
 	assert.True(t, r.OK)
 }
 
 func TestEmbed_ReadDir_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.ReadDir(".")
 	assert.True(t, r.OK)
 	assert.NotEmpty(t, r.Value)
 }
 
 func TestEmbed_Sub_Good(t *testing.T) {
-	emb := Mount(testFS, ".").Value.(*Embed)
+	emb := mustMountTestFS(t, ".")
 	r := emb.Sub("testdata")
 	assert.True(t, r.OK)
 	sub := r.Value.(*Embed)
@@ -62,17 +70,17 @@ func TestEmbed_Sub_Good(t *testing.T) {
 }
 
 func TestEmbed_BaseDir_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	assert.Equal(t, "testdata", emb.BaseDirectory())
 }
 
 func TestEmbed_FS_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	assert.NotNil(t, emb.FS())
 }
 
 func TestEmbed_EmbedFS_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	efs := emb.EmbedFS()
 	_, err := efs.ReadFile("testdata/test.txt")
 	assert.NoError(t, err)
@@ -204,13 +212,13 @@ func TestExtract_BadTargetDir_Ugly(t *testing.T) {
 }
 
 func TestEmbed_PathTraversal_Ugly(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.ReadFile("../../etc/passwd")
 	assert.False(t, r.OK)
 }
 
 func TestEmbed_Sub_BaseDir_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.Sub("scantest")
 	assert.True(t, r.OK)
 	sub := r.Value.(*Embed)
@@ -218,19 +226,19 @@ func TestEmbed_Sub_BaseDir_Good(t *testing.T) {
 }
 
 func TestEmbed_Open_Bad(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.Open("nonexistent.txt")
 	assert.False(t, r.OK)
 }
 
 func TestEmbed_ReadDir_Bad(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	r := emb.ReadDir("nonexistent")
 	assert.False(t, r.OK)
 }
 
 func TestEmbed_EmbedFS_Original_Good(t *testing.T) {
-	emb := Mount(testFS, "testdata").Value.(*Embed)
+	emb := mustMountTestFS(t, "testdata")
 	efs := emb.EmbedFS()
 	_, err := efs.ReadFile("testdata/test.txt")
 	assert.NoError(t, err)

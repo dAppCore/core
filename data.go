@@ -6,11 +6,11 @@
 //
 // Mount a package's assets:
 //
-//	c.Data().New(core.Options{
-//	    {Key: "name", Value: "brain"},
-//	    {Key: "source", Value: brainFS},
-//	    {Key: "path", Value: "prompts"},
-//	})
+//	c.Data().New(core.NewOptions(
+//	    core.Option{Key: "name", Value: "brain"},
+//	    core.Option{Key: "source", Value: brainFS},
+//	    core.Option{Key: "path", Value: "prompts"},
+//	))
 //
 // Read from any mounted path:
 //
@@ -36,11 +36,11 @@ type Data struct {
 
 // New registers an embedded filesystem under a named prefix.
 //
-//	c.Data().New(core.Options{
-//	    {Key: "name", Value: "brain"},
-//	    {Key: "source", Value: brainFS},
-//	    {Key: "path", Value: "prompts"},
-//	})
+//	c.Data().New(core.NewOptions(
+//	    core.Option{Key: "name", Value: "brain"},
+//	    core.Option{Key: "source", Value: brainFS},
+//	    core.Option{Key: "path", Value: "prompts"},
+//	))
 func (d *Data) New(opts Options) Result {
 	name := opts.String("name")
 	if name == "" {

@@ -82,7 +82,7 @@ type CoreOption func(*Core) Result
 // IPC access and participate in the lifecycle (ServiceStartup/ServiceShutdown).
 //
 //	r := core.New(
-//	    core.WithOptions(core.Options{{Key: "name", Value: "myapp"}}),
+//	    core.WithOptions(core.NewOptions(core.Option{Key: "name", Value: "myapp"})),
 //	    core.WithService(auth.Register),
 //	    core.WithServiceLock(),
 //	)
@@ -123,7 +123,7 @@ func New(opts ...CoreOption) Result {
 
 // WithOptions applies key-value configuration to Core.
 //
-//	core.WithOptions(core.Options{{Key: "name", Value: "myapp"}})
+//	core.WithOptions(core.NewOptions(core.Option{Key: "name", Value: "myapp"}))
 func WithOptions(opts Options) CoreOption {
 	return func(c *Core) Result {
 		c.options = &opts

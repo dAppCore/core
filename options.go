@@ -32,26 +32,38 @@ type Result struct {
 //	r.Result(value)         // OK = true, Value = value
 //	r.Result()              // after set — returns the value
 func (r Result) Result(args ...any) Result {
-	if args == nil {
+	if len(args) == 0 {
 		return r
 	}
 	return r.New(args...)
 }
 
 func (r Result) New(args ...any) Result {
-	if len(args) >= 1 {
-		r.Value = args[0]
+	if len(args) == 0 {
+		return r
 	}
 
-	if err, ok := r.Value.(error); ok {
-		if err != nil {
-			r.Value = err
-			r.OK = false
-		} else {
+	if len(args) > 1 {
+		if err, ok := args[len(args)-1].(error); ok {
+			if err != nil {
+				return Result{Value: err, OK: false}
+			}
+			r.Value = args[0]
 			r.OK = true
+			return r
 		}
 	}
 
+	r.Value = args[0]
+
+	if err, ok := r.Value.(error); ok {
+		if err != nil {
+			return Result{Value: err, OK: false}
+		}
+		return Result{OK: true}
+	}
+
+	r.OK = true
 	return r
 }
 

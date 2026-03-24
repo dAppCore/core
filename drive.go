@@ -6,18 +6,18 @@
 //
 // Register a transport:
 //
-//	c.Drive().New(core.Options{
-//	    {Key: "name", Value: "api"},
-//	    {Key: "transport", Value: "https://api.lthn.ai"},
-//	})
-//	c.Drive().New(core.Options{
-//	    {Key: "name", Value: "ssh"},
-//	    {Key: "transport", Value: "ssh://claude@10.69.69.165"},
-//	})
-//	c.Drive().New(core.Options{
-//	    {Key: "name", Value: "mcp"},
-//	    {Key: "transport", Value: "mcp://mcp.lthn.sh"},
-//	})
+//	c.Drive().New(core.NewOptions(
+//	    core.Option{Key: "name", Value: "api"},
+//	    core.Option{Key: "transport", Value: "https://api.lthn.ai"},
+//	))
+//	c.Drive().New(core.NewOptions(
+//	    core.Option{Key: "name", Value: "ssh"},
+//	    core.Option{Key: "transport", Value: "ssh://claude@10.69.69.165"},
+//	))
+//	c.Drive().New(core.NewOptions(
+//	    core.Option{Key: "name", Value: "mcp"},
+//	    core.Option{Key: "transport", Value: "mcp://mcp.lthn.sh"},
+//	))
 //
 // Retrieve a handle:
 //
@@ -43,10 +43,10 @@ type Drive struct {
 
 // New registers a transport handle.
 //
-//	c.Drive().New(core.Options{
-//	    {Key: "name", Value: "api"},
-//	    {Key: "transport", Value: "https://api.lthn.ai"},
-//	})
+//	c.Drive().New(core.NewOptions(
+//	    core.Option{Key: "name", Value: "api"},
+//	    core.Option{Key: "transport", Value: "https://api.lthn.ai"},
+//	))
 func (d *Drive) New(opts Options) Result {
 	name := opts.String("name")
 	if name == "" {
