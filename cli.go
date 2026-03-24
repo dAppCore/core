@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 // Cli is the CLI surface layer for the Core command tree.
-// It reads commands from Core's registry and wires them to terminal I/O.
 //
 //	c := core.New(core.WithOption("name", "myapp")).Value.(*Core)
 //	c.Command("deploy", core.Command{Action: handler})
@@ -13,18 +12,23 @@ import (
 	"os"
 )
 
+// CliOptions holds configuration for the Cli service.
+type CliOptions struct{}
+
 // Cli is the CLI surface for the Core command tree.
 type Cli struct {
-	core   *Core
+	*ServiceRuntime[CliOptions]
 	output io.Writer
 	banner func(*Cli) string
 }
 
-// New creates a Cli bound to a Core instance.
+// Register creates a Cli service factory for core.WithService.
 //
-//	cli := core.Cli{}.New(c)
-func (cl Cli) New(c *Core) *Cli {
-	return &Cli{core: c, output: os.Stdout}
+//	core.New(core.WithService(core.CliRegister))
+func CliRegister(c *Core) Result {
+	cl := &Cli{output: os.Stdout}
+	cl.ServiceRuntime = NewServiceRuntime[CliOptions](c, CliOptions{})
+	return c.RegisterService("cli", cl)
 }
 
 // Print writes to the CLI output (defaults to os.Stdout).
@@ -51,17 +55,18 @@ func (cl *Cli) Run(args ...string) Result {
 	}
 
 	clean := FilterArgs(args)
+	c := cl.Core()
 
-	if cl.core == nil || cl.core.commands == nil {
+	if c == nil || c.commands == nil {
 		if cl.banner != nil {
 			cl.Print(cl.banner(cl))
 		}
 		return Result{}
 	}
 
-	cl.core.commands.mu.RLock()
-	cmdCount := len(cl.core.commands.commands)
-	cl.core.commands.mu.RUnlock()
+	c.commands.mu.RLock()
+	cmdCount := len(c.commands.commands)
+	c.commands.mu.RUnlock()
 
 	if cmdCount == 0 {
 		if cl.banner != nil {
@@ -74,16 +79,16 @@ func (cl *Cli) Run(args ...string) Result {
 	var cmd *Command
 	var remaining []string
 
-	cl.core.commands.mu.RLock()
+	c.commands.mu.RLock()
 	for i := len(clean); i > 0; i-- {
 		path := JoinPath(clean[:i]...)
-		if c, ok := cl.core.commands.commands[path]; ok {
-			cmd = c
+		if found, ok := c.commands.commands[path]; ok {
+			cmd = found
 			remaining = clean[i:]
 			break
 		}
 	}
-	cl.core.commands.mu.RUnlock()
+	c.commands.mu.RUnlock()
 
 	if cmd == nil {
 		if cl.banner != nil {
@@ -121,13 +126,14 @@ func (cl *Cli) Run(args ...string) Result {
 //
 //	c.Cli().PrintHelp()
 func (cl *Cli) PrintHelp() {
-	if cl.core == nil || cl.core.commands == nil {
+	c := cl.Core()
+	if c == nil || c.commands == nil {
 		return
 	}
 
 	name := ""
-	if cl.core.app != nil {
-		name = cl.core.app.Name
+	if c.app != nil {
+		name = c.app.Name
 	}
 	if name != "" {
 		cl.Print("%s commands:", name)
@@ -135,14 +141,14 @@ func (cl *Cli) PrintHelp() {
 		cl.Print("Commands:")
 	}
 
-	cl.core.commands.mu.RLock()
-	defer cl.core.commands.mu.RUnlock()
+	c.commands.mu.RLock()
+	defer c.commands.mu.RUnlock()
 
-	for path, cmd := range cl.core.commands.commands {
+	for path, cmd := range c.commands.commands {
 		if cmd.Hidden || (cmd.Action == nil && cmd.Lifecycle == nil) {
 			continue
 		}
-		tr := cl.core.I18n().Translate(cmd.I18nKey())
+		tr := c.I18n().Translate(cmd.I18nKey())
 		desc, _ := tr.Value.(string)
 		if desc == "" || desc == cmd.I18nKey() {
 			cl.Print("  %s", path)
@@ -164,8 +170,9 @@ func (cl *Cli) Banner() string {
 	if cl.banner != nil {
 		return cl.banner(cl)
 	}
-	if cl.core != nil && cl.core.app != nil && cl.core.app.Name != "" {
-		return cl.core.app.Name
+	c := cl.Core()
+	if c != nil && c.app != nil && c.app.Name != "" {
+		return c.app.Name
 	}
 	return ""
 }

@@ -104,7 +104,9 @@ func New(opts ...CoreOption) Result {
 		commands: &commandRegistry{commands: make(map[string]*Command)},
 	}
 	c.context, c.cancel = context.WithCancel(context.Background())
-	c.cli = Cli{}.New(c)
+
+	// Core services
+	CliRegister(c)
 
 	for _, opt := range opts {
 		if r := opt(c); !r.OK {
