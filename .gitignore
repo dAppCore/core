@@ -13,7 +13,18 @@ coverage.html
 *.cache
 /coverage.txt
 bin/
+dist/
 tasks
 /core
+/i18n-validate
+/validate
+cmd/*
+!cmd/gocmd/
+.angular/
 
+patch_cov.*
+go.work.sum
+lt-hn-index.html
 
+.core/workspace/
+.idea/

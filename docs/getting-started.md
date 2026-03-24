@@ -1,191 +1,208 @@
+---
+title: Getting Started
+description: Build a first CoreGO application with the current API.
+---
+
 # Getting Started
 
-This guide walks you through installing Core and running your first build.
+This page shows the shortest path to a useful CoreGO application using the API that exists in this repository today.
 
-## Prerequisites
-
-Before installing Core, ensure you have:
-
-| Tool | Minimum Version | Check Command |
-|------|-----------------|---------------|
-| Go | 1.23+ | `go version` |
-| Git | 2.30+ | `git --version` |
-
-Optional (for specific features):
-
-| Tool | Required For | Install |
-|------|--------------|---------|
-| `gh` | GitHub integration (`core dev issues`, `core dev reviews`) | [cli.github.com](https://cli.github.com) |
-| Docker | Container builds | [docker.com](https://docker.com) |
-| `task` | Task automation | `go install github.com/go-task/task/v3/cmd/task@latest` |
-
-## Installation
-
-### Option 1: Go Install (Recommended)
+## Install
 
 ```bash
-# Install latest release
-go install github.com/host-uk/core/cmd/core@latest
-
-# Verify installation
-core doctor
+go get dappco.re/go/core
 ```
 
-If `core: command not found`, add Go's bin directory to your PATH:
+## Create a Core
 
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
+`New` takes zero or more `core.Options` slices, but the current implementation only reads the first one. In practice, treat the constructor as `core.New(core.Options{...})`.
+
+```go
+package main
+
+import "dappco.re/go/core"
+
+func main() {
+	c := core.New(core.Options{
+		{Key: "name", Value: "agent-workbench"},
+	})
+
+	_ = c
+}
 ```
 
-### Option 2: Download Binary
+The `name` option is copied into `c.App().Name`.
 
-Download pre-built binaries from [GitHub Releases](https://github.com/host-uk/core/releases):
+## Register a Service
 
-```bash
-# macOS (Apple Silicon)
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-darwin-arm64
-chmod +x core
-sudo mv core /usr/local/bin/
+Services are registered explicitly with a name and a `core.Service` DTO.
 
-# macOS (Intel)
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-darwin-amd64
-chmod +x core
-sudo mv core /usr/local/bin/
-
-# Linux (x86_64)
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-linux-amd64
-chmod +x core
-sudo mv core /usr/local/bin/
+```go
+c.Service("audit", core.Service{
+	OnStart: func() core.Result {
+		core.Info("audit service started", "app", c.App().Name)
+		return core.Result{OK: true}
+	},
+	OnStop: func() core.Result {
+		core.Info("audit service stopped", "app", c.App().Name)
+		return core.Result{OK: true}
+	},
+})
 ```
 
-### Option 3: Build from Source
+This registry stores `core.Service` values. It is a lifecycle registry, not a typed object container.
 
-```bash
-# Clone repository
-git clone https://github.com/host-uk/core.git
-cd core
+## Register a Query, Task, and Command
 
-# Build with Task (recommended)
-task cli:build
-# Binary at ./bin/core
+```go
+type workspaceCountQuery struct{}
 
-# Or build with Go directly
-CGO_ENABLED=0 go build -o core ./cmd/core/
-sudo mv core /usr/local/bin/
+type createWorkspaceTask struct {
+	Name string
+}
+
+c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result {
+	switch q.(type) {
+	case workspaceCountQuery:
+		return core.Result{Value: 1, OK: true}
+	}
+	return core.Result{}
+})
+
+c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
+	switch task := t.(type) {
+	case createWorkspaceTask:
+		path := "/tmp/agent-workbench/" + task.Name
+		return core.Result{Value: path, OK: true}
+	}
+	return core.Result{}
+})
+
+c.Command("workspace/create", core.Command{
+	Action: func(opts core.Options) core.Result {
+		return c.PERFORM(createWorkspaceTask{
+			Name: opts.String("name"),
+		})
+	},
+})
 ```
 
-## Your First Build
+## Start the Runtime
 
-### 1. Navigate to a Go Project
-
-```bash
-cd ~/Code/my-go-project
+```go
+if !c.ServiceStartup(context.Background(), nil).OK {
+	panic("startup failed")
+}
 ```
 
-### 2. Initialise Configuration
+`ServiceStartup` returns `core.Result`, not `error`.
 
-```bash
-core setup
+## Run Through the CLI Surface
+
+```go
+r := c.Cli().Run("workspace", "create", "--name=alpha")
+if r.OK {
+	fmt.Println("created:", r.Value)
+}
 ```
 
-This detects your project type and creates configuration files in `.core/`:
-- `build.yaml` - Build settings
-- `release.yaml` - Release configuration
-- `test.yaml` - Test commands
+For flags with values, the CLI stores the value as a string. `--name=alpha` becomes `opts.String("name") == "alpha"`.
 
-### 3. Build
+## Query the System
 
-```bash
-core build
+```go
+count := c.QUERY(workspaceCountQuery{})
+if count.OK {
+	fmt.Println("workspace count:", count.Value)
+}
 ```
 
-Output appears in `dist/`:
+## Shut Down Cleanly
 
-```
-dist/
-├── my-project-darwin-arm64.tar.gz
-├── my-project-linux-amd64.tar.gz
-└── CHECKSUMS.txt
+```go
+_ = c.ServiceShutdown(context.Background())
 ```
 
-### 4. Cross-Compile (Optional)
+Shutdown cancels `c.Context()`, broadcasts `ActionServiceShutdown{}`, waits for background tasks to finish, and then runs service stop hooks.
 
-```bash
-core build --targets linux/amd64,linux/arm64,darwin/arm64,windows/amd64
-```
+## Full Example
 
-## Your First Release
+```go
+package main
 
-Releases are **safe by default** - Core runs in dry-run mode unless you explicitly confirm.
+import (
+	"context"
+	"fmt"
 
-### 1. Preview
+	"dappco.re/go/core"
+)
 
-```bash
-core ci
-```
+type workspaceCountQuery struct{}
 
-This shows what would be published without actually publishing.
+type createWorkspaceTask struct {
+	Name string
+}
 
-### 2. Publish
+func main() {
+	c := core.New(core.Options{
+		{Key: "name", Value: "agent-workbench"},
+	})
 
-```bash
-core ci --we-are-go-for-launch
-```
+	c.Config().Set("workspace.root", "/tmp/agent-workbench")
+	c.Config().Enable("workspace.templates")
 
-This creates a GitHub release with your built artifacts.
+	c.Service("audit", core.Service{
+		OnStart: func() core.Result {
+			core.Info("service started", "service", "audit")
+			return core.Result{OK: true}
+		},
+		OnStop: func() core.Result {
+			core.Info("service stopped", "service", "audit")
+			return core.Result{OK: true}
+		},
+	})
 
-## Multi-Repo Workflow
+	c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result {
+		switch q.(type) {
+		case workspaceCountQuery:
+			return core.Result{Value: 1, OK: true}
+		}
+		return core.Result{}
+	})
 
-If you work with multiple repositories (like the host-uk ecosystem):
+	c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
+		switch task := t.(type) {
+		case createWorkspaceTask:
+			path := c.Config().String("workspace.root") + "/" + task.Name
+			return core.Result{Value: path, OK: true}
+		}
+		return core.Result{}
+	})
 
-### 1. Clone All Repositories
+	c.Command("workspace/create", core.Command{
+		Action: func(opts core.Options) core.Result {
+			return c.PERFORM(createWorkspaceTask{
+				Name: opts.String("name"),
+			})
+		},
+	})
 
-```bash
-mkdir host-uk && cd host-uk
-core setup
-```
+	if !c.ServiceStartup(context.Background(), nil).OK {
+		panic("startup failed")
+	}
 
-Select packages in the interactive wizard.
+	created := c.Cli().Run("workspace", "create", "--name=alpha")
+	fmt.Println("created:", created.Value)
 
-### 2. Check Status
+	count := c.QUERY(workspaceCountQuery{})
+	fmt.Println("workspace count:", count.Value)
 
-```bash
-core dev health
-# Output: "18 repos │ clean │ synced"
-```
-
-### 3. Work Across Repos
-
-```bash
-core dev work --status    # See status table
-core dev work             # Commit and push all dirty repos
+	_ = c.ServiceShutdown(context.Background())
+}
 ```
 
 ## Next Steps
 
-| Task | Command | Documentation |
-|------|---------|---------------|
-| Run tests | `core go test` | [go/test](cmd/go/test/) |
-| Format code | `core go fmt --fix` | [go/fmt](cmd/go/fmt/) |
-| Lint code | `core go lint` | [go/lint](cmd/go/lint/) |
-| PHP development | `core php dev` | [php](cmd/php/) |
-| View all commands | `core --help` | [cmd](cmd/) |
-
-## Getting Help
-
-```bash
-# Check environment
-core doctor
-
-# Command help
-core <command> --help
-
-# Full documentation
-https://github.com/host-uk/core/tree/main/docs
-```
-
-## See Also
-
-- [Configuration](configuration.md) - All config options
-- [Workflows](workflows.md) - Common task sequences
-- [Troubleshooting](troubleshooting.md) - When things go wrong
+- Read [primitives.md](primitives.md) next so the repeated shapes are clear.
+- Read [commands.md](commands.md) if you are building a CLI-first system.
+- Read [messaging.md](messaging.md) if services need to collaborate without direct imports.
