@@ -30,7 +30,7 @@ func TestService_Register_Empty_Bad(t *testing.T) {
 
 func TestService_Get_Good(t *testing.T) {
 	c := New().Value.(*Core)
-	c.Service("brain", Service{OnStart: func() Result { return Result{OK: true} }))
+	c.Service("brain", Service{OnStart: func() Result { return Result{OK: true} }})
 	r := c.Service("brain")
 	assert.True(t, r.OK)
 	assert.NotNil(t, r.Value)

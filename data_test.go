@@ -16,11 +16,11 @@ var testFS embed.FS
 
 func TestData_New_Good(t *testing.T) {
 	c := New().Value.(*Core)
-	r := c.Data().New(Options{
-		{Key: "name", Value: "test"},
-		{Key: "source", Value: testFS},
-		{Key: "path", Value: "testdata"},
-	})
+	r := c.Data().New(NewOptions(
+		Option{Key: "name", Value: "test"},
+		Option{Key: "source", Value: testFS},
+		Option{Key: "path", Value: "testdata"},
+	))
 	assert.True(t, r.OK)
 	assert.NotNil(t, r.Value)
 }

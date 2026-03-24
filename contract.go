@@ -6,6 +6,9 @@ package core
 
 import (
 	"context"
+	"reflect"
+	"runtime"
+	"strings"
 )
 
 // Message is the type for IPC broadcasts (fire-and-forget).
@@ -131,15 +134,59 @@ func WithOptions(opts Options) CoreOption {
 }
 
 // WithService registers a service via its factory function.
-// The factory receives *Core and is responsible for calling c.Service()
-// to register itself, and c.RegisterAction() for IPC handlers.
+// If the factory returns a non-nil Value, WithService auto-discovers the
+// service name from the factory's package path (last path segment, lowercase,
+// with any "_test" suffix stripped) and calls RegisterService on the instance.
+// IPC handler auto-registration is handled by RegisterService.
+//
+// If the factory returns nil Value (it registered itself), WithService
+// returns success without a second registration.
 //
 //	core.WithService(agentic.Register)
 //	core.WithService(display.Register(nil))
 func WithService(factory func(*Core) Result) CoreOption {
 	return func(c *Core) Result {
-		return factory(c)
+		r := factory(c)
+		if !r.OK {
+			return r
+		}
+		if r.Value == nil {
+			// Factory self-registered — nothing more to do.
+			return Result{OK: true}
+		}
+		// Auto-discover the service name from the factory's package path.
+		name := serviceNameFromFactory(factory)
+		return c.RegisterService(name, r.Value)
 	}
+}
+
+// serviceNameFromFactory derives a canonical service name from a factory
+// function's fully-qualified package path.
+//
+// "dappco.re/go/agentic.Register"   → "agentic"
+// "dappco.re/go/core_test.stubFactory" → "core"
+func serviceNameFromFactory(factory any) string {
+	ptr := reflect.ValueOf(factory).Pointer()
+	fn := runtime.FuncForPC(ptr)
+	if fn == nil {
+		return "unknown"
+	}
+	full := fn.Name() // e.g. "dappco.re/go/agentic.Register"
+
+	// Take the last path segment ("agentic.Register" or "core_test.stubFactory").
+	if idx := strings.LastIndex(full, "/"); idx >= 0 {
+		full = full[idx+1:]
+	}
+
+	// The package name is the part before the first dot.
+	if idx := strings.Index(full, "."); idx >= 0 {
+		full = full[:idx]
+	}
+
+	// Strip the Go test package suffix so "core_test" → "core".
+	full = strings.TrimSuffix(full, "_test")
+
+	return strings.ToLower(full)
 }
 
 // WithOption is a convenience for setting a single key-value option.

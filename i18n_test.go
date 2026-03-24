@@ -16,11 +16,11 @@ func TestI18n_Good(t *testing.T) {
 
 func TestI18n_AddLocales_Good(t *testing.T) {
 	c := New().Value.(*Core)
-	r := c.Data().New(Options{
-		{Key: "name", Value: "lang"},
-		{Key: "source", Value: testFS},
-		{Key: "path", Value: "testdata"},
-	})
+	r := c.Data().New(NewOptions(
+		Option{Key: "name", Value: "lang"},
+		Option{Key: "source", Value: testFS},
+		Option{Key: "path", Value: "testdata"},
+	))
 	if r.OK {
 		c.I18n().AddLocales(r.Value.(*Embed))
 	}

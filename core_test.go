@@ -97,11 +97,11 @@ func TestAccessors_Good(t *testing.T) {
 }
 
 func TestOptions_Accessor_Good(t *testing.T) {
-	c := New(WithOptions(Options{
-		{Key: "name", Value: "testapp"},
-		{Key: "port", Value: 8080},
-		{Key: "debug", Value: true},
-	})).Value.(*Core)
+	c := New(WithOptions(NewOptions(
+		Option{Key: "name", Value: "testapp"},
+		Option{Key: "port", Value: 8080},
+		Option{Key: "debug", Value: true},
+	))).Value.(*Core)
 	opts := c.Options()
 	assert.NotNil(t, opts)
 	assert.Equal(t, "testapp", opts.String("name"))

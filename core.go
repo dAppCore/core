@@ -49,7 +49,10 @@ func (c *Core) Fs() *Fs                  { return c.fs }
 func (c *Core) Config() *Config          { return c.config }
 func (c *Core) Error() *ErrorPanic       { return c.error }
 func (c *Core) Log() *ErrorLog           { return c.log }
-func (c *Core) Cli() *Cli                { return cli.New() }
+func (c *Core) Cli() *Cli {
+	cl, _ := ServiceFor[*Cli](c, "cli")
+	return cl
+}
 func (c *Core) IPC() *Ipc                { return c.ipc }
 func (c *Core) I18n() *I18n              { return c.i18n }
 func (c *Core) Env(key string) string    { return Env(key) }
