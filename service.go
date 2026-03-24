@@ -140,6 +140,18 @@ func ServiceFor[T any](c *Core, name string) (T, bool) {
 	return typed, ok
 }
 
+// MustServiceFor retrieves a registered service by name and asserts its type.
+// Panics if the service is not found or the type assertion fails.
+//
+//	cli := core.MustServiceFor[*Cli](c, "cli")
+func MustServiceFor[T any](c *Core, name string) T {
+	v, ok := ServiceFor[T](c, name)
+	if !ok {
+		panic(E("core.MustServiceFor", Sprintf("service %q not found or wrong type", name), nil))
+	}
+	return v
+}
+
 // Services returns all registered service names.
 //
 //	names := c.Services()

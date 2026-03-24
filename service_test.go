@@ -47,9 +47,9 @@ func TestService_Names_Good(t *testing.T) {
 	c.Service("a", Service{})
 	c.Service("b", Service{})
 	names := c.Services()
-	assert.Len(t, names, 2)
 	assert.Contains(t, names, "a")
 	assert.Contains(t, names, "b")
+	assert.Contains(t, names, "cli") // auto-registered by CliRegister in New()
 }
 
 // --- Service Lifecycle ---
