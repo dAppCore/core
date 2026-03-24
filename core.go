@@ -59,6 +59,27 @@ func (c *Core) Env(key string) string    { return Env(key) }
 func (c *Core) Context() context.Context { return c.context }
 func (c *Core) Core() *Core              { return c }
 
+// --- Lifecycle ---
+
+// Run starts all services, runs the CLI, then shuts down.
+// This is the standard application lifecycle for CLI apps.
+//
+//	c := core.New(core.WithService(myService.Register)).Value.(*Core)
+//	c.Run()
+func (c *Core) Run() Result {
+	r := c.ServiceStartup(c.context, nil)
+	if !r.OK {
+		return r
+	}
+
+	if cli := c.Cli(); cli != nil {
+		r = cli.Run()
+	}
+
+	c.ServiceShutdown(c.context)
+	return r
+}
+
 // --- IPC (uppercase aliases) ---
 
 func (c *Core) ACTION(msg Message) Result { return c.Action(msg) }
