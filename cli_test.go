@@ -16,7 +16,7 @@ func TestCli_Good(t *testing.T) {
 }
 
 func TestCli_Banner_Good(t *testing.T) {
-	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "myapp"}))).Value.(*Core)
+	c := New(WithOption("name", "myapp")).Value.(*Core)
 	assert.Equal(t, "myapp", c.Cli().Banner())
 }
 
@@ -32,7 +32,7 @@ func TestCli_Run_Good(t *testing.T) {
 	c.Command("hello", Command{Action: func(_ Options) Result {
 		executed = true
 		return Result{Value: "world", OK: true}
-	}))
+	}})
 	r := c.Cli().Run("hello")
 	assert.True(t, r.OK)
 	assert.Equal(t, "world", r.Value)
@@ -45,7 +45,7 @@ func TestCli_Run_Nested_Good(t *testing.T) {
 	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result {
 		executed = true
 		return Result{OK: true}
-	}))
+	}})
 	r := c.Cli().Run("deploy", "to", "homelab")
 	assert.True(t, r.OK)
 	assert.True(t, executed)
@@ -57,7 +57,7 @@ func TestCli_Run_WithFlags_Good(t *testing.T) {
 	c.Command("serve", Command{Action: func(opts Options) Result {
 		received = opts
 		return Result{OK: true}
-	}))
+	}})
 	c.Cli().Run("serve", "--port=8080", "--debug")
 	assert.Equal(t, "8080", received.String("port"))
 	assert.True(t, received.Bool("debug"))
@@ -70,9 +70,9 @@ func TestCli_Run_NoCommand_Good(t *testing.T) {
 }
 
 func TestCli_PrintHelp_Good(t *testing.T) {
-	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "myapp"}))).Value.(*Core)
-	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }))
-	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }))
+	c := New(WithOption("name", "myapp")).Value.(*Core)
+	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Cli().PrintHelp()
 }
 

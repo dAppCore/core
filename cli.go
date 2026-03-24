@@ -3,14 +3,9 @@
 // Cli is the CLI surface layer for the Core command tree.
 // It reads commands from Core's registry and wires them to terminal I/O.
 //
-// Run the CLI:
-//
-//	c := core.New(core.Options{{Key: "name", Value: "myapp"}})
-//	c.Command("deploy", handler)
+//	c := core.New(core.WithOption("name", "myapp")).Value.(*Core)
+//	c.Command("deploy", core.Command{Action: handler})
 //	c.Cli().Run()
-//
-// The Cli resolves os.Args to a command path, parses flags,
-// and calls the command's action with parsed options.
 package core
 
 import (
