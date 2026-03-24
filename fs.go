@@ -13,6 +13,18 @@ type Fs struct {
 	root string
 }
 
+// New initialises an Fs with the given root directory.
+// Root "/" means unrestricted access. Empty root defaults to "/".
+//
+//	fs := (&core.Fs{}).New("/")
+func (m *Fs) New(root string) *Fs {
+	if root == "" {
+		root = "/"
+	}
+	m.root = root
+	return m
+}
+
 // path sanitises and returns the full path.
 // Absolute paths are sandboxed under root (unless root is "/").
 // Empty root defaults to "/" — the zero value of Fs is usable.
