@@ -89,7 +89,7 @@ func TestEnv_Unknown(t *testing.T) {
 }
 
 func TestEnv_CoreInstance(t *testing.T) {
-	c := core.New().Value.(*core.Core)
+	c := core.New()
 	assert.Equal(t, core.Env("OS"), c.Env("OS"))
 	assert.Equal(t, core.Env("DIR_HOME"), c.Env("DIR_HOME"))
 }

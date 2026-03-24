@@ -10,7 +10,7 @@ import (
 // --- Command DTO ---
 
 func TestCommand_Register_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	r := c.Command("deploy", Command{Action: func(_ Options) Result {
 		return Result{Value: "deployed", OK: true}
 	}})
@@ -18,7 +18,7 @@ func TestCommand_Register_Good(t *testing.T) {
 }
 
 func TestCommand_Get_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	r := c.Command("deploy")
 	assert.True(t, r.OK)
@@ -26,13 +26,13 @@ func TestCommand_Get_Good(t *testing.T) {
 }
 
 func TestCommand_Get_Bad(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	r := c.Command("nonexistent")
 	assert.False(t, r.OK)
 }
 
 func TestCommand_Run_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("greet", Command{Action: func(opts Options) Result {
 		return Result{Value: Concat("hello ", opts.String("name")), OK: true}
 	}})
@@ -43,7 +43,7 @@ func TestCommand_Run_Good(t *testing.T) {
 }
 
 func TestCommand_Run_NoAction_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("empty", Command{Description: "no action"})
 	cmd := c.Command("empty").Value.(*Command)
 	r := cmd.Run(NewOptions())
@@ -53,7 +53,7 @@ func TestCommand_Run_NoAction_Good(t *testing.T) {
 // --- Nested Commands ---
 
 func TestCommand_Nested_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result {
 		return Result{Value: "deployed to homelab", OK: true}
 	}})
@@ -67,7 +67,7 @@ func TestCommand_Nested_Good(t *testing.T) {
 }
 
 func TestCommand_Paths_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result { return Result{OK: true} }})
@@ -82,21 +82,21 @@ func TestCommand_Paths_Good(t *testing.T) {
 // --- I18n Key Derivation ---
 
 func TestCommand_I18nKey_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("deploy/to/homelab", Command{})
 	cmd := c.Command("deploy/to/homelab").Value.(*Command)
 	assert.Equal(t, "cmd.deploy.to.homelab.description", cmd.I18nKey())
 }
 
 func TestCommand_I18nKey_Custom_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("deploy", Command{Description: "custom.deploy.key"})
 	cmd := c.Command("deploy").Value.(*Command)
 	assert.Equal(t, "custom.deploy.key", cmd.I18nKey())
 }
 
 func TestCommand_I18nKey_Simple_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("serve", Command{})
 	cmd := c.Command("serve").Value.(*Command)
 	assert.Equal(t, "cmd.serve.description", cmd.I18nKey())
@@ -105,7 +105,7 @@ func TestCommand_I18nKey_Simple_Good(t *testing.T) {
 // --- Lifecycle ---
 
 func TestCommand_Lifecycle_NoImpl_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("serve", Command{Action: func(_ Options) Result {
 		return Result{Value: "running", OK: true}
 	}})
@@ -153,7 +153,7 @@ func (l *testLifecycle) Signal(sig string) Result {
 }
 
 func TestCommand_Lifecycle_WithImpl_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	lc := &testLifecycle{}
 	c.Command("daemon", Command{Lifecycle: lc})
 	cmd := c.Command("daemon").Value.(*Command)
@@ -177,14 +177,14 @@ func TestCommand_Lifecycle_WithImpl_Good(t *testing.T) {
 }
 
 func TestCommand_Duplicate_Bad(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	r := c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	assert.False(t, r.OK)
 }
 
 func TestCommand_InvalidPath_Bad(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	assert.False(t, c.Command("/leading", Command{}).OK)
 	assert.False(t, c.Command("trailing/", Command{}).OK)
 	assert.False(t, c.Command("double//slash", Command{}).OK)
@@ -193,7 +193,7 @@ func TestCommand_InvalidPath_Bad(t *testing.T) {
 // --- Cli Run with Lifecycle ---
 
 func TestCli_Run_Lifecycle_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	lc := &testLifecycle{}
 	c.Command("serve", Command{Lifecycle: lc})
 	r := c.Cli().Run("serve")
@@ -202,7 +202,7 @@ func TestCli_Run_Lifecycle_Good(t *testing.T) {
 }
 
 func TestCli_Run_NoActionNoLifecycle_Bad(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.Command("empty", Command{})
 	r := c.Cli().Run("empty")
 	assert.False(t, r.OK)
@@ -211,7 +211,7 @@ func TestCli_Run_NoActionNoLifecycle_Bad(t *testing.T) {
 // --- Empty path ---
 
 func TestCommand_EmptyPath_Bad(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	r := c.Command("", Command{})
 	assert.False(t, r.OK)
 }

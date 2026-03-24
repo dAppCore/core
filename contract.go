@@ -88,7 +88,7 @@ type CoreOption func(*Core) Result
 //	)
 //	if !r.OK { log.Fatal(r.Value) }
 //	c := r.Value.(*Core)
-func New(opts ...CoreOption) Result {
+func New(opts ...CoreOption) *Core {
 	c := &Core{
 		app:      &App{},
 		data:     &Data{},
@@ -111,14 +111,15 @@ func New(opts ...CoreOption) Result {
 
 	for _, opt := range opts {
 		if r := opt(c); !r.OK {
-			return r
+			Error("core.New failed", "err", r.Value)
+			break
 		}
 	}
 
 	// Apply service lock after all opts — v0.3.3 parity
 	c.LockApply()
 
-	return Result{c, true}
+	return c
 }
 
 // WithOptions applies key-value configuration to Core.

@@ -12,7 +12,7 @@ import (
 type testMessage struct{ payload string }
 
 func TestAction_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	var received Message
 	c.RegisterAction(func(_ *Core, msg Message) Result {
 		received = msg
@@ -24,7 +24,7 @@ func TestAction_Good(t *testing.T) {
 }
 
 func TestAction_Multiple_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	count := 0
 	handler := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }
 	c.RegisterActions(handler, handler, handler)
@@ -33,7 +33,7 @@ func TestAction_Multiple_Good(t *testing.T) {
 }
 
 func TestAction_None_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	// No handlers registered — should succeed
 	r := c.ACTION(nil)
 	assert.True(t, r.OK)
@@ -42,7 +42,7 @@ func TestAction_None_Good(t *testing.T) {
 // --- IPC: Queries ---
 
 func TestQuery_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.RegisterQuery(func(_ *Core, q Query) Result {
 		if q == "ping" {
 			return Result{Value: "pong", OK: true}
@@ -55,7 +55,7 @@ func TestQuery_Good(t *testing.T) {
 }
 
 func TestQuery_Unhandled_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.RegisterQuery(func(_ *Core, q Query) Result {
 		return Result{}
 	})
@@ -64,7 +64,7 @@ func TestQuery_Unhandled_Good(t *testing.T) {
 }
 
 func TestQueryAll_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.RegisterQuery(func(_ *Core, _ Query) Result {
 		return Result{Value: "a", OK: true}
 	})
@@ -82,7 +82,7 @@ func TestQueryAll_Good(t *testing.T) {
 // --- IPC: Tasks ---
 
 func TestPerform_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.RegisterTask(func(_ *Core, t Task) Result {
 		if t == "compute" {
 			return Result{Value: 42, OK: true}

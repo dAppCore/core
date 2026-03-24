@@ -37,18 +37,18 @@ func TestApp_New_Partial_Good(t *testing.T) {
 // --- App via Core ---
 
 func TestApp_Core_Good(t *testing.T) {
-	c := New(WithOption("name", "myapp")).Value.(*Core)
+	c := New(WithOption("name", "myapp"))
 	assert.Equal(t, "myapp", c.App().Name)
 }
 
 func TestApp_Core_Empty_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	assert.NotNil(t, c.App())
 	assert.Equal(t, "", c.App().Name)
 }
 
 func TestApp_Runtime_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	c.App().Runtime = &struct{ Name string }{Name: "wails"}
 	assert.NotNil(t, c.App().Runtime)
 }

@@ -54,7 +54,7 @@ func TestLog_LevelString_Good(t *testing.T) {
 }
 
 func TestLog_CoreLog_Good(t *testing.T) {
-	c := New().Value.(*Core)
+	c := New()
 	assert.NotNil(t, c.Log())
 }
 

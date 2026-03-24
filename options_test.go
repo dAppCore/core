@@ -171,7 +171,7 @@ func TestWithOption_Good(t *testing.T) {
 	c := New(
 		WithOption("name", "myapp"),
 		WithOption("port", 8080),
-	).Value.(*Core)
+	)
 	assert.Equal(t, "myapp", c.App().Name)
 	assert.Equal(t, 8080, c.Options().Int("port"))
 }

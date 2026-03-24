@@ -32,9 +32,7 @@ func stubFactory(c *Core) Result {
 // segment is "core_test" — WithService strips the "_test" suffix and registers
 // the service under the name "core".
 func TestWithService_NameDiscovery_Good(t *testing.T) {
-	r := New(WithService(stubFactory))
-	assert.True(t, r.OK)
-	c := r.Value.(*Core)
+	c := New(WithService(stubFactory))
 
 	names := c.Services()
 	// Service should be auto-registered under a discovered name (not just "cli" which is built-in)
@@ -51,9 +49,7 @@ func TestWithService_FactorySelfRegisters_Good(t *testing.T) {
 		return Result{OK: true}
 	}
 
-	r := New(WithService(selfReg))
-	assert.True(t, r.OK)
-	c := r.Value.(*Core)
+	c := New(WithService(selfReg))
 
 	// "self" must be present and registered exactly once.
 	svc := c.Service("self")
@@ -63,13 +59,11 @@ func TestWithService_FactorySelfRegisters_Good(t *testing.T) {
 // --- WithName ---
 
 func TestWithName_Good(t *testing.T) {
-	r := New(
+	c := New(
 		WithName("custom", func(c *Core) Result {
 			return Result{Value: &stubNamedService{}, OK: true}
 		}),
 	)
-	assert.True(t, r.OK)
-	c := r.Value.(*Core)
 	assert.Contains(t, c.Services(), "custom")
 }
 
@@ -86,13 +80,11 @@ func (s *lifecycleService) OnStartup(_ context.Context) error {
 
 func TestWithService_Lifecycle_Good(t *testing.T) {
 	svc := &lifecycleService{}
-	r := New(
+	c := New(
 		WithService(func(c *Core) Result {
 			return Result{Value: svc, OK: true}
 		}),
 	)
-	assert.True(t, r.OK)
-	c := r.Value.(*Core)
 
 	c.ServiceStartup(context.Background(), nil)
 	assert.True(t, svc.started)
@@ -111,13 +103,11 @@ func (s *ipcService) HandleIPCEvents(c *Core, msg Message) Result {
 
 func TestWithService_IPCHandler_Good(t *testing.T) {
 	svc := &ipcService{}
-	r := New(
+	c := New(
 		WithService(func(c *Core) Result {
 			return Result{Value: svc, OK: true}
 		}),
 	)
-	assert.True(t, r.OK)
-	c := r.Value.(*Core)
 
 	c.ACTION("ping")
 	assert.Equal(t, "ping", svc.received)
@@ -125,11 +115,19 @@ func TestWithService_IPCHandler_Good(t *testing.T) {
 
 // --- Error ---
 
-// TestWithService_FactoryError_Bad verifies that a factory returning an error
-// causes New() to stop and propagate the failure.
+// TestWithService_FactoryError_Bad verifies that a failing factory
+// stops further option processing (second service not registered).
 func TestWithService_FactoryError_Bad(t *testing.T) {
-	r := New(WithService(func(c *Core) Result {
-		return Result{Value: E("test", "factory failed", nil), OK: false}
-	}))
-	assert.False(t, r.OK, "expected New() to fail when factory returns error")
+	secondCalled := false
+	c := New(
+		WithService(func(c *Core) Result {
+			return Result{Value: E("test", "factory failed", nil), OK: false}
+		}),
+		WithService(func(c *Core) Result {
+			secondCalled = true
+			return Result{OK: true}
+		}),
+	)
+	assert.NotNil(t, c)
+	assert.False(t, secondCalled, "second option should not run after first fails")
 }
