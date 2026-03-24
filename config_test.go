@@ -10,7 +10,7 @@ import (
 // --- Config ---
 
 func TestConfig_SetGet_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Config().Set("api_url", "https://api.lthn.ai")
 	c.Config().Set("max_agents", 5)
 
@@ -20,14 +20,14 @@ func TestConfig_SetGet_Good(t *testing.T) {
 }
 
 func TestConfig_Get_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Config().Get("missing")
 	assert.False(t, r.OK)
 	assert.Nil(t, r.Value)
 }
 
 func TestConfig_TypedAccessors_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Config().Set("url", "https://lthn.ai")
 	c.Config().Set("port", 8080)
 	c.Config().Set("debug", true)
@@ -38,7 +38,7 @@ func TestConfig_TypedAccessors_Good(t *testing.T) {
 }
 
 func TestConfig_TypedAccessors_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	// Missing keys return zero values
 	assert.Equal(t, "", c.Config().String("missing"))
 	assert.Equal(t, 0, c.Config().Int("missing"))
@@ -48,7 +48,7 @@ func TestConfig_TypedAccessors_Bad(t *testing.T) {
 // --- Feature Flags ---
 
 func TestConfig_Features_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Config().Enable("dark-mode")
 	c.Config().Enable("beta")
 
@@ -58,7 +58,7 @@ func TestConfig_Features_Good(t *testing.T) {
 }
 
 func TestConfig_Features_Disable_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Config().Enable("feature")
 	assert.True(t, c.Config().Enabled("feature"))
 
@@ -67,14 +67,14 @@ func TestConfig_Features_Disable_Good(t *testing.T) {
 }
 
 func TestConfig_Features_CaseSensitive(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Config().Enable("Feature")
 	assert.True(t, c.Config().Enabled("Feature"))
 	assert.False(t, c.Config().Enabled("feature"))
 }
 
 func TestConfig_EnabledFeatures_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Config().Enable("a")
 	c.Config().Enable("b")
 	c.Config().Enable("c")

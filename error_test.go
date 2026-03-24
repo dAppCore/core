@@ -102,7 +102,7 @@ func TestFormatStackTrace_Good(t *testing.T) {
 // --- ErrorLog ---
 
 func TestErrorLog_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	cause := errors.New("boom")
 	r := c.Log().Error(cause, "test.Operation", "something broke")
 	assert.False(t, r.OK)
@@ -110,27 +110,27 @@ func TestErrorLog_Good(t *testing.T) {
 }
 
 func TestErrorLog_Nil_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Log().Error(nil, "test.Operation", "no error")
 	assert.True(t, r.OK)
 }
 
 func TestErrorLog_Warn_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	cause := errors.New("warning")
 	r := c.Log().Warn(cause, "test.Operation", "heads up")
 	assert.False(t, r.OK)
 }
 
 func TestErrorLog_Must_Ugly(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	assert.Panics(t, func() {
 		c.Log().Must(errors.New("fatal"), "test.Operation", "must fail")
 	})
 }
 
 func TestErrorLog_Must_Nil_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	assert.NotPanics(t, func() {
 		c.Log().Must(nil, "test.Operation", "no error")
 	})
@@ -139,7 +139,7 @@ func TestErrorLog_Must_Nil_Good(t *testing.T) {
 // --- ErrorPanic ---
 
 func TestErrorPanic_Recover_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	// Should not panic — Recover catches it
 	assert.NotPanics(t, func() {
 		defer c.Error().Recover()
@@ -148,7 +148,7 @@ func TestErrorPanic_Recover_Good(t *testing.T) {
 }
 
 func TestErrorPanic_SafeGo_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	done := make(chan bool, 1)
 	c.Error().SafeGo(func() {
 		done <- true
@@ -157,7 +157,7 @@ func TestErrorPanic_SafeGo_Good(t *testing.T) {
 }
 
 func TestErrorPanic_SafeGo_Panic_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	done := make(chan bool, 1)
 	c.Error().SafeGo(func() {
 		defer func() { done <- true }()
@@ -202,7 +202,7 @@ func TestErrorPanic_Reports_Good(t *testing.T) {
 	path := dir + "/crashes.json"
 
 	// Create ErrorPanic with file output
-	c := New()
+	c := New().Value.(*Core)
 	// Access internals via a crash that writes to file
 	// Since ErrorPanic fields are unexported, we test via Recover
 	_ = c
@@ -221,7 +221,7 @@ func TestErrorPanic_CrashFile_Good(t *testing.T) {
 	// error handling that writes crash reports
 
 	// For now, test that Reports handles missing file gracefully
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Error().Reports(5)
 	assert.False(t, r.OK)
 	assert.Nil(t, r.Value)
@@ -260,13 +260,13 @@ func TestWrap_PreservesCode_Good(t *testing.T) {
 }
 
 func TestErrorLog_Warn_Nil_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.LogWarn(nil, "op", "msg")
 	assert.True(t, r.OK)
 }
 
 func TestErrorLog_Error_Nil_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.LogError(nil, "op", "msg")
 	assert.True(t, r.OK)
 }

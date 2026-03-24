@@ -10,26 +10,26 @@ import (
 // --- Service Registration ---
 
 func TestService_Register_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Service("auth", Service{})
 	assert.True(t, r.OK)
 }
 
 func TestService_Register_Duplicate_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Service("auth", Service{})
 	r := c.Service("auth", Service{})
 	assert.False(t, r.OK)
 }
 
 func TestService_Register_Empty_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Service("", Service{})
 	assert.False(t, r.OK)
 }
 
 func TestService_Get_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Service("brain", Service{OnStart: func() Result { return Result{OK: true} }})
 	r := c.Service("brain")
 	assert.True(t, r.OK)
@@ -37,13 +37,13 @@ func TestService_Get_Good(t *testing.T) {
 }
 
 func TestService_Get_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Service("nonexistent")
 	assert.False(t, r.OK)
 }
 
 func TestService_Names_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Service("a", Service{})
 	c.Service("b", Service{})
 	names := c.Services()
@@ -55,7 +55,7 @@ func TestService_Names_Good(t *testing.T) {
 // --- Service Lifecycle ---
 
 func TestService_Lifecycle_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	started := false
 	stopped := false
 	c.Service("lifecycle", Service{

@@ -13,7 +13,7 @@ import (
 // --- PerformAsync ---
 
 func TestPerformAsync_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	var mu sync.Mutex
 	var result string
 
@@ -37,7 +37,7 @@ func TestPerformAsync_Good(t *testing.T) {
 }
 
 func TestPerformAsync_Progress_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.RegisterTask(func(_ *Core, task Task) Result {
 		return Result{OK: true}
 	})
@@ -48,7 +48,7 @@ func TestPerformAsync_Progress_Good(t *testing.T) {
 }
 
 func TestPerformAsync_Completion_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	completed := make(chan ActionTaskCompleted, 1)
 
 	c.RegisterTask(func(_ *Core, task Task) Result {
@@ -73,7 +73,7 @@ func TestPerformAsync_Completion_Good(t *testing.T) {
 }
 
 func TestPerformAsync_NoHandler_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	completed := make(chan ActionTaskCompleted, 1)
 
 	c.RegisterAction(func(_ *Core, msg Message) Result {
@@ -94,7 +94,7 @@ func TestPerformAsync_NoHandler_Good(t *testing.T) {
 }
 
 func TestPerformAsync_AfterShutdown_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.ServiceStartup(context.Background(), nil)
 	c.ServiceShutdown(context.Background())
 
@@ -105,7 +105,7 @@ func TestPerformAsync_AfterShutdown_Bad(t *testing.T) {
 // --- RegisterAction + RegisterActions ---
 
 func TestRegisterAction_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	called := false
 	c.RegisterAction(func(_ *Core, _ Message) Result {
 		called = true
@@ -116,7 +116,7 @@ func TestRegisterAction_Good(t *testing.T) {
 }
 
 func TestRegisterActions_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	count := 0
 	h := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }
 	c.RegisterActions(h, h)

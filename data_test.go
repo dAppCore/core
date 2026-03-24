@@ -15,7 +15,7 @@ var testFS embed.FS
 // --- Data (Embedded Content Mounts) ---
 
 func TestData_New_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Data().New(Options{
 		{Key: "name", Value: "test"},
 		{Key: "source", Value: testFS},
@@ -26,7 +26,7 @@ func TestData_New_Good(t *testing.T) {
 }
 
 func TestData_New_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 
 	r := c.Data().New(Options{{Key: "source", Value: testFS}})
 	assert.False(t, r.OK)
@@ -39,7 +39,7 @@ func TestData_New_Bad(t *testing.T) {
 }
 
 func TestData_ReadString_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	r := c.Data().ReadString("app/test.txt")
 	assert.True(t, r.OK)
@@ -47,13 +47,13 @@ func TestData_ReadString_Good(t *testing.T) {
 }
 
 func TestData_ReadString_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Data().ReadString("nonexistent/file.txt")
 	assert.False(t, r.OK)
 }
 
 func TestData_ReadFile_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	r := c.Data().ReadFile("app/test.txt")
 	assert.True(t, r.OK)
@@ -61,7 +61,7 @@ func TestData_ReadFile_Good(t *testing.T) {
 }
 
 func TestData_Get_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "brain"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	gr := c.Data().Get("brain")
 	assert.True(t, gr.OK)
@@ -76,13 +76,13 @@ func TestData_Get_Good(t *testing.T) {
 }
 
 func TestData_Get_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Data().Get("nonexistent")
 	assert.False(t, r.OK)
 }
 
 func TestData_Mounts_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "a"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	c.Data().New(Options{{Key: "name", Value: "b"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	mounts := c.Data().Mounts()
@@ -90,26 +90,26 @@ func TestData_Mounts_Good(t *testing.T) {
 }
 
 func TestEmbed_Legacy_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "testdata"}})
 	assert.NotNil(t, c.Embed())
 }
 
 func TestData_List_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "."}})
 	r := c.Data().List("app/testdata")
 	assert.True(t, r.OK)
 }
 
 func TestData_List_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Data().List("nonexistent/path")
 	assert.False(t, r.OK)
 }
 
 func TestData_ListNames_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "."}})
 	r := c.Data().ListNames("app/testdata")
 	assert.True(t, r.OK)
@@ -117,14 +117,14 @@ func TestData_ListNames_Good(t *testing.T) {
 }
 
 func TestData_Extract_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.Data().New(Options{{Key: "name", Value: "app"}, {Key: "source", Value: testFS}, {Key: "path", Value: "."}})
 	r := c.Data().Extract("app/testdata", t.TempDir(), nil)
 	assert.True(t, r.OK)
 }
 
 func TestData_Extract_Bad(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Data().Extract("nonexistent/path", t.TempDir(), nil)
 	assert.False(t, r.OK)
 }

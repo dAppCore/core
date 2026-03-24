@@ -10,18 +10,18 @@ import (
 // --- App ---
 
 func TestApp_Good(t *testing.T) {
-	c := New(Options{{Key: "name", Value: "myapp"}})
+	c := New(WithOptions(Options{{Key: "name", Value: "myapp"}})).Value.(*Core)
 	assert.Equal(t, "myapp", c.App().Name)
 }
 
 func TestApp_Empty_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	assert.NotNil(t, c.App())
 	assert.Equal(t, "", c.App().Name)
 }
 
 func TestApp_Runtime_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.App().Runtime = &struct{ Name string }{Name: "wails"}
 	assert.NotNil(t, c.App().Runtime)
 }

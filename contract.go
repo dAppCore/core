@@ -66,12 +66,28 @@ type ActionTaskCompleted struct {
 
 // --- Constructor ---
 
-// New creates a Core instance.
+// CoreOption is a functional option applied during Core construction.
+// Returns Result — if !OK, New() stops and returns the error.
 //
-//	c := core.New(core.Options{
-//	    {Key: "name", Value: "myapp"},
-//	})
-func New(opts ...Options) *Core {
+//	core.New(
+//	    core.WithService(agentic.Register),
+//	    core.WithService(monitor.Register),
+//	    core.WithServiceLock(),
+//	)
+type CoreOption func(*Core) Result
+
+// New initialises a Core instance by applying options in order.
+// Services registered here form the application conclave — they share
+// IPC access and participate in the lifecycle (ServiceStartup/ServiceShutdown).
+//
+//	r := core.New(
+//	    core.WithOptions(core.Options{{Key: "name", Value: "myapp"}}),
+//	    core.WithService(auth.Register),
+//	    core.WithServiceLock(),
+//	)
+//	if !r.OK { log.Fatal(r.Value) }
+//	c := r.Value.(*Core)
+func New(opts ...CoreOption) Result {
 	c := &Core{
 		app:      &App{},
 		data:     &Data{},
@@ -88,19 +104,54 @@ func New(opts ...Options) *Core {
 		commands: &commandRegistry{commands: make(map[string]*Command)},
 	}
 	c.context, c.cancel = context.WithCancel(context.Background())
+	c.cli = &Cli{core: c}
 
-	if len(opts) > 0 {
-		cp := make(Options, len(opts[0]))
-		copy(cp, opts[0])
-		c.options = &cp
-		name := cp.String("name")
-		if name != "" {
-			c.app.Name = name
+	for _, opt := range opts {
+		if r := opt(c); !r.OK {
+			return r
 		}
 	}
 
-	// Init Cli surface with Core reference
-	c.cli = &Cli{core: c}
+	return Result{c, true}
+}
 
-	return c
+// WithOptions applies key-value configuration to Core.
+//
+//	core.WithOptions(core.Options{{Key: "name", Value: "myapp"}})
+func WithOptions(opts Options) CoreOption {
+	return func(c *Core) Result {
+		c.options = &opts
+		if name := opts.String("name"); name != "" {
+			c.app.Name = name
+		}
+		return Result{OK: true}
+	}
+}
+
+// WithService registers a service via its factory function.
+// The factory receives *Core so the service can wire IPC handlers
+// and access other subsystems during construction.
+// Service name is auto-discovered from the package path.
+// If the service implements HandleIPCEvents, it is auto-registered.
+//
+//	core.WithService(agentic.Register)
+//	core.WithService(display.Register(nil))
+func WithService(factory func(*Core) Result) CoreOption {
+	return func(c *Core) Result {
+		return factory(c)
+	}
+}
+
+// WithServiceLock prevents further service registration after construction.
+//
+//	core.New(
+//	    core.WithService(auth.Register),
+//	    core.WithServiceLock(),
+//	)
+func WithServiceLock() CoreOption {
+	return func(c *Core) Result {
+		c.LockEnable()
+		c.LockApply()
+		return Result{OK: true}
+	}
 }

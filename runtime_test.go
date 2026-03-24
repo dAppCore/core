@@ -16,7 +16,7 @@ type testOpts struct {
 }
 
 func TestServiceRuntime_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	opts := testOpts{URL: "https://api.lthn.ai", Timeout: 30}
 	rt := NewServiceRuntime(c, opts)
 
@@ -102,7 +102,7 @@ func TestRuntime_ServiceShutdown_NilCore_Good(t *testing.T) {
 
 func TestCore_ServiceShutdown_Good(t *testing.T) {
 	stopped := false
-	c := New()
+	c := New().Value.(*Core)
 	c.Service("test", Service{
 		OnStart: func() Result { return Result{OK: true} },
 		OnStop:  func() Result { stopped = true; return Result{OK: true} },
@@ -114,7 +114,7 @@ func TestCore_ServiceShutdown_Good(t *testing.T) {
 }
 
 func TestCore_Context_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	c.ServiceStartup(context.Background(), nil)
 	assert.NotNil(t, c.Context())
 	c.ServiceShutdown(context.Background())

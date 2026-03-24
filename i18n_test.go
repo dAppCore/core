@@ -10,12 +10,12 @@ import (
 // --- I18n ---
 
 func TestI18n_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	assert.NotNil(t, c.I18n())
 }
 
 func TestI18n_AddLocales_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.Data().New(Options{
 		{Key: "name", Value: "lang"},
 		{Key: "source", Value: testFS},
@@ -30,7 +30,7 @@ func TestI18n_AddLocales_Good(t *testing.T) {
 }
 
 func TestI18n_Locales_Empty_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.I18n().Locales()
 	assert.True(t, r.OK)
 	assert.Empty(t, r.Value.([]*Embed))
@@ -39,7 +39,7 @@ func TestI18n_Locales_Empty_Good(t *testing.T) {
 // --- Translator (no translator registered) ---
 
 func TestI18n_Translate_NoTranslator_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	// Without a translator, Translate returns the key as-is
 	r := c.I18n().Translate("greeting.hello")
 	assert.True(t, r.OK)
@@ -47,24 +47,24 @@ func TestI18n_Translate_NoTranslator_Good(t *testing.T) {
 }
 
 func TestI18n_SetLanguage_NoTranslator_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	r := c.I18n().SetLanguage("de")
 	assert.True(t, r.OK) // no-op without translator
 }
 
 func TestI18n_Language_NoTranslator_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	assert.Equal(t, "en", c.I18n().Language())
 }
 
 func TestI18n_AvailableLanguages_NoTranslator_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	langs := c.I18n().AvailableLanguages()
 	assert.Equal(t, []string{"en"}, langs)
 }
 
 func TestI18n_Translator_Nil_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	assert.False(t, c.I18n().Translator().OK)
 }
 
@@ -82,7 +82,7 @@ func (m *mockTranslator) Language() string              { return m.lang }
 func (m *mockTranslator) AvailableLanguages() []string  { return []string{"en", "de", "fr"} }
 
 func TestI18n_WithTranslator_Good(t *testing.T) {
-	c := New()
+	c := New().Value.(*Core)
 	tr := &mockTranslator{lang: "en"}
 	c.I18n().SetTranslator(tr)
 

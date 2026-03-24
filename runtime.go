@@ -106,7 +106,11 @@ type ServiceFactory func() Result
 
 // NewWithFactories creates a Runtime with the provided service factories.
 func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
-	c := New(Options{{Key: "name", Value: "core"}})
+	r := New(WithOptions(Options{{Key: "name", Value: "core"}}))
+	if !r.OK {
+		return r
+	}
+	c := r.Value.(*Core)
 	c.app.Runtime = app
 
 	names := slices.Sorted(maps.Keys(factories))
