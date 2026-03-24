@@ -7,6 +7,7 @@ package core
 
 import (
 	"context"
+	"os"
 	"sync"
 	"sync/atomic"
 )
@@ -66,10 +67,13 @@ func (c *Core) Core() *Core              { return c }
 //
 //	c := core.New(core.WithService(myService.Register)).Value.(*Core)
 //	c.Run()
-func (c *Core) Run() Result {
+func (c *Core) Run() {
 	r := c.ServiceStartup(c.context, nil)
 	if !r.OK {
-		return r
+		if err, ok := r.Value.(error); ok {
+			Error(err.Error())
+		}
+		os.Exit(1)
 	}
 
 	if cli := c.Cli(); cli != nil {
@@ -77,7 +81,13 @@ func (c *Core) Run() Result {
 	}
 
 	c.ServiceShutdown(c.context)
-	return r
+
+	if !r.OK {
+		if err, ok := r.Value.(error); ok {
+			Error(err.Error())
+		}
+		os.Exit(1)
+	}
 }
 
 // --- IPC (uppercase aliases) ---
