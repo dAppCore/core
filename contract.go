@@ -7,8 +7,6 @@ package core
 import (
 	"context"
 	"reflect"
-	"runtime"
-	"strings"
 )
 
 // Message is the type for IPC broadcasts (fire-and-forget).
@@ -154,39 +152,30 @@ func WithService(factory func(*Core) Result) CoreOption {
 			// Factory self-registered — nothing more to do.
 			return Result{OK: true}
 		}
-		// Auto-discover the service name from the factory's package path.
-		name := serviceNameFromFactory(factory)
-		return c.RegisterService(name, r.Value)
+		// Auto-discover the service name from the instance's package path.
+		instance := r.Value
+		typeOf := reflect.TypeOf(instance)
+		if typeOf.Kind() == reflect.Ptr {
+			typeOf = typeOf.Elem()
+		}
+		pkgPath := typeOf.PkgPath()
+		parts := Split(pkgPath, "/")
+		name := Lower(parts[len(parts)-1])
+		if name == "" {
+			return Result{E("core.WithService", Sprintf("service name could not be discovered for type %T", instance), nil), false}
+		}
+
+		// IPC handler discovery
+		instanceValue := reflect.ValueOf(instance)
+		handlerMethod := instanceValue.MethodByName("HandleIPCEvents")
+		if handlerMethod.IsValid() {
+			if handler, ok := handlerMethod.Interface().(func(*Core, Message) Result); ok {
+				c.RegisterAction(handler)
+			}
+		}
+
+		return c.RegisterService(name, instance)
 	}
-}
-
-// serviceNameFromFactory derives a canonical service name from a factory
-// function's fully-qualified package path.
-//
-// "dappco.re/go/agentic.Register"   → "agentic"
-// "dappco.re/go/core_test.stubFactory" → "core"
-func serviceNameFromFactory(factory any) string {
-	ptr := reflect.ValueOf(factory).Pointer()
-	fn := runtime.FuncForPC(ptr)
-	if fn == nil {
-		return "unknown"
-	}
-	full := fn.Name() // e.g. "dappco.re/go/agentic.Register"
-
-	// Take the last path segment ("agentic.Register" or "core_test.stubFactory").
-	if idx := strings.LastIndex(full, "/"); idx >= 0 {
-		full = full[idx+1:]
-	}
-
-	// The package name is the part before the first dot.
-	if idx := strings.Index(full, "."); idx >= 0 {
-		full = full[:idx]
-	}
-
-	// Strip the Go test package suffix so "core_test" → "core".
-	full = strings.TrimSuffix(full, "_test")
-
-	return strings.ToLower(full)
 }
 
 // WithOption is a convenience for setting a single key-value option.
