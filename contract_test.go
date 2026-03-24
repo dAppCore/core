@@ -3,6 +3,7 @@
 package core_test
 
 import (
+	"context"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -71,6 +72,58 @@ func TestWithName_Good(t *testing.T) {
 	c := r.Value.(*Core)
 	assert.Contains(t, c.Services(), "custom")
 }
+
+// --- Lifecycle ---
+
+type lifecycleService struct {
+	started bool
+}
+
+func (s *lifecycleService) OnStartup(_ context.Context) error {
+	s.started = true
+	return nil
+}
+
+func TestWithService_Lifecycle_Good(t *testing.T) {
+	svc := &lifecycleService{}
+	r := New(
+		WithService(func(c *Core) Result {
+			return Result{Value: svc, OK: true}
+		}),
+	)
+	assert.True(t, r.OK)
+	c := r.Value.(*Core)
+
+	c.ServiceStartup(context.Background(), nil)
+	assert.True(t, svc.started)
+}
+
+// --- IPC Handler ---
+
+type ipcService struct {
+	received Message
+}
+
+func (s *ipcService) HandleIPCEvents(c *Core, msg Message) Result {
+	s.received = msg
+	return Result{OK: true}
+}
+
+func TestWithService_IPCHandler_Good(t *testing.T) {
+	svc := &ipcService{}
+	r := New(
+		WithService(func(c *Core) Result {
+			return Result{Value: svc, OK: true}
+		}),
+	)
+	assert.True(t, r.OK)
+	c := r.Value.(*Core)
+
+	c.ACTION("ping")
+	assert.Equal(t, "ping", svc.received)
+}
+
+// --- Error ---
 
 // TestWithService_FactoryError_Bad verifies that a factory returning an error
 // causes New() to stop and propagate the failure.
