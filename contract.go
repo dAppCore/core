@@ -115,6 +115,9 @@ func New(opts ...CoreOption) Result {
 		}
 	}
 
+	// Apply service lock after all opts — v0.3.3 parity
+	c.LockApply()
+
 	return Result{c, true}
 }
 
@@ -227,7 +230,6 @@ func WithOption(key string, value any) CoreOption {
 func WithServiceLock() CoreOption {
 	return func(c *Core) Result {
 		c.LockEnable()
-		c.LockApply()
 		return Result{OK: true}
 	}
 }
