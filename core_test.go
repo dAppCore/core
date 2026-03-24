@@ -16,21 +16,21 @@ func TestNew_Good(t *testing.T) {
 }
 
 func TestNew_WithOptions_Good(t *testing.T) {
-	c := New(WithOptions(Options{{Key: "name", Value: "myapp"}})).Value.(*Core)
+	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "myapp"}))).Value.(*Core)
 	assert.NotNil(t, c)
 	assert.Equal(t, "myapp", c.App().Name)
 }
 
 func TestNew_WithOptions_Bad(t *testing.T) {
 	// Empty options — should still create a valid Core
-	c := New(WithOptions(Options{})).Value.(*Core)
+	c := New(WithOptions(NewOptions())).Value.(*Core)
 	assert.NotNil(t, c)
 }
 
 func TestNew_WithService_Good(t *testing.T) {
 	started := false
 	r := New(
-		WithOptions(Options{{Key: "name", Value: "myapp"}}),
+		WithOptions(NewOptions(Option{Key: "name", Value: "myapp"})),
 		WithService(func(c *Core) Result {
 			c.Service("test", Service{
 				OnStart: func() Result { started = true; return Result{OK: true} },

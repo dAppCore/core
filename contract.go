@@ -120,10 +120,8 @@ func New(opts ...CoreOption) Result {
 //	core.WithOptions(core.Options{{Key: "name", Value: "myapp"}})
 func WithOptions(opts Options) CoreOption {
 	return func(c *Core) Result {
-		cp := make(Options, len(opts))
-		copy(cp, opts)
-		c.options = &cp
-		if name := cp.String("name"); name != "" {
+		c.options = &opts
+		if name := opts.String("name"); name != "" {
 			c.app.Name = name
 		}
 		return Result{OK: true}
@@ -139,6 +137,28 @@ func WithOptions(opts Options) CoreOption {
 func WithService(factory func(*Core) Result) CoreOption {
 	return func(c *Core) Result {
 		return factory(c)
+	}
+}
+
+// WithOption is a convenience for setting a single key-value option.
+//
+//	core.New(
+//	    core.WithOption("name", "myapp"),
+//	    core.WithOption("port", 8080),
+//	)
+func WithOption(key string, value any) CoreOption {
+	return func(c *Core) Result {
+		if c.options == nil {
+			opts := NewOptions()
+			c.options = &opts
+		}
+		c.options.Set(key, value)
+		if key == "name" {
+			if s, ok := value.(string); ok {
+				c.app.Name = s
+			}
+		}
+		return Result{OK: true}
 	}
 }
 

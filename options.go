@@ -2,42 +2,24 @@
 
 // Core primitives: Option, Options, Result.
 //
-// Option is a single key-value pair. Options is a collection.
-// Any function that returns Result can accept Options.
+// Options is the universal input type. Result is the universal output type.
+// All Core operations accept Options and return Result.
 //
-// Create options:
-//
-//	opts := core.Options{
-//	    {Key: "name", Value: "brain"},
-//	    {Key: "path", Value: "prompts"},
-//	}
-//
-// Read options:
-//
-//	name := opts.String("name")
-//	port := opts.Int("port")
-//	ok := opts.Has("debug")
-//
-// Use with subsystems:
-//
-//	c.Drive().New(core.Options{
-//	    {Key: "name", Value: "brain"},
-//	    {Key: "source", Value: brainFS},
-//	    {Key: "path", Value: "prompts"},
-//	})
-//
-// Use with New:
-//
-//	c := core.New(core.Options{
-//	    {Key: "name", Value: "myapp"},
-//	})
+//	opts := core.NewOptions(
+//	    core.Option{Key: "name", Value: "brain"},
+//	    core.Option{Key: "path", Value: "prompts"},
+//	)
+//	r := c.Drive().New(opts)
+//	if !r.OK { log.Fatal(r.Error()) }
 package core
+
+// --- Result: Universal Output ---
 
 // Result is the universal return type for Core operations.
 // Replaces the (value, error) pattern — errors flow through Core internally.
 //
-//	r := c.Data().New(core.Options{{Key: "name", Value: "brain"}})
-//	if r.OK { use(r.Result()) }
+//	r := c.Data().New(opts)
+//	if !r.OK { core.Error("failed", "err", r.Error()) }
 type Result struct {
 	Value any
 	OK    bool
@@ -50,21 +32,34 @@ type Result struct {
 //	r.Result(value)         // OK = true, Value = value
 //	r.Result()              // after set — returns the value
 func (r Result) Result(args ...any) Result {
-	if len(args) == 0 {
+	if args == nil {
 		return r
 	}
+	return r.New(args...)
+}
 
-	if len(args) == 1 {
-		return Result{args[0], true}
+func (r Result) New(args ...any) Result {
+	if len(args) >= 1 {
+		r.Value = args[0]
 	}
 
-	if err, ok := args[len(args)-1].(error); ok {
+	if err, ok := r.Value.(error); ok {
 		if err != nil {
-			return Result{err, false}
+			r.Value = err
+			r.OK = false
+		} else {
+			r.OK = true
 		}
-		return Result{args[0], true}
 	}
-	return Result{args[0], true}
+
+	return r
+}
+
+func (r Result) Get() Result {
+	if r.OK {
+		return r
+	}
+	return Result{Value: r.Value, OK: false}
 }
 
 // Option is a single key-value configuration pair.
@@ -76,19 +71,51 @@ type Option struct {
 	Value any
 }
 
-// Options is a collection of Option items.
-// The universal input type for Core operations.
+// --- Options: Universal Input ---
+
+// Options is the universal input type for Core operations.
+// A structured collection of key-value pairs with typed accessors.
 //
-//	opts := core.Options{{Key: "name", Value: "myapp"}}
+//	opts := core.NewOptions(
+//	    core.Option{Key: "name", Value: "myapp"},
+//	    core.Option{Key: "port", Value: 8080},
+//	)
 //	name := opts.String("name")
-type Options []Option
+type Options struct {
+	items []Option
+}
+
+// NewOptions creates an Options collection from key-value pairs.
+//
+//	opts := core.NewOptions(
+//	    core.Option{Key: "name", Value: "brain"},
+//	    core.Option{Key: "path", Value: "prompts"},
+//	)
+func NewOptions(items ...Option) Options {
+	cp := make([]Option, len(items))
+	copy(cp, items)
+	return Options{items: cp}
+}
+
+// Set adds or updates a key-value pair.
+//
+//	opts.Set("port", 8080)
+func (o *Options) Set(key string, value any) {
+	for i, opt := range o.items {
+		if opt.Key == key {
+			o.items[i].Value = value
+			return
+		}
+	}
+	o.items = append(o.items, Option{Key: key, Value: value})
+}
 
 // Get retrieves a value by key.
 //
 //	r := opts.Get("name")
 //	if r.OK { name := r.Value.(string) }
 func (o Options) Get(key string) Result {
-	for _, opt := range o {
+	for _, opt := range o.items {
 		if opt.Key == key {
 			return Result{opt.Value, true}
 		}
@@ -137,4 +164,16 @@ func (o Options) Bool(key string) bool {
 	}
 	b, _ := r.Value.(bool)
 	return b
+}
+
+// Len returns the number of options.
+func (o Options) Len() int {
+	return len(o.items)
+}
+
+// Items returns a copy of the underlying option slice.
+func (o Options) Items() []Option {
+	cp := make([]Option, len(o.items))
+	copy(cp, o.items)
+	return cp
 }

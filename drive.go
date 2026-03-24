@@ -62,12 +62,10 @@ func (d *Drive) New(opts Options) Result {
 		d.handles = make(map[string]*DriveHandle)
 	}
 
-	cp := make(Options, len(opts))
-	copy(cp, opts)
 	handle := &DriveHandle{
 		Name:      name,
 		Transport: transport,
-		Options:   cp,
+		Options:   opts,
 	}
 
 	d.handles[name] = handle

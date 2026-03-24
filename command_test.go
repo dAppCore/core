@@ -13,13 +13,13 @@ func TestCommand_Register_Good(t *testing.T) {
 	c := New().Value.(*Core)
 	r := c.Command("deploy", Command{Action: func(_ Options) Result {
 		return Result{Value: "deployed", OK: true}
-	}})
+	}))
 	assert.True(t, r.OK)
 }
 
 func TestCommand_Get_Good(t *testing.T) {
 	c := New().Value.(*Core)
-	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }))
 	r := c.Command("deploy")
 	assert.True(t, r.OK)
 	assert.NotNil(t, r.Value)
@@ -35,9 +35,9 @@ func TestCommand_Run_Good(t *testing.T) {
 	c := New().Value.(*Core)
 	c.Command("greet", Command{Action: func(opts Options) Result {
 		return Result{Value: Concat("hello ", opts.String("name")), OK: true}
-	}})
+	}))
 	cmd := c.Command("greet").Value.(*Command)
-	r := cmd.Run(Options{{Key: "name", Value: "world"}})
+	r := cmd.Run(NewOptions(Option{Key: "name", Value: "world"}))
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello world", r.Value)
 }
@@ -46,7 +46,7 @@ func TestCommand_Run_NoAction_Good(t *testing.T) {
 	c := New().Value.(*Core)
 	c.Command("empty", Command{Description: "no action"})
 	cmd := c.Command("empty").Value.(*Command)
-	r := cmd.Run(Options{})
+	r := cmd.Run(NewOptions())
 	assert.False(t, r.OK)
 }
 
@@ -56,7 +56,7 @@ func TestCommand_Nested_Good(t *testing.T) {
 	c := New().Value.(*Core)
 	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result {
 		return Result{Value: "deployed to homelab", OK: true}
-	}})
+	}))
 
 	r := c.Command("deploy/to/homelab")
 	assert.True(t, r.OK)
@@ -68,9 +68,9 @@ func TestCommand_Nested_Good(t *testing.T) {
 
 func TestCommand_Paths_Good(t *testing.T) {
 	c := New().Value.(*Core)
-	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
-	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }})
-	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }))
+	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }))
+	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result { return Result{OK: true} }))
 
 	paths := c.Commands()
 	assert.Contains(t, paths, "deploy")
@@ -108,10 +108,10 @@ func TestCommand_Lifecycle_NoImpl_Good(t *testing.T) {
 	c := New().Value.(*Core)
 	c.Command("serve", Command{Action: func(_ Options) Result {
 		return Result{Value: "running", OK: true}
-	}})
+	}))
 	cmd := c.Command("serve").Value.(*Command)
 
-	r := cmd.Start(Options{})
+	r := cmd.Start(NewOptions())
 	assert.True(t, r.OK)
 	assert.Equal(t, "running", r.Value)
 
@@ -158,7 +158,7 @@ func TestCommand_Lifecycle_WithImpl_Good(t *testing.T) {
 	c.Command("daemon", Command{Lifecycle: lc})
 	cmd := c.Command("daemon").Value.(*Command)
 
-	r := cmd.Start(Options{})
+	r := cmd.Start(NewOptions())
 	assert.True(t, r.OK)
 	assert.True(t, lc.started)
 
@@ -178,8 +178,8 @@ func TestCommand_Lifecycle_WithImpl_Good(t *testing.T) {
 
 func TestCommand_Duplicate_Bad(t *testing.T) {
 	c := New().Value.(*Core)
-	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
-	r := c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }))
+	r := c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }))
 	assert.False(t, r.OK)
 }
 

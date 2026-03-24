@@ -92,17 +92,17 @@ func (cl *Cli) Run(args ...string) Result {
 	}
 
 	// Build options from remaining args
-	opts := Options{}
+	opts := NewOptions()
 	for _, arg := range remaining {
 		key, val, valid := ParseFlag(arg)
 		if valid {
 			if Contains(arg, "=") {
-				opts = append(opts, Option{Key: key, Value: val})
+				opts.Set(key, val)
 			} else {
-				opts = append(opts, Option{Key: key, Value: true})
+				opts.Set(key, true)
 			}
 		} else if !IsFlag(arg) {
-			opts = append(opts, Option{Key: "_arg", Value: arg})
+			opts.Set("_arg", arg)
 		}
 	}
 

@@ -49,16 +49,16 @@ func TestDrive_Get_Bad(t *testing.T) {
 
 func TestDrive_Has_Good(t *testing.T) {
 	c := New().Value.(*Core)
-	c.Drive().New(Options{{Key: "name", Value: "mcp"}, {Key: "transport", Value: "mcp://mcp.lthn.sh"}})
+	c.Drive().New(NewOptions(Option{Key: "name", Value: "mcp"}, Option{Key: "transport", Value: "mcp://mcp.lthn.sh"}))
 	assert.True(t, c.Drive().Has("mcp"))
 	assert.False(t, c.Drive().Has("missing"))
 }
 
 func TestDrive_Names_Good(t *testing.T) {
 	c := New().Value.(*Core)
-	c.Drive().New(Options{{Key: "name", Value: "api"}, {Key: "transport", Value: "https://api.lthn.ai"}})
-	c.Drive().New(Options{{Key: "name", Value: "ssh"}, {Key: "transport", Value: "ssh://claude@10.69.69.165"}})
-	c.Drive().New(Options{{Key: "name", Value: "mcp"}, {Key: "transport", Value: "mcp://mcp.lthn.sh"}})
+	c.Drive().New(NewOptions(Option{Key: "name", Value: "api"}, Option{Key: "transport", Value: "https://api.lthn.ai"}))
+	c.Drive().New(NewOptions(Option{Key: "name", Value: "ssh"}, Option{Key: "transport", Value: "ssh://claude@10.69.69.165"}))
+	c.Drive().New(NewOptions(Option{Key: "name", Value: "mcp"}, Option{Key: "transport", Value: "mcp://mcp.lthn.sh"}))
 	names := c.Drive().Names()
 	assert.Len(t, names, 3)
 	assert.Contains(t, names, "api")
