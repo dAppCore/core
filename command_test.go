@@ -37,7 +37,7 @@ func TestCommand_Run_Good(t *testing.T) {
 		return Result{Value: Concat("hello ", opts.String("name")), OK: true}
 	}})
 	cmd := c.Command("greet").Value.(*Command)
-	r := cmd.Run(Options{{Key: "name", Value: "world"}})
+	r := cmd.Run(NewOptions(Option{Key: "name", Value: "world"}))
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello world", r.Value)
 }
@@ -46,7 +46,7 @@ func TestCommand_Run_NoAction_Good(t *testing.T) {
 	c := New()
 	c.Command("empty", Command{Description: "no action"})
 	cmd := c.Command("empty").Value.(*Command)
-	r := cmd.Run(Options{})
+	r := cmd.Run(NewOptions())
 	assert.False(t, r.OK)
 }
 
@@ -111,7 +111,7 @@ func TestCommand_Lifecycle_NoImpl_Good(t *testing.T) {
 	}})
 	cmd := c.Command("serve").Value.(*Command)
 
-	r := cmd.Start(Options{})
+	r := cmd.Start(NewOptions())
 	assert.True(t, r.OK)
 	assert.Equal(t, "running", r.Value)
 
@@ -158,7 +158,7 @@ func TestCommand_Lifecycle_WithImpl_Good(t *testing.T) {
 	c.Command("daemon", Command{Lifecycle: lc})
 	cmd := c.Command("daemon").Value.(*Command)
 
-	r := cmd.Start(Options{})
+	r := cmd.Start(NewOptions())
 	assert.True(t, r.OK)
 	assert.True(t, lc.started)
 

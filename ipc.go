@@ -12,6 +12,8 @@ import (
 )
 
 // Ipc holds IPC dispatch data.
+//
+//	ipc := (&core.Ipc{}).New()
 type Ipc struct {
 	ipcMu       sync.RWMutex
 	ipcHandlers []func(*Core, Message) Result

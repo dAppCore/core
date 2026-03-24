@@ -8,27 +8,27 @@ import (
 	"sync"
 )
 
-// package-level mutex infrastructure
-var (
-	lockMu  sync.Mutex
-	lockMap = make(map[string]*sync.RWMutex)
-)
-
 // Lock is the DTO for a named mutex.
 type Lock struct {
 	Name  string
 	Mutex *sync.RWMutex
+	mu    sync.Mutex            // protects locks map
+	locks map[string]*sync.RWMutex // per-Core named mutexes
 }
 
 // Lock returns a named Lock, creating the mutex if needed.
+// Locks are per-Core — separate Core instances do not share mutexes.
 func (c *Core) Lock(name string) *Lock {
-	lockMu.Lock()
-	m, ok := lockMap[name]
+	c.lock.mu.Lock()
+	if c.lock.locks == nil {
+		c.lock.locks = make(map[string]*sync.RWMutex)
+	}
+	m, ok := c.lock.locks[name]
 	if !ok {
 		m = &sync.RWMutex{}
-		lockMap[name] = m
+		c.lock.locks[name] = m
 	}
-	lockMu.Unlock()
+	c.lock.mu.Unlock()
 	return &Lock{Name: name, Mutex: m}
 }
 

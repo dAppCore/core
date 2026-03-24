@@ -48,6 +48,15 @@ type Config struct {
 	mu sync.RWMutex
 }
 
+// New initialises a Config with empty settings and features.
+//
+//	cfg := (&core.Config{}).New()
+func (e *Config) New() *Config {
+	e.ConfigOptions = &ConfigOptions{}
+	e.ConfigOptions.init()
+	return e
+}
+
 // Set stores a configuration value by key.
 func (e *Config) Set(key string, val any) {
 	e.mu.Lock()

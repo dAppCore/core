@@ -396,7 +396,7 @@ func (s *Embed) ReadDir(name string) Result {
 	if !r.OK {
 		return r
 	}
-	return Result{}.Result(fs.ReadDir(s.fsys, r.Value.(string)))
+	return Result{}.New(fs.ReadDir(s.fsys, r.Value.(string)))
 }
 
 // ReadFile reads the named file.

@@ -69,7 +69,7 @@ func (cmd *Command) I18nKey() string {
 
 // Run executes the command's action with the given options.
 //
-//	result := cmd.Run(core.Options{{Key: "target", Value: "homelab"}})
+//	result := cmd.Run(core.NewOptions(core.Option{Key: "target", Value: "homelab"}))
 func (cmd *Command) Run(opts Options) Result {
 	if cmd.Action == nil {
 		return Result{E("core.Command.Run", Concat("command \"", cmd.Path, "\" is not executable"), nil), false}
