@@ -59,6 +59,19 @@ func TestWithService_FactorySelfRegisters_Good(t *testing.T) {
 	assert.True(t, svc.OK, "expected self-registered service to be present")
 }
 
+// --- WithName ---
+
+func TestWithName_Good(t *testing.T) {
+	r := New(
+		WithName("custom", func(c *Core) Result {
+			return Result{Value: &stubNamedService{}, OK: true}
+		}),
+	)
+	assert.True(t, r.OK)
+	c := r.Value.(*Core)
+	assert.Contains(t, c.Services(), "custom")
+}
+
 // TestWithService_FactoryError_Bad verifies that a factory returning an error
 // causes New() to stop and propagate the failure.
 func TestWithService_FactoryError_Bad(t *testing.T) {

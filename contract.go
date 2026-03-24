@@ -178,6 +178,24 @@ func WithService(factory func(*Core) Result) CoreOption {
 	}
 }
 
+// WithName registers a service with an explicit name (no reflect discovery).
+//
+//	core.WithName("ws", func(c *Core) Result {
+//	    return Result{Value: hub, OK: true}
+//	})
+func WithName(name string, factory func(*Core) Result) CoreOption {
+	return func(c *Core) Result {
+		r := factory(c)
+		if !r.OK {
+			return r
+		}
+		if r.Value == nil {
+			return Result{E("core.WithName", Sprintf("failed to create service %q", name), nil), false}
+		}
+		return c.RegisterService(name, r.Value)
+	}
+}
+
 // WithOption is a convenience for setting a single key-value option.
 //
 //	core.New(
