@@ -20,6 +20,13 @@ type Cli struct {
 	banner func(*Cli) string
 }
 
+// New creates a Cli bound to a Core instance.
+//
+//	cli := core.Cli{}.New(c)
+func (cl Cli) New(c *Core) *Cli {
+	return &Cli{core: c, output: os.Stdout}
+}
+
 // Print writes to the CLI output (defaults to os.Stdout).
 //
 //	c.Cli().Print("hello %s", "world")
