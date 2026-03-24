@@ -7,7 +7,6 @@ package core
 
 import (
 	"context"
-	"reflect"
 	"sync"
 	"sync/atomic"
 )
@@ -79,30 +78,6 @@ func (c *Core) LogWarn(err error, op, msg string) Result {
 // Must logs and panics if err is not nil.
 func (c *Core) Must(err error, op, msg string) {
 	c.log.Must(err, op, msg)
-}
-
-// --- Post-Construction ---
-
-// discoverHandlers scans Config for service instances that implement HandleIPCEvents.
-// Called once after all WithService options have run — services are fully registered.
-func (c *Core) discoverHandlers() {
-	if c.config == nil || c.config.ConfigOptions == nil || c.config.Settings == nil {
-		return
-	}
-	c.config.mu.RLock()
-	defer c.config.mu.RUnlock()
-	for _, val := range c.config.Settings {
-		if val == nil {
-			continue
-		}
-		instanceValue := reflect.ValueOf(val)
-		handlerMethod := instanceValue.MethodByName("HandleIPCEvents")
-		if handlerMethod.IsValid() {
-			if handler, ok := handlerMethod.Interface().(func(*Core, Message) Result); ok {
-				c.RegisterAction(handler)
-			}
-		}
-	}
 }
 
 // --- Global Instance ---

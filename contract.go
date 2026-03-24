@@ -112,10 +112,6 @@ func New(opts ...CoreOption) Result {
 		}
 	}
 
-	// Post-construction: discover IPC handlers on all registered services.
-	// Services that implement HandleIPCEvents get auto-wired to the bus.
-	c.discoverHandlers()
-
 	return Result{c, true}
 }
 
@@ -135,10 +131,8 @@ func WithOptions(opts Options) CoreOption {
 }
 
 // WithService registers a service via its factory function.
-// The factory receives *Core so the service can wire IPC handlers
-// and access other subsystems during construction.
-// Service name is auto-discovered from the package path.
-// If the service implements HandleIPCEvents, it is auto-registered.
+// The factory receives *Core and is responsible for calling c.Service()
+// to register itself, and c.RegisterAction() for IPC handlers.
 //
 //	core.WithService(agentic.Register)
 //	core.WithService(display.Register(nil))
