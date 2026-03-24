@@ -43,9 +43,16 @@ type serviceRegistry struct {
 func (c *Core) Service(name string, service ...Service) Result {
 	if len(service) == 0 {
 		c.Lock("srv").Mutex.RLock()
-		v, ok := c.services.services[name]
+		svc, ok := c.services.services[name]
 		c.Lock("srv").Mutex.RUnlock()
-		return Result{v, ok}
+		if !ok || svc == nil {
+			return Result{}
+		}
+		// Return the instance if available, otherwise the Service DTO
+		if svc.Instance != nil {
+			return Result{svc.Instance, true}
+		}
+		return Result{svc, true}
 	}
 
 	if name == "" {
@@ -132,11 +139,7 @@ func ServiceFor[T any](c *Core, name string) (T, bool) {
 	if !r.OK {
 		return zero, false
 	}
-	svc := r.Value.(*Service)
-	if svc.Instance == nil {
-		return zero, false
-	}
-	typed, ok := svc.Instance.(T)
+	typed, ok := r.Value.(T)
 	return typed, ok
 }
 
