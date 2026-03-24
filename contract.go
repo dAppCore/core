@@ -6,7 +6,6 @@ package core
 
 import (
 	"context"
-	"reflect"
 )
 
 // Message is the type for IPC broadcasts (fire-and-forget).
@@ -113,6 +112,10 @@ func New(opts ...CoreOption) Result {
 		}
 	}
 
+	// Post-construction: discover IPC handlers on all registered services.
+	// Services that implement HandleIPCEvents get auto-wired to the bus.
+	c.discoverHandlers()
+
 	return Result{c, true}
 }
 
@@ -141,42 +144,7 @@ func WithOptions(opts Options) CoreOption {
 //	core.WithService(display.Register(nil))
 func WithService(factory func(*Core) Result) CoreOption {
 	return func(c *Core) Result {
-		r := factory(c)
-		if !r.OK {
-			return r
-		}
-
-		// If the factory returned a service instance, auto-discover and register.
-		// Only applies when the factory didn't register the service itself.
-		if r.Value != nil {
-			instance := r.Value
-			typeOf := reflect.TypeOf(instance)
-			if typeOf.Kind() == reflect.Ptr {
-				typeOf = typeOf.Elem()
-			}
-			pkgPath := typeOf.PkgPath()
-			parts := Split(pkgPath, "/")
-			name := Lower(parts[len(parts)-1])
-
-			if name != "" {
-				// Only auto-register if the factory didn't already do it
-				if sr := c.Service(name); !sr.OK {
-					c.Service(name, Service{})
-
-					// IPC handler discovery — only on auto-registered services
-					// to avoid double-registration when the factory already wired handlers
-					instanceValue := reflect.ValueOf(instance)
-					handlerMethod := instanceValue.MethodByName("HandleIPCEvents")
-					if handlerMethod.IsValid() {
-						if handler, ok := handlerMethod.Interface().(func(*Core, Message) Result); ok {
-							c.RegisterAction(handler)
-						}
-					}
-				}
-			}
-		}
-
-		return Result{OK: true}
+		return factory(c)
 	}
 }
 
