@@ -1,98 +1,112 @@
-# Core CLI
+---
+title: CoreGO
+description: AX-first documentation for the CoreGO framework.
+---
 
-Core is a unified CLI for the host-uk ecosystem - build, release, and deploy Go, Wails, PHP, and container workloads.
+# CoreGO
 
-## Installation
+CoreGO is the foundation layer for the Core ecosystem. It gives you one container, one command tree, one message bus, and a small set of shared primitives that repeat across the whole framework.
 
-```bash
-# Via Go (recommended)
-go install github.com/host-uk/core/cmd/core@latest
+The current module path is `dappco.re/go/core`.
 
-# Or download binary from releases
-curl -Lo core https://github.com/host-uk/core/releases/latest/download/core-$(go env GOOS)-$(go env GOARCH)
-chmod +x core && sudo mv core /usr/local/bin/
+## AX View
 
-# Verify
-core doctor
+CoreGO already follows the main AX ideas from RFC-025:
+
+- predictable names such as `Core`, `Service`, `Command`, `Options`, `Result`, `Message`
+- path-shaped command registration such as `deploy/to/homelab`
+- one repeated input shape (`Options`) and one repeated return shape (`Result`)
+- comments and examples that show real usage instead of restating the type signature
+
+## What CoreGO Owns
+
+| Surface | Purpose |
+|---------|---------|
+| `Core` | Central container and access point |
+| `Service` | Managed lifecycle component |
+| `Command` | Path-based command tree node |
+| `ACTION`, `QUERY`, `PERFORM` | Decoupled communication between components |
+| `Data`, `Drive`, `Fs`, `Config`, `I18n`, `Cli` | Built-in subsystems for common runtime work |
+| `E`, `Wrap`, `ErrorLog`, `ErrorPanic` | Structured failures and panic recovery |
+
+## Quick Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"dappco.re/go/core"
+)
+
+type flushCacheTask struct {
+	Name string
+}
+
+func main() {
+	c := core.New(core.Options{
+		{Key: "name", Value: "agent-workbench"},
+	})
+
+	c.Service("cache", core.Service{
+		OnStart: func() core.Result {
+			core.Info("cache ready", "app", c.App().Name)
+			return core.Result{OK: true}
+		},
+		OnStop: func() core.Result {
+			core.Info("cache stopped", "app", c.App().Name)
+			return core.Result{OK: true}
+		},
+	})
+
+	c.RegisterTask(func(_ *core.Core, task core.Task) core.Result {
+		switch task.(type) {
+		case flushCacheTask:
+			return core.Result{Value: "cache flushed", OK: true}
+		}
+		return core.Result{}
+	})
+
+	c.Command("cache/flush", core.Command{
+		Action: func(opts core.Options) core.Result {
+			return c.PERFORM(flushCacheTask{Name: opts.String("name")})
+		},
+	})
+
+	if !c.ServiceStartup(context.Background(), nil).OK {
+		panic("startup failed")
+	}
+
+	r := c.Cli().Run("cache", "flush", "--name=session-store")
+	fmt.Println(r.Value)
+
+	_ = c.ServiceShutdown(context.Background())
+}
 ```
 
-See [Getting Started](getting-started.md) for all installation options including building from source.
+## Documentation Paths
 
-## Command Reference
+| Path | Covers |
+|------|--------|
+| [getting-started.md](getting-started.md) | First runnable CoreGO app |
+| [primitives.md](primitives.md) | `Options`, `Result`, `Service`, `Message`, `Query`, `Task` |
+| [services.md](services.md) | Service registry, service locks, runtime helpers |
+| [commands.md](commands.md) | Path-based commands and CLI execution |
+| [messaging.md](messaging.md) | `ACTION`, `QUERY`, `QUERYALL`, `PERFORM`, `PerformAsync` |
+| [lifecycle.md](lifecycle.md) | Startup, shutdown, context, background task draining |
+| [configuration.md](configuration.md) | Constructor options, config state, feature flags |
+| [subsystems.md](subsystems.md) | `App`, `Data`, `Drive`, `Fs`, `I18n`, `Cli` |
+| [errors.md](errors.md) | Structured errors, logging helpers, panic recovery |
+| [testing.md](testing.md) | Test naming and framework-level testing patterns |
+| [pkg/core.md](pkg/core.md) | Package-level reference summary |
+| [pkg/log.md](pkg/log.md) | Logging reference for the root package |
+| [pkg/PACKAGE_STANDARDS.md](pkg/PACKAGE_STANDARDS.md) | AX package-authoring guidance |
 
-See [cmd/](cmd/) for full command documentation.
+## Good Reading Order
 
-| Command | Description |
-|---------|-------------|
-| [go](cmd/go/) | Go development (test, fmt, lint, cov) |
-| [php](cmd/php/) | Laravel/PHP development |
-| [build](cmd/build/) | Build Go, Wails, Docker, LinuxKit projects |
-| [ci](cmd/ci/) | Publish releases (dry-run by default) |
-| [sdk](cmd/sdk/) | SDK generation and validation |
-| [dev](cmd/dev/) | Multi-repo workflow + dev environment |
-| [pkg](cmd/pkg/) | Package search and install |
-| [vm](cmd/vm/) | LinuxKit VM management |
-| [docs](cmd/docs/) | Documentation management |
-| [setup](cmd/setup/) | Clone repos from registry |
-| [doctor](cmd/doctor/) | Check development environment |
-
-## Quick Start
-
-```bash
-# Go development
-core go test              # Run tests
-core go test --coverage   # With coverage
-core go fmt               # Format code
-core go lint              # Lint code
-
-# Build
-core build                # Auto-detect and build
-core build --targets linux/amd64,darwin/arm64
-
-# Release (dry-run by default)
-core ci                   # Preview release
-core ci --we-are-go-for-launch  # Actually publish
-
-# Multi-repo workflow
-core dev work             # Status + commit + push
-core dev work --status    # Just show status
-
-# PHP development
-core php dev              # Start dev environment
-core php test             # Run tests
-```
-
-## Configuration
-
-Core uses `.core/` directory for project configuration:
-
-```
-.core/
-├── release.yaml    # Release targets and settings
-├── build.yaml      # Build configuration (optional)
-└── linuxkit/       # LinuxKit templates
-```
-
-And `repos.yaml` in workspace root for multi-repo management.
-
-## Guides
-
-- [Getting Started](getting-started.md) - Installation and first steps
-- [Workflows](workflows.md) - Common task sequences
-- [Troubleshooting](troubleshooting.md) - When things go wrong
-- [Migration](migration.md) - Moving from legacy tools
-
-## Reference
-
-- [Configuration](configuration.md) - All config options
-- [Glossary](glossary.md) - Term definitions
-
-## Claude Code Skill
-
-Install the skill to teach Claude Code how to use the Core CLI:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/host-uk/core/main/.claude/skills/core/install.sh | bash
-```
-
-See [skill/](skill/) for details.
+1. Start with [getting-started.md](getting-started.md).
+2. Learn the repeated shapes in [primitives.md](primitives.md).
+3. Pick the integration path you need next: [services.md](services.md), [commands.md](commands.md), or [messaging.md](messaging.md).
+4. Use [subsystems.md](subsystems.md), [errors.md](errors.md), and [testing.md](testing.md) as reference pages while building.

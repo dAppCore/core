@@ -1,102 +1,96 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code and Codex when working with this repository.
 
-## Project Overview
+## Module
 
-Core is a Web3 Framework written in Go using Wails v3 to replace Electron for desktop applications. It provides a dependency injection framework for managing services with lifecycle support.
+`dappco.re/go/core` — dependency injection, service lifecycle, command routing, and message-passing for Go.
 
-## Build & Development Commands
+Source files live at the module root (not `pkg/core/`). Tests live in `tests/`.
 
-This project uses [Task](https://taskfile.dev/) for automation. Key commands:
+## Build & Test
 
 ```bash
-# Run all tests
-task test
-
-# Generate test coverage
-task cov
-task cov-view          # Opens coverage HTML report
-
-# GUI application (Wails)
-task gui:dev           # Development mode with hot-reload
-task gui:build         # Production build
-
-# CLI application
-task cli:build         # Build CLI
-task cli:run           # Build and run CLI
-
-# Code review
-task review            # Submit for CodeRabbit review
-task check             # Run mod tidy + tests + review
+go test ./tests/...          # run all tests
+go build .                   # verify compilation
+GOWORK=off go test ./tests/  # test without workspace
 ```
 
-Run a single test: `go test -run TestName ./...`
+Or via the Core CLI:
 
-## Architecture
+```bash
+core go test
+core go qa                   # fmt + vet + lint + test
+```
 
-### Core Framework (`core.go`, `interfaces.go`)
+## API Shape
 
-The `Core` struct is the central application container managing:
-- **Services**: Named service registry with type-safe retrieval via `ServiceFor[T]()` and `MustServiceFor[T]()`
-- **Actions/IPC**: Message-passing system where services communicate via `ACTION(msg Message)` and register handlers via `RegisterAction()`
-- **Lifecycle**: Services implementing `Startable` (OnStartup) and/or `Stoppable` (OnShutdown) interfaces are automatically called during app lifecycle
+CoreGO uses the DTO/Options/Result pattern, not functional options:
 
-Creating a Core instance:
 ```go
-core, err := core.New(
-    core.WithService(myServiceFactory),
-    core.WithAssets(assets),
-    core.WithServiceLock(),  // Prevents late service registration
-)
+c := core.New(core.Options{
+    {Key: "name", Value: "myapp"},
+})
+
+c.Service("cache", core.Service{
+    OnStart: func() core.Result { return core.Result{OK: true} },
+    OnStop:  func() core.Result { return core.Result{OK: true} },
+})
+
+c.Command("deploy/to/homelab", core.Command{
+    Action: func(opts core.Options) core.Result {
+        return core.Result{Value: "deployed", OK: true}
+    },
+})
+
+r := c.Cli().Run("deploy", "to", "homelab")
 ```
 
-### Service Registration Pattern
+**Do not use:** `WithService`, `WithName`, `WithApp`, `WithServiceLock`, `Must*`, `ServiceFor[T]` — these no longer exist.
 
-Services are registered via factory functions that receive the Core instance:
-```go
-func NewMyService(c *core.Core) (any, error) {
-    return &MyService{runtime: core.NewServiceRuntime(c, opts)}, nil
-}
+## Subsystems
 
-core.New(core.WithService(NewMyService))
-```
+| Accessor | Returns | Purpose |
+|----------|---------|---------|
+| `c.Options()` | `*Options` | Input configuration |
+| `c.App()` | `*App` | Application identity |
+| `c.Data()` | `*Data` | Embedded filesystem mounts |
+| `c.Drive()` | `*Drive` | Named transport handles |
+| `c.Fs()` | `*Fs` | Local filesystem I/O |
+| `c.Config()` | `*Config` | Runtime settings |
+| `c.Cli()` | `*Cli` | CLI surface |
+| `c.Command("path")` | `Result` | Command tree |
+| `c.Service("name")` | `Result` | Service registry |
+| `c.Lock("name")` | `*Lock` | Named mutexes |
+| `c.IPC()` | `*Ipc` | Message bus |
+| `c.I18n()` | `*I18n` | Locale + translation |
 
-- `WithService`: Auto-discovers service name from package path, registers IPC handler if service has `HandleIPCEvents` method
-- `WithName`: Explicitly names a service
+## Messaging
 
-### Runtime (`runtime_pkg.go`)
+| Method | Pattern |
+|--------|---------|
+| `c.ACTION(msg)` | Broadcast to all handlers |
+| `c.QUERY(q)` | First responder wins |
+| `c.QUERYALL(q)` | Collect all responses |
+| `c.PERFORM(task)` | First executor wins |
+| `c.PerformAsync(task)` | Background goroutine |
 
-`Runtime` is the Wails service wrapper that bootstraps the Core and its services. Use `NewWithFactories()` for custom service registration or `NewRuntime()` for basic setup.
+## Error Handling
 
-### ServiceRuntime Generic Helper (`runtime.go`)
+Use `core.E()` for structured errors:
 
-Embed `ServiceRuntime[T]` in services to get access to Core and typed options:
-```go
-type MyService struct {
-    *core.ServiceRuntime[MyServiceOptions]
-}
-```
-
-### Error Handling (`e.go`)
-
-Use the `E()` helper for contextual errors:
 ```go
 return core.E("service.Method", "what failed", underlyingErr)
 ```
 
-### Test Naming Convention
+## Test Naming
 
-Tests use `_Good`, `_Bad`, `_Ugly` suffix pattern:
-- `_Good`: Happy path tests
-- `_Bad`: Expected error conditions
-- `_Ugly`: Panic/edge cases
+`_Good` (happy path), `_Bad` (expected errors), `_Ugly` (panics/edge cases).
+
+## Docs
+
+Full documentation in `docs/`. Start with `docs/getting-started.md`.
 
 ## Go Workspace
 
-Uses Go 1.25 workspaces. The workspace includes:
-- Root module (Core framework)
-- `cmd/core-gui` (Wails GUI application)
-- `cmd/examples/*` (Example applications)
-
-After adding modules: `go work sync`
+Part of `~/Code/go.work`. Use `GOWORK=off` to test in isolation.
