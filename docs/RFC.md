@@ -3445,6 +3445,122 @@ The RFC sections are detailed enough that a Codex agent can implement them. That
 
 ---
 
+## Pass Thirteen — Hidden Assumptions
+
+> Final review. What does this RFC assume without stating? What breaks
+> if the assumption is wrong?
+
+### P13-1. Single Core per Process — Not Enforced
+
+The RFC assumes one Core instance per process. But `core.New()` can be called multiple times. Tests do this routinely (each test creates its own Core). The global state that breaks:
+
+| Global | Effect of Multiple Cores |
+|--------|------------------------|
+| `assetGroups` | Shared — all Cores see same assets |
+| `systemInfo` | Shared — all Cores see same env |
+| `defaultLogPtr` | Last `New()` wins — earlier Cores' log redirect lost |
+| `process.Default()` | Last `SetDefault()` wins |
+| `crashMu` | Shared — crash reports interleave |
+
+**Resolution:** Document that Core is designed for single-instance-per-process. Multiple instances work for tests (isolated registries, shared globals) but not for production (global state conflicts). The global state IS the singleton enforcement — it just does it implicitly instead of explicitly.
+
+### P13-2. All Services Are Go — No Plugin Boundary
+
+Every service in the RFC is a Go function compiled into the binary. There's no concept of:
+- Loading a service from a shared library
+- Running a service in a subprocess
+- Connecting to a remote service as if it were local
+
+Section 19 (API/Streams) addresses remote communication. But there's no "remote service that looks local" — no transparent proxy where `c.Service("brain")` could return a stub that forwards over the network.
+
+**Resolution:** With Actions (Section 18), this becomes natural:
+
+```go
+// Local action — in-process handler
+c.Action("brain.recall").Run(opts)
+
+// Remote action — transparently proxied
+c.Action("charon:brain.recall").Run(opts)
+```
+
+The Action system doesn't care where the handler is. Local or remote, same API. This is the path to cross-process services without changing the service author's experience.
+
+### P13-3. Go Is The Only Language — But CorePHP and CoreTS Exist
+
+The RFC specs Go types (`struct`, `interface`, generics). But the ecosystem has CorePHP (Laravel) and CoreTS (TypeScript). The primitives (Option, Result, Service lifecycle) should be language-agnostic concepts that each implementation maps to its language.
+
+**Resolution:** The RFC is the Go implementation spec. A separate document (or RFC-025 extension) should define the language-agnostic concepts:
+
+| Concept | Go | PHP | TypeScript |
+|---------|-----|-----|-----------|
+| Option | `Option{Key, Value}` | `['key' => 'value']` | `{key: string, value: any}` |
+| Result | `Result{Value, OK}` | `Result::ok($val)` | `{value: T, ok: boolean}` |
+| Service | `Startable` interface | Laravel ServiceProvider | Class with lifecycle |
+| IPC | `c.ACTION(msg)` | `event(new Msg())` | `core.emit('msg', data)` |
+
+The concepts map. The syntax differs. The RFC should note this boundary.
+
+### P13-4. Linux/macOS Only — syscall Assumptions
+
+`syscall.Kill`, `syscall.SIGTERM`, `os/exec`, PID files — all assume Unix. Windows has different process management. The RFC doesn't mention platform constraints.
+
+**Resolution:** Document: "Core targets Linux and macOS. Windows is not supported for process management (go-process, daemon lifecycle). Core primitives (Option, Result, Config, IPC) are platform-independent. Process execution is Unix-only."
+
+### P13-5. Startup Is Synchronous — No Lazy Loading
+
+All services start during `ServiceStartup()`, sequentially. A service that takes 30 seconds to connect to a database blocks all subsequent services from starting.
+
+**Resolution:** P5-3 proposed dependency declaration. The deeper fix is async startup:
+
+```go
+type AsyncStartable interface {
+    OnStartup(ctx context.Context) <-chan Result  // returns immediately, signals when ready
+}
+```
+
+Services that can start in parallel do so. Services with dependencies wait for their dependencies' channels. This is a v0.9.0+ consideration — v0.8.0 keeps synchronous startup with insertion-order guarantee (P4-1 fix).
+
+### P13-6. The Conclave Is Static — No Runtime Service Addition
+
+Services are registered during `core.New()`. After `LockApply()`, no more services. There's no:
+- Hot-loading a new service at runtime
+- Plugin system that discovers services from a directory
+- Upgrading a service without restart
+
+Section 20 introduced `Registry.Seal()` (update existing, no new keys) for Action hot-reload. But service hot-reload is a harder problem — a service has state, connections, goroutines.
+
+**Resolution:** For v0.8.0, the conclave is static. Accept this. For v0.9.0+, consider:
+- `c.Registry("services").Replace("brain", newBrainSvc)` — swap implementation
+- The old service gets `OnShutdown`, the new one gets `OnStartup`
+- Handlers registered by the old service are replaced
+
+### P13-7. IPC Is Instant — No Persistence or Replay
+
+Messages are dispatched and forgotten. There's no:
+- Message queue (messages sent while no handler exists are lost)
+- Replay (can't re-process past events)
+- Dead letter (failed messages aren't stored)
+
+If a handler is registered AFTER a message was sent, it never sees that message. P4-4 documented this for the clone-and-iterate pattern. But it's a deeper assumption — IPC is ephemeral.
+
+**Resolution:** For event sourcing or replay, use a persistent store (OpenBrain, database) alongside IPC. Core's IPC is real-time coordination, not a message queue. Document this boundary.
+
+### P13-8. The RFC Assumes Adversarial Review — But Who Reviews The RFC?
+
+This RFC was written by one author (Cladius) reviewing one codebase in one session. The findings are thorough but single-perspective. The 96 findings (now 104) all come from the same analytical lens.
+
+What's missing:
+- Performance benchmarking (how fast is IPC dispatch actually?)
+- Real-world failure data (which bugs have users hit?)
+- Comparative analysis (how does Core compare to Wire, Fx, Dig?)
+- User research (what do service authors actually struggle with?)
+
+**Resolution:** The RFC is a living document. Each v0.8.x patch adds a finding. Each consumer that struggles adds a P5-type consumer experience finding. The passes continue — they're not a one-time audit but a continuous process.
+
+The meta-assumption: this RFC is complete. It's not. It's the best single-session analysis possible. The next session starts at Pass Fourteen.
+
+---
+
 ## Versioning
 
 ### Release Model
