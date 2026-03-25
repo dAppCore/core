@@ -1389,7 +1389,7 @@ c.IPC().Actions() // all registered action names
 
 The UPPERCASE methods stay for backwards compatibility and convenience — a service that just wants to broadcast uses `c.ACTION(msg)`. A service that needs to inspect capabilities or invoke by name uses `c.Action("name")`.
 
-### 2. MustServiceFor Uses Panic
+### 2. MustServiceFor Uses Panic (Resolved)
 
 ```go
 func MustServiceFor[T any](c *Core, name string) T {
@@ -1397,42 +1397,75 @@ func MustServiceFor[T any](c *Core, name string) T {
 }
 ```
 
-RFC-025 says "no hidden panics." `Must` prefix signals it, but the pattern contradicts the Result philosophy. Consider deprecating in favour of `ServiceFor` + `if !ok` pattern.
+**Resolution:** Keep but document clearly. `Must` prefix is a Go convention that signals "this panics." In the guardrail context (Issue 10/11), `MustServiceFor` is valid for startup-time code where a missing service means the app can't function. The alternative — `ServiceFor` + `if !ok` + manual error handling — adds LOC that contradicts the Result philosophy.
 
-### 3. Embed() Legacy Accessor
+**Rule:** Use `MustServiceFor` only in `OnStartup` / init paths where failure is fatal. Never in request handlers or runtime code. Document this in RFC-025.
+
+### 3. Embed() Legacy Accessor (Resolved)
 
 ```go
 func (c *Core) Embed() Result { return c.data.Get("app") }
 ```
 
-Dead accessor with "use Data()" comment. Should be removed — it's API surface clutter that confuses agents.
+**Resolution:** Remove. It's a shortcut to `c.Data().Get("app")` with a misleading name. `Embed` sounds like it embeds something — it actually reads. An agent seeing `c.Embed()` can't know it's reading from Data. Dead code, remove in next refactor.
 
-### 4. Package-Level vs Core-Level Logging
+### 4. Package-Level vs Core-Level Logging (Resolved)
 
 ```go
-core.Info("msg")       // global default logger
+core.Info("msg")       // global default logger — no Core needed
 c.Log().Info("msg")    // Core's logger instance
 ```
 
-Both work. Global functions exist for code without Core access (early init, proc.go helpers). Services with Core access should use `c.Log()`. Document the boundary.
+**Resolution:** Both stay. Document the boundary:
 
-### 5. RegisterAction Lives in task.go
+| Context | Use | Why |
+|---------|-----|-----|
+| Has `*Core` (services, handlers) | `c.Log().Info()` | Logger may be configured per-Core |
+| No `*Core` (init, package-level, helpers) | `core.Info()` | Global logger, always available |
+| Test code | `core.Info()` | Tests may not have Core |
 
-IPC registration (`RegisterAction`, `RegisterActions`, `RegisterTask`) is in `task.go` but the dispatch functions (`Action`, `Query`, `QueryAll`) are in `ipc.go`. All IPC should be in one file or the split should follow a clear boundary (dispatch vs registration).
+This is the same dual pattern as `process.Run()` (global) vs `c.Process().Run()` (Core). Package-level functions are the bootstrap path. Core methods are the runtime path.
 
-### 6. serviceRegistry Is Unexported
+### 5. RegisterAction Lives in task.go (Resolved by Issue 16)
 
-`serviceRegistry` is unexported, meaning consumers can't extend service management. Per the Lego Bricks philosophy, this should be exported so downstream packages can build on it.
+Resolved — task.go splits into ipc.go (registration) + action.go (execution). See Issue 16.
+
+### 6. serviceRegistry Is Unexported (Resolved by Section 20)
+
+Resolved — `serviceRegistry` becomes `ServiceRegistry` embedding `Registry[*Service]`. See Section 20.
 
 ### 7. No c.Process() Accessor
 
-Process management (go-process) should be a Core subsystem accessor like `c.Fs()`, not a standalone service retrieved via `ServiceFor`. Planned for go-process v0.7.0 update.
+Spec'd in Section 17. Blocked on go-process v0.7.0 update.
 
-### 8. NewRuntime / NewWithFactories — Legacy
+### 8. NewRuntime / NewWithFactories — GUI Bridge, Not Legacy (Resolved)
 
-These pre-v0.7.0 functions take `app any` instead of `*Core`. `Runtime` is a separate struct from `Core` with its own `ServiceStartup`/`ServiceShutdown`. This was the original bootstrap pattern before `core.New()` + `WithService` replaced it.
+NOT dead code. `Runtime` is the **GUI binding container** — it bridges Core to frontend frameworks like Wails. `App.Runtime` holds the Wails app reference (`any`). This is the core-webview-bridge: CoreGO exported methods → Wails WebView2 → CoreTS fronts them.
 
-**Question:** Is anything still using `NewRuntime`/`NewWithFactories`? If not, remove. If yes, migrate to `core.New()`.
+```go
+type Runtime struct {
+    app  any    // Wails app or equivalent
+    Core *Core  // the Core instance
+}
+```
+
+**Issue:** `NewWithFactories` uses the old factory pattern (`func() Result` instead of `func(*Core) Result`). Factories don't receive Core, so they can't use DI during construction.
+
+**Resolution:** Update `NewWithFactories` to accept `func(*Core) Result` factories (same as `WithService`). The `Runtime` struct stays — it's the GUI bridge, not a replacement for Core. Consider adding `core.WithRuntime(app)` as a CoreOption:
+
+```go
+// Current:
+r := core.NewWithFactories(wailsApp, factories)
+
+// Target:
+c := core.New(
+    core.WithRuntime(wailsApp),
+    core.WithService(display.Register),
+    core.WithService(gui.Register),
+)
+```
+
+This unifies CLI and GUI bootstrap — same `core.New()`, just with `WithRuntime` added.
 
 ### 9. CommandLifecycle — The Three-Layer CLI Architecture
 
@@ -1605,42 +1638,73 @@ This is the same pattern as:
 - **`c.Drive()`** owns connection config, **`c.API()`** opens streams using it
 - **`c.Data()`** owns mounts, **`c.Embed()`** was the legacy shortcut
 
-### 13. Lock() Allocates on Every Call
+### 13. Lock() Allocates on Every Call (Resolved)
 
 ```go
 func (c *Core) Lock(name string) *Lock {
-    // ... looks up or creates mutex ...
     return &Lock{Name: name, Mutex: m}  // new struct every call
 }
 ```
 
-The mutex is cached and reused. The `Lock` wrapper struct is allocated fresh every call. `c.Lock("drain").Mutex.Lock()` allocates a throwaway struct just to access the mutex.
+The mutex is cached. The `Lock` wrapper is not.
 
-**Resolution:** Cache the `Lock` struct alongside the mutex, or return `*sync.RWMutex` directly since the `Lock` struct's only purpose is carrying the `Name` field (which the caller already knows).
+**Resolution:** With `Registry[T]` (Section 20), Lock becomes a Registry:
 
-### 14. Startables() / Stoppables() Return Result
+```go
+// Lock registry becomes:
+type LockRegistry struct {
+    *Registry[*sync.RWMutex]
+}
+
+// Usage stays the same but no allocation:
+c.Lock("drain")  // returns cached *Lock, not new allocation
+```
+
+The `Lock` struct can cache itself in the registry alongside the mutex. Or simpler: `c.Lock("drain")` returns `*sync.RWMutex` directly — the caller already knows the name.
+
+### 14. Startables() / Stoppables() Return Result (Resolved)
 
 ```go
 func (c *Core) Startables() Result  // Result{[]*Service, true}
 func (c *Core) Stoppables() Result  // Result{[]*Service, true}
 ```
 
-These return `Result` wrapping `[]*Service`, requiring a type assertion. They're only called by `ServiceStartup`/`ServiceShutdown` internally. Since they always succeed and always return `[]*Service`, they should return `[]*Service` directly.
-
-**Resolution:** Change signatures to `func (c *Core) Startables() []*Service`. Or if keeping Result for consistency, document that `r.Value.([]*Service)` is the expected assertion.
-
-### 15. contract.go Comment Says New() Returns Result
+**Resolution:** With `Registry[T]` and `ServiceRegistry`, these become registry queries:
 
 ```go
-//	r := core.New(...)
-//	if !r.OK { log.Fatal(r.Value) }
-//	c := r.Value.(*Core)
+// Current — type assertion required
+startables := c.Startables()
+for _, s := range startables.Value.([]*Service) { ... }
+
+// Target — registry filter
+for _, s := range c.Registry("services").Each(func(name string, svc *Service) bool {
+    return svc.OnStart != nil
+}) { ... }
+```
+
+Or simpler: change return type to `[]*Service` directly. These are internal — only `ServiceStartup`/`ServiceShutdown` call them. No need for Result wrapping.
+
+### 15. contract.go Comment Says New() Returns Result (Resolved)
+
+```go
+//	r := core.New(...)         // WRONG — stale comment
+//	if !r.OK { ... }           // WRONG
+//	c := r.Value.(*Core)       // WRONG
 func New(opts ...CoreOption) *Core {
 ```
 
-The comment shows the old API where `New()` returned `Result`. The actual signature returns `*Core` directly. This was changed during the v0.4.0 restructure but the comment wasn't updated.
+**Resolution:** Fix the comment. Simple mechanical fix:
 
-**Resolution:** Fix the comment to match the signature. `New()` returns `*Core` because Core is the one type that can't wrap its own creation in `Result` (it doesn't exist yet).
+```go
+//	c := core.New(
+//	    core.WithOption("name", "myapp"),
+//	    core.WithService(mypackage.Register),
+//	)
+//	c.Run()
+func New(opts ...CoreOption) *Core {
+```
+
+`New()` returns `*Core` directly — it's the one constructor that can't wrap its own creation error in Result.
 
 ### 16. task.go Mixes Concerns (Resolved)
 
