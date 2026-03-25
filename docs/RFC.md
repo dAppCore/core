@@ -971,13 +971,11 @@ This API follows RFC-025 Agent Experience (AX):
 2. **Usage-example comments** — every public function shows HOW with real values
 3. **Path is documentation** — `c.Data().ReadString("prompts/coding.md")`
 4. **Universal types** — Option, Options, Result everywhere
-5. **Event-driven** — ACTION/QUERY/PERFORM, not direct function calls between services
+5. **Event-driven** — ACTION/QUERY broadcast + named Actions, not direct function calls between services
 6. **Tests as spec** — `TestFile_Function_{Good,Bad,Ugly}` for every function
 7. **Export primitives** — Core is Lego bricks, not an encapsulated library
 8. **Naming encodes architecture** — CamelCase = primitive brick, UPPERCASE = consumer convenience
 9. **File = concern** — one file, one job (ipc.go = registry, action.go = execution, contract.go = types)
-
-
 
 ## Findings Summary — 108 Findings Across 13 Passes (All Resolved)
 
@@ -990,7 +988,7 @@ All findings are resolved in v0.8.0. Full pass detail preserved in git history.
 | 3 | Spec contradictions | 8 | Startable returns Result, Process returns Result, Registry lock modes |
 | 4 | Concurrency | 12 | Registry[T] per-subsystem mutex, WriteAtomic, PerformAsync shutdown race |
 | 5 | Consumer experience | 8 | ServiceRuntime + manual .core both valid, HandleIPCEvents documented |
-| 6 | Cross-repo cascade | 8 | TaskDef replaces nested ACTION cascade (P6-1), MCP aggregator pattern |
+| 6 | Cross-repo cascade | 8 | Task replaces nested ACTION cascade (P6-1), MCP aggregator pattern |
 | 7 | Failure modes | 8 | RunE() + defer shutdown, panic recovery in ACTION/Action, SafeGo |
 | 8 | Type safety | 8 | Result trade-off accepted, typed convenience methods, AX-7 Ugly tests |
 | 9 | Missing primitives | 8 | core.ID(), ValidateName, WriteAtomic, Fs.NewUnrestricted, c.Process() |
@@ -1016,9 +1014,7 @@ All findings are resolved in v0.8.0. Full pass detail preserved in git history.
 
 `*Core` grants God Mode. Every service sees everything. The unexported fields were an attempt at boundaries but `unsafe.Pointer` proves they don't work. The conclave has no isolation.
 
-**This is by design for v0.8.0.** All services are first-party trusted code. The Lego Bricks philosophy says "export everything." The tension is: Lego Bricks vs Least Privilege.
-
-**Resolution:** Section 21 (Entitlement primitive) — implemented. `c.Entitled()` gates Actions. Default permissive, consumer replaces checker. Port of RFC-004 concept:
+**Resolution:** Section 21 (Entitlement primitive). `c.Entitled()` gates Actions. Default permissive (trusted conclave). Consumer packages replace the checker for SaaS/commerce gating. Port of RFC-004:
 
 ```
 Registration = capability  ("process.run action exists")
@@ -1026,7 +1022,7 @@ Entitlement  = permission  ("this Core is ALLOWED to run processes")
 ```
 
 ```go
-c.Entitlement("process.run")  // true if both registered AND permitted
+c.Entitled("process.run")     // true if both registered AND permitted
 c.Action("process.run").Run() // checks entitlement before executing
 ```
 
@@ -1040,7 +1036,7 @@ IPC dispatch is synchronous. Startup is synchronous. File I/O assumes no concurr
 
 **The cascade (P6-1) is the symptom.** The root cause is that Core was designed for sequential execution and concurrency was added incrementally without revisiting the foundations.
 
-**Resolution:** The Action/Task system (Section 18) is implemented in core/go. `TaskDef` with `Steps` supports sequential chains, async dispatch, and previous-input piping. The cascade fix requires core/agent to wire its handlers as named Actions and replace the nested `c.ACTION()` calls with `c.Task("agent.completion").Run()`. See `core/agent/docs/plans/2026-03-25-core-go-v0.8.0-migration.md` Priority 5.
+**Resolution:** The Action/Task system (Section 18) is implemented. `Task` with `Steps` supports sequential chains, async dispatch, and previous-input piping. The cascade fix requires core/agent to wire its handlers as named Actions and replace nested `c.ACTION()` calls with `c.Task("agent.completion").Run(ctx, c, opts)`. See `core/agent/docs/RFC.md` Section 3.
 
 ### Root Cause 4: No Recovery Path — 10 findings
 
@@ -1049,24 +1045,25 @@ Every failure mode is "log and crash." `os.Exit(1)` bypasses defers. Startup fai
 **One fix resolves most of this cluster:**
 
 ```go
-func (c *Core) Run() error {
+func (c *Core) RunE() error {
     defer c.ServiceShutdown(context.Background())
-    // ... no os.Exit, return errors
+    // ... returns error, no os.Exit
 }
 ```
 
-`defer` ensures cleanup always runs. Returning `error` lets `main()` handle the exit. Panic recovery in ACTION handlers prevents cascade crashes. Wire `SafeGo` as the standard goroutine launcher.
+`defer` ensures cleanup always runs. `RunE()` returns `error`; `Run()` delegates and exits. Panic recovery in ACTION handlers and Action.Run() prevents cascade crashes.
 
 ### Root Cause 5: Missing Primitives — 8 findings
 
-The guardrail coverage is incomplete. Strings have primitives. Paths have primitives. Errors have primitives. But JSON, time, IDs, validation, and health don't. Each gap means consumers reinvent the wheel — and weaker models get it wrong.
+The guardrail coverage was incomplete. Strings have primitives. Paths have primitives. Errors have primitives. IDs, validation, and atomic writes didn't.
 
-**Resolution:** Prioritise by usage frequency:
-1. `core.ID()` — used everywhere, 3 different patterns today
-2. `core.Validate(name/path)` — copy-pasted 3 times today
-3. `core.Health()` — needed for production monitoring
-4. `core.Time()` / timestamp convention — document RFC3339
-5. JSON — judgment call, may be unnecessary wrapping
+**Resolved:**
+- `core.ID()` — unique identifier (atomic counter + crypto/rand)
+- `core.ValidateName()` / `core.SanitisePath()` — reusable validation
+- `Fs.WriteAtomic()` — safe concurrent writes
+- `Fs.NewUnrestricted()` — legitimate sandbox bypass
+
+**Open:** `core.Health()` (production monitoring), timestamp convention, JSON helpers.
 
 ### What This Means for v0.8.0
 
