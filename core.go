@@ -29,6 +29,7 @@ type Core struct {
 	services *ServiceRegistry // c.Service("name")  — Service registry
 	lock     *Lock            // c.Lock("name")     — Named mutexes
 	ipc      *Ipc             // c.IPC()            — Message bus for IPC
+	api      *API             // c.API()            — Remote streams
 	info     *SysInfo         // c.Env("key")        — Read-only system/environment information
 	i18n     *I18n            // c.I18n()           — Internationalisation and locale collection
 

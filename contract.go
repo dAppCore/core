@@ -96,11 +96,13 @@ func New(opts ...CoreOption) *Core {
 		ipc:      &Ipc{actions: NewRegistry[*Action](), tasks: NewRegistry[*Task]()},
 		info:     systemInfo,
 		i18n:     &I18n{},
+		api:                &API{protocols: NewRegistry[StreamFactory]()},
 		services:           &ServiceRegistry{Registry: NewRegistry[*Service]()},
 		commands:           &CommandRegistry{Registry: NewRegistry[*Command]()},
 		entitlementChecker: defaultChecker,
 	}
 	c.context, c.cancel = context.WithCancel(context.Background())
+	c.api.core = c
 
 	// Core services
 	CliRegister(c)
