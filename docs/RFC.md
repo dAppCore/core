@@ -1125,7 +1125,125 @@ Process management (go-process) should be a Core subsystem accessor like `c.Fs()
 
 ### 8. NewRuntime / NewWithFactories — Legacy
 
-These pre-v0.7.0 functions take `app any` instead of `*Core`. Verify if they're still used — if not, deprecate.
+These pre-v0.7.0 functions take `app any` instead of `*Core`. `Runtime` is a separate struct from `Core` with its own `ServiceStartup`/`ServiceShutdown`. This was the original bootstrap pattern before `core.New()` + `WithService` replaced it.
+
+**Question:** Is anything still using `NewRuntime`/`NewWithFactories`? If not, remove. If yes, migrate to `core.New()`.
+
+### 9. CommandLifecycle — Designed but Never Connected
+
+```go
+type CommandLifecycle interface {
+    Start(Options) Result
+    Stop() Result
+    Restart() Result
+    Reload() Result
+    Signal(string) Result
+}
+```
+
+Lives on `Command.Lifecycle` as an optional field. Comment says "provided by go-process" but nobody implements it. This is the skeleton for daemon commands — `core-agent serve` would use `Start`/`Stop`/`Restart`/`Signal` to manage a long-running process as a CLI command.
+
+**Intent:** A command that runs a daemon gets lifecycle verbs for free. `core-agent serve --stop` sends `Signal("stop")` to the running instance via PID file.
+
+**Relationship to Section 18:** With Actions and Tasks, a Command IS an Action. `CommandLifecycle` becomes a Task that wraps the Action's process lifecycle. The `Start`/`Stop`/`Restart`/`Signal` verbs are process Actions that go-process registers. The `Command` struct just needs a reference to the Action name — the lifecycle is handled by the Action/Task system, not by an interface on the Command.
+
+**Resolution:** Once Section 18 (Actions) is implemented, `CommandLifecycle` can be replaced with:
+```go
+c.Command("serve", core.Command{
+    Action: s.cmdServe,
+    Task:   "process.daemon",  // managed lifecycle via Action system
+})
+```
+
+### 10. Array[T] — Generic Collection, Used Nowhere
+
+`array.go` exports a full generic collection: `NewArray[T]`, `Add`, `AddUnique`, `Contains`, `Filter`, `Each`, `Remove`, `Deduplicate`, `Len`, `Clear`, `AsSlice`.
+
+Nothing in core/go or any known consumer uses it. It was a "we might need this" primitive that got saved.
+
+**Question:** Is this intended for downstream use (core/agent managing workspace lists, etc.) or was it speculative? If speculative, remove — it can be added back when a consumer needs it. If intended, document the use case and add to the RFC as a primitive type.
+
+### 11. ConfigVar[T] — Generic Config Variable, Unused
+
+```go
+type ConfigVar[T any] struct { val T; set bool }
+func (v *ConfigVar[T]) Get() T
+func (v *ConfigVar[T]) Set(val T)
+func (v *ConfigVar[T]) IsSet() bool
+func (v *ConfigVar[T]) Unset()
+```
+
+A typed wrapper around a config value with set/unset tracking. Only used internally in `config.go`. Not exposed to consumers and not used by any other file.
+
+**Intent:** Probably meant for typed config fields — `var debug ConfigVar[bool]` where `IsSet()` distinguishes "explicitly set to false" from "never set." This is useful for layered config (defaults → file → env → flags) where you need to know which layer set the value.
+
+**Resolution:** Either promote to a documented primitive (useful for the config layering problem) or inline it as unexported since it's only used in `config.go`.
+
+### 12. Ipc Is a Data-Only Struct
+
+`Ipc` holds handler slices and mutexes but has zero methods. All IPC methods (`Action`, `Query`, `RegisterAction`, etc.) live on `*Core`. The `c.IPC()` accessor returns the raw struct, but there's nothing a consumer can do with it directly.
+
+**Problem:** `c.IPC()` suggests there's a useful API on the returned type, but there isn't. It's like `c.Fs()` returning a struct with no methods — misleading.
+
+**Resolution:** Either:
+- Add methods to `Ipc` (move `Action`/`Query`/`RegisterAction` from Core to Ipc)
+- Remove the `c.IPC()` accessor (consumers use `c.ACTION()`/`c.RegisterAction()` directly)
+- Or keep it but document that it's for inspection only (handler count, registered types)
+
+With Section 18 (Actions), `Ipc` could become the Action registry — `c.IPC().Actions()` returns registered action names, `c.IPC().Exists("process.run")` checks capabilities.
+
+### 13. Lock() Allocates on Every Call
+
+```go
+func (c *Core) Lock(name string) *Lock {
+    // ... looks up or creates mutex ...
+    return &Lock{Name: name, Mutex: m}  // new struct every call
+}
+```
+
+The mutex is cached and reused. The `Lock` wrapper struct is allocated fresh every call. `c.Lock("drain").Mutex.Lock()` allocates a throwaway struct just to access the mutex.
+
+**Resolution:** Cache the `Lock` struct alongside the mutex, or return `*sync.RWMutex` directly since the `Lock` struct's only purpose is carrying the `Name` field (which the caller already knows).
+
+### 14. Startables() / Stoppables() Return Result
+
+```go
+func (c *Core) Startables() Result  // Result{[]*Service, true}
+func (c *Core) Stoppables() Result  // Result{[]*Service, true}
+```
+
+These return `Result` wrapping `[]*Service`, requiring a type assertion. They're only called by `ServiceStartup`/`ServiceShutdown` internally. Since they always succeed and always return `[]*Service`, they should return `[]*Service` directly.
+
+**Resolution:** Change signatures to `func (c *Core) Startables() []*Service`. Or if keeping Result for consistency, document that `r.Value.([]*Service)` is the expected assertion.
+
+### 15. contract.go Comment Says New() Returns Result
+
+```go
+//	r := core.New(...)
+//	if !r.OK { log.Fatal(r.Value) }
+//	c := r.Value.(*Core)
+func New(opts ...CoreOption) *Core {
+```
+
+The comment shows the old API where `New()` returned `Result`. The actual signature returns `*Core` directly. This was changed during the v0.4.0 restructure but the comment wasn't updated.
+
+**Resolution:** Fix the comment to match the signature. `New()` returns `*Core` because Core is the one type that can't wrap its own creation in `Result` (it doesn't exist yet).
+
+### 16. task.go Mixes Concerns
+
+`task.go` contains:
+- `PerformAsync` — background task dispatch with panic recovery
+- `Perform` — synchronous task execution (first handler wins)
+- `Progress` — progress broadcast
+- `RegisterAction` — ACTION handler registration
+- `RegisterActions` — batch ACTION handler registration
+- `RegisterTask` — TASK handler registration
+
+This is two concerns: **task execution** (Perform/PerformAsync/Progress) and **IPC handler registration** (RegisterAction/RegisterActions/RegisterTask).
+
+With Section 18 (Actions), this file becomes the Action executor. `RegisterAction` becomes `c.Action("name", handler)`. `Perform` becomes `c.Action("name").Run()`. The registration and execution unify under the Action primitive.
+
+**Resolution:** When implementing Section 18, refactor task.go into action.go (the Action registry and executor) and keep `PerformAsync` as a method on Action (`c.Action("name").RunAsync()`).
 
 ## AX Principles Applied
 
@@ -1141,4 +1259,8 @@ This API follows RFC-025 Agent Experience (AX):
 
 ## Changelog
 
+- 2026-03-25: Added Known Issues 9-16 (ADHD brain dump recovery — CommandLifecycle, Array[T], ConfigVar[T], Ipc struct, Lock allocation, Startables/Stoppables, stale comment, task.go concerns)
+- 2026-03-25: Added Section 18 — Action and Task execution primitives
+- 2026-03-25: Added Section 17 — c.Process() primitive spec
+- 2026-03-25: Added Design Philosophy + Known Issues 1-8
 - 2026-03-25: Initial specification — matches v0.7.0 implementation
