@@ -3048,6 +3048,123 @@ Metrics and tracing are extension concerns — they belong in separate packages 
 
 ---
 
+## Pass Ten — The Spec Auditing Itself
+
+> Tenth review. Does the RFC contradict itself? Do sections conflict?
+> Is the subsystem map accurate? Is the API surface coherent?
+
+### P10-1. Section 17 and 18 Contradict on Process Return Type
+
+Section 17 spec'd `c.Process().Run() → (string, error)`. Section 18 spec'd `c.Action().Run() → Result`. Section 18.9 says "Process IS sugar over Actions." P3-2 flagged this.
+
+**But Section 17 still shows the old signature.** The spec contradicts itself across sections. An agent reading Section 17 implements `(string, error)`. An agent reading Section 18 implements `Result`.
+
+**Resolution:** Update Section 17 to match Section 18. Process returns Result. Add typed convenience: `c.Process().RunString()` for the common case.
+
+### P10-2. Section 17 Uses ACTION for Request/Response — Should Be PERFORM
+
+Section 17.6 lists `ProcessRun` as an IPC Message (broadcast). Section 17.7 shows it going through ACTION dispatch. But `ProcessRun` NEEDS a response (the output string). That's PERFORM, not ACTION.
+
+P6-1 showed that ACTION cascade is synchronous and blocking. Using ACTION for process execution means every process call blocks the entire IPC pipeline.
+
+**Resolution:** Process messages use PERFORM (targeted execution, returns result) not ACTION (broadcast, fire-and-forget). Event messages (ProcessStarted, ProcessExited) use ACTION (notification, no response needed).
+
+```
+PERFORM: ProcessRun, ProcessStart, ProcessKill  — need response
+ACTION:  ProcessStarted, ProcessExited, ProcessKilled — notification only
+```
+
+### P10-3. Subsystem Count Is Wrong
+
+Section 19.8 says "14 subsystems." Actual count:
+
+| Category | Accessor | Count |
+|----------|----------|-------|
+| Subsystems (struct with methods) | Config, Data, Fs, IPC, Cli, Log, Error, I18n, Drive, App | 10 |
+| Value accessors | Options, Context, Env, Core | 4 |
+| Dual-purpose (get/set) | Service, Command, Lock | 3 |
+| Planned primitives | Action, Registry, API, Process | 4 |
+| Proposed (P9-8) | Health | 1 |
+
+That's **22 methods on Core**, not 14 subsystems. The map needs to distinguish between subsystems, accessors, registries, and convenience methods.
+
+**Resolution:** Recount. Subsystems are things with methods you call. Value accessors return data. Dual-purpose methods are Registry sugar. The map should categorise, not just list.
+
+### P10-4. Four API Patterns on One Struct — No Categorisation
+
+Core's methods look uniform but behave differently:
+
+```go
+c.Config()       // subsystem — returns struct, call methods on it
+c.Options()      // accessor — returns data, read from it
+c.Service("x")   // dual-purpose — get or set depending on args
+c.Action("x")    // planned registry — get, set, invoke, inspect
+```
+
+An agent sees 22 methods on Core and can't tell which pattern each follows without reading the implementation. The names give no hint.
+
+**Resolution:** Document the categories in the RFC. Or use naming to signal:
+
+```
+c.Config()        // noun → subsystem (has methods)
+c.Options()       // noun → accessor (read-only data)
+c.Service("x")    // noun + arg → registry operation
+c.ACTION(msg)     // VERB → convenience (does something)
+```
+
+The existing naming DOES follow a pattern — it's just undocumented:
+- **No-arg noun** → subsystem accessor
+- **Noun + arg** → registry get/set
+- **UPPERCASE verb** → convenience operation
+- **Noun returning primitive** → value accessor
+
+### P10-5. Registry Is Section 20 but Resolves Issues From Pass One
+
+Registry[T] was added in Section 20 but it resolves Issues 6, 12, 13 from Pass One. The RFC reads chronologically (issues found, then solution added later) but an implementer reads it looking for "what do I build?"
+
+**Resolution:** Add a cross-reference table:
+
+| Issue | Resolved By | Section |
+|-------|------------|---------|
+| 1 (naming) | CamelCase/UPPERCASE convention | Design Philosophy |
+| 5 (RegisterAction location) | task.go → action.go split | Issue 16 |
+| 6 (serviceRegistry unexported) | Registry[T] | Section 20 |
+| 9 (CommandLifecycle) | Managed field + three-layer CLI | Issue 9 |
+| 10 (Array[T]) | Guardrail primitive, keep | Issue 10 |
+| 11 (ConfigVar[T]) | Promote to primitive | Issue 11 |
+| 12 (Ipc data-only) | IPC consumes Action registry | Section 20 |
+| 13 (Lock allocation) | Registry[T] caching | Section 20 |
+| 16 (task.go concerns) | ipc.go + action.go split | Issue 16 |
+
+### P10-6. The Design Philosophy Section Is Before the Findings That Shaped It
+
+"Core Is Lego Bricks" appears before the passes that discovered WHY it's Lego bricks. The Design Philosophy was written during Pass Two but the reasoning (Passes Three through Nine) comes after. An implementer reading top-to-bottom gets the rules before the reasoning.
+
+**Resolution:** This is actually correct for an RFC — rules first, reasoning appendixed. The passes ARE the appendix. The Design Philosophy is the executive summary. The structure works for both humans (read top-down) and agents (grep for specific sections).
+
+### P10-7. v0.8.0 Requirements Don't Include Pass Two-Nine Findings
+
+The v0.8.0 checklist lists Section 17-20 implementation and AX-7 tests. But Passes Two through Nine found 56 additional issues (P2-1 through P9-8). These aren't in the checklist.
+
+**Resolution:** Add a "findings severity" classification:
+
+| Severity | Count | v0.8.0? | Examples |
+|----------|-------|---------|----------|
+| Critical (bug) | 3 | Yes | P4-3 (ACTION stops chain), P6-1 (cascade blocks), P7-2 (no cleanup) |
+| High (design) | 12 | Yes | P3-1 (error/Result mismatch), P8-1 (bare assertions), P9-1 (exec import) |
+| Medium (improve) | 25 | Stretch | P5-4 (magic methods), P9-3 (no JSON), P9-5 (no ID gen) |
+| Low (document) | 16 | No | P4-4 (clone-iterate), P10-6 (section ordering) |
+
+3 critical bugs must be fixed for v0.8.0. 12 high design issues should be. The rest are improvements.
+
+### P10-8. No Section Numbers for Passes — Hard to Cross-Reference
+
+Passes are referenced as P2-1, P3-2, etc. but they're not in the table of contents. The RFC has Sections 1-20 (numbered) and Passes One-Ten (named). An agent searching for "P6-1" has to scan the document.
+
+**Resolution:** Either number the passes as sections (Section 21 = Pass One, etc.) or add a findings index at the end with all P-numbers linking to their location. The findings ARE the backlog — they need to be queryable.
+
+---
+
 ## Versioning
 
 ### Release Model
