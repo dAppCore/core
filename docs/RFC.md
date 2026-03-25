@@ -2136,6 +2136,81 @@ r.Open()          // (default) anything goes
 
 ---
 
+## Pass Four — Concurrency and Performance
+
+> Fourth review. Structural, architectural, and spec contradictions are documented.
+> Now looking at concurrency edge cases and performance implications.
+
+### P4-1. ServiceStartup Order Is Non-Deterministic
+
+`Startables()` iterates `map[string]*Service` — Go map iteration is random. If service B depends on service A being started first, it works sometimes and fails sometimes.
+
+**Resolution:** `Registry[T]` should maintain insertion order (use a slice alongside the map). Services start in registration order — the order they appear in `core.New()`. This is predictable and matches the programmer's intent.
+
+### P4-2. ACTION Dispatch Is Synchronous and Blocking
+
+`c.ACTION(msg)` clones the handler slice then calls every handler sequentially. A slow handler blocks all subsequent handlers. No timeouts, no parallelism.
+
+**Resolution:** Document that ACTION handlers MUST be fast. Long work should be dispatched via `PerformAsync`. Consider a timeout per handler or parallel dispatch option for fire-and-forget broadcasts.
+
+### P4-3. ACTION Handler Returning !OK Stops the Chain
+
+```go
+for _, h := range handlers {
+    if r := h(c, msg); !r.OK {
+        return r  // remaining handlers never called
+    }
+}
+```
+
+For "fire-and-forget" broadcast, one failing handler silencing the rest is surprising.
+
+**Resolution:** ACTION (broadcast) should call ALL handlers regardless of individual results. Collect errors, log them, but don't stop. QUERY (first responder) correctly stops on first OK. PERFORM (first executor) correctly stops on first OK. Only ACTION has the wrong stop condition.
+
+### P4-4. IPC Clone-and-Iterate Is Safe but Undocumented
+
+Handlers are cloned before iteration, lock released before calling. A handler CAN call `RegisterAction` without deadlocking. But newly registered handlers aren't called for the current message — only the next dispatch.
+
+**Resolution:** Document this behaviour. It's correct but surprising. "Handlers registered during dispatch are visible on the next dispatch, not the current one."
+
+### P4-5. No Backpressure on PerformAsync
+
+`PerformAsync` spawns unlimited goroutines via `waitGroup.Go()`. 1000 concurrent calls = 1000 goroutines. No pool, no queue, no backpressure.
+
+**Resolution:** `PerformAsync` should respect a configurable concurrency limit. With the Action system (Section 18), this becomes a property of the Action: `c.Action("heavy.work").MaxConcurrency(10)`. The registry tracks running count.
+
+### P4-6. ConfigVar.Set() Has No Lock
+
+```go
+func (v *ConfigVar[T]) Set(val T) { v.val = val; v.set = true }
+```
+
+Two goroutines setting the same ConfigVar is a data race. `Config.Set()` holds a mutex, but `ConfigVar.Set()` does not. If a consumer holds a reference to a ConfigVar and sets it from multiple goroutines, undefined behaviour.
+
+**Resolution:** ConfigVar should be atomic or protected by Config's mutex. Since ConfigVar is meant to be accessed through `Config.Get/Set`, the lock should be on Config. Direct ConfigVar manipulation should be documented as single-goroutine only.
+
+### P4-7. PerformAsync Has a Shutdown Race (TOCTOU)
+
+```go
+func (c *Core) PerformAsync(t Task) Result {
+    if c.shutdown.Load() { return Result{} }  // check
+    // ... time passes ...
+    c.waitGroup.Go(func() { ... })             // act
+}
+```
+
+Between the check and the `Go()`, `ServiceShutdown` can set `shutdown=true` and start `waitGroup.Wait()`. The goroutine spawns after shutdown begins.
+
+**Resolution:** Go 1.26's `WaitGroup.Go()` may handle this (it calls `Add(1)` internally before spawning). Verify. If not safe, use a mutex around the shutdown check + goroutine spawn.
+
+### P4-8. Named Lock "srv" Is Shared Across All Service Operations
+
+All service operations lock on `c.Lock("srv")` — registration, lookup, listing, startables, stoppables. A write (registration) blocks all reads (lookups). The `RWMutex` helps (reads don't block reads) but there's no isolation between subsystems.
+
+**Resolution:** With `Registry[T]`, each registry has its own mutex. `ServiceRegistry` has its own lock, `CommandRegistry` has its own lock. No cross-subsystem blocking. This is already the plan — Registry[T] includes its own `sync.RWMutex`.
+
+---
+
 ## Versioning
 
 ### Release Model
