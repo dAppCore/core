@@ -554,6 +554,252 @@ func (s *MyService) DoWork() {
 
 ---
 
+## 17. Process — Core Primitive (Planned)
+
+> Status: Design spec. Not yet implemented. go-process v0.7.0 will implement this.
+
+### 17.1 The Primitive
+
+`c.Process()` is a Core subsystem accessor — same pattern as `c.Fs()`, `c.Config()`, `c.Log()`. It provides the **interface** for process management. go-process provides the **implementation** via service registration.
+
+```go
+c.Process()          // *Process — primitive (defined in core/go)
+c.Process().Run()    // executes via IPC → go-process handles it (if registered)
+```
+
+If go-process is not registered, process IPC messages go unanswered. No capability = no execution. This is permission-by-registration, not permission-by-config.
+
+### 17.2 Primitive Interface (core/go provides)
+
+Core defines the Process primitive as a thin struct with methods that emit IPC messages:
+
+```go
+// Process is the Core primitive for process management.
+// Methods emit IPC messages — actual execution is handled by
+// whichever service registers to handle ProcessRun/ProcessStart messages.
+type Process struct {
+    core *Core
+}
+
+// Accessor on Core
+func (c *Core) Process() *Process { return c.process }
+```
+
+### 17.3 Synchronous Execution
+
+```go
+// Run executes a command and waits for completion.
+// Returns (output, error). Emits ProcessRun via IPC.
+//
+//   out, err := c.Process().Run(ctx, "git", "log", "--oneline")
+func (p *Process) Run(ctx context.Context, command string, args ...string) (string, error)
+
+// RunIn executes in a specific directory.
+//
+//   out, err := c.Process().RunIn(ctx, "/path/to/repo", "go", "test", "./...")
+func (p *Process) RunIn(ctx context.Context, dir string, command string, args ...string) (string, error)
+
+// RunWithEnv executes with additional environment variables.
+//
+//   out, err := c.Process().RunWithEnv(ctx, dir, []string{"GOWORK=off"}, "go", "test")
+func (p *Process) RunWithEnv(ctx context.Context, dir string, env []string, command string, args ...string) (string, error)
+```
+
+### 17.4 Async / Detached Execution
+
+```go
+// Start spawns a detached process. Returns a handle for monitoring.
+// The process survives Core shutdown if Detach is true.
+//
+//   handle, err := c.Process().Start(ctx, ProcessOptions{
+//       Command: "docker", Args: []string{"run", "..."},
+//       Dir: repoDir, Detach: true,
+//   })
+func (p *Process) Start(ctx context.Context, opts ProcessOptions) (*ProcessHandle, error)
+
+// ProcessOptions configures process execution.
+type ProcessOptions struct {
+    Command string
+    Args    []string
+    Dir     string
+    Env     []string
+    Detach  bool          // survives parent, own process group
+    Timeout time.Duration // 0 = no timeout
+}
+```
+
+### 17.5 Process Handle
+
+```go
+// ProcessHandle is returned by Start for monitoring and control.
+type ProcessHandle struct {
+    ID     string         // go-process managed ID
+    PID    int            // OS process ID
+}
+
+// Methods on the handle — all emit IPC messages
+func (h *ProcessHandle) IsRunning() bool
+func (h *ProcessHandle) Kill() error
+func (h *ProcessHandle) Done() <-chan struct{}
+func (h *ProcessHandle) Output() string
+func (h *ProcessHandle) Wait() error
+func (h *ProcessHandle) Info() ProcessInfo
+
+type ProcessInfo struct {
+    ID        string
+    PID       int
+    Status    string        // pending, running, exited, failed, killed
+    ExitCode  int
+    Duration  time.Duration
+    StartedAt time.Time
+}
+```
+
+### 17.6 IPC Messages (core/go defines)
+
+Core defines the message types. go-process registers handlers for them. If no handler is registered, calls return `Result{OK: false}` — no process capability.
+
+```go
+// Request messages — emitted by c.Process() methods
+type ProcessRun struct {
+    Command string
+    Args    []string
+    Dir     string
+    Env     []string
+}
+
+type ProcessStart struct {
+    Command string
+    Args    []string
+    Dir     string
+    Env     []string
+    Detach  bool
+    Timeout time.Duration
+}
+
+type ProcessKill struct {
+    ID  string  // by go-process ID
+    PID int     // fallback by OS PID
+}
+
+// Event messages — emitted by go-process implementation
+type ProcessStarted struct {
+    ID      string
+    PID     int
+    Command string
+}
+
+type ProcessOutput struct {
+    ID   string
+    Line string
+}
+
+type ProcessExited struct {
+    ID       string
+    PID      int
+    ExitCode int
+    Status   string
+    Duration time.Duration
+    Output   string
+}
+
+type ProcessKilled struct {
+    ID  string
+    PID int
+}
+```
+
+### 17.7 Permission by Registration
+
+This is the key security model. The IPC bus is the permission boundary:
+
+```go
+// If go-process IS registered:
+c.Process().Run(ctx, "git", "log")
+// → emits ProcessRun via IPC
+// → go-process handler receives it
+// → executes, returns output
+// → Result{Value: output, OK: true}
+
+// If go-process is NOT registered:
+c.Process().Run(ctx, "git", "log")
+// → emits ProcessRun via IPC
+// → no handler registered
+// → Result{OK: false}
+// → caller gets empty result, no execution happened
+```
+
+No config flags, no permission files, no capability tokens. The service either exists in the conclave or it doesn't. Registration IS permission.
+
+This means:
+- **A sandboxed Core** (no go-process registered) cannot execute any external commands
+- **A full Core** (go-process registered) can execute anything the OS allows
+- **A restricted Core** could register a filtered go-process that only allows specific commands
+- **Tests** can register a mock process service that records calls without executing
+
+### 17.8 Convenience Helpers (per-package)
+
+Packages that frequently run commands can create local helpers that delegate to `c.Process()`:
+
+```go
+// In pkg/agentic/proc.go:
+func (s *PrepSubsystem) gitCmd(ctx context.Context, dir string, args ...string) (string, error) {
+    return s.core.Process().RunIn(ctx, dir, "git", args...)
+}
+
+func (s *PrepSubsystem) gitCmdOK(ctx context.Context, dir string, args ...string) bool {
+    _, err := s.gitCmd(ctx, dir, args...)
+    return err == nil
+}
+```
+
+These replace the current standalone `proc.go` helpers that bootstrap their own process service. The helpers become methods on the service that owns `*Core`.
+
+### 17.9 go-process Implementation (core/go-process provides)
+
+go-process registers itself as the ProcessRun/ProcessStart handler:
+
+```go
+// go-process service registration
+func Register(c *core.Core) core.Result {
+    svc := &Service{
+        ServiceRuntime: core.NewServiceRuntime(c, Options{}),
+        processes:      make(map[string]*ManagedProcess),
+    }
+
+    // Register as IPC handler for process messages
+    c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
+        switch m := msg.(type) {
+        case core.ProcessRun:
+            return svc.handleRun(m)
+        case core.ProcessStart:
+            return svc.handleStart(m)
+        case core.ProcessKill:
+            return svc.handleKill(m)
+        }
+        return core.Result{OK: true}
+    })
+
+    return core.Result{Value: svc, OK: true}
+}
+```
+
+### 17.10 Migration Path
+
+Current state → target state:
+
+| Current | Target |
+|---------|--------|
+| `proc.go` standalone helpers with `ensureProcess()` | Methods on PrepSubsystem using `s.core.Process()` |
+| `process.RunWithOptions(ctx, opts)` global function | `c.Process().Run(ctx, cmd, args...)` via IPC |
+| `process.StartWithOptions(ctx, opts)` global function | `c.Process().Start(ctx, opts)` via IPC |
+| `syscall.Kill(pid, 0)` direct OS calls | `handle.IsRunning()` via go-process |
+| `syscall.Kill(pid, SIGTERM)` direct OS calls | `handle.Kill()` via go-process |
+| `process.SetDefault(svc)` global singleton | Service registered in Core conclave |
+| `agentic.ProcessRegister` bridge wrapper | `process.Register` direct factory |
+
+---
+
 ## Design Philosophy
 
 ### Core Is Lego Bricks
