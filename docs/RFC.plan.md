@@ -13,7 +13,7 @@
 
 1. **Type erasure** (16 findings) — `Result{Value: any}` loses compile-time safety. Mitigate with typed methods + AX-7 tests. Not fixable without abandoning Result.
 
-2. **No internal boundaries** (14 findings) — `*Core` grants God Mode. Solved by porting RFC-004 (Entitlements) from CorePHP. v0.9.0 work.
+2. **No internal boundaries** (14 findings) — `*Core` grants God Mode. Solved by Section 21 (Entitlement primitive). v0.8.0 scope — designed, implementation pending.
 
 3. **Synchronous everything** (12 findings) — IPC dispatch blocks. ACTION cascade in core/agent blocks queue for minutes. Fixed by Action/Task system (Plan 3).
 

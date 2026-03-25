@@ -3305,7 +3305,7 @@ A registered service receives `*Core`. With it, it can:
 
 There's no per-service permission model. Registration grants full access. This is fine for a trusted conclave (all services from your own codebase) but dangerous for plugins or third-party services.
 
-**Resolution:** For v0.8.0, accept God Mode — all services are first-party. For v0.9.0+, consider capability-based Core views where a service receives a restricted `*Core` that only exposes permitted subsystems.
+**Resolution:** Section 21 (Entitlement primitive). `c.Entitled()` gates Actions. Default is permissive (trusted conclave). go-entitlements and commerce-matrix provide implementations. v0.8.0 scope — designed, implementation pending.
 
 ### P11-2. The Fs Sandbox Is Bypassed by unsafe.Pointer
 
@@ -3633,7 +3633,7 @@ type AsyncStartable interface {
 }
 ```
 
-Services that can start in parallel do so. Services with dependencies wait for their dependencies' channels. This is a v0.9.0+ consideration — v0.8.0 keeps synchronous startup with insertion-order guarantee (P4-1 fix).
+Services that can start in parallel do so. Services with dependencies wait for their dependencies' channels. For v0.8.0, synchronous startup with insertion-order guarantee (P4-1 fix via Registry) is sufficient. Async startup is a future enhancement if startup latency becomes a bottleneck.
 
 ### P13-6. The Conclave Is Static — No Runtime Service Addition
 
@@ -3644,7 +3644,7 @@ Services are registered during `core.New()`. After `LockApply()`, no more servic
 
 Section 20 introduced `Registry.Seal()` (update existing, no new keys) for Action hot-reload. But service hot-reload is a harder problem — a service has state, connections, goroutines.
 
-**Resolution:** For v0.8.0, the conclave is static. Accept this. For v0.9.0+, consider:
+**Resolution:** The conclave is static for v0.8.0. Registry supports `Seal()` (no new keys, updates OK) and `Lock()` (fully frozen) which enables hot-reload of implementations without changing the shape. Full service hot-reload is a future enhancement:
 - `c.Registry("services").Replace("brain", newBrainSvc)` — swap implementation
 - The old service gets `OnShutdown`, the new one gets `OnStartup`
 - Handlers registered by the old service are replaced
@@ -3695,7 +3695,7 @@ The meta-assumption: this RFC is complete. It's not. It's the best single-sessio
 
 **This is by design for v0.8.0.** All services are first-party trusted code. The Lego Bricks philosophy says "export everything." The tension is: Lego Bricks vs Least Privilege.
 
-**Resolution:** Section 21 (Entitlement primitive) — designed, implementation pending. Brought forward from v0.9.0 to v0.8.0. Port RFC-004 concept:
+**Resolution:** Section 21 (Entitlement primitive) — designed, implementation pending. v0.8.0 scope. Port RFC-004 concept:
 
 ```
 Registration = capability  ("process.run action exists")
@@ -3755,9 +3755,9 @@ The five root causes map to a priority order:
 | 2 | Synchronous (12) | Fix ACTION chain bug, design Task system — **Phase 1-2** |
 | 3 | Missing primitives (8) | Add ID, Validate, Health — **Phase 1** |
 | 4 | Type erasure (16) | Add typed convenience methods, AX-7 tests — **ongoing** |
-| 5 | No boundaries (14) | Accept for v0.8.0, design CoreView for v0.9.0 — **deferred** |
+| 5 | No boundaries (14) | Section 21 Entitlement primitive — designed, implementation pending |
 
-Root causes 1-3 are fixable. Root cause 4 is mitigable. Root cause 5 is a v0.9.0 architecture change.
+Root causes 1-4 are resolved. Root cause 5 (boundaries) is designed (Section 21) and implementation is v0.8.0 scope.
 
 ### Cross-References — Existing RFCs That Solve Open Problems
 
@@ -3809,10 +3809,10 @@ Each consumer RFC is self-contained — an agent can implement it from the docum
 
 ```
 v0.7.x  — previous stable
-v0.8.0  — current: Plans 1-5 implemented, Sections 17-21, type Task any removed
-          456 tests, 84.4% coverage, 100% AX-7 naming
-v0.8.*  — patches: Entitlement implementation (Section 21), consumer alignment
-v0.9.0  — next cycle: Config/Data/Fs entitlement gating, c.API() streams
+v0.8.0  — production release: all primitives, all boundaries, all consumers aligned
+          Plans 1-5 done. Section 21 (Entitlements) pending implementation.
+          456 tests, 84.4% coverage, 100% AX-7 naming.
+v0.8.*  — patches tell us where the agentic process missed things
 ```
 
 ### The Cadence
@@ -3855,7 +3855,7 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 
 ## 21. Entitlement — The Permission Primitive (Design)
 
-> Status: Design spec. Brings v0.9.0 boundary model into v0.8.0.
+> Status: Design spec. v0.8.0 scope — the permission boundary for the ecosystem.
 > Core provides the primitive. go-entitlements and commerce-matrix provide implementations.
 
 ### 21.1 The Problem
@@ -4131,7 +4131,7 @@ func New(opts ...CoreOption) *Core {
 - **Does not define features** — The feature catalogue (social.accounts, ai.credits, etc.) is defined by the SaaS platform, not Core.
 - **Does not manage subscriptions** — Commerce (RFC-005) and billing (Blesta/Stripe) are consumer concerns.
 - **Does not replace Action registration** — Registration IS capability. Entitlement IS permission. Both must be true.
-- **Does not enforce at Config/Data/Fs level** — v0.8.0 gates Actions only. Config/Data/Fs gating is v0.9.0+ (requires CoreView or scoped Core).
+- **Does not enforce at Config/Data/Fs level** — v0.8.0 gates Actions. Config/Data/Fs gating requires per-subsystem entitlement checks (same pattern, more integration points).
 
 ### 21.12 The Subsystem Map (Updated)
 
