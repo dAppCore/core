@@ -204,7 +204,7 @@ if !ok {
 svc := core.MustServiceFor[*MyService](c, "mypackage")
 
 // List all registered services
-names := c.Services() // []string
+names := c.Services() // []string in registration order
 ```
 
 ### 3.5 Lifecycle Interfaces
@@ -219,7 +219,7 @@ type Stoppable interface {
 }
 ```
 
-Services implementing these are automatically called during `c.Run()`.
+Services implementing these are called during `RunE()` / `Run()` in registration order.
 
 ---
 
@@ -1163,13 +1163,12 @@ v0.8.1 means the spec missed one thing. v0.8.15 means fifteen. The patch count I
 
 ### What Does NOT Block v0.8.0
 
-- Ecosystem sweep (Plan 6 — after consumers align)
+- Ecosystem sweep (after consumers align)
 - core/cli update (extension, not primitive)
 
 ## 21. Entitlement — The Permission Primitive
 
-> Status: Design spec. v0.8.0 scope — the permission boundary for the ecosystem.
-> Core provides the primitive. go-entitlements and commerce-matrix provide implementations.
+Core provides the primitive. go-entitlements and commerce-matrix provide implementations.
 
 ### 21.1 The Problem
 
