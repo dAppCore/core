@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"errors"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -18,13 +17,13 @@ func TestError_E_Good(t *testing.T) {
 }
 
 func TestError_E_WithCause_Good(t *testing.T) {
-	cause := errors.New("connection refused")
+	cause := NewError("connection refused")
 	err := E("db.Connect", "database unavailable", cause)
 	assert.ErrorIs(t, err, cause)
 }
 
 func TestError_Wrap_Good(t *testing.T) {
-	cause := errors.New("timeout")
+	cause := NewError("timeout")
 	err := Wrap(cause, "api.Call", "request failed")
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, cause)
@@ -36,7 +35,7 @@ func TestError_Wrap_Nil_Good(t *testing.T) {
 }
 
 func TestError_WrapCode_Good(t *testing.T) {
-	cause := errors.New("invalid email")
+	cause := NewError("invalid email")
 	err := WrapCode(cause, "VALIDATION_ERROR", "user.Validate", "bad input")
 	assert.Error(t, err)
 	assert.Equal(t, "VALIDATION_ERROR", ErrorCode(err))
@@ -56,7 +55,7 @@ func TestError_Operation_Good(t *testing.T) {
 }
 
 func TestError_Operation_Bad(t *testing.T) {
-	err := errors.New("plain error")
+	err := NewError("plain error")
 	assert.Equal(t, "", Operation(err))
 }
 
@@ -66,7 +65,7 @@ func TestError_ErrorMessage_Good(t *testing.T) {
 }
 
 func TestError_ErrorMessage_Plain(t *testing.T) {
-	err := errors.New("plain")
+	err := NewError("plain")
 	assert.Equal(t, "plain", ErrorMessage(err))
 }
 
@@ -75,7 +74,7 @@ func TestError_ErrorMessage_Nil(t *testing.T) {
 }
 
 func TestError_Root_Good(t *testing.T) {
-	root := errors.New("root cause")
+	root := NewError("root cause")
 	wrapped := Wrap(root, "layer1", "first wrap")
 	double := Wrap(wrapped, "layer2", "second wrap")
 	assert.Equal(t, root, Root(double))
@@ -103,7 +102,7 @@ func TestError_FormatStackTrace_Good(t *testing.T) {
 
 func TestError_ErrorLog_Good(t *testing.T) {
 	c := New()
-	cause := errors.New("boom")
+	cause := NewError("boom")
 	r := c.Log().Error(cause, "test.Operation", "something broke")
 	assert.False(t, r.OK)
 	assert.ErrorIs(t, r.Value.(error), cause)
@@ -117,7 +116,7 @@ func TestError_ErrorLog_Nil_Good(t *testing.T) {
 
 func TestError_ErrorLog_Warn_Good(t *testing.T) {
 	c := New()
-	cause := errors.New("warning")
+	cause := NewError("warning")
 	r := c.Log().Warn(cause, "test.Operation", "heads up")
 	assert.False(t, r.OK)
 }
@@ -125,7 +124,7 @@ func TestError_ErrorLog_Warn_Good(t *testing.T) {
 func TestError_ErrorLog_Must_Ugly(t *testing.T) {
 	c := New()
 	assert.Panics(t, func() {
-		c.Log().Must(errors.New("fatal"), "test.Operation", "must fail")
+		c.Log().Must(NewError("fatal"), "test.Operation", "must fail")
 	})
 }
 
@@ -170,7 +169,7 @@ func TestError_ErrorPanic_SafeGo_Panic_Good(t *testing.T) {
 // --- Standard Library Wrappers ---
 
 func TestError_Is_Good(t *testing.T) {
-	target := errors.New("target")
+	target := NewError("target")
 	wrapped := Wrap(target, "op", "msg")
 	assert.True(t, Is(wrapped, target))
 }
@@ -188,8 +187,8 @@ func TestError_NewError_Good(t *testing.T) {
 }
 
 func TestError_ErrorJoin_Good(t *testing.T) {
-	e1 := errors.New("first")
-	e2 := errors.New("second")
+	e1 := NewError("first")
+	e2 := NewError("second")
 	joined := ErrorJoin(e1, e2)
 	assert.ErrorIs(t, joined, e1)
 	assert.ErrorIs(t, joined, e2)
@@ -231,7 +230,7 @@ func TestError_ErrorPanic_CrashFile_Good(t *testing.T) {
 // --- Error formatting branches ---
 
 func TestError_Err_Error_WithCode_Good(t *testing.T) {
-	err := WrapCode(errors.New("bad"), "INVALID", "validate", "input failed")
+	err := WrapCode(NewError("bad"), "INVALID", "validate", "input failed")
 	assert.Contains(t, err.Error(), "[INVALID]")
 	assert.Contains(t, err.Error(), "validate")
 	assert.Contains(t, err.Error(), "bad")
@@ -254,7 +253,7 @@ func TestError_WrapCode_NilErr_EmptyCode_Good(t *testing.T) {
 }
 
 func TestError_Wrap_PreservesCode_Good(t *testing.T) {
-	inner := WrapCode(errors.New("root"), "AUTH_FAIL", "auth", "denied")
+	inner := WrapCode(NewError("root"), "AUTH_FAIL", "auth", "denied")
 	outer := Wrap(inner, "handler", "request failed")
 	assert.Equal(t, "AUTH_FAIL", ErrorCode(outer))
 }

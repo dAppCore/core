@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"errors"
 	"fmt"
 
 	. "dappco.re/go/core"
@@ -17,17 +16,17 @@ func ExampleE() {
 }
 
 func ExampleWrap() {
-	cause := errors.New("connection refused")
+	cause := NewError("connection refused")
 	err := Wrap(cause, "database.Connect", "failed to reach host")
 	fmt.Println(Operation(err))
-	fmt.Println(errors.Is(err, cause))
+	fmt.Println(Is(err, cause))
 	// Output:
 	// database.Connect
 	// true
 }
 
 func ExampleRoot() {
-	cause := errors.New("original")
+	cause := NewError("original")
 	wrapped := Wrap(cause, "op1", "first wrap")
 	double := Wrap(wrapped, "op2", "second wrap")
 	fmt.Println(Root(double))

@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"errors"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -214,7 +213,7 @@ func TestUtils_Arg_NoArgs_Bad(t *testing.T) {
 }
 
 func TestUtils_Arg_ErrorDetection_Good(t *testing.T) {
-	err := errors.New("fail")
+	err := NewError("fail")
 	r := Arg(0, err)
 	assert.True(t, r.OK)
 	assert.Equal(t, err, r.Value)
@@ -280,7 +279,7 @@ func TestUtils_Result_Result_NilError_Good(t *testing.T) {
 }
 
 func TestUtils_Result_Result_WithError_Bad(t *testing.T) {
-	err := errors.New("fail")
+	err := NewError("fail")
 	r := Result{}.Result("value", err)
 	assert.False(t, r.OK)
 	assert.Equal(t, err, r.Value)
