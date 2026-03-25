@@ -2,6 +2,7 @@
 package core
 
 import (
+	"io"
 	"io/fs"
 	"os"
 	"os/user"
@@ -323,6 +324,54 @@ func (m *Fs) ReadStream(path string) Result {
 // WriteStream returns a writer for the file content.
 func (m *Fs) WriteStream(path string) Result {
 	return m.Create(path)
+}
+
+// ReadAll reads all bytes from a ReadCloser and closes it.
+// Wraps io.ReadAll so consumers don't import "io".
+//
+//	r := fs.ReadStream(path)
+//	data := core.ReadAll(r.Value)
+func ReadAll(reader any) Result {
+	rc, ok := reader.(io.Reader)
+	if !ok {
+		return Result{E("core.ReadAll", "not a reader", nil), false}
+	}
+	data, err := io.ReadAll(rc)
+	if closer, ok := reader.(io.Closer); ok {
+		closer.Close()
+	}
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{string(data), true}
+}
+
+// WriteAll writes content to a writer and closes it if it implements Closer.
+//
+//	r := fs.WriteStream(path)
+//	core.WriteAll(r.Value, "content")
+func WriteAll(writer any, content string) Result {
+	wc, ok := writer.(io.Writer)
+	if !ok {
+		return Result{E("core.WriteAll", "not a writer", nil), false}
+	}
+	_, err := wc.Write([]byte(content))
+	if closer, ok := writer.(io.Closer); ok {
+		closer.Close()
+	}
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{OK: true}
+}
+
+// CloseStream closes any value that implements io.Closer.
+//
+//	core.CloseStream(r.Value)
+func CloseStream(v any) {
+	if closer, ok := v.(io.Closer); ok {
+		closer.Close()
+	}
 }
 
 // Delete removes a file or empty directory.

@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"io"
 	"io/fs"
 	"testing"
 
@@ -92,7 +91,7 @@ func TestFs_Open_Good(t *testing.T) {
 	c.Fs().Write(path, "content")
 	r := c.Fs().Open(path)
 	assert.True(t, r.OK)
-	r.Value.(io.Closer).Close()
+	CloseStream(r.Value)
 }
 
 func TestFs_Create_Good(t *testing.T) {
@@ -101,9 +100,7 @@ func TestFs_Create_Good(t *testing.T) {
 	path := Path(dir, "sub", "created.txt")
 	r := c.Fs().Create(path)
 	assert.True(t, r.OK)
-	w := r.Value.(io.WriteCloser)
-	w.Write([]byte("hello"))
-	w.Close()
+	WriteAll(r.Value, "hello")
 	rr := c.Fs().Read(path)
 	assert.Equal(t, "hello", rr.Value.(string))
 }
@@ -115,9 +112,7 @@ func TestFs_Append_Good(t *testing.T) {
 	c.Fs().Write(path, "first")
 	r := c.Fs().Append(path)
 	assert.True(t, r.OK)
-	w := r.Value.(io.WriteCloser)
-	w.Write([]byte(" second"))
-	w.Close()
+	WriteAll(r.Value, " second")
 	rr := c.Fs().Read(path)
 	assert.Equal(t, "first second", rr.Value.(string))
 }
@@ -129,7 +124,7 @@ func TestFs_ReadStream_Good(t *testing.T) {
 	c.Fs().Write(path, "streamed")
 	r := c.Fs().ReadStream(path)
 	assert.True(t, r.OK)
-	r.Value.(io.Closer).Close()
+	CloseStream(r.Value)
 }
 
 func TestFs_WriteStream_Good(t *testing.T) {
@@ -138,9 +133,7 @@ func TestFs_WriteStream_Good(t *testing.T) {
 	path := Path(dir, "sub", "ws.txt")
 	r := c.Fs().WriteStream(path)
 	assert.True(t, r.OK)
-	w := r.Value.(io.WriteCloser)
-	w.Write([]byte("stream"))
-	w.Close()
+	WriteAll(r.Value, "stream")
 }
 
 func TestFs_Delete_Good(t *testing.T) {

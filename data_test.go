@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"embed"
-	"io"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -80,10 +79,9 @@ func TestData_Get_Good(t *testing.T) {
 
 	r := emb.Open("test.txt")
 	assert.True(t, r.OK)
-	file := r.Value.(io.ReadCloser)
-	defer file.Close()
-	content, _ := io.ReadAll(file)
-	assert.Equal(t, "hello from testdata\n", string(content))
+	cr := ReadAll(r.Value)
+	assert.True(t, cr.OK)
+	assert.Equal(t, "hello from testdata\n", cr.Value)
 }
 
 func TestData_Get_Bad(t *testing.T) {
