@@ -2720,6 +2720,195 @@ Combined with P6-1 (cascade), a consistently failing handler in the middle of th
 
 ---
 
+## Pass Eight — Type Safety
+
+> Eighth review. What does the type system promise versus what it delivers?
+> Where do panics hide behind type assertions?
+
+### P8-1. 79% of Type Assertions Are Bare — Panic on Wrong Type
+
+Core has 63 type assertions on `Result.Value` in source code. Only 13 use the comma-ok pattern. **50 are bare assertions that panic if the type is wrong:**
+
+```go
+// Safe (13 instances):
+s, ok := r.Value.(string)
+
+// Unsafe (50 instances):
+content := r.Value.(string)  // panics if Value is int, nil, or anything else
+entries := r.Value.([]os.DirEntry)  // panics if wrong
+```
+
+core/agent has 128 type assertions — the same ratio applies. Roughly 100 hidden panic sites in the consumer code.
+
+**The implicit contract:** "if `r.OK` is true, `Value` is the expected type." But nothing enforces this. A bug in `Fs.Read()` returning `int` instead of `string` would panic at the consumer's type assertion — far from the source.
+
+**Resolution:** Two approaches:
+1. **Typed Result methods** — `r.String()`, `r.Bytes()`, `r.Entries()` that use comma-ok internally
+2. **Convention enforcement** — AX-7 Ugly tests should test with wrong types in Result.Value
+
+### P8-2. Result Is One Type for Everything — No Compile-Time Safety
+
+```go
+type Result struct {
+    Value any
+    OK    bool
+}
+```
+
+`Fs.Read()` returns `Result` with `string`. `Fs.List()` returns `Result` with `[]os.DirEntry`. `Service()` returns `Result` with `*Service`. Same type, completely different contents. The compiler can't help.
+
+```go
+r := c.Fs().Read(path)
+entries := r.Value.([]os.DirEntry)  // compiles fine, panics at runtime
+```
+
+**This is the core trade-off of AX:** Result reduces LOC (`if r.OK` vs `if err != nil`) but loses compile-time type safety. Go's `(T, error)` pattern catches this at compile time. Core's Result catches it at runtime.
+
+**Resolution:** Accept the trade-off but mitigate:
+- Typed convenience methods on subsystems: `c.Fs().ReadString(path)` returns `string` directly
+- These already exist partially: `Options.String()`, `Config.String()`, `Config.Int()`
+- Extend the pattern: `c.Fs().ReadString()`, `c.Fs().ListEntries()`, `c.Data().ReadString()`
+- Keep `Result` as the universal type for generic operations. Add typed accessors for known patterns.
+
+### P8-3. Message/Query/Task Are All `any` — No Type Routing
+
+```go
+type Message any
+type Query any
+type Task any
+```
+
+Every IPC boundary is untyped. A handler receives `any` and must type-switch:
+
+```go
+c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
+    ev, ok := msg.(messages.AgentCompleted)
+    if !ok { return core.Result{OK: true} }  // not my message, skip
+})
+```
+
+Wrong type = silent skip. No compile-time guarantee that a handler will ever receive its expected message. No way to know at registration time what messages a handler cares about.
+
+**Resolution:** Named Actions (Section 18) fix this — each Action has a typed handler:
+
+```go
+c.Action("agent.completed", func(ctx context.Context, opts core.Options) core.Result {
+    // opts is always Options — typed accessor: opts.String("repo")
+    // no type-switch needed
+})
+```
+
+### P8-4. Option.Value Is `any` — Config Becomes Untyped Bag
+
+```go
+type Option struct {
+    Key   string
+    Value any  // string? int? bool? *MyStruct? []byte?
+}
+```
+
+`WithOption("port", 8080)` stores an int. `WithOption("name", "app")` stores a string. `WithOption("debug", true)` stores a bool. The Key gives no hint about the expected Value type.
+
+```go
+c.Options().String("port")  // returns "" — port is int, not string
+c.Options().Int("name")     // returns 0 — name is string, not int
+```
+
+Silent wrong-type returns. No error, no panic — just zero values.
+
+**Resolution:** `ConfigVar[T]` (Issue 11) solves this for Config. For Options, document expected types per key, or use typed option constructors:
+
+```go
+// Instead of:
+core.WithOption("port", 8080)
+
+// Consider:
+core.WithInt("port", 8080)
+core.WithString("name", "app")
+core.WithBool("debug", true)
+```
+
+This is more verbose but compile-time safe. Or accept the untyped bag and rely on convention + tests.
+
+### P8-5. ServiceFor Uses Generics but Returns (T, bool) Not Result
+
+```go
+func ServiceFor[T any](c *Core, name string) (T, bool) {
+```
+
+This is the ONE place Core uses Go's tuple return instead of Result. It breaks the universal pattern. A consumer accessing a service writes different error handling than accessing anything else:
+
+```go
+// Service — tuple pattern:
+svc, ok := core.ServiceFor[*Brain](c, "brain")
+if !ok { ... }
+
+// Everything else — Result pattern:
+r := c.Config().Get("key")
+if !r.OK { ... }
+```
+
+**Resolution:** Accept this. `ServiceFor[T]` uses generics which can't work with `Result.Value.(T)` ergonomically — the generic type parameter can't flow through the `any` interface. This is a Go language limitation, not a Core design choice.
+
+### P8-6. Fs Path Validation Returns Result — Then Callers Assert String
+
+```go
+func (m *Fs) validatePath(p string) Result {
+    // returns Result{validatedPath, true} or Result{error, false}
+}
+
+func (m *Fs) Read(p string) Result {
+    vp := m.validatePath(p)
+    if !vp.OK { return vp }
+    data, err := os.ReadFile(vp.Value.(string))  // bare assertion
+}
+```
+
+`validatePath` returns `Result` with a string inside. Every Fs method then bare-asserts `vp.Value.(string)`. This is safe (validatePath always returns string on OK) but the pattern is fragile — if validatePath ever changes its return type, every Fs method panics.
+
+**Resolution:** `validatePath` should return `(string, error)` since it's internal. Or `validatePath` should return `string` directly since failure means the whole Fs operation fails. Internal methods don't need Result wrapping — that's for the public API boundary.
+
+### P8-7. IPC Handler Registration Accepts Any Function — No Signature Validation
+
+```go
+c.RegisterAction(func(c *core.Core, msg core.Message) core.Result { ... })
+```
+
+The function signature is enforced by Go's type system. But `HandleIPCEvents` auto-discovery uses interface assertion:
+
+```go
+if handler, ok := instance.(interface {
+    HandleIPCEvents(*Core, Message) Result
+}); ok {
+```
+
+If a service has `HandleIPCEvents` with a SLIGHTLY wrong signature (e.g., returns `error` instead of `Result`), it silently doesn't register. No error, no warning. The service author thinks their handler is registered but it's not.
+
+**Resolution:** Log when a service has a method named `HandleIPCEvents` but with the wrong signature. Or better — remove auto-discovery (P5-4) and require explicit registration.
+
+### P8-8. The Guardrail Paradox — Core Removes Type Safety to Reduce LOC
+
+Core's entire design trades compile-time safety for runtime brevity:
+
+| Go Convention | Core | Trade-off |
+|--------------|------|-----------|
+| `(string, error)` | `Result` | Loses return type info |
+| `specific.Type` | `any` | Loses type checking |
+| `strings.Contains` | `core.Contains` | Same safety, different import |
+| `typed struct` | `Options{Key, Value any}` | Loses field types |
+
+The LOC reduction is real — `if r.OK` IS shorter than `if err != nil`. But every `r.Value.(string)` is a deferred panic that `(string, error)` would have caught at compile time.
+
+**This is not a bug — it's the fundamental design tension of Core.** The resolution is not to add types back (that defeats the purpose). It's to:
+1. Cover every type assertion with AX-7 Ugly tests
+2. Add typed convenience methods where patterns are known
+3. Accept that Result is a runtime contract, not a compile-time one
+4. Use `Registry[T]` (typed generic) instead of `map[string]any` where possible
+
+The guardrail primitives (Array[T], Registry[T], ConfigVar[T]) are Core's answer — they're generic and typed. The untyped surface (Result, Option, Message) is the integration layer where different types meet.
+
+---
+
 ## Versioning
 
 ### Release Model
