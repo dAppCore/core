@@ -1022,6 +1022,154 @@ This makes the capability map queryable. An agent can inspect what Actions are a
 
 ---
 
+## 19. API — Remote Streams (Planned)
+
+> Status: Design spec. The transport primitive for remote communication.
+
+### 19.1 The Concept
+
+HTTP is a stream. WebSocket is a stream. SSE is a stream. MCP over HTTP is a stream. The transport protocol is irrelevant to the consumer — you write bytes, you read bytes.
+
+```
+c.IPC()      → local conclave (in-process, same binary)
+c.API()      → remote streams (cross-process, cross-machine)
+c.Process()  → managed execution (via IPC Actions)
+```
+
+IPC is local. API is remote. The consumer doesn't care which one resolves their Action — if `process.run` is local it goes through IPC, if it's on Charon it goes through API. Same Action name, same Result type.
+
+### 19.2 The Primitive
+
+```go
+// API is the Core primitive for remote communication.
+// All remote transports are streams — the protocol is a detail.
+type API struct {
+    core    *Core
+    streams map[string]*Stream
+}
+
+// Accessor on Core
+func (c *Core) API() *API { return c.api }
+```
+
+### 19.3 Streams
+
+A Stream is a named, bidirectional connection to a remote endpoint. How it connects (HTTP, WebSocket, TCP, unix socket) is configured in `c.Drive()`.
+
+```go
+// Open a stream to a named endpoint
+s, err := c.API().Stream("charon")
+// → looks up "charon" in c.Drive()
+// → Drive has: transport="http://10.69.69.165:9101/mcp"
+// → API opens HTTP connection, returns Stream
+
+// Stream interface
+type Stream interface {
+    Send(data []byte) error
+    Receive() ([]byte, error)
+    Close() error
+}
+```
+
+### 19.4 Relationship to Drive
+
+`c.Drive()` holds the connection config. `c.API()` opens the actual streams.
+
+```go
+// Drive holds WHERE to connect
+c.Drive().New(core.NewOptions(
+    core.Option{Key: "name", Value: "charon"},
+    core.Option{Key: "transport", Value: "http://10.69.69.165:9101/mcp"},
+    core.Option{Key: "token", Value: agentToken},
+))
+
+// API handles HOW to connect
+s, _ := c.API().Stream("charon")  // reads config from Drive("charon")
+s.Send(payload)                    // HTTP POST under the hood
+resp, _ := s.Receive()             // SSE/response parsing under the hood
+```
+
+Drive is the phone book. API is the phone.
+
+### 19.5 Protocol Handlers
+
+Different transports register as protocol handlers — same pattern as Actions:
+
+```go
+// In a hypothetical core/http package:
+func Register(c *core.Core) core.Result {
+    c.API().RegisterProtocol("http", httpStreamFactory)
+    c.API().RegisterProtocol("https", httpStreamFactory)
+    return core.Result{OK: true}
+}
+
+// In core/mcp:
+func Register(c *core.Core) core.Result {
+    c.API().RegisterProtocol("mcp", mcpStreamFactory)
+    return core.Result{OK: true}
+}
+```
+
+When `c.API().Stream("charon")` is called:
+1. Look up "charon" in Drive → get transport URL
+2. Parse protocol from URL → "http"
+3. Find registered protocol handler → httpStreamFactory
+4. Factory creates the Stream
+
+No protocol handler = no capability. Same permission model as Process and Actions.
+
+### 19.6 Remote Action Dispatch
+
+The killer feature: Actions that transparently cross machine boundaries.
+
+```go
+// Local action — goes through IPC
+c.Action("agentic.status").Run(ctx, opts)
+
+// Remote action — goes through API
+c.Action("charon:agentic.status").Run(ctx, opts)
+// → splits on ":" → host="charon", action="agentic.status"
+// → c.API().Stream("charon") → sends JSON-RPC call
+// → remote core-agent handles it → result comes back
+```
+
+The current `dispatchRemote` function in core/agent does exactly this manually — builds MCP JSON-RPC, opens HTTP, parses SSE. With `c.API()`, it becomes one line.
+
+### 19.7 Where This Already Exists (Partially)
+
+The pieces are scattered across the ecosystem:
+
+| Current | Becomes |
+|---------|---------|
+| `dispatchRemote` in core/agent — manual HTTP + SSE + MCP | `c.Action("charon:agentic.dispatch").Run(opts)` |
+| `statusRemote` in core/agent — same manual HTTP | `c.Action("charon:agentic.status").Run(opts)` |
+| `mcpInitialize` / `mcpCall` in core/agent — MCP handshake | `c.API().Stream("charon")` (MCP protocol handler) |
+| `brainRecall` in core/agent — HTTP POST to brain API | `c.Action("brain.recall").Run(opts)` or `c.API().Stream("brain")` |
+| Forge API calls — custom HTTP client | `c.API().Stream("forge")` |
+| `DriveHandle.Transport` — stores URLs | `c.Drive()` already does this — API reads from it |
+
+### 19.8 The Full Subsystem Map
+
+```
+c.Options()   — input configuration (what was passed to New)
+c.App()       — identity (name, version)
+c.Config()    — runtime settings
+c.Data()      — embedded assets
+c.Drive()     — connection config (WHERE to reach things)
+c.API()       — remote streams (HOW to reach things)
+c.Fs()        — filesystem
+c.Process()   — managed execution
+c.IPC()       — local message bus + Action registry
+c.Cli()       — command tree
+c.Log()       — logging
+c.Error()     — panic recovery
+c.I18n()      — internationalisation
+```
+
+13 subsystems. Each one is a primitive. Packages extend them. The conclave is the composition of all registered services and their capabilities.
+
+---
+
 ## Design Philosophy
 
 ### Core Is Lego Bricks
@@ -1302,6 +1450,7 @@ This API follows RFC-025 Agent Experience (AX):
 
 ## Changelog
 
+- 2026-03-25: Added Section 19 — API/Stream remote transport primitive
 - 2026-03-25: Added Known Issues 9-16 (ADHD brain dump recovery — CommandLifecycle, Array[T], ConfigVar[T], Ipc struct, Lock allocation, Startables/Stoppables, stale comment, task.go concerns)
 - 2026-03-25: Added Section 18 — Action and Task execution primitives
 - 2026-03-25: Added Section 17 — c.Process() primitive spec
