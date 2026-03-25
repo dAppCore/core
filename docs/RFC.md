@@ -3810,8 +3810,7 @@ Each consumer RFC is self-contained — an agent can implement it from the docum
 ```
 v0.7.x  — previous stable
 v0.8.0  — production release: all primitives, all boundaries, all consumers aligned
-          Plans 1-5 done. Section 21 (Entitlements) pending implementation.
-          456 tests, 84.4% coverage, 100% AX-7 naming.
+          Sections 1-21 implemented. 483 tests, 84.7% coverage, 100% AX-7 naming.
 v0.8.*  — patches tell us where the agentic process missed things
 ```
 
@@ -3833,9 +3832,9 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 | All 16 Known Issues resolved in code | **Done** (2026-03-25) |
 | Section 17: c.Process() primitive | **Done** — Action sugar |
 | Section 18: Action/Task system | **Done** — ActionDef→Action, TaskDef→Task, type Task any removed |
-| Section 19: c.API() streams | Design spec in RFC, not yet implemented |
+| Section 19: c.API() streams | **Done** — Stream interface, protocol handlers, RemoteAction |
 | Section 20: Registry[T] primitive | **Done** — all 5 registries migrated |
-| Section 21: Entitlement primitive | Designed, implementation pending |
+| Section 21: Entitlement primitive | **Done** — Entitled(), SetEntitlementChecker(), RecordUsage(), Action.Run() enforcement |
 | AX-7 test coverage at 100% | **Done** — core/go 456/456 (100%) |
 | Zero os/exec in core/go | **Done** — App.Find() uses os.Stat |
 | type Task any removed | **Done** — PerformAsync takes named action + Options |
@@ -3845,8 +3844,8 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 
 ### What Blocks v0.8.0 Tag
 
-- Section 21: Entitlement primitive implementation (~100 lines)
 - go-process v0.7.0 alignment (consumer RFC written, ready to implement)
+- core/agent v0.8.0 migration (consumer RFC written, Phase 1 ready)
 
 ### What Does NOT Block v0.8.0
 
