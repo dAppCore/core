@@ -2521,6 +2521,205 @@ go-process's `OnShutdown` sends SIGTERM to all running processes. But `ServiceSh
 
 ---
 
+## Pass Seven — Failure Modes and Recovery
+
+> Seventh review. What happens when things go wrong? Panics, partial failures,
+> resource leaks, unrecoverable states.
+
+### P7-1. New() Returns Half-Built Core on Option Failure
+
+```go
+func New(opts ...CoreOption) *Core {
+    c := &Core{...}
+    for _, opt := range opts {
+        if r := opt(c); !r.OK {
+            Error("core.New failed", "err", r.Value)
+            break  // stops applying options, but returns c anyway
+        }
+    }
+    c.LockApply()
+    return c  // half-built: some services registered, some not
+}
+```
+
+If `WithService` #3 fails, services #1 and #2 are registered but #3-5 are not. The caller gets a `*Core` with no indication it's incomplete. No error return. Just a log message.
+
+**Resolution:** `New()` should either:
+- Return `(*Core, error)` — breaking change but honest
+- Store the error on Core: `c.Error().HasFailed()` — queryable
+- Panic on construction failure — it's unrecoverable anyway
+
+### P7-2. ServiceStartup Fails — No Rollback, No Cleanup
+
+If service 3 of 5 fails `OnStartup`:
+- Services 1+2 are running (started successfully)
+- Service 3 failed
+- Services 4+5 never started
+- `Run()` calls `os.Exit(1)`
+- Services 1+2 never get `OnShutdown` called
+- Open files, goroutines, connections leak
+
+```go
+func (c *Core) Run() {
+    r := c.ServiceStartup(c.context, nil)
+    if !r.OK {
+        Error(err.Error())
+        os.Exit(1)  // no cleanup — started services leak
+    }
+```
+
+**Resolution:** `Run()` should call `ServiceShutdown` even on startup failure — to clean up services that DID start:
+
+```go
+r := c.ServiceStartup(c.context, nil)
+if !r.OK {
+    c.ServiceShutdown(context.Background())  // cleanup started services
+    os.Exit(1)
+}
+```
+
+### P7-3. ACTION Handlers Have No Panic Recovery
+
+```go
+func (c *Core) Action(msg Message) Result {
+    for _, h := range handlers {
+        if r := h(c, msg); !r.OK {  // if h panics → unrecovered
+            return r
+        }
+    }
+}
+```
+
+`PerformAsync` has `defer recover()`. ACTION handlers do not. A single panicking handler crashes the entire application. Given that handlers run user-supplied code (service event handlers), this is high risk.
+
+**Resolution:** Wrap each handler call in panic recovery:
+
+```go
+for _, h := range handlers {
+    func() {
+        defer func() {
+            if r := recover(); r != nil {
+                Error("ACTION handler panicked", "err", r, "msg", msg)
+            }
+        }()
+        h(c, msg)
+    }()
+}
+```
+
+This matches PerformAsync's pattern. A panicking handler is logged and skipped, not fatal.
+
+### P7-4. Run() Has No Panic Recovery — Shutdown Skipped
+
+```go
+func (c *Core) Run() {
+    // no defer recover()
+    c.ServiceStartup(...)
+    cli.Run()               // if this panics...
+    c.ServiceShutdown(...)  // ...this never runs
+}
+```
+
+If `Cli.Run()` panics (user command handler panics), `ServiceShutdown` is never called. All services leak. PID files aren't cleaned. Health endpoints keep responding.
+
+**Resolution:** `Run()` needs `defer c.ServiceShutdown(context.Background())`:
+
+```go
+func (c *Core) Run() {
+    defer c.ServiceShutdown(context.Background())
+    // ... rest of Run
+}
+```
+
+### P7-5. os.Exit(1) Called Directly — Bypasses defer
+
+`Run()` calls `os.Exit(1)` twice. `os.Exit` bypasses ALL defer statements. Even if we add `defer ServiceShutdown`, `os.Exit(1)` skips it.
+
+```go
+r := c.ServiceStartup(...)
+if !r.OK {
+    os.Exit(1)  // skips all defers
+}
+```
+
+**Resolution:** Don't call `os.Exit` inside `Run()`. Return an error and let `main()` handle the exit:
+
+```go
+func (c *Core) Run() error {
+    defer c.ServiceShutdown(context.Background())
+    // ...
+    if !r.OK { return r.Value.(error) }
+    return nil
+}
+
+// In main():
+if err := c.Run(); err != nil {
+    os.Exit(1)
+}
+```
+
+Or use `c.Error().Recover()` + panic instead of os.Exit — panics respect defer.
+
+### P7-6. ServiceShutdown Continues After First Error But May Miss Services
+
+```go
+var firstErr error
+for _, s := range stoppables {
+    r := s.OnStop()
+    if !r.OK && firstErr == nil {
+        firstErr = e  // records first error
+    }
+}
+```
+
+Good — it continues calling OnStop even after failures. But it checks `ctx.Err()` in the loop:
+
+```go
+if err := ctx.Err(); err != nil {
+    return Result{err, false}  // stops remaining services
+}
+```
+
+If the shutdown context has a timeout and it expires, remaining services never get OnStop. Combined with P7-4 (no panic recovery), a slow-to-stop service can prevent later services from stopping.
+
+**Resolution:** Each service gets its own shutdown timeout, not a shared context:
+
+```go
+for _, s := range stoppables {
+    svcCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+    s.OnStop(svcCtx)
+    cancel()
+}
+```
+
+### P7-7. ErrorPanic.SafeGo Exists but Nobody Uses It
+
+```go
+func (h *ErrorPanic) SafeGo(fn func()) {
+    go func() {
+        defer h.Recover()
+        fn()
+    }()
+}
+```
+
+A protected goroutine launcher exists. But `PerformAsync` doesn't use it — it has its own inline `defer recover()`. `Run()` doesn't use it. `ACTION` dispatch doesn't use it. The safety primitive exists but isn't wired into the system that needs it most.
+
+**Resolution:** `SafeGo` should be the standard way to spawn goroutines in Core. `PerformAsync`, `Run()`, and ACTION handlers should all use `c.Error().SafeGo()` or its equivalent. One pattern for protected goroutine spawning.
+
+### P7-8. No Circuit Breaker on IPC Handlers
+
+If an ACTION handler consistently fails (returns !OK or panics), it's still called for every message forever. There's no:
+- Tracking of handler failure rate
+- Automatic disabling of broken handlers
+- Alert that a handler is failing
+
+Combined with P6-1 (cascade), a consistently failing handler in the middle of the pipeline blocks everything downstream on every event.
+
+**Resolution:** The Action system (Section 18) should track failure rate per action. After N consecutive failures, the action is suspended with an alert. This is the same rate-limiting pattern that core/agent uses for agent dispatch (`trackFailureRate` in dispatch.go).
+
+---
+
 ## Versioning
 
 ### Release Model
