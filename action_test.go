@@ -153,7 +153,7 @@ func TestAction_Task_Good_Sequential(t *testing.T) {
 		return Result{Value: "output-b", OK: true}
 	})
 
-	c.Task("pipeline", TaskDef{
+	c.Task("pipeline", Task{
 		Steps: []Step{
 			{Action: "step.a"},
 			{Action: "step.b"},
@@ -182,7 +182,7 @@ func TestAction_Task_Bad_StepFails(t *testing.T) {
 		return Result{OK: true}
 	})
 
-	c.Task("broken", TaskDef{
+	c.Task("broken", Task{
 		Steps: []Step{
 			{Action: "step.ok"},
 			{Action: "step.fail"},
@@ -197,7 +197,7 @@ func TestAction_Task_Bad_StepFails(t *testing.T) {
 
 func TestAction_Task_Bad_MissingAction(t *testing.T) {
 	c := New()
-	c.Task("missing", TaskDef{
+	c.Task("missing", Task{
 		Steps: []Step{
 			{Action: "nonexistent"},
 		},
@@ -219,7 +219,7 @@ func TestAction_Task_Good_PreviousInput(t *testing.T) {
 		return Result{Value: "got: " + input.Value.(string), OK: true}
 	})
 
-	c.Task("pipe", TaskDef{
+	c.Task("pipe", Task{
 		Steps: []Step{
 			{Action: "produce"},
 			{Action: "consume", Input: "previous"},
@@ -233,14 +233,14 @@ func TestAction_Task_Good_PreviousInput(t *testing.T) {
 
 func TestAction_Task_Ugly_EmptySteps(t *testing.T) {
 	c := New()
-	c.Task("empty", TaskDef{})
+	c.Task("empty", Task{})
 	r := c.Task("empty").Run(context.Background(), c, NewOptions())
 	assert.False(t, r.OK)
 }
 
 func TestAction_Tasks_Good(t *testing.T) {
 	c := New()
-	c.Task("deploy", TaskDef{Steps: []Step{{Action: "x"}}})
-	c.Task("review", TaskDef{Steps: []Step{{Action: "y"}}})
+	c.Task("deploy", Task{Steps: []Step{{Action: "x"}}})
+	c.Task("review", Task{Steps: []Step{{Action: "y"}}})
 	assert.Equal(t, []string{"deploy", "review"}, c.Tasks())
 }

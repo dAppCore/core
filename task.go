@@ -1,77 +1,61 @@
 // SPDX-License-Identifier: EUPL-1.2
 
-// Background task dispatch for the Core framework.
+// Background action dispatch for the Core framework.
+// PerformAsync runs a named Action in a background goroutine with
+// panic recovery and progress broadcasting.
 
 package core
 
-import (
-	"reflect"
-	"slices"
-	"strconv"
-)
+import "context"
 
-// TaskState holds background task state.
-type TaskState struct {
-	Identifier string
-	Task       Task
-	Result     any
-	Error      error
-}
-
-// PerformAsync dispatches a task in a background goroutine.
-func (c *Core) PerformAsync(t Task) Result {
+// PerformAsync dispatches a named action in a background goroutine.
+// Broadcasts ActionTaskStarted, ActionTaskProgress, and ActionTaskCompleted
+// as IPC messages so other services can track progress.
+//
+//	r := c.PerformAsync("agentic.dispatch", opts)
+//	taskID := r.Value.(string)
+func (c *Core) PerformAsync(action string, opts Options) Result {
 	if c.shutdown.Load() {
 		return Result{}
 	}
-	taskID := Concat("task-", strconv.FormatUint(c.taskIDCounter.Add(1), 10))
-	if tid, ok := t.(TaskWithIdentifier); ok {
-		tid.SetTaskIdentifier(taskID)
-	}
-	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Task: t})
+	taskID := ID()
+
+	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Action: action, Options: opts})
+
 	c.waitGroup.Go(func() {
 		defer func() {
 			if rec := recover(); rec != nil {
-				err := E("core.PerformAsync", Sprint("panic: ", rec), nil)
-				c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: nil, Error: err})
+				c.ACTION(ActionTaskCompleted{
+					TaskIdentifier: taskID,
+					Action:         action,
+					Result:         Result{E("core.PerformAsync", Sprint("panic: ", rec), nil), false},
+				})
 			}
 		}()
-		r := c.PERFORM(t)
-		var err error
-		if !r.OK {
-			if e, ok := r.Value.(error); ok {
-				err = e
-			} else {
-				taskType := reflect.TypeOf(t)
-				typeName := "<nil>"
-				if taskType != nil {
-					typeName = taskType.String()
-				}
-				err = E("core.PerformAsync", Join(" ", "no handler found for task type", typeName), nil)
-			}
-		}
-		c.ACTION(ActionTaskCompleted{TaskIdentifier: taskID, Task: t, Result: r.Value, Error: err})
+
+		r := c.Action(action).Run(context.Background(), opts)
+
+		c.ACTION(ActionTaskCompleted{
+			TaskIdentifier: taskID,
+			Action:         action,
+			Result:         r,
+		})
 	})
+
 	return Result{taskID, true}
 }
 
 // Progress broadcasts a progress update for a background task.
-func (c *Core) Progress(taskID string, progress float64, message string, t Task) {
-	c.ACTION(ActionTaskProgress{TaskIdentifier: taskID, Task: t, Progress: progress, Message: message})
+//
+//	c.Progress(taskID, 0.5, "halfway done", "agentic.dispatch")
+func (c *Core) Progress(taskID string, progress float64, message string, action string) {
+	c.ACTION(ActionTaskProgress{
+		TaskIdentifier: taskID,
+		Action:         action,
+		Progress:       progress,
+		Message:        message,
+	})
 }
 
-func (c *Core) Perform(t Task) Result {
-	c.ipc.taskMu.RLock()
-	handlers := slices.Clone(c.ipc.taskHandlers)
-	c.ipc.taskMu.RUnlock()
-
-	for _, h := range handlers {
-		r := h(c, t)
-		if r.OK {
-			return r
-		}
-	}
-	return Result{}
-}
-
-// Registration methods (RegisterAction, RegisterActions, RegisterTask)
+// Registration methods (RegisterAction, RegisterActions)
 // are in ipc.go — registration is IPC's responsibility.

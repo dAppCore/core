@@ -16,21 +16,8 @@ type Message any
 // Query is the type for read-only IPC requests.
 type Query any
 
-// Task is the type for IPC requests that perform side effects.
-type Task any
-
-// TaskWithIdentifier is an optional interface for tasks that need to know their assigned identifier.
-type TaskWithIdentifier interface {
-	Task
-	SetTaskIdentifier(id string)
-	GetTaskIdentifier() string
-}
-
 // QueryHandler handles Query requests. Returns Result{Value, OK}.
 type QueryHandler func(*Core, Query) Result
-
-// TaskHandler handles Task requests. Returns Result{Value, OK}.
-type TaskHandler func(*Core, Task) Result
 
 // Startable is implemented by services that need startup initialisation.
 //
@@ -57,21 +44,21 @@ type ActionServiceShutdown struct{}
 
 type ActionTaskStarted struct {
 	TaskIdentifier string
-	Task           Task
+	Action         string
+	Options        Options
 }
 
 type ActionTaskProgress struct {
 	TaskIdentifier string
-	Task           Task
+	Action         string
 	Progress       float64
 	Message        string
 }
 
 type ActionTaskCompleted struct {
 	TaskIdentifier string
-	Task           Task
-	Result         any
-	Error          error
+	Action         string
+	Result         Result
 }
 
 // --- Constructor ---
@@ -106,7 +93,7 @@ func New(opts ...CoreOption) *Core {
 		error:    &ErrorPanic{},
 		log:      &ErrorLog{},
 		lock:     &Lock{locks: NewRegistry[*sync.RWMutex]()},
-		ipc:      &Ipc{actions: NewRegistry[*Action](), tasks: NewRegistry[*TaskDef]()},
+		ipc:      &Ipc{actions: NewRegistry[*Action](), tasks: NewRegistry[*Task]()},
 		info:     systemInfo,
 		i18n:     &I18n{},
 		services: &ServiceRegistry{Registry: NewRegistry[*Service]()},

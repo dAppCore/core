@@ -122,9 +122,9 @@ type Step struct {
 	Input  string  // "previous" = output of last step piped as input
 }
 
-// TaskDef is a named sequence of Steps.
+// Task is a named sequence of Steps.
 //
-//	c.Task("agent.completion", core.TaskDef{
+//	c.Task("agent.completion", core.Task{
 //	    Steps: []core.Step{
 //	        {Action: "agentic.qa"},
 //	        {Action: "agentic.auto-pr"},
@@ -132,7 +132,7 @@ type Step struct {
 //	        {Action: "agentic.poke", Async: true},
 //	    },
 //	})
-type TaskDef struct {
+type Task struct {
 	Name        string
 	Description string
 	Steps       []Step
@@ -143,7 +143,7 @@ type TaskDef struct {
 // The "previous" input pipes the last sync step's output to the next step.
 //
 //	r := c.Task("deploy").Run(ctx, opts)
-func (t *TaskDef) Run(ctx context.Context, c *Core, opts Options) Result {
+func (t *Task) Run(ctx context.Context, c *Core, opts Options) Result {
 	if t == nil || len(t.Steps) == 0 {
 		return Result{E("task.Run", Concat("task has no steps: ", t.safeName()), nil), false}
 	}
@@ -187,7 +187,7 @@ func (t *TaskDef) Run(ctx context.Context, c *Core, opts Options) Result {
 	return lastResult
 }
 
-func (t *TaskDef) safeName() string {
+func (t *Task) safeName() string {
 	if t == nil {
 		return "<nil>"
 	}
@@ -201,12 +201,12 @@ func stepOptions(step Step) Options {
 }
 
 // Task gets or registers a named task.
-// With a TaskDef argument: registers the task.
+// With a Task argument: registers the task.
 // Without: returns the task for invocation.
 //
-//	c.Task("deploy", core.TaskDef{Steps: steps})  // register
+//	c.Task("deploy", core.Task{Steps: steps})  // register
 //	c.Task("deploy").Run(ctx, c, opts)             // invoke
-func (c *Core) Task(name string, def ...TaskDef) *TaskDef {
+func (c *Core) Task(name string, def ...Task) *Task {
 	if len(def) > 0 {
 		d := def[0]
 		d.Name = name
@@ -215,9 +215,9 @@ func (c *Core) Task(name string, def ...TaskDef) *TaskDef {
 	}
 	r := c.ipc.tasks.Get(name)
 	if !r.OK {
-		return &TaskDef{Name: name}
+		return &Task{Name: name}
 	}
-	return r.Value.(*TaskDef)
+	return r.Value.(*Task)
 }
 
 // Tasks returns all registered task names.

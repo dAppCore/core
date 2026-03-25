@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"context"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -128,17 +129,14 @@ func TestIpc_QueryAll_Good(t *testing.T) {
 	assert.Contains(t, results, "b")
 }
 
-// --- IPC: Tasks ---
+// --- IPC: Named Action Invocation ---
 
-func TestIpc_Perform_Good(t *testing.T) {
+func TestIpc_ActionInvoke_Good(t *testing.T) {
 	c := New()
-	c.RegisterTask(func(_ *Core, t Task) Result {
-		if t == "compute" {
-			return Result{Value: 42, OK: true}
-		}
-		return Result{}
+	c.Action("compute", func(_ context.Context, opts Options) Result {
+		return Result{Value: 42, OK: true}
 	})
-	r := c.PERFORM("compute")
+	r := c.Action("compute").Run(context.Background(), NewOptions())
 	assert.True(t, r.OK)
 	assert.Equal(t, 42, r.Value)
 }

@@ -108,7 +108,6 @@ func (c *Core) Run() {
 func (c *Core) ACTION(msg Message) Result { return c.broadcast(msg) }
 func (c *Core) QUERY(q Query) Result      { return c.Query(q) }
 func (c *Core) QUERYALL(q Query) Result   { return c.QueryAll(q) }
-func (c *Core) PERFORM(t Task) Result     { return c.Perform(t) }
 
 // --- Error+Log ---
 

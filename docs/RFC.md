@@ -2540,6 +2540,8 @@ c.Task("agent-completion-pipeline", core.TaskDef{
 
 The Task executor runs steps in order, with `Async: true` steps dispatched in parallel. Ingest and Poke don't wait for the pipeline — they fire immediately. The pipeline has a timeout. Each step has its own error handling.
 
+**Status (2026-03-25):** core/go `TaskDef` with `Steps` is implemented and tested. The core/agent wiring is documented in `core/agent/docs/plans/2026-03-25-core-go-v0.8.0-migration.md` Priority 5.
+
 ### P6-2. Every Handler Receives Every Message — O(handlers × messages)
 
 All 5 handlers are called for every ACTION. Each handler type-checks and skips if it's not their message. With N handlers and M message types, this is O(N×M) per event — every handler processes every message even if it only cares about one type.
@@ -3693,7 +3695,7 @@ The meta-assumption: this RFC is complete. It's not. It's the best single-sessio
 
 **This is by design for v0.8.0.** All services are first-party trusted code. The Lego Bricks philosophy says "export everything." The tension is: Lego Bricks vs Least Privilege.
 
-**Resolution for v0.9.0+:** Entitlements, not CoreView. The boundary system already exists in CorePHP (RFC-004: Entitlements). Port it:
+**Resolution:** Section 21 (Entitlement primitive) — designed, implementation pending. Brought forward from v0.9.0 to v0.8.0. Port RFC-004 concept:
 
 ```
 Registration = capability  ("process.run action exists")
@@ -3715,7 +3717,7 @@ IPC dispatch is synchronous. Startup is synchronous. File I/O assumes no concurr
 
 **The cascade (P6-1) is the symptom.** The root cause is that Core was designed for sequential execution and concurrency was added incrementally without revisiting the foundations.
 
-**Resolution:** The Action/Task system (Section 18) is the fix. Actions execute with concurrency control. Tasks define parallel/sequential composition. The IPC bus stops being the execution engine — it becomes the notification channel. PERFORM replaces ACTION for request/response. Async is opt-in per Action, not per handler.
+**Resolution:** The Action/Task system (Section 18) is implemented in core/go. `TaskDef` with `Steps` supports sequential chains, async dispatch, and previous-input piping. The cascade fix requires core/agent to wire its handlers as named Actions and replace the nested `c.ACTION()` calls with `c.Task("agent.completion").Run()`. See `core/agent/docs/plans/2026-03-25-core-go-v0.8.0-migration.md` Priority 5.
 
 ### Root Cause 4: No Recovery Path — 10 findings
 

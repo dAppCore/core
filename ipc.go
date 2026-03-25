@@ -21,11 +21,8 @@ type Ipc struct {
 	queryMu       sync.RWMutex
 	queryHandlers []QueryHandler
 
-	taskMu       sync.RWMutex
-	taskHandlers []TaskHandler
-
 	actions *Registry[*Action] // named action registry
-	tasks   *Registry[*TaskDef]   // named task registry
+	tasks   *Registry[*Task]   // named task registry
 }
 
 // broadcast dispatches a message to all registered IPC handlers.
@@ -104,9 +101,3 @@ func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
 	c.ipc.ipcMu.Unlock()
 }
 
-// RegisterTask registers a handler for PERFORM task dispatch.
-func (c *Core) RegisterTask(handler TaskHandler) {
-	c.ipc.taskMu.Lock()
-	c.ipc.taskHandlers = append(c.ipc.taskHandlers, handler)
-	c.ipc.taskMu.Unlock()
-}

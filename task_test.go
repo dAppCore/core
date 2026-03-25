@@ -17,17 +17,16 @@ func TestTask_PerformAsync_Good(t *testing.T) {
 	var mu sync.Mutex
 	var result string
 
-	c.RegisterTask(func(_ *Core, task Task) Result {
+	c.Action("work", func(_ context.Context, _ Options) Result {
 		mu.Lock()
 		result = "done"
 		mu.Unlock()
-		return Result{"completed", true}
+		return Result{Value: "done", OK: true}
 	})
 
-	r := c.PerformAsync("work")
+	r := c.PerformAsync("work", NewOptions())
 	assert.True(t, r.OK)
-	taskID := r.Value.(string)
-	assert.NotEmpty(t, taskID)
+	assert.True(t, HasPrefix(r.Value.(string), "id-"), "should return task ID")
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -36,24 +35,25 @@ func TestTask_PerformAsync_Good(t *testing.T) {
 	mu.Unlock()
 }
 
-func TestTask_PerformAsync_Progress_Good(t *testing.T) {
+func TestTask_PerformAsync_Good_Progress(t *testing.T) {
 	c := New()
-	c.RegisterTask(func(_ *Core, task Task) Result {
+	c.Action("tracked", func(_ context.Context, _ Options) Result {
 		return Result{OK: true}
 	})
 
-	r := c.PerformAsync("work")
+	r := c.PerformAsync("tracked", NewOptions())
 	taskID := r.Value.(string)
-	c.Progress(taskID, 0.5, "halfway", "work")
+	c.Progress(taskID, 0.5, "halfway", "tracked")
 }
 
-func TestTask_PerformAsync_Completion_Good(t *testing.T) {
+func TestTask_PerformAsync_Good_Completion(t *testing.T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
 
-	c.RegisterTask(func(_ *Core, task Task) Result {
-		return Result{Value: "result", OK: true}
+	c.Action("completable", func(_ context.Context, _ Options) Result {
+		return Result{Value: "output", OK: true}
 	})
+
 	c.RegisterAction(func(_ *Core, msg Message) Result {
 		if evt, ok := msg.(ActionTaskCompleted); ok {
 			completed <- evt
@@ -61,18 +61,18 @@ func TestTask_PerformAsync_Completion_Good(t *testing.T) {
 		return Result{OK: true}
 	})
 
-	c.PerformAsync("work")
+	c.PerformAsync("completable", NewOptions())
 
 	select {
 	case evt := <-completed:
-		assert.Nil(t, evt.Error)
-		assert.Equal(t, "result", evt.Result)
+		assert.True(t, evt.Result.OK)
+		assert.Equal(t, "output", evt.Result.Value)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for completion")
 	}
 }
 
-func TestTask_PerformAsync_NoHandler_Good(t *testing.T) {
+func TestTask_PerformAsync_Bad_ActionNotRegistered(t *testing.T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
 
@@ -83,26 +83,28 @@ func TestTask_PerformAsync_NoHandler_Good(t *testing.T) {
 		return Result{OK: true}
 	})
 
-	c.PerformAsync("unhandled")
+	c.PerformAsync("nonexistent", NewOptions())
 
 	select {
 	case evt := <-completed:
-		assert.NotNil(t, evt.Error)
+		assert.False(t, evt.Result.OK, "unregistered action should fail")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out")
 	}
 }
 
-func TestTask_PerformAsync_AfterShutdown_Bad(t *testing.T) {
+func TestTask_PerformAsync_Bad_AfterShutdown(t *testing.T) {
 	c := New()
+	c.Action("work", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+
 	c.ServiceStartup(context.Background(), nil)
 	c.ServiceShutdown(context.Background())
 
-	r := c.PerformAsync("should not run")
+	r := c.PerformAsync("work", NewOptions())
 	assert.False(t, r.OK)
 }
 
-// --- RegisterAction + RegisterActions ---
+// --- RegisterAction + RegisterActions (broadcast handlers) ---
 
 func TestTask_RegisterAction_Good(t *testing.T) {
 	c := New()
