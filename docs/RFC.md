@@ -1943,6 +1943,199 @@ After `New()`, `core.Info()` and `c.Log().Info()` go to the same destination. Th
 
 ---
 
+## Pass Three — Spec Contradictions
+
+> Third review. The structural issues are documented, the architectural concerns
+> are documented. Now looking for contradictions within the spec itself — places
+> where design decisions fight each other.
+
+### P3-1. Startable/Stoppable Return `error`, Everything Else Returns `Result`
+
+The lifecycle interfaces are the only Core contracts that return Go's `error`:
+
+```go
+type Startable interface { OnStartup(ctx context.Context) error }
+type Stoppable interface { OnShutdown(ctx context.Context) error }
+```
+
+But every other Core contract uses `Result`: `WithService` factories, `RegisterAction` handlers, `QueryHandler`, `TaskHandler`. This forces wrapping at the boundary:
+
+```go
+// Inside RegisterService — wrapping error into Result
+srv.OnStart = func() Result {
+    if err := s.OnStartup(c.context); err != nil {
+        return Result{err, false}
+    }
+    return Result{OK: true}
+}
+```
+
+**Resolution:** Change lifecycle interfaces to return `Result`:
+
+```go
+type Startable interface { OnStartup(ctx context.Context) Result }
+type Stoppable interface { OnShutdown(ctx context.Context) Result }
+```
+
+This is a breaking change but it unifies the contract. Every service author already returns `Result` from their factory — the lifecycle should match. The `error` return was inherited from Go convention, not from Core's design.
+
+### P3-2. Section 17 Process Returns `(string, error)`, Section 18 Action Returns `Result`
+
+Section 17 spec'd:
+```go
+func (p *Process) Run(ctx, cmd, args) (string, error)
+```
+
+Section 18 spec'd:
+```go
+func (a *ActionDef) Run(ctx, opts) Result
+```
+
+Section 18.9 says "Process IS an Action under the hood." But they have different return types. If Process is sugar over Actions, it should return Result:
+
+```go
+// Consistent:
+r := c.Process().Run(ctx, "git", "log")
+if r.OK { output := r.Value.(string) }
+
+// Or convenience accessor:
+output := c.Process().RunString(ctx, "git", "log")  // returns string, logs error
+```
+
+**Resolution:** Process methods return `Result` for consistency. Add typed convenience methods (`RunString`, `RunOK`) that unwrap Result for common patterns — same as `Options.String()` unwraps `Options.Get()`.
+
+### P3-3. Three Patterns for "Get a Value"
+
+```go
+Options.Get("key")         → Result        // check r.OK
+Options.String("key")      → string        // zero value on miss
+ServiceFor[T](c, "name")  → (T, bool)     // Go tuple
+Drive.Get("name")          → Result
+```
+
+Three different patterns. An agent must learn all three.
+
+**Resolution:** `Registry[T]` unifies the base: `Registry.Get()` returns `Result`. Typed convenience accessors (`String()`, `Int()`, `Bool()`) return zero values — same as Options already does. `ServiceFor[T]` returns `(T, bool)` because generics can't return through `Result.Value.(T)` ergonomically.
+
+The three patterns are actually two:
+- `Get()` → Result (when you need to check existence)
+- `String()`/`Int()`/typed accessor → zero value (when missing is OK)
+
+`ServiceFor` is the generic edge case. Accept it.
+
+### P3-4. Dual-Purpose Methods Are Anti-AX
+
+```go
+c.Service("name")       // GET — returns Result with service
+c.Service("name", svc)  // SET — registers service
+```
+
+Same method, different behaviour based on arg count. An agent reading `c.Service("auth")` can't tell if it's a read or write without checking the arg count.
+
+**Resolution:** Keep dual-purpose on Core as sugar (it's ergonomic). But the underlying `Registry[T]` has explicit verbs:
+
+```go
+// Registry — explicit, no ambiguity
+c.Registry("services").Get("auth")        // always read
+c.Registry("services").Set("auth", svc)   // always write
+
+// Core sugar — dual-purpose, ergonomic
+c.Service("auth")                          // read (no second arg)
+c.Service("auth", svc)                     // write (second arg present)
+```
+
+Document the dual-purpose pattern. Agents that need clarity use Registry. Agents that want brevity use the sugar.
+
+### P3-5. `error` Leaks Through Despite Result
+
+Core says "use Result, not (val, error)." But `error` appears at multiple boundaries:
+
+| Where | Returns | Why |
+|-------|---------|-----|
+| `Startable.OnStartup` | `error` | Go interface convention |
+| `core.E()` | `error` | It IS the error constructor |
+| `embed.go` internals | `error` | stdlib fs.FS requires it |
+| `ServiceStartup` wrapping | `error` → `Result` | Bridging two worlds |
+
+**Resolution:** Accept the boundary. `error` exists at the Go stdlib interface level. `Result` exists at the Core contract level. The rule is:
+
+- **Implementing a Go interface** (fs.FS, io.Reader, etc.) → return `error`
+- **Implementing a Core contract** (factory, handler, lifecycle) → return `Result`
+- **`core.E()`** returns `error` because it creates errors — it's a constructor, not a contract
+
+With P3-1 resolved (Startable/Stoppable return Result), the only `error` returns in Core contracts are the stdlib interface implementations.
+
+### P3-6. Data Has Overlapping APIs
+
+```go
+c.Data().Get("prompts")           // returns *Embed (the mount itself)
+c.Data().ReadString("prompts/x")  // reads a file through the mount
+c.Data().ReadFile("prompts/x")    // same but returns []byte
+c.Data().List("prompts/")         // lists files in mount
+```
+
+Two levels of abstraction on the same type: mount management (`Get`, `New`, `Mounts`) and file access (`ReadString`, `ReadFile`, `List`).
+
+**Resolution:** With `Registry[*Embed]`, Data splits cleanly:
+
+```go
+// Mount management — via Registry
+c.Data().Get("prompts")         // Registry[*Embed].Get() → the mount
+c.Data().Set("prompts", embed)  // Registry[*Embed].Set() → register mount
+c.Data().Names()                // Registry[*Embed].Names() → all mounts
+
+// File access — on the Embed itself
+embed := c.Data().Get("prompts").Value.(*Embed)
+embed.ReadString("coding.md")   // read from this specific mount
+```
+
+The current convenience methods (`c.Data().ReadString("prompts/coding.md")`) can stay as sugar — they resolve the mount from the path prefix then delegate. But the separation is clear: Data manages mounts, Embed reads files.
+
+### P3-7. Action System Has No Error Propagation Model
+
+Section 18 defines `c.Action("name").Run(opts) → Result`. But:
+
+- What if the handler panics? `PerformAsync` has `defer recover()`. Does `Run`?
+- What about timeouts? `ctx` is passed but no deadline enforcement.
+- What about retries? A failed Action just returns `Result{OK: false}`.
+
+**Resolution:** Actions inherit the safety model from `PerformAsync`:
+
+```go
+// Action.Run always wraps in panic recovery:
+func (a *ActionDef) Run(ctx context.Context, opts Options) Result {
+    defer func() {
+        if r := recover(); r != nil {
+            // capture, log, return Result{panic, false}
+        }
+    }()
+    return a.Handler(ctx, opts)
+}
+```
+
+Timeouts come from `ctx` — the caller sets the deadline, the Action respects it. Retries are a Task concern (Section 18.6), not an Action concern — a Task can define `Retry: 3` on a step.
+
+### P3-8. Registry.Lock() Is a One-Way Door
+
+`Registry.Lock()` prevents `Set()` permanently. No `Unlock()`. This was intentional for ServiceLock — once startup completes, no more service registration.
+
+But with Actions and hot-reload:
+- A service updates its Action handler after config change
+- A plugin system loads/unloads Actions at runtime
+- A test wants to replace an Action with a mock
+
+**Resolution:** Registry supports three lock modes:
+
+```go
+r.Lock()          // no new keys, no updates — fully frozen (ServiceLock)
+r.Seal()          // no new keys, but existing keys CAN be updated (Action hot-reload)
+r.Open()          // (default) anything goes
+```
+
+`Seal()` is the middle ground — the registry shape is fixed (no new capabilities appear) but implementations can change (handler updated, service replaced). This supports hot-reload without opening the door to uncontrolled registration.
+
+---
+
 ## Versioning
 
 ### Release Model
@@ -1989,6 +2182,7 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 
 ## Changelog
 
+- 2026-03-25: Pass Three — 8 spec contradictions (P3-1 through P3-8). Lifecycle returns, Process/Action mismatch, getter inconsistency, dual-purpose methods, error leaking, Data overlap, Action error model, Registry lock modes.
 - 2026-03-25: Pass Two — 8 architectural findings (P2-1 through P2-8)
 - 2026-03-25: Added versioning model + v0.8.0 requirements
 - 2026-03-25: Resolved all 16 Known Issues. Added Section 20 (Registry).
