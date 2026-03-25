@@ -939,171 +939,7 @@ core/agent       — orchestration (adds forge, yaml, mcp)
 
 Each layer imports the one below. core/go imports nothing from the ecosystem — everything imports core/go.
 
-## Known Issues — All Resolved
 
-| # | Issue | Resolution |
-|---|-------|-----------|
-| 1 | UPPERCASE vs CamelCase naming | `c.Action("name")` = primitive, `c.ACTION(msg)` = sugar. `broadcast()` internal. |
-| 2 | MustServiceFor uses panic | Kept — `Must` prefix is Go convention. Use only in startup paths. |
-| 3 | Embed() legacy accessor | Removed. Use `c.Data().Get("app")`. |
-| 4 | Package vs Core logging | Both stay. `core.Info()` = bootstrap. `c.Log().Info()` = runtime. |
-| 5 | RegisterAction in task.go | Moved to ipc.go. action.go has execution. task.go has PerformAsync. |
-| 6 | serviceRegistry unexported | `ServiceRegistry` embedding `Registry[*Service]`. All 5 registries migrated. |
-| 7 | No c.Process() | Implemented — Action sugar over `process.run/start/kill`. |
-| 8 | NewRuntime/NewWithFactories | GUI bridge, not legacy. Needs `WithRuntime(app)` CoreOption. |
-| 9 | CommandLifecycle interface | Removed. `Command.Managed` string field. Lifecycle verbs are Actions. |
-| 10 | Array[T] guardrail | Kept — ordered counterpart to Registry[T]. Model-proof collection ops. |
-| 11 | ConfigVar[T] | Kept — distinguishes "set to false" from "never set". Layered config. |
-| 12 | Ipc data-only struct | IPC owns Action registry. `c.Action()` is API. `c.IPC()` owns data. |
-| 13 | Lock() allocates per call | Lock uses `Registry[*sync.RWMutex]`. Mutex cached. |
-| 14 | Startables/Stoppables return type | Return `Result`. Registry.Each iterates in insertion order. |
-| 15 | New() comment stale | Fixed — shows `*Core` return with correct example. |
-| 16 | task.go mixes concerns | Split: ipc.go (registration), action.go (execution), task.go (async). `type Task any` removed. |
-
-> Full discussion of each issue preserved in git history (commit `0704a7a` and earlier).
-> The resolution column IS the current implementation.
-
-## AX Principles Applied
-
-This API follows RFC-025 Agent Experience (AX):
-
-1. **Predictable names** — `Config` not `Cfg`, `Service` not `Srv`
-2. **Usage-example comments** — every public function shows HOW with real values
-3. **Path is documentation** — `c.Data().ReadString("prompts/coding.md")`
-4. **Universal types** — Option, Options, Result everywhere
-5. **Event-driven** — ACTION/QUERY broadcast + named Actions, not direct function calls between services
-6. **Tests as spec** — `TestFile_Function_{Good,Bad,Ugly}` for every function
-7. **Export primitives** — Core is Lego bricks, not an encapsulated library
-8. **Naming encodes architecture** — CamelCase = primitive brick, UPPERCASE = consumer convenience
-9. **File = concern** — one file, one job (ipc.go = registry, action.go = execution, contract.go = types)
-
-## Findings Summary — 108 Findings Across 13 Passes (All Resolved)
-
-The full discovery process (Passes 2-13) produced 108 findings that reduce to 5 root causes.
-All findings are resolved in v0.8.0. Full pass detail preserved in git history.
-
-| Pass | Focus | Findings | Key Resolutions |
-|------|-------|----------|----------------|
-| 2 | Architecture | 8 | Core fields exported (Lego Bricks), Fs.root exception, Config untyped bag |
-| 3 | Spec contradictions | 8 | Startable returns Result, Process returns Result, Registry lock modes |
-| 4 | Concurrency | 12 | Registry[T] per-subsystem mutex, WriteAtomic, PerformAsync shutdown race |
-| 5 | Consumer experience | 8 | ServiceRuntime + manual .core both valid, HandleIPCEvents documented |
-| 6 | Cross-repo cascade | 8 | Task replaces nested ACTION cascade (P6-1), MCP aggregator pattern |
-| 7 | Failure modes | 8 | RunE() + defer shutdown, panic recovery in ACTION/Action, SafeGo |
-| 8 | Type safety | 8 | Result trade-off accepted, typed convenience methods, AX-7 Ugly tests |
-| 9 | Missing primitives | 8 | core.ID(), ValidateName, WriteAtomic, Fs.NewUnrestricted, c.Process() |
-| 10 | Spec self-audit | 8 | Subsystem count corrected, cross-reference table, findings index |
-| 11 | Security model | 8 | Entitlement primitive (Section 21), Fs.NewUnrestricted, audit logging |
-| 12 | Migration risk | 8 | Phase 1 additive (zero breakage), Phase 3 breaking (Startable, CommandLifecycle) |
-| 13 | Hidden assumptions | 8 | Single Core per process, Go only, Linux/macOS, static conclave, ephemeral IPC |
-
-## Synthesis — Five Root Causes
-
-> With all 108 findings in context, the patterns emerge. 60 findings
-> cluster into 5 root causes. Fix the root, fix the cluster.
-
-### Root Cause 1: Type Erasure via Result{any} — 16 findings
-
-`Result{Value: any, OK: bool}` erases all type information. Every consumer writes bare type assertions that panic on wrong types. The LOC reduction is real but the compile-time safety loss creates 50+ hidden panic sites.
-
-**The tension is fundamental.** Result exists to reduce downstream LOC. But `any` means the compiler can't help. This isn't fixable without abandoning Result — which defeats Core's purpose.
-
-**Mitigation, not fix:** Typed convenience methods (`ReadString`, `ListEntries`, `ConfigGet[T]`). AX-7 Ugly tests for every type assertion. `Registry[T]` where generics work. Accept `Result` as the integration seam where types meet.
-
-### Root Cause 2: No Internal Boundaries — 14 findings
-
-`*Core` grants God Mode. Every service sees everything. The unexported fields were an attempt at boundaries but `unsafe.Pointer` proves they don't work. The conclave has no isolation.
-
-**Resolution:** Section 21 (Entitlement primitive). `c.Entitled()` gates Actions. Default permissive (trusted conclave). Consumer packages replace the checker for SaaS/commerce gating. Port of RFC-004:
-
-```
-Registration = capability  ("process.run action exists")
-Entitlement  = permission  ("this Core is ALLOWED to run processes")
-```
-
-```go
-c.Entitled("process.run")     // true if both registered AND permitted
-c.Action("process.run").Run() // checks entitlement before executing
-```
-
-The Entitlement system (RFC-004) answers "can this workspace do this action?" with package-based feature gating, usage limits, and boost mechanics. Config Channels (RFC-003) add context — "what settings apply on this surface (CLI vs MCP vs HTTP)?" Together they provide the boundary model without removing Lego Bricks — all bricks exist, entitlements control which ones are usable.
-
-See: RFC-003 (Config Channels), RFC-004 (Entitlements), RFC-005 (Commerce Matrix).
-
-### Root Cause 3: Synchronous Everything — 12 findings
-
-IPC dispatch is synchronous. Startup is synchronous. File I/O assumes no concurrency. The one async path (`PerformAsync`) is unbounded. When anything runs concurrently — which it does in production — races emerge.
-
-**The cascade (P6-1) is the symptom.** The root cause is that Core was designed for sequential execution and concurrency was added incrementally without revisiting the foundations.
-
-**Resolution:** The Action/Task system (Section 18) is implemented. `Task` with `Steps` supports sequential chains, async dispatch, and previous-input piping. The cascade fix requires core/agent to wire its handlers as named Actions and replace nested `c.ACTION()` calls with `c.Task("agent.completion").Run(ctx, c, opts)`. See `core/agent/docs/RFC.md` Section 3.
-
-### Root Cause 4: No Recovery Path — 10 findings
-
-Every failure mode is "log and crash." `os.Exit(1)` bypasses defers. Startup failure leaks running services. Panicking handlers crash the process. `SafeGo` exists but isn't used.
-
-**One fix resolves most of this cluster:**
-
-```go
-func (c *Core) RunE() error {
-    defer c.ServiceShutdown(context.Background())
-    // ... returns error, no os.Exit
-}
-```
-
-`defer` ensures cleanup always runs. `RunE()` returns `error`; `Run()` delegates and exits. Panic recovery in ACTION handlers and Action.Run() prevents cascade crashes.
-
-### Root Cause 5: Missing Primitives — 8 findings
-
-The guardrail coverage was incomplete. Strings have primitives. Paths have primitives. Errors have primitives. IDs, validation, and atomic writes didn't.
-
-**Resolved:**
-- `core.ID()` — unique identifier (atomic counter + crypto/rand)
-- `core.ValidateName()` / `core.SanitisePath()` — reusable validation
-- `Fs.WriteAtomic()` — safe concurrent writes
-- `Fs.NewUnrestricted()` — legitimate sandbox bypass
-
-**Open:** `core.Health()` (production monitoring), timestamp convention, JSON helpers.
-
-### What This Means for v0.8.0
-
-The five root causes map to a priority order:
-
-| Priority | Root Cause | Resolution |
-|----------|-----------|------------|
-| 1 | No recovery (10) | **Done** — `RunE()`, `defer ServiceShutdown`, panic recovery |
-| 2 | Synchronous (12) | **Done** — ACTION chain fixed, Task composition |
-| 3 | Missing primitives (8) | **Done** — `ID()`, `ValidateName()`, `WriteAtomic()`, `NewUnrestricted()` |
-| 4 | Type erasure (16) | **Mitigated** — typed convenience methods, AX-7 Ugly tests, `Registry[T]` |
-| 5 | No boundaries (14) | **Done** — `c.Entitled()` + `Action.Run()` enforcement |
-
-All 5 root causes resolved.
-
-### Cross-References — Ecosystem RFCs
-
-Core/go provides the INTERFACE (stdlib only). Consumer packages bring the IMPLEMENTATION:
-
-| Finding | Ecosystem RFC | Core Primitive | Consumer |
-|---------|--------------|----------------|----------|
-| P13-5: Sync startup | RFC-002 (Event Modules) | `Startable` + registration order | Lazy instantiation |
-| P11-1: God Mode | RFC-004 (Entitlements) | `c.Entitled()` | go-entitlements |
-| P11-3: Secrets | RFC-012 (SMSG) | `c.Env()` (fallback) | go-smsg / Vault (future primitive) |
-| P9-6: Validation | RFC-009 (Sigil) | `ValidateName()` / `SanitisePath()` | Sigil transform chains |
-| P11-2: Sandbox bypass | — | `Fs.NewUnrestricted()` | — (resolved in core/go) |
-| P13-2: Cross-language | RFC-013 (DataNode) | `c.Data()` mounts `fs.FS` | DataNode / Borg |
-| P2-8: Config context | RFC-003 (Config Channels) | `c.Config()` | Channel-aware resolution |
-
-**The pattern:** Core defines a primitive with a Go interface. The RFC describes the concept. A consumer package implements it. Core stays stdlib-only. The ecosystem gets rich features via composition.
-
-```
-core/go:          c.Entitled(action) → calls EntitlementChecker
-go-entitlements:  replaces checker with package/feature/usage logic
-default:          built-in checker returns Allowed=true (trusted conclave)
-```
-
-No dependency injected into core/go. The interface is the primitive. The implementation is the consumer.
-
----
 
 ## Consumer RFCs
 
@@ -1122,49 +958,15 @@ Each consumer RFC is self-contained — an agent can implement it from the docum
 
 ### Release Model
 
-```
-v0.7.x  — previous stable
-v0.8.0  — production release: all primitives, all boundaries, all consumers aligned
-          Sections 1-21 implemented. 483 tests, 84.7% coverage, 100% AX-7 naming.
-v0.8.*  — patches tell us where the agentic process missed things
-```
+The patch count after a release IS the quality metric. v0.8.1 means the spec missed one thing.
 
-### The Cadence
+### Cadence
 
-1. **RFC spec** — design the target version in prose
-2. **Implement** — build to spec with AX-7 tests from day one
-3. **Refine** — review passes catch drift between spec and code
-4. **Tag** — when all sections implemented and tests pass
-5. **Measure** — patch count tells you what the spec missed
-
-v0.8.1 means the spec missed one thing. v0.8.15 means fifteen. The patch count IS the quality metric.
-
-### What v0.8.0 Requires
-
-| Requirement | Status |
-|-------------|--------|
-| All 16 Known Issues resolved in code | **Done** (2026-03-25) |
-| Section 17: c.Process() primitive | **Done** — Action sugar |
-| Section 18: Action/Task system | **Done** — Action, Task, PerformAsync, type Task any removed |
-| Section 19: c.API() streams | **Done** — Stream interface, protocol handlers, RemoteAction |
-| Section 20: Registry[T] primitive | **Done** — all 5 registries migrated |
-| Section 21: Entitlement primitive | **Done** — Entitled(), SetEntitlementChecker(), RecordUsage(), Action.Run() enforcement |
-| AX-7 test coverage at 100% | **Done** — core/go 483 tests (100% naming) |
-| Zero os/exec in core/go | **Done** — App.Find() uses os.Stat |
-| type Task any removed | **Done** — PerformAsync takes named action + Options |
-| Startable/Stoppable return Result | **Done** — breaking, clean |
-| CommandLifecycle removed | **Done** → Command.Managed field |
-| Consumer RFCs written | **Done** — go-process/docs/RFC.md, core/agent/docs/RFC.md |
-
-### What Blocks v0.8.0 Tag
-
-- go-process v0.7.0 alignment (consumer RFC written, ready to implement)
-- core/agent v0.8.0 migration (consumer RFC written, Phase 1 ready)
-
-### What Does NOT Block v0.8.0
-
-- Ecosystem sweep (after consumers align)
-- core/cli update (extension, not primitive)
+1. **RFC spec** — design the version in prose
+2. **Implement** — build to spec with AX-7 tests
+3. **Refine** — review passes catch drift
+4. **Tag** — when all sections pass
+5. **Measure** — patches tell you what was missed
 
 ## 21. Entitlement — The Permission Primitive
 
