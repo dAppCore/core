@@ -1503,15 +1503,36 @@ process.status   — is it running? PID? uptime?
 
 Any command with `Managed: "process.daemon"` gets these for free when go-process is in the conclave.
 
-### 10. Array[T] — Generic Collection, Used Nowhere
+### 10. Array[T] — Guardrail Primitive (Resolved)
 
-`array.go` exports a full generic collection: `NewArray[T]`, `Add`, `AddUnique`, `Contains`, `Filter`, `Each`, `Remove`, `Deduplicate`, `Len`, `Clear`, `AsSlice`.
+`array.go` exports a generic ordered collection: `NewArray[T]`, `Add`, `AddUnique`, `Contains`, `Filter`, `Each`, `Remove`, `Deduplicate`, `Len`, `Clear`, `AsSlice`.
 
-Nothing in core/go or any known consumer uses it. It was a "we might need this" primitive that got saved.
+Currently unused by any consumer. Originally appeared speculative.
 
-**Question:** Is this intended for downstream use (core/agent managing workspace lists, etc.) or was it speculative? If speculative, remove — it can be added back when a consumer needs it. If intended, document the use case and add to the RFC as a primitive type.
+**Actual intent:** Array[T] is a **guardrail primitive** — same category as the string helpers (`core.Contains`, `core.Split`, `core.Trim`). The purpose is not capability (Go's `slices` package can do it all). The purpose is:
 
-### 11. ConfigVar[T] — Generic Config Variable, Unused
+1. **One import, one pattern** — an agent sees `core.Array` and knows "this is how we do collections here"
+2. **Attack surface reduction** — no inline `for i := range` with off-by-one bugs, no hand-rolled dedup with subtle equality issues
+3. **Scannable** — `grep "Array\[" *.go` finds every collection operation
+4. **Model-proof** — weaker models (Gemini, Codex) can't mess up `arr.AddUnique(item)` the way they can mess up a custom implementation. They generate inline collection ops every time because they don't recognise "this is the same operation from 3 files ago"
+
+**The primitive taxonomy:**
+
+| Primitive | Go Stdlib | Core Guardrail | Why Both Exist |
+|-----------|-----------|---------------|----------------|
+| Strings | `strings.*` | `core.Contains/Split/Trim` | Single import, scannable, model-proof |
+| Paths | `filepath.*` | `core.JoinPath/PathBase` | Single import, scannable |
+| Errors | `fmt.Errorf` | `core.E()` | Structured, no silent swallowing |
+| Named maps | `map[string]T` | `Registry[T]` | Thread-safe, lockable, queryable |
+| Ordered slices | `[]T` + `slices.*` | `Array[T]` | Dedup, unique-add, filter — one pattern |
+
+**Resolution:** Keep Array[T]. It's the ordered counterpart to Registry[T]:
+- `Registry[T]` — named collection (map), lookup by key
+- `Array[T]` — ordered collection (slice), access by index + filter/each
+
+Both are guardrail primitives that force a single codepath for common operations. Document in RFC-025 as part of AX Principle 6 (Core Primitives).
+
+### 11. ConfigVar[T] — Typed Config with Set Tracking (Resolved)
 
 ```go
 type ConfigVar[T any] struct { val T; set bool }
@@ -1521,11 +1542,27 @@ func (v *ConfigVar[T]) IsSet() bool
 func (v *ConfigVar[T]) Unset()
 ```
 
-A typed wrapper around a config value with set/unset tracking. Only used internally in `config.go`. Not exposed to consumers and not used by any other file.
+Currently only used internally in `config.go`.
 
-**Intent:** Probably meant for typed config fields — `var debug ConfigVar[bool]` where `IsSet()` distinguishes "explicitly set to false" from "never set." This is useful for layered config (defaults → file → env → flags) where you need to know which layer set the value.
+**Intent:** Distinguishes "explicitly set to false" from "never set." Essential for layered config (defaults → file → env → flags → runtime) where you need to know WHICH layer set a value, not just what the value is.
 
-**Resolution:** Either promote to a documented primitive (useful for the config layering problem) or inline it as unexported since it's only used in `config.go`.
+**Resolution:** Promote to a documented primitive. ConfigVar[T] solves the same guardrail problem as Array[T] — without it, every config consumer writes their own "was this set?" tracking with a separate `*bool` or sentinel values. That's exactly the kind of inline reimplementation that weaker models get wrong.
+
+```go
+// Without ConfigVar — every consumer reinvents this
+var debug bool
+var debugSet bool  // or *bool, or sentinel value
+
+// With ConfigVar — one pattern
+var debug core.ConfigVar[bool]
+debug.Set(true)
+debug.IsSet()  // true — explicitly set
+debug.Unset()
+debug.IsSet()  // false — reverted to unset
+debug.Get()    // zero value of T
+```
+
+ConfigVar[T] is the typed counterpart to Option (which is `any`-typed). Both hold a value, but ConfigVar tracks whether it was explicitly set.
 
 ### 12. Ipc — From Data-Only Struct to Registry Owner (Resolved)
 
