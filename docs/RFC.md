@@ -32,10 +32,11 @@ c.Run()
 
 ```
 New() → WithService factories called → LockApply()
-Run() → ServiceStartup() → Cli.Run() → ServiceShutdown()
+RunE() → defer ServiceShutdown() → ServiceStartup() → Cli.Run() → returns error
+Run()  → RunE() → os.Exit(1) on error
 ```
 
-`Run()` is blocking. `ServiceStartup` calls `OnStartup(ctx)` on all services implementing `Startable`. `ServiceShutdown` calls `OnShutdown(ctx)` on all `Stoppable` services. Shutdown uses `context.Background()` — not the Core context (which is already cancelled).
+`RunE()` is the primary lifecycle — returns `error`, always calls `ServiceShutdown` via defer (even on startup failure or panic). `Run()` is sugar that calls `RunE()` and exits on error. `ServiceStartup` calls `OnStartup(ctx)` on all `Startable` services in registration order. `ServiceShutdown` calls `OnShutdown(ctx)` on all `Stoppable` services.
 
 ### 1.3 Subsystem Accessors
 
@@ -243,7 +244,7 @@ c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
 })
 ```
 
-All handlers receive all messages. Type-switch to filter. Return `Result{OK: true}` always (errors are logged, not propagated).
+All handlers receive all messages. Type-switch to filter. Handler return values are ignored — broadcast calls ALL handlers regardless. Each handler is wrapped in panic recovery.
 
 ### 4.2 QUERY (request/response)
 
@@ -327,7 +328,11 @@ if r.OK {
 // List
 r := c.Data().List("prompts/")
 r := c.Data().ListNames("prompts/")
-r := c.Data().Mounts() // []string of mount names
+r := c.Data().Mounts() // []string (insertion order)
+
+// Data embeds Registry[*Embed] — all Registry methods available:
+c.Data().Has("prompts")
+c.Data().Each(func(name string, emb *Embed) { ... })
 ```
 
 ---
@@ -342,9 +347,11 @@ c.Drive().New(core.NewOptions(
     core.Option{Key: "transport", Value: "https://forge.lthn.ai"},
 ))
 
-r := c.Drive().Get("forge")     // Result with DriveHandle
+r := c.Drive().Get("forge")     // Result with *DriveHandle
 c.Drive().Has("forge")          // true
-c.Drive().Names()               // []string
+c.Drive().Names()               // []string (insertion order)
+
+// Drive embeds Registry[*DriveHandle] — all Registry methods available.
 ```
 
 ---
@@ -521,6 +528,11 @@ core.ArgBool(0, args...)   // bool
 core.IsFlag("--name")              // true
 core.ParseFlag("--name=value")    // "name", "value", true
 core.FilterArgs(args)              // strip flags, keep positional
+
+// Identifiers and validation
+core.ID()                          // "id-42-a3f2b1" — unique per process
+core.ValidateName("brain")        // Result{OK: true} — rejects "", ".", "..", path seps
+core.SanitisePath("../../x")      // "x" — extracts safe base, "invalid" for dangerous
 ```
 
 ---
