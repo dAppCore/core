@@ -38,6 +38,9 @@ func (r Result) Result(args ...any) Result {
 	return r.New(args...)
 }
 
+// New adapts Go (value, error) pairs into a Result.
+//
+//	r := core.Result{}.New(file, err)
 func (r Result) New(args ...any) Result {
 	if len(args) == 0 {
 		return r
@@ -67,6 +70,9 @@ func (r Result) New(args ...any) Result {
 	return r
 }
 
+// Get returns the Result if OK, empty Result otherwise.
+//
+//	r := core.Result{Value: "hello", OK: true}.Get()
 func (r Result) Get() Result {
 	if r.OK {
 		return r

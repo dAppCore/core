@@ -45,6 +45,9 @@ func (c *Core) broadcast(msg Message) Result {
 	return Result{OK: true}
 }
 
+// Query dispatches a request — first handler to return OK wins.
+//
+//	r := c.Query(MyQuery{})
 func (c *Core) Query(q Query) Result {
 	c.ipc.queryMu.RLock()
 	handlers := slices.Clone(c.ipc.queryHandlers)
@@ -59,6 +62,10 @@ func (c *Core) Query(q Query) Result {
 	return Result{}
 }
 
+// QueryAll dispatches a request — collects all OK responses.
+//
+//	r := c.QueryAll(countQuery{})
+//	results := r.Value.([]any)
 func (c *Core) QueryAll(q Query) Result {
 	c.ipc.queryMu.RLock()
 	handlers := slices.Clone(c.ipc.queryHandlers)
@@ -74,6 +81,9 @@ func (c *Core) QueryAll(q Query) Result {
 	return Result{results, true}
 }
 
+// RegisterQuery registers a handler for QUERY dispatch.
+//
+//	c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result { ... })
 func (c *Core) RegisterQuery(handler QueryHandler) {
 	c.ipc.queryMu.Lock()
 	c.ipc.queryHandlers = append(c.ipc.queryHandlers, handler)

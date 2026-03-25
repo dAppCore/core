@@ -45,23 +45,83 @@ type Core struct {
 
 // --- Accessors ---
 
-func (c *Core) Options() *Options        { return c.options }
-func (c *Core) App() *App                { return c.app }
-func (c *Core) Data() *Data              { return c.data }
-func (c *Core) Drive() *Drive            { return c.drive }
-func (c *Core) Fs() *Fs                  { return c.fs }
-func (c *Core) Config() *Config          { return c.config }
-func (c *Core) Error() *ErrorPanic       { return c.error }
-func (c *Core) Log() *ErrorLog           { return c.log }
+// Options returns the input configuration passed to core.New().
+//
+//	opts := c.Options()
+//	name := opts.String("name")
+func (c *Core) Options() *Options { return c.options }
+
+// App returns application identity metadata.
+//
+//	c.App().Name     // "my-app"
+//	c.App().Version  // "1.0.0"
+func (c *Core) App() *App { return c.app }
+
+// Data returns the embedded asset registry (Registry[*Embed]).
+//
+//	r := c.Data().ReadString("prompts/coding.md")
+func (c *Core) Data() *Data { return c.data }
+
+// Drive returns the transport handle registry (Registry[*DriveHandle]).
+//
+//	r := c.Drive().Get("forge")
+func (c *Core) Drive() *Drive { return c.drive }
+
+// Fs returns the sandboxed filesystem.
+//
+//	r := c.Fs().Read("/path/to/file")
+//	c.Fs().WriteAtomic("/status.json", data)
+func (c *Core) Fs() *Fs { return c.fs }
+
+// Config returns runtime settings and feature flags.
+//
+//	host := c.Config().String("database.host")
+//	c.Config().Enable("dark-mode")
+func (c *Core) Config() *Config { return c.config }
+
+// Error returns the panic recovery subsystem.
+//
+//	c.Error().Recover()
+func (c *Core) Error() *ErrorPanic { return c.error }
+
+// Log returns the structured logging subsystem.
+//
+//	c.Log().Info("started", "port", 8080)
+func (c *Core) Log() *ErrorLog { return c.log }
+
+// Cli returns the CLI command framework (registered as service "cli").
+//
+//	c.Cli().Run("deploy", "to", "homelab")
 func (c *Core) Cli() *Cli {
 	cl, _ := ServiceFor[*Cli](c, "cli")
 	return cl
 }
-func (c *Core) IPC() *Ipc                { return c.ipc }
-func (c *Core) I18n() *I18n              { return c.i18n }
-func (c *Core) Env(key string) string    { return Env(key) }
+
+// IPC returns the message bus internals.
+//
+//	c.IPC()
+func (c *Core) IPC() *Ipc { return c.ipc }
+
+// I18n returns the internationalisation subsystem.
+//
+//	tr := c.I18n().Translate("cmd.deploy.description")
+func (c *Core) I18n() *I18n { return c.i18n }
+
+// Env returns an environment variable by key (cached at init, falls back to os.Getenv).
+//
+//	home := c.Env("DIR_HOME")
+//	token := c.Env("FORGE_TOKEN")
+func (c *Core) Env(key string) string { return Env(key) }
+
+// Context returns Core's lifecycle context (cancelled on shutdown).
+//
+//	ctx := c.Context()
 func (c *Core) Context() context.Context { return c.context }
-func (c *Core) Core() *Core              { return c }
+
+// Core returns self — satisfies the ServiceRuntime interface.
+//
+//	c := s.Core()
+func (c *Core) Core() *Core { return c }
 
 // --- Lifecycle ---
 
@@ -109,9 +169,22 @@ func (c *Core) Run() {
 
 // --- IPC (uppercase aliases) ---
 
+// ACTION broadcasts a message to all registered handlers (fire-and-forget).
+// Each handler is wrapped in panic recovery. All handlers fire regardless.
+//
+//	c.ACTION(messages.AgentCompleted{Agent: "codex", Status: "completed"})
 func (c *Core) ACTION(msg Message) Result { return c.broadcast(msg) }
-func (c *Core) QUERY(q Query) Result      { return c.Query(q) }
-func (c *Core) QUERYALL(q Query) Result   { return c.QueryAll(q) }
+
+// QUERY sends a request — first handler to return OK wins.
+//
+//	r := c.QUERY(MyQuery{Name: "brain"})
+func (c *Core) QUERY(q Query) Result { return c.Query(q) }
+
+// QUERYALL sends a request — collects all OK responses.
+//
+//	r := c.QUERYALL(countQuery{})
+//	results := r.Value.([]any)
+func (c *Core) QUERYALL(q Query) Result { return c.QueryAll(q) }
 
 // --- Error+Log ---
 
