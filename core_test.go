@@ -13,24 +13,24 @@ import (
 
 // --- New ---
 
-func TestNew_Good(t *testing.T) {
+func TestCore_New_Good(t *testing.T) {
 	c := New()
 	assert.NotNil(t, c)
 }
 
-func TestNew_WithOptions_Good(t *testing.T) {
+func TestCore_New_WithOptions_Good(t *testing.T) {
 	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "myapp"})))
 	assert.NotNil(t, c)
 	assert.Equal(t, "myapp", c.App().Name)
 }
 
-func TestNew_WithOptions_Bad(t *testing.T) {
+func TestCore_New_WithOptions_Bad(t *testing.T) {
 	// Empty options — should still create a valid Core
 	c := New(WithOptions(NewOptions()))
 	assert.NotNil(t, c)
 }
 
-func TestNew_WithService_Good(t *testing.T) {
+func TestCore_New_WithService_Good(t *testing.T) {
 	started := false
 	c := New(
 		WithOptions(NewOptions(Option{Key: "name", Value: "myapp"})),
@@ -49,7 +49,7 @@ func TestNew_WithService_Good(t *testing.T) {
 	assert.True(t, started)
 }
 
-func TestNew_WithServiceLock_Good(t *testing.T) {
+func TestCore_New_WithServiceLock_Good(t *testing.T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			c.Service("allowed", Service{})
@@ -63,7 +63,7 @@ func TestNew_WithServiceLock_Good(t *testing.T) {
 	assert.False(t, reg.OK)
 }
 
-func TestNew_WithService_Bad_FailingOption(t *testing.T) {
+func TestCore_New_WithService_Bad_FailingOption(t *testing.T) {
 	secondCalled := false
 	_ = New(
 		WithService(func(c *Core) Result {
@@ -79,7 +79,7 @@ func TestNew_WithService_Bad_FailingOption(t *testing.T) {
 
 // --- Accessors ---
 
-func TestAccessors_Good(t *testing.T) {
+func TestCore_Accessors_Good(t *testing.T) {
 	c := New()
 	assert.NotNil(t, c.App())
 	assert.NotNil(t, c.Data())
@@ -145,6 +145,103 @@ func TestCore_Must_Nil_Good(t *testing.T) {
 	assert.NotPanics(t, func() {
 		c.Must(nil, "test.Operation", "no error")
 	})
+}
+
+// --- RegistryOf ---
+
+func TestCore_RegistryOf_Good_Services(t *testing.T) {
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("alpha", Service{})
+		}),
+		WithService(func(c *Core) Result {
+			return c.Service("bravo", Service{})
+		}),
+	)
+	reg := c.RegistryOf("services")
+	// cli is auto-registered + our 2
+	assert.True(t, reg.Has("alpha"))
+	assert.True(t, reg.Has("bravo"))
+	assert.True(t, reg.Has("cli"))
+}
+
+func TestCore_RegistryOf_Good_Commands(t *testing.T) {
+	c := New()
+	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Command("test", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+
+	reg := c.RegistryOf("commands")
+	assert.True(t, reg.Has("deploy"))
+	assert.True(t, reg.Has("test"))
+}
+
+func TestCore_RegistryOf_Good_Actions(t *testing.T) {
+	c := New()
+	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("brain.recall", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+
+	reg := c.RegistryOf("actions")
+	assert.True(t, reg.Has("process.run"))
+	assert.True(t, reg.Has("brain.recall"))
+	assert.Equal(t, 2, reg.Len())
+}
+
+func TestCore_RegistryOf_Bad_Unknown(t *testing.T) {
+	c := New()
+	reg := c.RegistryOf("nonexistent")
+	assert.Equal(t, 0, reg.Len(), "unknown registry returns empty")
+}
+
+// --- RunE ---
+
+func TestCore_RunE_Good(t *testing.T) {
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("healthy", Service{
+				OnStart: func() Result { return Result{OK: true} },
+				OnStop:  func() Result { return Result{OK: true} },
+			})
+		}),
+	)
+	err := c.RunE()
+	assert.NoError(t, err)
+}
+
+func TestCore_RunE_Bad_StartupFailure(t *testing.T) {
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("broken", Service{
+				OnStart: func() Result {
+					return Result{Value: NewError("startup failed"), OK: false}
+				},
+			})
+		}),
+	)
+	err := c.RunE()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "startup failed")
+}
+
+func TestCore_RunE_Ugly_StartupFailureCallsShutdown(t *testing.T) {
+	shutdownCalled := false
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("cleanup", Service{
+				OnStart: func() Result { return Result{OK: true} },
+				OnStop:  func() Result { shutdownCalled = true; return Result{OK: true} },
+			})
+		}),
+		WithService(func(c *Core) Result {
+			return c.Service("broken", Service{
+				OnStart: func() Result {
+					return Result{Value: NewError("boom"), OK: false}
+				},
+			})
+		}),
+	)
+	err := c.RunE()
+	assert.Error(t, err)
+	assert.True(t, shutdownCalled, "ServiceShutdown must be called even when startup fails — cleanup service must get OnStop")
 }
 
 func TestCore_Run_HelperProcess(t *testing.T) {

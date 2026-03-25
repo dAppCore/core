@@ -12,7 +12,7 @@ import (
 
 // --- PerformAsync ---
 
-func TestPerformAsync_Good(t *testing.T) {
+func TestTask_PerformAsync_Good(t *testing.T) {
 	c := New()
 	var mu sync.Mutex
 	var result string
@@ -36,7 +36,7 @@ func TestPerformAsync_Good(t *testing.T) {
 	mu.Unlock()
 }
 
-func TestPerformAsync_Progress_Good(t *testing.T) {
+func TestTask_PerformAsync_Progress_Good(t *testing.T) {
 	c := New()
 	c.RegisterTask(func(_ *Core, task Task) Result {
 		return Result{OK: true}
@@ -47,7 +47,7 @@ func TestPerformAsync_Progress_Good(t *testing.T) {
 	c.Progress(taskID, 0.5, "halfway", "work")
 }
 
-func TestPerformAsync_Completion_Good(t *testing.T) {
+func TestTask_PerformAsync_Completion_Good(t *testing.T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
 
@@ -72,7 +72,7 @@ func TestPerformAsync_Completion_Good(t *testing.T) {
 	}
 }
 
-func TestPerformAsync_NoHandler_Good(t *testing.T) {
+func TestTask_PerformAsync_NoHandler_Good(t *testing.T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
 
@@ -93,7 +93,7 @@ func TestPerformAsync_NoHandler_Good(t *testing.T) {
 	}
 }
 
-func TestPerformAsync_AfterShutdown_Bad(t *testing.T) {
+func TestTask_PerformAsync_AfterShutdown_Bad(t *testing.T) {
 	c := New()
 	c.ServiceStartup(context.Background(), nil)
 	c.ServiceShutdown(context.Background())
@@ -104,22 +104,22 @@ func TestPerformAsync_AfterShutdown_Bad(t *testing.T) {
 
 // --- RegisterAction + RegisterActions ---
 
-func TestRegisterAction_Good(t *testing.T) {
+func TestTask_RegisterAction_Good(t *testing.T) {
 	c := New()
 	called := false
 	c.RegisterAction(func(_ *Core, _ Message) Result {
 		called = true
 		return Result{OK: true}
 	})
-	c.Action(nil)
+	c.ACTION(nil)
 	assert.True(t, called)
 }
 
-func TestRegisterActions_Good(t *testing.T) {
+func TestTask_RegisterActions_Good(t *testing.T) {
 	c := New()
 	count := 0
 	h := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }
 	c.RegisterActions(h, h)
-	c.Action(nil)
+	c.ACTION(nil)
 	assert.Equal(t, 2, count)
 }

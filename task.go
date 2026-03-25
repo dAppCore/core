@@ -73,20 +73,5 @@ func (c *Core) Perform(t Task) Result {
 	return Result{}
 }
 
-func (c *Core) RegisterAction(handler func(*Core, Message) Result) {
-	c.ipc.ipcMu.Lock()
-	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handler)
-	c.ipc.ipcMu.Unlock()
-}
-
-func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
-	c.ipc.ipcMu.Lock()
-	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)
-	c.ipc.ipcMu.Unlock()
-}
-
-func (c *Core) RegisterTask(handler TaskHandler) {
-	c.ipc.taskMu.Lock()
-	c.ipc.taskHandlers = append(c.ipc.taskHandlers, handler)
-	c.ipc.taskMu.Unlock()
-}
+// Registration methods (RegisterAction, RegisterActions, RegisterTask)
+// are in ipc.go — registration is IPC's responsibility.

@@ -39,9 +39,58 @@ func TestAction_None_Good(t *testing.T) {
 	assert.True(t, r.OK)
 }
 
+func TestAction_Bad_HandlerFails(t *testing.T) {
+	c := New()
+	c.RegisterAction(func(_ *Core, _ Message) Result {
+		return Result{Value: NewError("intentional"), OK: false}
+	})
+	// ACTION is broadcast — even with a failing handler, dispatch succeeds
+	r := c.ACTION(testMessage{payload: "test"})
+	assert.True(t, r.OK)
+}
+
+func TestAction_Ugly_HandlerFailsChainContinues(t *testing.T) {
+	c := New()
+	var order []int
+	c.RegisterAction(func(_ *Core, _ Message) Result {
+		order = append(order, 1)
+		return Result{OK: true}
+	})
+	c.RegisterAction(func(_ *Core, _ Message) Result {
+		order = append(order, 2)
+		return Result{Value: NewError("handler 2 fails"), OK: false}
+	})
+	c.RegisterAction(func(_ *Core, _ Message) Result {
+		order = append(order, 3)
+		return Result{OK: true}
+	})
+	r := c.ACTION(testMessage{payload: "test"})
+	assert.True(t, r.OK)
+	assert.Equal(t, []int{1, 2, 3}, order, "all 3 handlers must fire even when handler 2 returns !OK")
+}
+
+func TestAction_Ugly_HandlerPanicsChainContinues(t *testing.T) {
+	c := New()
+	var order []int
+	c.RegisterAction(func(_ *Core, _ Message) Result {
+		order = append(order, 1)
+		return Result{OK: true}
+	})
+	c.RegisterAction(func(_ *Core, _ Message) Result {
+		panic("handler 2 explodes")
+	})
+	c.RegisterAction(func(_ *Core, _ Message) Result {
+		order = append(order, 3)
+		return Result{OK: true}
+	})
+	r := c.ACTION(testMessage{payload: "test"})
+	assert.True(t, r.OK)
+	assert.Equal(t, []int{1, 3}, order, "handlers 1 and 3 must fire even when handler 2 panics")
+}
+
 // --- IPC: Queries ---
 
-func TestQuery_Good(t *testing.T) {
+func TestIpc_Query_Good(t *testing.T) {
 	c := New()
 	c.RegisterQuery(func(_ *Core, q Query) Result {
 		if q == "ping" {
@@ -54,7 +103,7 @@ func TestQuery_Good(t *testing.T) {
 	assert.Equal(t, "pong", r.Value)
 }
 
-func TestQuery_Unhandled_Good(t *testing.T) {
+func TestIpc_Query_Unhandled_Good(t *testing.T) {
 	c := New()
 	c.RegisterQuery(func(_ *Core, q Query) Result {
 		return Result{}
@@ -63,7 +112,7 @@ func TestQuery_Unhandled_Good(t *testing.T) {
 	assert.False(t, r.OK)
 }
 
-func TestQueryAll_Good(t *testing.T) {
+func TestIpc_QueryAll_Good(t *testing.T) {
 	c := New()
 	c.RegisterQuery(func(_ *Core, _ Query) Result {
 		return Result{Value: "a", OK: true}
@@ -81,7 +130,7 @@ func TestQueryAll_Good(t *testing.T) {
 
 // --- IPC: Tasks ---
 
-func TestPerform_Good(t *testing.T) {
+func TestIpc_Perform_Good(t *testing.T) {
 	c := New()
 	c.RegisterTask(func(_ *Core, t Task) Result {
 		if t == "compute" {

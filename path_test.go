@@ -41,32 +41,32 @@ func TestPath_CleanDoubleSlash(t *testing.T) {
 	assert.Equal(t, ds+"tmp"+ds+"file", core.Path("/tmp//file"))
 }
 
-func TestPathBase(t *testing.T) {
+func TestPath_PathBase(t *testing.T) {
 	assert.Equal(t, "core", core.PathBase("/Users/snider/Code/core"))
 	assert.Equal(t, "homelab", core.PathBase("deploy/to/homelab"))
 }
 
-func TestPathBase_Root(t *testing.T) {
+func TestPath_PathBase_Root(t *testing.T) {
 	assert.Equal(t, "/", core.PathBase("/"))
 }
 
-func TestPathBase_Empty(t *testing.T) {
+func TestPath_PathBase_Empty(t *testing.T) {
 	assert.Equal(t, ".", core.PathBase(""))
 }
 
-func TestPathDir(t *testing.T) {
+func TestPath_PathDir(t *testing.T) {
 	assert.Equal(t, "/Users/snider/Code", core.PathDir("/Users/snider/Code/core"))
 }
 
-func TestPathDir_Root(t *testing.T) {
+func TestPath_PathDir_Root(t *testing.T) {
 	assert.Equal(t, "/", core.PathDir("/file"))
 }
 
-func TestPathDir_NoDir(t *testing.T) {
+func TestPath_PathDir_NoDir(t *testing.T) {
 	assert.Equal(t, ".", core.PathDir("file.go"))
 }
 
-func TestPathExt(t *testing.T) {
+func TestPath_PathExt(t *testing.T) {
 	assert.Equal(t, ".go", core.PathExt("main.go"))
 	assert.Equal(t, "", core.PathExt("Makefile"))
 	assert.Equal(t, ".gz", core.PathExt("archive.tar.gz"))
@@ -76,7 +76,7 @@ func TestPath_EnvConsistency(t *testing.T) {
 	assert.Equal(t, core.Env("DIR_HOME"), core.Path())
 }
 
-func TestPathGlob_Good(t *testing.T) {
+func TestPath_PathGlob_Good(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
 	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0644)
@@ -86,26 +86,26 @@ func TestPathGlob_Good(t *testing.T) {
 	assert.Len(t, matches, 2)
 }
 
-func TestPathGlob_NoMatch(t *testing.T) {
+func TestPath_PathGlob_NoMatch(t *testing.T) {
 	matches := core.PathGlob("/nonexistent/pattern-*.xyz")
 	assert.Empty(t, matches)
 }
 
-func TestPathIsAbs_Good(t *testing.T) {
+func TestPath_PathIsAbs_Good(t *testing.T) {
 	assert.True(t, core.PathIsAbs("/tmp"))
 	assert.True(t, core.PathIsAbs("/"))
 	assert.False(t, core.PathIsAbs("relative"))
 	assert.False(t, core.PathIsAbs(""))
 }
 
-func TestCleanPath_Good(t *testing.T) {
+func TestPath_CleanPath_Good(t *testing.T) {
 	assert.Equal(t, "/a/b", core.CleanPath("/a//b", "/"))
 	assert.Equal(t, "/a/c", core.CleanPath("/a/b/../c", "/"))
 	assert.Equal(t, "/", core.CleanPath("/", "/"))
 	assert.Equal(t, ".", core.CleanPath("", "/"))
 }
 
-func TestPathDir_TrailingSlash(t *testing.T) {
+func TestPath_PathDir_TrailingSlash(t *testing.T) {
 	result := core.PathDir("/Users/snider/Code/")
 	assert.Equal(t, "/Users/snider/Code", result)
 }

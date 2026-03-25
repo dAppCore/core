@@ -21,12 +21,12 @@ func mustMountTestFS(t *testing.T, basedir string) *Embed {
 	return r.Value.(*Embed)
 }
 
-func TestMount_Good(t *testing.T) {
+func TestEmbed_Mount_Good(t *testing.T) {
 	r := Mount(testFS, "testdata")
 	assert.True(t, r.OK)
 }
 
-func TestMount_Bad(t *testing.T) {
+func TestEmbed_Mount_Bad(t *testing.T) {
 	r := Mount(testFS, "nonexistent")
 	assert.False(t, r.OK)
 }
@@ -88,7 +88,7 @@ func TestEmbed_EmbedFS_Good(t *testing.T) {
 
 // --- Extract ---
 
-func TestExtract_Good(t *testing.T) {
+func TestEmbed_Extract_Good(t *testing.T) {
 	dir := t.TempDir()
 	r := Extract(testFS, dir, nil)
 	assert.True(t, r.OK)
@@ -100,33 +100,33 @@ func TestExtract_Good(t *testing.T) {
 
 // --- Asset Pack ---
 
-func TestAddGetAsset_Good(t *testing.T) {
+func TestEmbed_AddGetAsset_Good(t *testing.T) {
 	AddAsset("test-group", "greeting", mustCompress("hello world"))
 	r := GetAsset("test-group", "greeting")
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello world", r.Value.(string))
 }
 
-func TestGetAsset_Bad(t *testing.T) {
+func TestEmbed_GetAsset_Bad(t *testing.T) {
 	r := GetAsset("missing-group", "missing")
 	assert.False(t, r.OK)
 }
 
-func TestGetAssetBytes_Good(t *testing.T) {
+func TestEmbed_GetAssetBytes_Good(t *testing.T) {
 	AddAsset("bytes-group", "file", mustCompress("binary content"))
 	r := GetAssetBytes("bytes-group", "file")
 	assert.True(t, r.OK)
 	assert.Equal(t, []byte("binary content"), r.Value.([]byte))
 }
 
-func TestMountEmbed_Good(t *testing.T) {
+func TestEmbed_MountEmbed_Good(t *testing.T) {
 	r := MountEmbed(testFS, "testdata")
 	assert.True(t, r.OK)
 }
 
 // --- ScanAssets ---
 
-func TestScanAssets_Good(t *testing.T) {
+func TestEmbed_ScanAssets_Good(t *testing.T) {
 	r := ScanAssets([]string{"testdata/scantest/sample.go"})
 	assert.True(t, r.OK)
 	pkgs := r.Value.([]ScannedPackage)
@@ -134,19 +134,19 @@ func TestScanAssets_Good(t *testing.T) {
 	assert.Equal(t, "scantest", pkgs[0].PackageName)
 }
 
-func TestScanAssets_Bad(t *testing.T) {
+func TestEmbed_ScanAssets_Bad(t *testing.T) {
 	r := ScanAssets([]string{"nonexistent.go"})
 	assert.False(t, r.OK)
 }
 
-func TestGeneratePack_Empty_Good(t *testing.T) {
+func TestEmbed_GeneratePack_Empty_Good(t *testing.T) {
 	pkg := ScannedPackage{PackageName: "empty"}
 	r := GeneratePack(pkg)
 	assert.True(t, r.OK)
 	assert.Contains(t, r.Value.(string), "package empty")
 }
 
-func TestGeneratePack_WithFiles_Good(t *testing.T) {
+func TestEmbed_GeneratePack_WithFiles_Good(t *testing.T) {
 	dir := t.TempDir()
 	assetDir := dir + "/mygroup"
 	os.MkdirAll(assetDir, 0755)
@@ -167,7 +167,7 @@ func TestGeneratePack_WithFiles_Good(t *testing.T) {
 
 // --- Extract (template + nested) ---
 
-func TestExtract_WithTemplate_Good(t *testing.T) {
+func TestEmbed_Extract_WithTemplate_Good(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create an in-memory FS with a template file and a plain file
@@ -203,7 +203,7 @@ func TestExtract_WithTemplate_Good(t *testing.T) {
 	assert.Equal(t, "nested", string(nested))
 }
 
-func TestExtract_BadTargetDir_Ugly(t *testing.T) {
+func TestEmbed_Extract_BadTargetDir_Ugly(t *testing.T) {
 	srcDir := t.TempDir()
 	os.WriteFile(srcDir+"/f.txt", []byte("x"), 0644)
 	r := Extract(os.DirFS(srcDir), "/nonexistent/deeply/nested/impossible", nil)
@@ -244,7 +244,7 @@ func TestEmbed_EmbedFS_Original_Good(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestExtract_NilData_Good(t *testing.T) {
+func TestEmbed_Extract_NilData_Good(t *testing.T) {
 	dir := t.TempDir()
 	srcDir := t.TempDir()
 	os.WriteFile(srcDir+"/file.txt", []byte("no template"), 0644)

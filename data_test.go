@@ -100,12 +100,6 @@ func TestData_Mounts_Good(t *testing.T) {
 	assert.Len(t, mounts, 2)
 }
 
-func TestEmbed_Legacy_Good(t *testing.T) {
-	c := New()
-	mountTestData(t, c, "app")
-	assert.NotNil(t, c.Embed())
-}
-
 func TestData_List_Good(t *testing.T) {
 	c := New()
 	mountTestData(t, c, "app")

@@ -88,7 +88,7 @@ func TestConfig_EnabledFeatures_Good(t *testing.T) {
 
 // --- ConfigVar ---
 
-func TestConfigVar_Good(t *testing.T) {
+func TestConfig_ConfigVar_Good(t *testing.T) {
 	v := NewConfigVar("hello")
 	assert.True(t, v.IsSet())
 	assert.Equal(t, "hello", v.Get())

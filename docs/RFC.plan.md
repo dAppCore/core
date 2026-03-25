@@ -50,8 +50,9 @@ Plan 6 → Ecosystem sweep (after 1-5, dispatched via Codex)
 - **Dual-purpose methods** (Service, Command, Action) — keep as sugar, Registry has explicit Get/Set
 - **Array[T] and ConfigVar[T] are guardrail primitives** — model-proof, not speculative
 - **ServiceRuntime[T] and manual `.core = c` are both valid** — document both
-- **Startable V2 returns Result** — add alongside V1 for backwards compat
+- **Startable returns Result** — clean break, no V2 compat shim (pre-v1, breaking is expected)
 - **`RunE()` alongside `Run()`** — no breakage
+- **CommandLifecycle removed** — replaced with `Command.Managed` string field
 
 ## Existing RFCs That Solve Open Problems
 
@@ -79,15 +80,31 @@ Core stays stdlib-only. Consumers bring implementations via WithService.
 ## AX-7 Status
 
 - core/agent: 92% (840 tests, 79.9% coverage)
-- core/go: 14% (83.6% coverage but wrong naming — needs rename + gap fill)
-- Rename script exists (Python, used on core/agent — same script works)
-- 212 functions × 3 categories = 636 target for core/go
+- core/go: **100%** (457 tests, 84.4% coverage) — renamed 2026-03-25
+- All 457 tests have `TestFile_Function_{Good,Bad,Ugly}` naming
+
+## What Was Shipped (2026-03-25 session)
+
+Plans 1-5 complete for core/go scope. 457 tests, 84.4% coverage, 100% AX-7 naming.
+
+- P4-3 + P7-3: ACTION broadcast — calls all handlers, panic recovery per handler
+- P7-2 + P7-4: `RunE()` with `defer ServiceShutdown`, `Run()` delegates
+- P3-1: Startable/Stoppable return `Result` (breaking, clean — no V2)
+- P9-1: Zero `os/exec` in core/go — `App.Find()` rewritten with `os.Stat` + PATH
+- P11-2: `Fs.NewUnrestricted()` — legitimate door replaces unsafe.Pointer
+- P4-10: `Fs.WriteAtomic()` — write-to-temp-then-rename
+- I3: `Embed()` removed, I15: `New()` comment fixed
+- I9: `CommandLifecycle` interface removed → `Command.Managed` string field
+- Section 17: `c.Process()` primitive (Action sugar, no deps)
+- Section 18: `c.Action("name")` + `ActionDef` + `c.Task("name", TaskDef{Steps})` composition
+- Section 20: `Registry[T]` + all 5 migrations (services, commands, drive, data, lock)
+- Section 20.4: `c.RegistryOf("name")` cross-cutting accessor
+- Plan 5: `core.ID()`, `ValidateName()`, `SanitisePath()`
 
 ## Session Context That Won't Be In Memory
 
-- The ACTION cascade (P6-1) is the root cause of "agents finish but queue doesn't drain"
-- status.json has 51 unprotected read-modify-write sites (P4-9) — real race condition
-- The Fs sandbox is bypassed by 2 files using unsafe.Pointer (P11-2)
-- `core.Env("DIR_HOME")` is cached at init — `t.Setenv` doesn't override it (P2-5)
-- go-process `NewService` returns `(any, error)` not `core.Result` — needs v0.7.0 update
+- The ACTION cascade (P6-1) — core/go now has TaskDef for the fix, core/agent needs to wire it
+- status.json has 51 unprotected read-modify-write sites (P4-9) — `WriteAtomic` exists, core/agent needs to use it
+- `core.Env("DIR_HOME")` is cached at init — `t.Setenv` doesn't override it (P2-5) — use `CORE_WORKSPACE` in tests
+- go-process `NewService` returns `(any, error)` not `core.Result` — needs v0.7.0 update (go-process repo)
 - Multiple Core instances share global state (assetGroups, systemInfo, defaultLog)

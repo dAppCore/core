@@ -25,6 +25,25 @@ func (m *Fs) New(root string) *Fs {
 	return m
 }
 
+// NewUnrestricted returns a new Fs with root "/", granting full filesystem access.
+// Use this instead of unsafe.Pointer to bypass the sandbox.
+//
+//	fs := c.Fs().NewUnrestricted()
+//	fs.Read("/etc/hostname")  // works — no sandbox
+func (m *Fs) NewUnrestricted() *Fs {
+	return (&Fs{}).New("/")
+}
+
+// Root returns the sandbox root path.
+//
+//	root := c.Fs().Root()  // e.g. "/home/agent/.core"
+func (m *Fs) Root() string {
+	if m.root == "" {
+		return "/"
+	}
+	return m.root
+}
+
 // path sanitises and returns the full path.
 // Absolute paths are sandboxed under root (unless root is "/").
 // Empty root defaults to "/" — the zero value of Fs is usable.
@@ -143,6 +162,32 @@ func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
 		return Result{err, false}
 	}
 	if err := os.WriteFile(full, []byte(content), mode); err != nil {
+		return Result{err, false}
+	}
+	return Result{OK: true}
+}
+
+// WriteAtomic writes content by writing to a temp file then renaming.
+// Rename is atomic on POSIX — concurrent readers never see a partial file.
+// Use this for status files, config, or any file read from multiple goroutines.
+//
+//	r := fs.WriteAtomic("/status.json", jsonData)
+func (m *Fs) WriteAtomic(p, content string) Result {
+	vp := m.validatePath(p)
+	if !vp.OK {
+		return vp
+	}
+	full := vp.Value.(string)
+	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+		return Result{err, false}
+	}
+
+	tmp := full + ".tmp." + shortRand()
+	if err := os.WriteFile(tmp, []byte(content), 0644); err != nil {
+		return Result{err, false}
+	}
+	if err := os.Rename(tmp, full); err != nil {
+		os.Remove(tmp)
 		return Result{err, false}
 	}
 	return Result{OK: true}

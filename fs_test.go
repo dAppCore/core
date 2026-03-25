@@ -255,3 +255,103 @@ func TestFs_ReadStream_WriteStream_Good(t *testing.T) {
 	w := c.Fs().WriteStream(path)
 	assert.True(t, w.OK)
 }
+
+// --- WriteAtomic ---
+
+func TestFs_WriteAtomic_Good(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := filepath.Join(dir, "status.json")
+	r := c.Fs().WriteAtomic(path, `{"status":"completed"}`)
+	assert.True(t, r.OK)
+
+	read := c.Fs().Read(path)
+	assert.True(t, read.OK)
+	assert.Equal(t, `{"status":"completed"}`, read.Value)
+}
+
+func TestFs_WriteAtomic_Good_Overwrite(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := filepath.Join(dir, "data.txt")
+	c.Fs().WriteAtomic(path, "first")
+	c.Fs().WriteAtomic(path, "second")
+
+	read := c.Fs().Read(path)
+	assert.Equal(t, "second", read.Value)
+}
+
+func TestFs_WriteAtomic_Bad_ReadOnlyDir(t *testing.T) {
+	// Write to a non-existent root that can't be created
+	m := (&Fs{}).New("/proc/nonexistent")
+	r := m.WriteAtomic("file.txt", "data")
+	assert.False(t, r.OK, "WriteAtomic must fail when parent dir cannot be created")
+}
+
+func TestFs_WriteAtomic_Ugly_NoTempFileLeftOver(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := filepath.Join(dir, "clean.txt")
+	c.Fs().WriteAtomic(path, "content")
+
+	// Check no .tmp files remain
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		assert.False(t, Contains(e.Name(), ".tmp."), "temp file should not remain after successful atomic write")
+	}
+}
+
+func TestFs_WriteAtomic_Good_CreatesParentDir(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := filepath.Join(dir, "sub", "dir", "file.txt")
+	r := c.Fs().WriteAtomic(path, "nested")
+	assert.True(t, r.OK)
+
+	read := c.Fs().Read(path)
+	assert.Equal(t, "nested", read.Value)
+}
+
+// --- NewUnrestricted ---
+
+func TestFs_NewUnrestricted_Good(t *testing.T) {
+	sandboxed := (&Fs{}).New(t.TempDir())
+	unrestricted := sandboxed.NewUnrestricted()
+	assert.Equal(t, "/", unrestricted.Root())
+}
+
+func TestFs_NewUnrestricted_Good_CanReadOutsideSandbox(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside.txt")
+	os.WriteFile(outside, []byte("hello"), 0644)
+
+	sandboxed := (&Fs{}).New(filepath.Join(dir, "sandbox"))
+	unrestricted := sandboxed.NewUnrestricted()
+
+	r := unrestricted.Read(outside)
+	assert.True(t, r.OK, "unrestricted Fs must read paths outside the original sandbox")
+	assert.Equal(t, "hello", r.Value)
+}
+
+func TestFs_NewUnrestricted_Ugly_OriginalStaysSandboxed(t *testing.T) {
+	dir := t.TempDir()
+	sandbox := filepath.Join(dir, "sandbox")
+	os.MkdirAll(sandbox, 0755)
+
+	sandboxed := (&Fs{}).New(sandbox)
+	_ = sandboxed.NewUnrestricted() // getting unrestricted doesn't affect original
+
+	assert.Equal(t, sandbox, sandboxed.Root(), "original Fs must remain sandboxed")
+}
+
+// --- Root ---
+
+func TestFs_Root_Good(t *testing.T) {
+	m := (&Fs{}).New("/home/agent")
+	assert.Equal(t, "/home/agent", m.Root())
+}
+
+func TestFs_Root_Good_Default(t *testing.T) {
+	m := (&Fs{}).New("")
+	assert.Equal(t, "/", m.Root())
+}

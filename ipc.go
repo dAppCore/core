@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-// Ipc holds IPC dispatch data.
+// Ipc holds IPC dispatch data and the named action registry.
 //
 //	ipc := (&core.Ipc{}).New()
 type Ipc struct {
@@ -23,17 +23,27 @@ type Ipc struct {
 
 	taskMu       sync.RWMutex
 	taskHandlers []TaskHandler
+
+	actions *Registry[*Action] // named action registry
+	tasks   *Registry[*TaskDef]   // named task registry
 }
 
-func (c *Core) Action(msg Message) Result {
+// broadcast dispatches a message to all registered IPC handlers.
+// Each handler is wrapped in panic recovery. All handlers fire regardless of individual results.
+func (c *Core) broadcast(msg Message) Result {
 	c.ipc.ipcMu.RLock()
 	handlers := slices.Clone(c.ipc.ipcHandlers)
 	c.ipc.ipcMu.RUnlock()
 
 	for _, h := range handlers {
-		if r := h(c, msg); !r.OK {
-			return r
-		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					Error("ACTION handler panicked", "panic", r)
+				}
+			}()
+			h(c, msg)
+		}()
 	}
 	return Result{OK: true}
 }
@@ -71,4 +81,32 @@ func (c *Core) RegisterQuery(handler QueryHandler) {
 	c.ipc.queryMu.Lock()
 	c.ipc.queryHandlers = append(c.ipc.queryHandlers, handler)
 	c.ipc.queryMu.Unlock()
+}
+
+// --- IPC Registration (handlers) ---
+
+// RegisterAction registers a broadcast handler for ACTION messages.
+//
+//	c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
+//	    if ev, ok := msg.(AgentCompleted); ok { ... }
+//	    return core.Result{OK: true}
+//	})
+func (c *Core) RegisterAction(handler func(*Core, Message) Result) {
+	c.ipc.ipcMu.Lock()
+	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handler)
+	c.ipc.ipcMu.Unlock()
+}
+
+// RegisterActions registers multiple broadcast handlers.
+func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
+	c.ipc.ipcMu.Lock()
+	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)
+	c.ipc.ipcMu.Unlock()
+}
+
+// RegisterTask registers a handler for PERFORM task dispatch.
+func (c *Core) RegisterTask(handler TaskHandler) {
+	c.ipc.taskMu.Lock()
+	c.ipc.taskHandlers = append(c.ipc.taskHandlers, handler)
+	c.ipc.taskMu.Unlock()
 }

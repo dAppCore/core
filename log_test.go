@@ -105,7 +105,7 @@ func TestLog_Username_Good(t *testing.T) {
 
 // --- LogErr ---
 
-func TestLogErr_Good(t *testing.T) {
+func TestLog_LogErr_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	le := NewLogErr(l)
 	assert.NotNil(t, le)
@@ -114,7 +114,7 @@ func TestLogErr_Good(t *testing.T) {
 	le.Log(err)
 }
 
-func TestLogErr_Nil_Good(t *testing.T) {
+func TestLog_LogErr_Nil_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	le := NewLogErr(l)
 	le.Log(nil) // should not panic
@@ -122,13 +122,13 @@ func TestLogErr_Nil_Good(t *testing.T) {
 
 // --- LogPanic ---
 
-func TestLogPanic_Good(t *testing.T) {
+func TestLog_LogPanic_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPanic(l)
 	assert.NotNil(t, lp)
 }
 
-func TestLogPanic_Recover_Good(t *testing.T) {
+func TestLog_LogPanic_Recover_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPanic(l)
 	assert.NotPanics(t, func() {

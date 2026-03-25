@@ -85,14 +85,14 @@ type autoLifecycleService struct {
 	messages []Message
 }
 
-func (s *autoLifecycleService) OnStartup(_ context.Context) error {
+func (s *autoLifecycleService) OnStartup(_ context.Context) Result {
 	s.started = true
-	return nil
+	return Result{OK: true}
 }
 
-func (s *autoLifecycleService) OnShutdown(_ context.Context) error {
+func (s *autoLifecycleService) OnShutdown(_ context.Context) Result {
 	s.stopped = true
-	return nil
+	return Result{OK: true}
 }
 
 func (s *autoLifecycleService) HandleIPCEvents(_ *Core, msg Message) Result {

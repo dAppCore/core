@@ -6,10 +6,67 @@
 package core
 
 import (
+	crand "crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"sync/atomic"
 )
+
+// --- ID Generation ---
+
+var idCounter atomic.Uint64
+
+// ID returns a unique identifier. Format: "id-{counter}-{random}".
+// Counter is process-wide atomic. Random suffix prevents collision across restarts.
+//
+//	id := core.ID()  // "id-1-a3f2b1"
+//	id2 := core.ID() // "id-2-c7e4d9"
+func ID() string {
+	return Concat("id-", strconv.FormatUint(idCounter.Add(1), 10), "-", shortRand())
+}
+
+func shortRand() string {
+	b := make([]byte, 3)
+	crand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// --- Validation ---
+
+// ValidateName checks that a string is a valid service/action/command name.
+// Rejects empty, ".", "..", and names containing path separators.
+//
+//	r := core.ValidateName("brain")      // Result{"brain", true}
+//	r := core.ValidateName("")           // Result{error, false}
+//	r := core.ValidateName("../escape")  // Result{error, false}
+func ValidateName(name string) Result {
+	if name == "" || name == "." || name == ".." {
+		return Result{E("validate", Concat("invalid name: ", name), nil), false}
+	}
+	if Contains(name, "/") || Contains(name, "\\") {
+		return Result{E("validate", Concat("name contains path separator: ", name), nil), false}
+	}
+	return Result{name, true}
+}
+
+// SanitisePath extracts the base filename and rejects traversal attempts.
+// Returns "invalid" for dangerous inputs.
+//
+//	core.SanitisePath("../../etc/passwd")  // "passwd"
+//	core.SanitisePath("")                  // "invalid"
+//	core.SanitisePath("..")                // "invalid"
+func SanitisePath(path string) string {
+	safe := PathBase(path)
+	if safe == "." || safe == ".." || safe == "" {
+		return "invalid"
+	}
+	return safe
+}
+
+// --- I/O ---
 
 // Print writes a formatted line to a writer, defaulting to os.Stdout.
 //

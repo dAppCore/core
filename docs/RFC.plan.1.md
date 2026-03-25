@@ -1,6 +1,6 @@
-# RFC Plan 1 — First Session Priorities
+# RFC Plan 1 — First Session Priorities (COMPLETED 2026-03-25)
 
-> Read RFC.plan.md first. This is what to do in the FIRST session after compact.
+> All items shipped. See RFC.plan.md "What Was Shipped" section.
 
 ## Priority 1: Fix the 3 Critical Bugs (Plan 1)
 
@@ -77,9 +77,9 @@ TestRegistry_Get_Good
 
 Then migrate `serviceRegistry` first (most tested, most used).
 
-## What To Skip In First Session
+## What Was Skipped (shipped in same session instead)
 
-- Plan 3 (Actions) — needs Registry first
-- Plan 4 (Process) — needs Actions first
-- Plan 6 (ecosystem sweep) — needs everything first
-- Any breaking changes — v0.7.1 is additive only
+All items originally marked "skip" were shipped because Registry and Actions were built in the same session:
+- Plan 3 (Actions) — DONE: ActionDef, TaskDef, c.Action(), c.Task()
+- Plan 4 (Process) — DONE for core/go: c.Process() sugar over Actions
+- Breaking changes — DONE: Startable returns Result, CommandLifecycle removed

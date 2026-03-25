@@ -25,13 +25,12 @@ package core
 import (
 	"io/fs"
 	"path/filepath"
-	"sync"
 )
 
 // Data manages mounted embedded filesystems from core packages.
+// Embeds Registry[*Embed] for thread-safe named storage.
 type Data struct {
-	mounts map[string]*Embed
-	mu     sync.RWMutex
+	*Registry[*Embed]
 }
 
 // New registers an embedded filesystem under a named prefix.
@@ -62,54 +61,27 @@ func (d *Data) New(opts Options) Result {
 		path = "."
 	}
 
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.mounts == nil {
-		d.mounts = make(map[string]*Embed)
-	}
-
 	mr := Mount(fsys, path)
 	if !mr.OK {
 		return mr
 	}
 
 	emb := mr.Value.(*Embed)
-	d.mounts[name] = emb
-	return Result{emb, true}
-}
-
-// Get returns the Embed for a named mount point.
-//
-//	r := c.Data().Get("brain")
-//	if r.OK { emb := r.Value.(*Embed) }
-func (d *Data) Get(name string) Result {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	if d.mounts == nil {
-		return Result{}
-	}
-	emb, ok := d.mounts[name]
-	if !ok {
-		return Result{}
-	}
+	d.Set(name, emb)
 	return Result{emb, true}
 }
 
 // resolve splits a path like "brain/coding.md" into mount name + relative path.
 func (d *Data) resolve(path string) (*Embed, string) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
 	parts := SplitN(path, "/", 2)
 	if len(parts) < 2 {
 		return nil, ""
 	}
-	if d.mounts == nil {
+	r := d.Get(parts[0])
+	if !r.OK {
 		return nil, ""
 	}
-	emb := d.mounts[parts[0]]
-	return emb, parts[1]
+	return r.Value.(*Embed), parts[1]
 }
 
 // ReadFile reads a file by full path.
@@ -188,15 +160,9 @@ func (d *Data) Extract(path, targetDir string, templateData any) Result {
 	return Extract(r.Value.(*Embed).FS(), targetDir, templateData)
 }
 
-// Mounts returns the names of all mounted content.
+// Mounts returns the names of all mounted content in registration order.
 //
 //	names := c.Data().Mounts()
 func (d *Data) Mounts() []string {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	var names []string
-	for k := range d.mounts {
-		names = append(names, k)
-	}
-	return names
+	return d.Names()
 }

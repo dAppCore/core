@@ -20,37 +20,31 @@
 //	"deploy/to/homelab"  → "cmd.deploy.to.homelab.description"
 package core
 
-import (
-	"sync"
-)
 
 // CommandAction is the function signature for command handlers.
 //
 //	func(opts core.Options) core.Result
 type CommandAction func(Options) Result
 
-// CommandLifecycle is implemented by commands that support managed lifecycle.
-// Basic commands only need an action. Daemon commands implement Start/Stop/Signal
-// via go-process.
-type CommandLifecycle interface {
-	Start(Options) Result
-	Stop() Result
-	Restart() Result
-	Reload() Result
-	Signal(string) Result
-}
-
 // Command is the DTO for an executable operation.
+// Commands are declarative — they carry enough information for multiple consumers:
+//   - core.Cli() runs the Action
+//   - core/cli adds rich help, completion, man pages
+//   - go-process wraps Managed commands with lifecycle (PID, health, signals)
+//
+//	c.Command("serve", core.Command{
+//	    Action:  handler,
+//	    Managed: "process.daemon",  // go-process provides start/stop/restart
+//	})
 type Command struct {
 	Name        string
-	Description string           // i18n key — derived from path if empty
-	Path        string           // "deploy/to/homelab"
-	Action      CommandAction    // business logic
-	Lifecycle   CommandLifecycle // optional — provided by go-process
-	Flags       Options          // declared flags
+	Description string        // i18n key — derived from path if empty
+	Path        string        // "deploy/to/homelab"
+	Action      CommandAction // business logic
+	Managed     string        // "" = one-shot, "process.daemon" = managed lifecycle
+	Flags       Options       // declared flags
 	Hidden      bool
 	commands    map[string]*Command // child commands (internal)
-	mu          sync.RWMutex
 }
 
 // I18nKey returns the i18n key for this command's description.
@@ -77,52 +71,19 @@ func (cmd *Command) Run(opts Options) Result {
 	return cmd.Action(opts)
 }
 
-// Start delegates to the lifecycle implementation if available.
-func (cmd *Command) Start(opts Options) Result {
-	if cmd.Lifecycle != nil {
-		return cmd.Lifecycle.Start(opts)
-	}
-	return cmd.Run(opts)
-}
-
-// Stop delegates to the lifecycle implementation.
-func (cmd *Command) Stop() Result {
-	if cmd.Lifecycle != nil {
-		return cmd.Lifecycle.Stop()
-	}
-	return Result{}
-}
-
-// Restart delegates to the lifecycle implementation.
-func (cmd *Command) Restart() Result {
-	if cmd.Lifecycle != nil {
-		return cmd.Lifecycle.Restart()
-	}
-	return Result{}
-}
-
-// Reload delegates to the lifecycle implementation.
-func (cmd *Command) Reload() Result {
-	if cmd.Lifecycle != nil {
-		return cmd.Lifecycle.Reload()
-	}
-	return Result{}
-}
-
-// Signal delegates to the lifecycle implementation.
-func (cmd *Command) Signal(sig string) Result {
-	if cmd.Lifecycle != nil {
-		return cmd.Lifecycle.Signal(sig)
-	}
-	return Result{}
+// IsManaged returns true if this command has a managed lifecycle.
+//
+//	if cmd.IsManaged() { /* go-process handles start/stop */ }
+func (cmd *Command) IsManaged() bool {
+	return cmd.Managed != ""
 }
 
 // --- Command Registry (on Core) ---
 
-// commandRegistry holds the command tree.
-type commandRegistry struct {
-	commands map[string]*Command
-	mu       sync.RWMutex
+// CommandRegistry holds the command tree. Embeds Registry[*Command]
+// for thread-safe named storage with insertion order.
+type CommandRegistry struct {
+	*Registry[*Command]
 }
 
 // Command gets or registers a command by path.
@@ -131,21 +92,19 @@ type commandRegistry struct {
 //	r := c.Command("deploy")
 func (c *Core) Command(path string, command ...Command) Result {
 	if len(command) == 0 {
-		c.commands.mu.RLock()
-		cmd, ok := c.commands.commands[path]
-		c.commands.mu.RUnlock()
-		return Result{cmd, ok}
+		return c.commands.Get(path)
 	}
 
 	if path == "" || HasPrefix(path, "/") || HasSuffix(path, "/") || Contains(path, "//") {
 		return Result{E("core.Command", Concat("invalid command path: \"", path, "\""), nil), false}
 	}
 
-	c.commands.mu.Lock()
-	defer c.commands.mu.Unlock()
-
-	if existing, exists := c.commands.commands[path]; exists && (existing.Action != nil || existing.Lifecycle != nil) {
-		return Result{E("core.Command", Concat("command \"", path, "\" already registered"), nil), false}
+	// Check for duplicate executable command
+	if r := c.commands.Get(path); r.OK {
+		existing := r.Value.(*Command)
+		if existing.Action != nil || existing.IsManaged() {
+			return Result{E("core.Command", Concat("command \"", path, "\" already registered"), nil), false}
+		}
 	}
 
 	cmd := &command[0]
@@ -156,7 +115,8 @@ func (c *Core) Command(path string, command ...Command) Result {
 	}
 
 	// Preserve existing subtree when overwriting a placeholder parent
-	if existing, exists := c.commands.commands[path]; exists {
+	if r := c.commands.Get(path); r.OK {
+		existing := r.Value.(*Command)
 		for k, v := range existing.commands {
 			if _, has := cmd.commands[k]; !has {
 				cmd.commands[k] = v
@@ -164,40 +124,35 @@ func (c *Core) Command(path string, command ...Command) Result {
 		}
 	}
 
-	c.commands.commands[path] = cmd
+	c.commands.Set(path, cmd)
 
 	// Build parent chain — "deploy/to/homelab" creates "deploy" and "deploy/to" if missing
 	parts := Split(path, "/")
 	for i := len(parts) - 1; i > 0; i-- {
 		parentPath := JoinPath(parts[:i]...)
-		if _, exists := c.commands.commands[parentPath]; !exists {
-			c.commands.commands[parentPath] = &Command{
+		if !c.commands.Has(parentPath) {
+			c.commands.Set(parentPath, &Command{
 				Name:     parts[i-1],
 				Path:     parentPath,
 				commands: make(map[string]*Command),
-			}
+			})
 		}
-		c.commands.commands[parentPath].commands[parts[i]] = cmd
-		cmd = c.commands.commands[parentPath]
+		parent := c.commands.Get(parentPath).Value.(*Command)
+		parent.commands[parts[i]] = cmd
+		cmd = parent
 	}
 
 	return Result{OK: true}
 }
 
-// Commands returns all registered command paths.
+// Commands returns all registered command paths in registration order.
 //
 //	paths := c.Commands()
 func (c *Core) Commands() []string {
 	if c.commands == nil {
 		return nil
 	}
-	c.commands.mu.RLock()
-	defer c.commands.mu.RUnlock()
-	var paths []string
-	for k := range c.commands.commands {
-		paths = append(paths, k)
-	}
-	return paths
+	return c.commands.Names()
 }
 
 // pathName extracts the last segment of a path.

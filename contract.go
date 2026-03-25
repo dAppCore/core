@@ -7,6 +7,7 @@ package core
 import (
 	"context"
 	"reflect"
+	"sync"
 )
 
 // Message is the type for IPC broadcasts (fire-and-forget).
@@ -32,13 +33,21 @@ type QueryHandler func(*Core, Query) Result
 type TaskHandler func(*Core, Task) Result
 
 // Startable is implemented by services that need startup initialisation.
+//
+//	func (s *MyService) OnStartup(ctx context.Context) core.Result {
+//	    return core.Result{OK: true}
+//	}
 type Startable interface {
-	OnStartup(ctx context.Context) error
+	OnStartup(ctx context.Context) Result
 }
 
 // Stoppable is implemented by services that need shutdown cleanup.
+//
+//	func (s *MyService) OnShutdown(ctx context.Context) core.Result {
+//	    return core.Result{OK: true}
+//	}
 type Stoppable interface {
-	OnShutdown(ctx context.Context) error
+	OnShutdown(ctx context.Context) Result
 }
 
 // --- Action Messages ---
@@ -81,28 +90,27 @@ type CoreOption func(*Core) Result
 // Services registered here form the application conclave — they share
 // IPC access and participate in the lifecycle (ServiceStartup/ServiceShutdown).
 //
-//	r := core.New(
-//	    core.WithOptions(core.NewOptions(core.Option{Key: "name", Value: "myapp"})),
+//	c := core.New(
+//	    core.WithOption("name", "myapp"),
 //	    core.WithService(auth.Register),
 //	    core.WithServiceLock(),
 //	)
-//	if !r.OK { log.Fatal(r.Value) }
-//	c := r.Value.(*Core)
+//	c.Run()
 func New(opts ...CoreOption) *Core {
 	c := &Core{
 		app:      &App{},
-		data:     &Data{},
-		drive:    &Drive{},
+		data:     &Data{Registry: NewRegistry[*Embed]()},
+		drive:    &Drive{Registry: NewRegistry[*DriveHandle]()},
 		fs:       (&Fs{}).New("/"),
 		config:   (&Config{}).New(),
 		error:    &ErrorPanic{},
 		log:      &ErrorLog{},
-		lock:     &Lock{},
-		ipc:      &Ipc{},
+		lock:     &Lock{locks: NewRegistry[*sync.RWMutex]()},
+		ipc:      &Ipc{actions: NewRegistry[*Action](), tasks: NewRegistry[*TaskDef]()},
 		info:     systemInfo,
 		i18n:     &I18n{},
-		services: &serviceRegistry{services: make(map[string]*Service)},
-		commands: &commandRegistry{commands: make(map[string]*Command)},
+		services: &ServiceRegistry{Registry: NewRegistry[*Service]()},
+		commands: &CommandRegistry{Registry: NewRegistry[*Command]()},
 	}
 	c.context, c.cancel = context.WithCancel(context.Background())
 

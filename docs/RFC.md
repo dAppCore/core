@@ -1367,7 +1367,7 @@ The naming convention encodes the architecture:
 | `CamelCase()` | **Primitive** — the Lego brick, the building block | `c.Action("name")`, `c.Service("name")`, `c.Config()` |
 | `UPPERCASE()` | **Consumer convenience** — sugar over primitives, works out of the box | `c.ACTION(msg)`, `c.QUERY(q)`, `c.PERFORM(t)` |
 
-**Current code has this backwards.** `ACTION()` is the uppercase method but it's mapped to the raw dispatch. `Action()` is CamelCase but it's just an alias.
+**Implemented 2026-03-25.** `c.Action("name")` is the named action primitive. `c.ACTION(msg)` calls internal `broadcast()`. The rename from `Action(msg)` → `broadcast(msg)` is done.
 
 **Resolution:**
 
@@ -1401,13 +1401,9 @@ func MustServiceFor[T any](c *Core, name string) T {
 
 **Rule:** Use `MustServiceFor` only in `OnStartup` / init paths where failure is fatal. Never in request handlers or runtime code. Document this in RFC-025.
 
-### 3. Embed() Legacy Accessor (Resolved)
+### 3. Embed() Legacy Accessor (Resolved — Removed 2026-03-25)
 
-```go
-func (c *Core) Embed() Result { return c.data.Get("app") }
-```
-
-**Resolution:** Remove. It's a shortcut to `c.Data().Get("app")` with a misleading name. `Embed` sounds like it embeds something — it actually reads. An agent seeing `c.Embed()` can't know it's reading from Data. Dead code, remove in next refactor.
+**Removed.** `c.Embed()` deleted from core.go. Use `c.Data().Get("app")` instead.
 
 ### 4. Package-Level vs Core-Level Logging (Resolved)
 
@@ -1426,17 +1422,22 @@ c.Log().Info("msg")    // Core's logger instance
 
 This is the same dual pattern as `process.Run()` (global) vs `c.Process().Run()` (Core). Package-level functions are the bootstrap path. Core methods are the runtime path.
 
-### 5. RegisterAction Lives in task.go (Resolved by Issue 16)
+### 5. RegisterAction Lives in task.go (Resolved — Implemented 2026-03-25)
 
-Resolved — task.go splits into ipc.go (registration) + action.go (execution). See Issue 16.
+**Done.** RegisterAction/RegisterActions/RegisterTask moved to ipc.go. action.go has ActionDef, TaskDef, execution. task.go has PerformAsync/Progress.
 
-### 6. serviceRegistry Is Unexported (Resolved by Section 20)
+### 6. serviceRegistry Is Unexported (Resolved — Implemented 2026-03-25)
 
-Resolved — `serviceRegistry` becomes `ServiceRegistry` embedding `Registry[*Service]`. See Section 20.
+**Done.** All 5 registries migrated to `Registry[T]`:
+- `serviceRegistry` → `ServiceRegistry` embedding `Registry[*Service]`
+- `commandRegistry` → `CommandRegistry` embedding `Registry[*Command]`
+- `Drive` embedding `Registry[*DriveHandle]`
+- `Data` embedding `Registry[*Embed]`
+- `Lock.locks` using `Registry[*sync.RWMutex]`
 
-### 7. No c.Process() Accessor
+### 7. No c.Process() Accessor (Resolved — Implemented 2026-03-25)
 
-Spec'd in Section 17. Blocked on go-process v0.7.0 update.
+**Done.** `c.Process()` returns `*Process` — sugar over `c.Action("process.run")`. No deps added to core/go. go-process v0.7.0 registers the actual handlers.
 
 ### 8. NewRuntime / NewWithFactories — GUI Bridge, Not Legacy (Resolved)
 
@@ -1467,7 +1468,7 @@ c := core.New(
 
 This unifies CLI and GUI bootstrap — same `core.New()`, just with `WithRuntime` added.
 
-### 9. CommandLifecycle — The Three-Layer CLI Architecture
+### 9. CommandLifecycle — The Three-Layer CLI Architecture (Resolved — Implemented 2026-03-25)
 
 ```go
 type CommandLifecycle interface {

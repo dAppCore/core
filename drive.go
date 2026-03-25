@@ -24,10 +24,6 @@
 //	api := c.Drive().Get("api")
 package core
 
-import (
-	"sync"
-)
-
 // DriveHandle holds a named transport resource.
 type DriveHandle struct {
 	Name      string
@@ -35,10 +31,9 @@ type DriveHandle struct {
 	Options   Options
 }
 
-// Drive manages named transport handles.
+// Drive manages named transport handles. Embeds Registry[*DriveHandle].
 type Drive struct {
-	handles map[string]*DriveHandle
-	mu      sync.RWMutex
+	*Registry[*DriveHandle]
 }
 
 // New registers a transport handle.
@@ -53,58 +48,12 @@ func (d *Drive) New(opts Options) Result {
 		return Result{}
 	}
 
-	transport := opts.String("transport")
-
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.handles == nil {
-		d.handles = make(map[string]*DriveHandle)
-	}
-
 	handle := &DriveHandle{
 		Name:      name,
-		Transport: transport,
+		Transport: opts.String("transport"),
 		Options:   opts,
 	}
 
-	d.handles[name] = handle
+	d.Set(name, handle)
 	return Result{handle, true}
-}
-
-// Get returns a handle by name.
-//
-//	r := c.Drive().Get("api")
-//	if r.OK { handle := r.Value.(*DriveHandle) }
-func (d *Drive) Get(name string) Result {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	if d.handles == nil {
-		return Result{}
-	}
-	h, ok := d.handles[name]
-	if !ok {
-		return Result{}
-	}
-	return Result{h, true}
-}
-
-// Has returns true if a handle is registered.
-//
-//	if c.Drive().Has("ssh") { ... }
-func (d *Drive) Has(name string) bool {
-	return d.Get(name).OK
-}
-
-// Names returns all registered handle names.
-//
-//	names := c.Drive().Names()
-func (d *Drive) Names() []string {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	var names []string
-	for k := range d.handles {
-		names = append(names, k)
-	}
-	return names
 }

@@ -1,6 +1,6 @@
-# RFC Plan 2 — Registry + Actions Sessions
+# RFC Plan 2 — Registry + Actions Sessions (COMPLETED 2026-03-25)
 
-> After Plan 1 bugs are fixed and AX-7 rename is done.
+> All core/go items shipped. core/agent migration and go-process v0.7.0 are separate repo scope.
 
 ## Session Goal: Registry[T] + First Migration
 
