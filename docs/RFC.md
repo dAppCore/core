@@ -1079,19 +1079,19 @@ The five root causes map to a priority order:
 
 All 5 root causes resolved.
 
-### Cross-References — Existing RFCs That Solve Open Problems
+### Cross-References — Ecosystem RFCs
 
-Core/go provides the INTERFACE (stdlib only). Consumer packages bring the IMPLEMENTATION. These existing RFCs map directly to open findings:
+Core/go provides the INTERFACE (stdlib only). Consumer packages bring the IMPLEMENTATION:
 
-| Finding | Existing RFC | Core Provides (interface) | Consumer Provides (impl) |
-|---------|-------------|--------------------------|-------------------------|
-| P13-5: Sync startup | RFC-002 (Event-Driven Modules) | `Startable` + event declarations | Lazy instantiation based on `$listens` pattern |
-| P11-1: God Mode | RFC-004 (Entitlements) | `c.Entitled(action) Entitlement` | Package/feature gating, usage limits |
-| P11-3: Secret exposure | RFC-012 (SMSG) | `c.Secret(name) string` | SMSG decrypt, Vault, env fallback |
-| P9-6: No validation | RFC-009 (Sigil Transforms) | Composable transform chain interface | Validators, sanitisers, reversible transforms |
-| P11-2: Fs sandbox bypass | RFC-014 (TIM) | `c.Fs()` sandbox root | TIM container = OS-level isolation boundary |
-| P13-2: Go only | RFC-013 (DataNode) | `c.Data()` mounts `fs.FS` | DataNode = in-memory fs, test mounts, cross-language data |
-| P2-8: Logging gap | RFC-003 (Config Channels) | `c.Config()` with channel context | Settings vary by surface (CLI vs MCP vs HTTP) |
+| Finding | Ecosystem RFC | Core Primitive | Consumer |
+|---------|--------------|----------------|----------|
+| P13-5: Sync startup | RFC-002 (Event Modules) | `Startable` + registration order | Lazy instantiation |
+| P11-1: God Mode | RFC-004 (Entitlements) | `c.Entitled()` | go-entitlements |
+| P11-3: Secrets | RFC-012 (SMSG) | `c.Env()` (fallback) | go-smsg / Vault (future primitive) |
+| P9-6: Validation | RFC-009 (Sigil) | `ValidateName()` / `SanitisePath()` | Sigil transform chains |
+| P11-2: Sandbox bypass | — | `Fs.NewUnrestricted()` | — (resolved in core/go) |
+| P13-2: Cross-language | RFC-013 (DataNode) | `c.Data()` mounts `fs.FS` | DataNode / Borg |
+| P2-8: Config context | RFC-003 (Config Channels) | `c.Config()` | Channel-aware resolution |
 
 **The pattern:** Core defines a primitive with a Go interface. The RFC describes the concept. A consumer package implements it. Core stays stdlib-only. The ecosystem gets rich features via composition.
 
