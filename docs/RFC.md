@@ -1129,7 +1129,7 @@ These pre-v0.7.0 functions take `app any` instead of `*Core`. `Runtime` is a sep
 
 **Question:** Is anything still using `NewRuntime`/`NewWithFactories`? If not, remove. If yes, migrate to `core.New()`.
 
-### 9. CommandLifecycle — Designed but Never Connected
+### 9. CommandLifecycle — The Three-Layer CLI Architecture
 
 ```go
 type CommandLifecycle interface {
@@ -1141,19 +1141,62 @@ type CommandLifecycle interface {
 }
 ```
 
-Lives on `Command.Lifecycle` as an optional field. Comment says "provided by go-process" but nobody implements it. This is the skeleton for daemon commands — `core-agent serve` would use `Start`/`Stop`/`Restart`/`Signal` to manage a long-running process as a CLI command.
+Lives on `Command.Lifecycle` as an optional field. Comment says "provided by go-process" but nobody implements it yet.
 
-**Intent:** A command that runs a daemon gets lifecycle verbs for free. `core-agent serve --stop` sends `Signal("stop")` to the running instance via PID file.
+**Intent:** Every CLI command can potentially be a daemon. The `Command` struct is a **primitive declaration** — it carries enough information for multiple consumers to act on it:
 
-**Relationship to Section 18:** With Actions and Tasks, a Command IS an Action. `CommandLifecycle` becomes a Task that wraps the Action's process lifecycle. The `Start`/`Stop`/`Restart`/`Signal` verbs are process Actions that go-process registers. The `Command` struct just needs a reference to the Action name — the lifecycle is handled by the Action/Task system, not by an interface on the Command.
-
-**Resolution:** Once Section 18 (Actions) is implemented, `CommandLifecycle` can be replaced with:
-```go
-c.Command("serve", core.Command{
-    Action: s.cmdServe,
-    Task:   "process.daemon",  // managed lifecycle via Action system
-})
 ```
+Service registers:     c.Command("serve", Command{Action: handler, Managed: "process.daemon"})
+core.Cli() provides:   basic arg parsing, runs the Action
+core/cli extends:      rich help, --stop/--restart/--status flags, shell completion
+go-process extends:    PID file, health check, signal handling, daemon registry
+```
+
+Each layer reads the same `Command` struct. No layer modifies it. The struct IS the contract — services declare, packages consume.
+
+**The three layers:**
+
+| Layer | Package | Provides | Reads From |
+|-------|---------|----------|------------|
+| Primitive | core/go `core.Cli()` | Command tree, basic parsing, minimal runner | `Command.Action`, `Command.Path`, `Command.Flags` |
+| Rich CLI | core/cli | Cobra-style help, subcommands, completion, man pages | Same `Command` struct — builds UI from declarations |
+| Process | go-process | PID file, health, signals, daemon registry | `Command.Managed` field — wraps the Action in lifecycle |
+
+This is why `CommandLifecycle` is on the struct as a field, not on Core as a method. It's data, not behaviour. The behaviour comes from whichever package reads it.
+
+**Resolution:** Replace the `CommandLifecycle` interface with a `Managed` field:
+
+```go
+type Command struct {
+    Name        string
+    Description string
+    Path        string
+    Action      CommandAction     // the business logic
+    Managed     string            // "" = one-shot, "process.daemon" = managed lifecycle
+    Flags       Options
+    Hidden      bool
+}
+```
+
+When `Managed` is set:
+- `core.Cli()` sees it's a daemon, adds basic `--stop`/`--status` flag handling
+- `core/cli` adds full daemon management UI (start/stop/restart/reload/status)
+- `go-process` provides the actual mechanics (PID, health, signals, registry)
+- `core-agent serve` → go-process starts the Action as a daemon
+- `core-agent serve --stop` → go-process sends SIGTERM via PID file
+
+The `CommandLifecycle` interface disappears. The lifecycle verbs become process Actions (Section 18):
+
+```
+process.start    — start managed daemon
+process.stop     — graceful SIGTERM → wait → SIGKILL
+process.restart  — stop + start
+process.reload   — SIGHUP
+process.signal   — arbitrary signal
+process.status   — is it running? PID? uptime?
+```
+
+Any command with `Managed: "process.daemon"` gets these for free when go-process is in the conclave.
 
 ### 10. Array[T] — Generic Collection, Used Nowhere
 
