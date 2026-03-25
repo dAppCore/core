@@ -1,12 +1,12 @@
 # CoreGO API Contract — RFC Specification
 
-> `dappco.re/go/core` — Dependency injection, service lifecycle, and message-passing framework.
+> `dappco.re/go/core` — Dependency injection, service lifecycle, permission, and message-passing framework.
 > This document is the authoritative API contract. An agent should be able to write a service
 > that registers with Core from this document alone.
 
 **Status:** Living document
 **Module:** `dappco.re/go/core`
-**Version:** v0.7.0+
+**Version:** v0.8.0
 
 ---
 
@@ -42,19 +42,25 @@ Run() → ServiceStartup() → Cli.Run() → ServiceShutdown()
 Every subsystem is accessed via a method on Core:
 
 ```go
-c.Options()   // *Options  — input configuration
-c.App()       // *App      — application metadata (name, version)
-c.Config()    // *Config   — runtime settings, feature flags
-c.Data()      // *Data     — embedded assets mounted by packages
-c.Drive()     // *Drive    — transport handles (API, MCP, SSH)
-c.Fs()        // *Fs       — filesystem I/O (sandboxable)
-c.Cli()       // *Cli      — CLI command framework
-c.IPC()       // *Ipc      — message bus internals
-c.I18n()      // *I18n     — internationalisation
-c.Error()     // *ErrorPanic — panic recovery
-c.Log()       // *ErrorLog  — structured logging
-c.Context()   // context.Context — Core's lifecycle context
-c.Env(key)    // string    — environment variable (cached at init)
+c.Options()      // *Options     — input configuration
+c.App()          // *App         — application metadata (name, version)
+c.Config()       // *Config      — runtime settings, feature flags
+c.Data()         // *Data        — embedded assets (Registry[*Embed])
+c.Drive()        // *Drive       — transport handles (Registry[*DriveHandle])
+c.Fs()           // *Fs          — filesystem I/O (sandboxable)
+c.Cli()          // *Cli         — CLI command framework
+c.IPC()          // *Ipc         — message bus internals
+c.I18n()         // *I18n        — internationalisation
+c.Error()        // *ErrorPanic  — panic recovery
+c.Log()          // *ErrorLog    — structured logging
+c.Process()      // *Process     — managed execution (Action sugar)
+c.API()          // *API         — remote streams (protocol handlers)
+c.Action(name)   // *Action      — named callable (register/invoke)
+c.Task(name)     // *Task        — composed Action sequence
+c.Entitled(name) // Entitlement  — permission check
+c.RegistryOf(n)  // *Registry    — cross-cutting queries
+c.Context()      // context.Context
+c.Env(key)       // string       — environment variable (cached at init)
 ```
 
 ---
@@ -124,15 +130,16 @@ return core.Result{Value: err, OK: false}
 
 No generics on Result. Type-assert the Value when needed. This is deliberate — `Result` is universal across all subsystems without carrying type parameters.
 
-### 2.4 Message, Query, Task
+### 2.4 Message, Query
 
-IPC type aliases — all are `any` at the type level, distinguished by usage:
+IPC type aliases for the broadcast/request system:
 
 ```go
 type Message any  // broadcast via ACTION — fire and forget
 type Query any    // request/response via QUERY — returns first handler's result
-type Task any     // work unit via PERFORM — tracked with progress
 ```
+
+For tracked work, use named Actions: `c.PerformAsync("action.name", opts)`.
 
 ---
 
@@ -179,8 +186,8 @@ func (s *MyService) doSomething() {
 
 `WithService` reflects on the returned instance to discover:
 - **Package name** → service name (from reflect type path)
-- **Startable interface** → `OnStartup(ctx) error` called during `ServiceStartup`
-- **Stoppable interface** → `OnShutdown(ctx) error` called during `ServiceShutdown`
+- **Startable interface** → `OnStartup(ctx) Result` called during `ServiceStartup`
+- **Stoppable interface** → `OnShutdown(ctx) Result` called during `ServiceShutdown`
 - **HandleIPCEvents method** → auto-registered as IPC handler
 
 ### 3.4 Retrieval
@@ -203,11 +210,11 @@ names := c.Services() // []string
 
 ```go
 type Startable interface {
-    OnStartup(ctx context.Context) error
+    OnStartup(ctx context.Context) Result
 }
 
 type Stoppable interface {
-    OnShutdown(ctx context.Context) error
+    OnShutdown(ctx context.Context) Result
 }
 ```
 
@@ -258,19 +265,18 @@ c.RegisterQuery(func(c *core.Core, q core.Query) core.Result {
 })
 ```
 
-### 4.3 PERFORM (tracked task)
+### 4.3 PerformAsync (background action)
 
 ```go
-// Execute with progress tracking
-c.PERFORM(MyTask{Data: payload})
+// Execute a named action in background with progress tracking
+r := c.PerformAsync("agentic.dispatch", opts)
+taskID := r.Value.(string)
 
-// Register task handler
-c.RegisterTask(func(c *core.Core, t core.Task) core.Result {
-    // do work, report progress
-    c.Progress(taskID, 0.5, "halfway done", t)
-    return core.Result{Value: output, OK: true}
-})
+// Report progress
+c.Progress(taskID, 0.5, "halfway done", "agentic.dispatch")
 ```
+
+Broadcasts `ActionTaskStarted`, `ActionTaskProgress`, `ActionTaskCompleted` as ACTION messages.
 
 ---
 
@@ -369,11 +375,18 @@ r := fs.Append(path)      // Result{Value: io.WriteCloser}
 r := fs.ReadStream(path)  // Result{Value: io.ReadCloser}
 r := fs.WriteStream(path) // Result{Value: io.WriteCloser}
 
+// Atomic write (write-to-temp-then-rename, safe for concurrent readers)
+r := fs.WriteAtomic(path, content)
+
 // Delete
 r := fs.Delete(path)      // single file
 r := fs.DeleteAll(path)   // recursive
 r := fs.Rename(old, new)
 r := fs.Stat(path)        // Result{Value: os.FileInfo}
+
+// Sandbox control
+fs.Root()                  // sandbox root path
+fs.NewUnrestricted()       // Fs with root "/" — full access
 ```
 
 ---
@@ -403,6 +416,15 @@ func (s *MyService) cmdIssueGet(opts core.Options) core.Result {
 ```
 
 Path = command hierarchy. `issue/get` becomes `myapp issue get` in CLI.
+
+Managed commands have lifecycle provided by go-process:
+
+```go
+c.Command("serve", core.Command{
+    Action:  handler,
+    Managed: "process.daemon",  // go-process provides start/stop/restart
+})
+```
 
 ---
 
