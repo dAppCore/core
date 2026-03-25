@@ -1772,6 +1772,177 @@ This API follows RFC-025 Agent Experience (AX):
 8. **Naming encodes architecture** — CamelCase = primitive brick, UPPERCASE = consumer convenience
 9. **File = concern** — one file, one job (ipc.go = registry, action.go = execution, contract.go = types)
 
+## Pass Two — Architectural Audit
+
+> Second review of the spec against the actual codebase. Looking for
+> anti-patterns, security concerns, and unexported fields that indicate
+> unfinished design.
+
+### P2-1. Core Struct Is Fully Unexported — Contradicts Lego Bricks
+
+Every field on `Core` is unexported. The Design Philosophy says "exported fields are intentional" but the most important type in the system hides everything behind accessors.
+
+```go
+type Core struct {
+    options  *Options          // unexported
+    services *serviceRegistry  // unexported
+    commands *commandRegistry  // unexported
+    ipc      *Ipc             // unexported
+    // ... all 15 fields unexported
+}
+```
+
+**Split:** Some fields SHOULD be exported (registries, subsystems — they're bricks). Some MUST stay unexported (lifecycle internals — they're safety).
+
+| Should Export | Why |
+|--------------|-----|
+| `Services *ServiceRegistry` | Downstream extends service management |
+| `Commands *CommandRegistry` | Downstream extends command routing |
+| `IPC *Ipc` | Inspection, capability queries |
+| `Data *Data` | Mount inspection |
+| `Drive *Drive` | Transport inspection |
+
+| Must Stay Unexported | Why |
+|---------------------|-----|
+| `context` / `cancel` | Lifecycle is Core's responsibility — exposing cancel is dangerous |
+| `waitGroup` | Concurrency is Core's responsibility |
+| `shutdown` | Shutdown state must be atomic and Core-controlled |
+| `taskIDCounter` | Implementation detail |
+
+**Rule:** Export the bricks. Hide the safety mechanisms.
+
+### P2-2. Fs.root Is Unexported — Correctly
+
+```go
+type Fs struct {
+    root string  // the sandbox boundary
+}
+```
+
+This is the ONE field that's correctly unexported. `root` controls path validation — if exported, any consumer bypasses sandboxing by setting `root = "/"`. Security boundaries are the exception to Lego Bricks.
+
+**Rule:** Security boundaries stay unexported. Everything else exports.
+
+### P2-3. Config.Settings Is `map[string]any` — Untyped Bag
+
+```go
+type ConfigOptions struct {
+    Settings map[string]any   // anything goes
+    Features map[string]bool  // at least typed
+}
+```
+
+`Settings` is a raw untyped map. Any code can stuff anything in. No validation, no schema, no way to know what keys are valid. `ConfigVar[T]` (Issue 11) was designed to fix this but is unused.
+
+**Resolution:** `Settings` should use `Registry[ConfigVar[any]]` — each setting tracked with set/unset state. Or at minimum, `c.Config().Set()` should validate against a declared schema.
+
+The Features map is better — `map[string]bool` is at least typed. But it's still a raw map with no declared feature list.
+
+### P2-4. Global `assetGroups` — State Outside the Conclave
+
+```go
+var (
+    assetGroups   = make(map[string]*AssetGroup)
+    assetGroupsMu sync.RWMutex
+)
+```
+
+Package-level mutable state with its own mutex. `AddAsset()` and `GetAsset()` work without a Core reference. This bypasses the conclave — there's no permission check, no lifecycle, no IPC. Any imported package's `init()` can modify this.
+
+**Intent:** Generated code from `GeneratePack` calls `AddAsset()` in `init()` — before Core exists.
+
+**Tension:** This is the bootstrap problem. Assets must be available before Core is created because `WithService` factories may need them during `New()`. But global state outside Core is an anti-pattern.
+
+**Resolution:** Accept this as a pre-Core bootstrap layer. Document that `AddAsset`/`GetAsset` are init-time only — after `core.New()`, all asset access goes through `c.Data()`. Consider `c.Data().Import()` to move global assets into Core's registry during construction.
+
+### P2-5. SysInfo Frozen at init() — Untestable
+
+```go
+var systemInfo = &SysInfo{values: make(map[string]string)}
+
+func init() {
+    systemInfo.values["DIR_HOME"] = homeDir
+    // ... populated once, never updated
+}
+```
+
+`core.Env("DIR_HOME")` returns the init-time value. `t.Setenv("DIR_HOME", temp)` has no effect because the map was populated before the test ran. We hit this exact bug repeatedly in core/agent testing.
+
+**Resolution:** `core.Env()` should check the live `os.Getenv()` as fallback when the cached value doesn't match. Or provide `core.EnvRefresh()` for test contexts. The cached values are a performance optimisation — they shouldn't override actual environment changes.
+
+```go
+func Env(key string) string {
+    if v := systemInfo.values[key]; v != "" {
+        return v
+    }
+    return os.Getenv(key)  // already does this — but cached value wins
+}
+```
+
+The issue is that cached values like `DIR_HOME` are set to the REAL home dir at init. `os.Getenv("DIR_HOME")` returns the test override, but `systemInfo.values["DIR_HOME"]` returns the cached original. The cache should only hold values that DON'T exist in os env — computed values like `PID`, `NUM_CPU`, `OS`, `ARCH`.
+
+### P2-6. ErrorPanic.onCrash Is Unexported
+
+```go
+type ErrorPanic struct {
+    filePath string
+    meta     map[string]string
+    onCrash  func(CrashReport)  // hidden callback
+}
+```
+
+The crash callback can't be set by downstream packages. If core/agent wants to send crash reports to OpenBrain, or if a monitoring service wants to capture panics, they can't wire into this.
+
+**Resolution:** Export `OnCrash` or provide `c.Error().SetCrashHandler(fn)`. Crash handling is sensitive but it's also a cross-cutting concern that monitoring services need access to.
+
+### P2-7. Data.mounts Is Unexported — Can't Iterate
+
+```go
+type Data struct {
+    mounts map[string]*Embed
+    mu     sync.RWMutex
+}
+```
+
+`c.Data().Mounts()` returns names (`[]string`) but you can't iterate the actual `*Embed` objects. With `Registry[T]` (Section 20), Data should embed `Registry[*Embed]` and expose `c.Data().Each()`.
+
+**Resolution:** Data becomes:
+```go
+type Data struct {
+    *Registry[*Embed]
+}
+```
+
+### P2-8. Logging Timing Gap — Bootstrap vs Runtime
+
+```go
+// During init/startup — before Core exists:
+core.Info("starting up")       // global default logger — unconfigured
+
+// After core.New() — Core configures its logger:
+c.Log().Info("running")        // Core's logger — configured
+```
+
+Between program start and `core.New()`, log messages go to the unconfigured global logger. After `core.New()`, they go to Core's configured logger. The transition is invisible — no warning, no redirect.
+
+**Resolution:** Document the boundary clearly. Consider `core.New()` auto-redirecting the global logger to Core's logger:
+
+```go
+func New(opts ...CoreOption) *Core {
+    c := &Core{...}
+    // ... apply options ...
+
+    // Redirect global logger to Core's logger
+    SetDefault(c.log.logger())
+
+    return c
+}
+```
+
+After `New()`, `core.Info()` and `c.Log().Info()` go to the same destination. The timing gap still exists during construction, but it closes as soon as Core is built.
+
+---
+
 ## Versioning
 
 ### Release Model
@@ -1818,6 +1989,7 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 
 ## Changelog
 
+- 2026-03-25: Pass Two — 8 architectural findings (P2-1 through P2-8)
 - 2026-03-25: Added versioning model + v0.8.0 requirements
 - 2026-03-25: Resolved all 16 Known Issues. Added Section 20 (Registry).
 - 2026-03-25: Added Section 19 — API/Stream remote transport primitive
