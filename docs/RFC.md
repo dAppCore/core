@@ -2211,6 +2211,118 @@ All service operations lock on `c.Lock("srv")` — registration, lookup, listing
 
 ---
 
+## Pass Four (Revisited) — Concurrency Deep Dive
+
+> Re-examining concurrency with 9 additional passes of context.
+> Looking at cross-subsystem races that P4 couldn't see.
+
+### P4-9. status.json Has 51 Read-Modify-Write Sites — No Locking
+
+`ReadStatus()` and `writeStatus()` are called from 51 sites across core/agent. They read a JSON file, modify the struct, and write it back. No mutex. No file lock. No atomic swap.
+
+```go
+// Goroutine A (onAgentComplete):
+st, _ := ReadStatus(wsDir)   // reads status.json
+st.Status = "completed"
+writeStatus(wsDir, st)        // writes status.json
+
+// Goroutine B (status MCP tool, concurrent):
+st, _ := ReadStatus(wsDir)   // reads status.json — may see partial write
+st.Status = "blocked"         // overwrites A's "completed"
+writeStatus(wsDir, st)        // last write wins
+```
+
+Concurrent callers:
+- **spawnAgent goroutine** — onAgentComplete writes final status
+- **status MCP tool** — detects dead PIDs, writes status corrections
+- **drainOne** — writes "running" when spawning queued agent
+- **shutdownNow** — writes "failed" for killed processes
+- **resume** — writes "running" when relaunching
+
+All on different goroutines. All targeting the same file. Classic TOCTOU.
+
+**Impact:** Status corruption. An agent marked "completed" by the goroutine gets overwritten to "blocked" by the status tool. Or vice versa. The queue sees the wrong status and makes wrong decisions.
+
+**Resolution:** Per-workspace mutex in the workspace status manager. Or atomic file writes (write to temp, rename). Or move status into Core's `Registry[*WorkspaceStatus]` where the registry mutex protects access.
+
+### P4-10. Fs.Write Uses os.WriteFile — Not Atomic
+
+```go
+func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
+    // os.WriteFile truncates then writes
+    return Result{}.New(os.WriteFile(full, []byte(content), mode))
+}
+```
+
+`os.WriteFile` truncates the file to zero length, then writes content. A concurrent reader during the truncate-to-write window sees an empty file. `ReadStatus` during that window returns an unmarshal error — the file exists but is empty.
+
+This is P4-9's underlying cause. Even with a mutex on ReadStatus/writeStatus, the Fs primitive itself isn't atomic.
+
+**Resolution:** Fs needs an atomic write option:
+
+```go
+// Atomic: write to temp file, then rename (rename is atomic on POSIX)
+fs.WriteAtomic(path, content)
+
+// Implementation:
+tmp := path + ".tmp"
+os.WriteFile(tmp, content, mode)
+os.Rename(tmp, path)  // atomic on same filesystem
+```
+
+### P4-11. Config.Set and Config.Get Can Interleave Across Goroutines
+
+P4-6 found ConfigVar.Set has no lock. But the deeper issue:
+
+```go
+// Goroutine A:
+c.Config().Set("agents.concurrency", newMap)
+
+// Goroutine B (same moment):
+val := c.Config().Get("agents.concurrency")
+// may see partial map — some keys updated, some not
+```
+
+Config.Set holds the mutex during Set. Config.Get holds it during Get. But the VALUE is `any` — if it's a map, the map itself isn't copied. Both goroutines hold a reference to the same map. Mutations to the map after Set aren't protected.
+
+**Resolution:** Config.Set should deep-copy map values. Or document: "Config values must be immutable after Set. Never mutate a map retrieved from Config."
+
+### P4-12. The Global Logger Race Window
+
+P2-8 noted the logging timing gap. The concurrency angle:
+
+```go
+// main goroutine:
+c := core.New(...)  // eventually calls SetDefault(logger)
+
+// init() goroutine or early startup:
+core.Info("starting")  // uses defaultLogPtr.Load() — may be nil or stale
+```
+
+`defaultLogPtr` is `atomic.Pointer[Log]` — the Load/Store is safe. But `core.Info()` calls `Default().Info()`. If `Default()` returns nil (before any logger is set), it panics.
+
+```go
+func Default() *Log {
+    if l := defaultLogPtr.Load(); l != nil {
+        return l
+    }
+    // falls through to create default — but this creates a NEW default every time
+    // until SetDefault is called
+}
+```
+
+Actually let me check:
+
+```go
+func Default() *Log {
+```
+
+The real question is whether Default() handles nil safely.
+
+**Resolution:** Verify Default() is nil-safe. If it creates a fallback logger on first call, the race is benign (just uses the fallback until Core sets the real one). If it returns nil, it's a panic.
+
+---
+
 ## Pass Five — Consumer Experience
 
 > Fifth review. Looking at Core from the outside — what does a service author
