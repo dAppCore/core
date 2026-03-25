@@ -15,7 +15,7 @@ func TestProcess_Run_Good(t *testing.T) {
 	// Register a mock process handler
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
 		cmd := opts.String("command")
-		return Result{Value: "output of " + cmd, OK: true}
+		return Result{Value: Concat("output of ", cmd), OK: true}
 	})
 
 	r := c.Process().Run(context.Background(), "git", "log")
@@ -46,7 +46,7 @@ func TestProcess_RunIn_Good(t *testing.T) {
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
 		dir := opts.String("dir")
 		cmd := opts.String("command")
-		return Result{Value: cmd + " in " + dir, OK: true}
+		return Result{Value: Concat(cmd, " in ", dir), OK: true}
 	})
 
 	r := c.Process().RunIn(context.Background(), "/repo", "go", "test")
@@ -126,7 +126,7 @@ func TestProcess_Ugly_PermissionByRegistration(t *testing.T) {
 	// Full Core
 	full := New()
 	full.Action("process.run", func(_ context.Context, opts Options) Result {
-		return Result{Value: "executed " + opts.String("command"), OK: true}
+		return Result{Value: Concat("executed ", opts.String("command")), OK: true}
 	})
 
 	// Sandboxed Core

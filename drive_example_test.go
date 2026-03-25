@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -13,8 +12,8 @@ func ExampleDrive_New() {
 		Option{Key: "transport", Value: "https://forge.lthn.ai"},
 	))
 
-	fmt.Println(c.Drive().Has("forge"))
-	fmt.Println(c.Drive().Names())
+	Println(c.Drive().Has("forge"))
+	Println(c.Drive().Names())
 	// Output:
 	// true
 	// [forge]
@@ -30,7 +29,7 @@ func ExampleDrive_Get() {
 	r := c.Drive().Get("charon")
 	if r.OK {
 		h := r.Value.(*DriveHandle)
-		fmt.Println(h.Transport)
+		Println(h.Transport)
 	}
 	// Output: http://10.69.69.165:9101
 }

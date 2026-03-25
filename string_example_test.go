@@ -1,14 +1,13 @@
 package core_test
 
 import (
-	"fmt"
 
 	. "dappco.re/go/core"
 )
 
 func ExampleContains() {
-	fmt.Println(Contains("hello world", "world"))
-	fmt.Println(Contains("hello world", "mars"))
+	Println(Contains("hello world", "world"))
+	Println(Contains("hello world", "mars"))
 	// Output:
 	// true
 	// false
@@ -16,21 +15,21 @@ func ExampleContains() {
 
 func ExampleSplit() {
 	parts := Split("deploy/to/homelab", "/")
-	fmt.Println(parts)
+	Println(parts)
 	// Output: [deploy to homelab]
 }
 
 func ExampleJoin() {
-	fmt.Println(Join("/", "deploy", "to", "homelab"))
+	Println(Join("/", "deploy", "to", "homelab"))
 	// Output: deploy/to/homelab
 }
 
 func ExampleConcat() {
-	fmt.Println(Concat("hello", " ", "world"))
+	Println(Concat("hello", " ", "world"))
 	// Output: hello world
 }
 
 func ExampleTrim() {
-	fmt.Println(Trim("  spaced  "))
+	Println(Trim("  spaced  "))
 	// Output: spaced
 }

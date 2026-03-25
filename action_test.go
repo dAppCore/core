@@ -24,7 +24,7 @@ func TestAction_NamedAction_Good_Invoke(t *testing.T) {
 	c := New()
 	c.Action("git.log", func(_ context.Context, opts Options) Result {
 		dir := opts.String("dir")
-		return Result{Value: "log from " + dir, OK: true}
+		return Result{Value: Concat("log from ", dir), OK: true}
 	})
 
 	r := c.Action("git.log").Run(context.Background(), NewOptions(

@@ -1,15 +1,14 @@
 package core_test
 
 import (
-	"fmt"
 
 	. "dappco.re/go/core"
 )
 
 func ExampleE() {
 	err := E("cache.Get", "key not found", nil)
-	fmt.Println(Operation(err))
-	fmt.Println(ErrorMessage(err))
+	Println(Operation(err))
+	Println(ErrorMessage(err))
 	// Output:
 	// cache.Get
 	// key not found
@@ -18,8 +17,8 @@ func ExampleE() {
 func ExampleWrap() {
 	cause := NewError("connection refused")
 	err := Wrap(cause, "database.Connect", "failed to reach host")
-	fmt.Println(Operation(err))
-	fmt.Println(Is(err, cause))
+	Println(Operation(err))
+	Println(Is(err, cause))
 	// Output:
 	// database.Connect
 	// true
@@ -29,6 +28,6 @@ func ExampleRoot() {
 	cause := NewError("original")
 	wrapped := Wrap(cause, "op1", "first wrap")
 	double := Wrap(wrapped, "op2", "second wrap")
-	fmt.Println(Root(double))
+	Println(Root(double))
 	// Output: original
 }

@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"context"
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -17,7 +16,7 @@ func ExampleServiceFor() {
 	)
 
 	svc := c.Service("cache")
-	fmt.Println(svc.OK)
+	Println(svc.OK)
 	// Output: true
 }
 
@@ -31,7 +30,7 @@ func ExampleWithService() {
 		}),
 	)
 	c.ServiceStartup(context.Background(), nil)
-	fmt.Println(started)
+	Println(started)
 	c.ServiceShutdown(context.Background())
 	// Output: true
 }
@@ -46,6 +45,6 @@ func ExampleWithServiceLock() {
 
 	// Can't register after lock
 	r := c.Service("blocked", Service{})
-	fmt.Println(r.OK)
+	Println(r.OK)
 	// Output: false
 }

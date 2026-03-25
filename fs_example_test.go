@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -15,7 +14,7 @@ func ExampleFs_WriteAtomic() {
 	f.WriteAtomic(path, `{"status":"completed"}`)
 
 	r := f.Read(path)
-	fmt.Println(r.Value)
+	Println(r.Value)
 	// Output: {"status":"completed"}
 }
 
@@ -32,12 +31,12 @@ func ExampleFs_NewUnrestricted() {
 	unrestricted := sandbox.NewUnrestricted()
 
 	r := unrestricted.Read(outside)
-	fmt.Println(r.Value)
+	Println(r.Value)
 	// Output: hello
 }
 
 func ExampleFs_Root() {
 	f := (&Fs{}).New("/srv/workspaces")
-	fmt.Println(f.Root())
+	Println(f.Root())
 	// Output: /srv/workspaces
 }

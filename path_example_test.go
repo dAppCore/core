@@ -1,35 +1,34 @@
 package core_test
 
 import (
-	"fmt"
 
 	. "dappco.re/go/core"
 )
 
 func ExampleJoinPath() {
-	fmt.Println(JoinPath("deploy", "to", "homelab"))
+	Println(JoinPath("deploy", "to", "homelab"))
 	// Output: deploy/to/homelab
 }
 
 func ExamplePathBase() {
-	fmt.Println(PathBase("/srv/workspaces/alpha"))
+	Println(PathBase("/srv/workspaces/alpha"))
 	// Output: alpha
 }
 
 func ExamplePathDir() {
-	fmt.Println(PathDir("/srv/workspaces/alpha"))
+	Println(PathDir("/srv/workspaces/alpha"))
 	// Output: /srv/workspaces
 }
 
 func ExamplePathExt() {
-	fmt.Println(PathExt("report.pdf"))
+	Println(PathExt("report.pdf"))
 	// Output: .pdf
 }
 
 func ExampleCleanPath() {
-	fmt.Println(CleanPath("/tmp//file", "/"))
-	fmt.Println(CleanPath("a/b/../c", "/"))
-	fmt.Println(CleanPath("deploy/to/homelab", "/"))
+	Println(CleanPath("/tmp//file", "/"))
+	Println(CleanPath("a/b/../c", "/"))
+	Println(CleanPath("deploy/to/homelab", "/"))
 	// Output:
 	// /tmp/file
 	// a/c

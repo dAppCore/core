@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"context"
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -14,7 +13,7 @@ func ExampleNew() {
 		WithOption("name", "my-app"),
 		WithServiceLock(),
 	)
-	fmt.Println(c.App().Name)
+	Println(c.App().Name)
 	// Output: my-app
 }
 
@@ -31,7 +30,7 @@ func ExampleNew_withService() {
 		}),
 	)
 	c.ServiceStartup(context.Background(), nil)
-	fmt.Println(c.Services())
+	Println(c.Services())
 	c.ServiceShutdown(context.Background())
 	// Output is non-deterministic (map order), so no Output comment
 }
@@ -44,9 +43,9 @@ func ExampleNewOptions() {
 		Option{Key: "port", Value: 8080},
 		Option{Key: "debug", Value: true},
 	)
-	fmt.Println(opts.String("name"))
-	fmt.Println(opts.Int("port"))
-	fmt.Println(opts.Bool("debug"))
+	Println(opts.String("name"))
+	Println(opts.Int("port"))
+	Println(opts.Bool("debug"))
 	// Output:
 	// brain
 	// 8080
@@ -58,7 +57,7 @@ func ExampleNewOptions() {
 func ExampleResult() {
 	r := Result{Value: "hello", OK: true}
 	if r.OK {
-		fmt.Println(r.Value)
+		Println(r.Value)
 	}
 	// Output: hello
 }
@@ -69,9 +68,9 @@ func ExampleCore_Action_register() {
 	c := New()
 	c.Action("greet", func(_ context.Context, opts Options) Result {
 		name := opts.String("name")
-		return Result{Value: "hello " + name, OK: true}
+		return Result{Value: Concat("hello ", name), OK: true}
 	})
-	fmt.Println(c.Action("greet").Exists())
+	Println(c.Action("greet").Exists())
 	// Output: true
 }
 
@@ -87,7 +86,7 @@ func ExampleCore_Action_invoke() {
 		Option{Key: "a", Value: 3},
 		Option{Key: "b", Value: 4},
 	))
-	fmt.Println(r.Value)
+	Println(r.Value)
 	// Output: 7
 }
 
@@ -96,7 +95,7 @@ func ExampleCore_Actions() {
 	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 	c.Action("brain.recall", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 
-	fmt.Println(c.Actions())
+	Println(c.Actions())
 	// Output: [process.run brain.recall]
 }
 
@@ -123,7 +122,7 @@ func ExampleCore_Task() {
 	})
 
 	c.Task("pipeline").Run(context.Background(), c, NewOptions())
-	fmt.Println(order)
+	Println(order)
 	// Output: ab
 }
 
@@ -134,9 +133,9 @@ func ExampleNewRegistry() {
 	r.Set("alpha", "first")
 	r.Set("bravo", "second")
 
-	fmt.Println(r.Has("alpha"))
-	fmt.Println(r.Names())
-	fmt.Println(r.Len())
+	Println(r.Has("alpha"))
+	Println(r.Names())
+	Println(r.Len())
 	// Output:
 	// true
 	// [alpha bravo]
@@ -149,7 +148,7 @@ func ExampleRegistry_Lock() {
 	r.Lock()
 
 	result := r.Set("beta", "second")
-	fmt.Println(result.OK)
+	Println(result.OK)
 	// Output: false
 }
 
@@ -159,9 +158,9 @@ func ExampleRegistry_Seal() {
 	r.Seal()
 
 	// Can update existing
-	fmt.Println(r.Set("alpha", "updated").OK)
+	Println(r.Set("alpha", "updated").OK)
 	// Can't add new
-	fmt.Println(r.Set("beta", "new").OK)
+	Println(r.Set("beta", "new").OK)
 	// Output:
 	// true
 	// false
@@ -172,8 +171,8 @@ func ExampleRegistry_Seal() {
 func ExampleCore_Entitled_default() {
 	c := New()
 	e := c.Entitled("anything")
-	fmt.Println(e.Allowed)
-	fmt.Println(e.Unlimited)
+	Println(e.Allowed)
+	Println(e.Unlimited)
 	// Output:
 	// true
 	// true
@@ -188,9 +187,9 @@ func ExampleCore_Entitled_custom() {
 		return Entitlement{Allowed: true, Unlimited: true}
 	})
 
-	fmt.Println(c.Entitled("basic").Allowed)
-	fmt.Println(c.Entitled("premium").Allowed)
-	fmt.Println(c.Entitled("premium").Reason)
+	Println(c.Entitled("basic").Allowed)
+	Println(c.Entitled("premium").Allowed)
+	Println(c.Entitled("premium").Reason)
 	// Output:
 	// true
 	// false
@@ -199,8 +198,8 @@ func ExampleCore_Entitled_custom() {
 
 func ExampleEntitlement_NearLimit() {
 	e := Entitlement{Allowed: true, Limit: 100, Used: 85, Remaining: 15}
-	fmt.Println(e.NearLimit(0.8))
-	fmt.Println(e.UsagePercent())
+	Println(e.NearLimit(0.8))
+	Println(e.UsagePercent())
 	// Output:
 	// true
 	// 85
@@ -211,16 +210,16 @@ func ExampleEntitlement_NearLimit() {
 func ExampleCore_Process() {
 	c := New()
 	// No go-process registered — permission by registration
-	fmt.Println(c.Process().Exists())
+	Println(c.Process().Exists())
 
 	// Register a mock process handler
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
-		return Result{Value: "output of " + opts.String("command"), OK: true}
+		return Result{Value: Concat("output of ", opts.String("command")), OK: true}
 	})
-	fmt.Println(c.Process().Exists())
+	Println(c.Process().Exists())
 
 	r := c.Process().Run(context.Background(), "echo", "hello")
-	fmt.Println(r.Value)
+	Println(r.Value)
 	// Output:
 	// false
 	// true
@@ -235,7 +234,7 @@ func ExampleJSONMarshal() {
 		Port int    `json:"port"`
 	}
 	r := JSONMarshal(config{Host: "localhost", Port: 8080})
-	fmt.Println(string(r.Value.([]byte)))
+	Println(string(r.Value.([]byte)))
 	// Output: {"host":"localhost","port":8080}
 }
 
@@ -246,7 +245,7 @@ func ExampleJSONUnmarshalString() {
 	}
 	var cfg config
 	JSONUnmarshalString(`{"host":"localhost","port":8080}`, &cfg)
-	fmt.Println(cfg.Host, cfg.Port)
+	Println(cfg.Host, cfg.Port)
 	// Output: localhost 8080
 }
 
@@ -254,15 +253,15 @@ func ExampleJSONUnmarshalString() {
 
 func ExampleID() {
 	id := ID()
-	fmt.Println(HasPrefix(id, "id-"))
+	Println(HasPrefix(id, "id-"))
 	// Output: true
 }
 
 func ExampleValidateName() {
-	fmt.Println(ValidateName("brain").OK)
-	fmt.Println(ValidateName("").OK)
-	fmt.Println(ValidateName("..").OK)
-	fmt.Println(ValidateName("path/traversal").OK)
+	Println(ValidateName("brain").OK)
+	Println(ValidateName("").OK)
+	Println(ValidateName("..").OK)
+	Println(ValidateName("path/traversal").OK)
 	// Output:
 	// true
 	// false
@@ -271,9 +270,9 @@ func ExampleValidateName() {
 }
 
 func ExampleSanitisePath() {
-	fmt.Println(SanitisePath("../../etc/passwd"))
-	fmt.Println(SanitisePath(""))
-	fmt.Println(SanitisePath("/some/path/file.txt"))
+	Println(SanitisePath("../../etc/passwd"))
+	Println(SanitisePath(""))
+	Println(SanitisePath("/some/path/file.txt"))
 	// Output:
 	// passwd
 	// invalid
@@ -286,12 +285,12 @@ func ExampleCore_Command() {
 	c := New()
 	c.Command("deploy/to/homelab", Command{
 		Action: func(opts Options) Result {
-			return Result{Value: "deployed to " + opts.String("_arg"), OK: true}
+			return Result{Value: Concat("deployed to ", opts.String("_arg")), OK: true}
 		},
 	})
 
 	r := c.Cli().Run("deploy", "to", "homelab")
-	fmt.Println(r.OK)
+	Println(r.OK)
 	// Output: true
 }
 
@@ -303,9 +302,9 @@ func ExampleConfig() {
 	c.Config().Set("database.port", 5432)
 	c.Config().Enable("dark-mode")
 
-	fmt.Println(c.Config().String("database.host"))
-	fmt.Println(c.Config().Int("database.port"))
-	fmt.Println(c.Config().Enabled("dark-mode"))
+	Println(c.Config().String("database.host"))
+	Println(c.Config().Int("database.port"))
+	Println(c.Config().Enabled("dark-mode"))
 	// Output:
 	// localhost
 	// 5432

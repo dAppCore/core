@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -15,7 +14,7 @@ func ExampleCore_Command_register() {
 		},
 	})
 
-	fmt.Println(c.Command("deploy/to/homelab").OK)
+	Println(c.Command("deploy/to/homelab").OK)
 	// Output: true
 }
 
@@ -27,7 +26,7 @@ func ExampleCore_Command_managed() {
 	})
 
 	cmd := c.Command("serve").Value.(*Command)
-	fmt.Println(cmd.IsManaged())
+	Println(cmd.IsManaged())
 	// Output: true
 }
 
@@ -36,6 +35,6 @@ func ExampleCore_Commands() {
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Command("test", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 
-	fmt.Println(c.Commands())
+	Println(c.Commands())
 	// Output: [deploy test]
 }

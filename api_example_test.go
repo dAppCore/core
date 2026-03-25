@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"context"
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -12,14 +11,14 @@ func ExampleAPI_RegisterProtocol() {
 	c.API().RegisterProtocol("http", func(h *DriveHandle) (Stream, error) {
 		return &mockStream{response: []byte("pong")}, nil
 	})
-	fmt.Println(c.API().Protocols())
+	Println(c.API().Protocols())
 	// Output: [http]
 }
 
 func ExampleAPI_Stream() {
 	c := New()
 	c.API().RegisterProtocol("http", func(h *DriveHandle) (Stream, error) {
-		return &mockStream{response: []byte("connected to " + h.Name)}, nil
+		return &mockStream{response: []byte(Concat("connected to ", h.Name))}, nil
 	})
 	c.Drive().New(NewOptions(
 		Option{Key: "name", Value: "charon"},
@@ -30,7 +29,7 @@ func ExampleAPI_Stream() {
 	if r.OK {
 		stream := r.Value.(Stream)
 		resp, _ := stream.Receive()
-		fmt.Println(string(resp))
+		Println(string(resp))
 		stream.Close()
 	}
 	// Output: connected to charon
@@ -45,6 +44,6 @@ func ExampleCore_RemoteAction() {
 
 	// No colon — resolves locally
 	r := c.RemoteAction("status", context.Background(), NewOptions())
-	fmt.Println(r.Value)
+	Println(r.Value)
 	// Output: running
 }

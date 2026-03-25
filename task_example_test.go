@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"context"
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -32,8 +31,8 @@ func ExampleTask_Run() {
 	})
 
 	r := c.Task("pipe").Run(context.Background(), c, NewOptions())
-	fmt.Println(order)
-	fmt.Println(r.Value)
+	Println(order)
+	Println(r.Value)
 	// Output:
 	// ab
 	// got:from-a
@@ -46,6 +45,6 @@ func ExampleCore_PerformAsync() {
 	})
 
 	r := c.PerformAsync("bg.work", NewOptions())
-	fmt.Println(HasPrefix(r.Value.(string), "id-"))
+	Println(HasPrefix(r.Value.(string), "id-"))
 	// Output: true
 }

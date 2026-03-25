@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -12,8 +11,8 @@ func ExampleNewArray() {
 	a.Add("bravo")
 	a.Add("charlie")
 
-	fmt.Println(a.Len())
-	fmt.Println(a.Contains("bravo"))
+	Println(a.Len())
+	Println(a.Contains("bravo"))
 	// Output:
 	// 3
 	// true
@@ -25,7 +24,7 @@ func ExampleArray_AddUnique() {
 	a.AddUnique("alpha") // no duplicate
 	a.AddUnique("bravo")
 
-	fmt.Println(a.Len())
+	Println(a.Len())
 	// Output: 2
 }
 
@@ -37,6 +36,6 @@ func ExampleArray_Filter() {
 	a.Add(4)
 
 	r := a.Filter(func(n int) bool { return n%2 == 0 })
-	fmt.Println(r.OK)
+	Println(r.OK)
 	// Output: true
 }

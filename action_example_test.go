@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"context"
-	"fmt"
 
 	. "dappco.re/go/core"
 )
@@ -16,16 +15,16 @@ func ExampleAction_Run() {
 	r := c.Action("double").Run(context.Background(), NewOptions(
 		Option{Key: "n", Value: 21},
 	))
-	fmt.Println(r.Value)
+	Println(r.Value)
 	// Output: 42
 }
 
 func ExampleAction_Exists() {
 	c := New()
-	fmt.Println(c.Action("missing").Exists())
+	Println(c.Action("missing").Exists())
 
 	c.Action("present", func(_ context.Context, _ Options) Result { return Result{OK: true} })
-	fmt.Println(c.Action("present").Exists())
+	Println(c.Action("present").Exists())
 	// Output:
 	// false
 	// true
@@ -38,7 +37,7 @@ func ExampleAction_Run_panicRecovery() {
 	})
 
 	r := c.Action("boom").Run(context.Background(), NewOptions())
-	fmt.Println(r.OK)
+	Println(r.OK)
 	// Output: false
 }
 
@@ -55,6 +54,6 @@ func ExampleAction_Run_entitlementDenied() {
 	})
 
 	r := c.Action("premium").Run(context.Background(), NewOptions())
-	fmt.Println(r.OK)
+	Println(r.OK)
 	// Output: false
 }

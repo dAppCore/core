@@ -2,14 +2,13 @@ package core_test
 
 import (
 	"context"
-	"fmt"
 
 	. "dappco.re/go/core"
 )
 
 func ExampleEntitlement_UsagePercent() {
 	e := Entitlement{Limit: 100, Used: 75}
-	fmt.Println(e.UsagePercent())
+	Println(e.UsagePercent())
 	// Output: 75
 }
 
@@ -31,9 +30,9 @@ func ExampleCore_SetEntitlementChecker() {
 		return Entitlement{Allowed: true, Limit: limit, Used: used, Remaining: remaining}
 	})
 
-	fmt.Println(c.Entitled("social.accounts", 2).Allowed)
-	fmt.Println(c.Entitled("social.accounts", 5).Allowed)
-	fmt.Println(c.Entitled("ai.credits").NearLimit(0.9))
+	Println(c.Entitled("social.accounts", 2).Allowed)
+	Println(c.Entitled("social.accounts", 5).Allowed)
+	Println(c.Entitled("ai.credits").NearLimit(0.9))
 	// Output:
 	// true
 	// false
@@ -44,10 +43,10 @@ func ExampleCore_RecordUsage() {
 	c := New()
 	var recorded string
 	c.SetUsageRecorder(func(action string, qty int, _ context.Context) {
-		recorded = fmt.Sprintf("%s:%d", action, qty)
+		recorded = Concat(action, ":", Sprint(qty))
 	})
 
 	c.RecordUsage("ai.credits", 10)
-	fmt.Println(recorded)
+	Println(recorded)
 	// Output: ai.credits:10
 }

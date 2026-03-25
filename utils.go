@@ -68,6 +68,13 @@ func SanitisePath(path string) string {
 
 // --- I/O ---
 
+// Println prints values to stdout with a newline. Replaces fmt.Println.
+//
+//	core.Println("hello", 42, true)
+func Println(args ...any) {
+	fmt.Println(args...)
+}
+
 // Print writes a formatted line to a writer, defaulting to os.Stdout.
 //
 //	core.Print(nil, "hello %s", "world")     // → stdout

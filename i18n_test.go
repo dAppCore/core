@@ -75,7 +75,7 @@ type mockTranslator struct {
 }
 
 func (m *mockTranslator) Translate(id string, args ...any) Result {
-	return Result{"translated:" + id, true}
+	return Result{Concat("translated:", id), true}
 }
 func (m *mockTranslator) SetLanguage(lang string) error { m.lang = lang; return nil }
 func (m *mockTranslator) Language() string              { return m.lang }

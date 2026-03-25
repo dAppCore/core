@@ -198,7 +198,7 @@ func TestError_ErrorJoin_Good(t *testing.T) {
 
 func TestError_ErrorPanic_Reports_Good(t *testing.T) {
 	dir := t.TempDir()
-	path := dir + "/crashes.json"
+	path := Path(dir, "crashes.json")
 
 	// Create ErrorPanic with file output
 	c := New()
@@ -213,7 +213,7 @@ func TestError_ErrorPanic_Reports_Good(t *testing.T) {
 
 func TestError_ErrorPanic_CrashFile_Good(t *testing.T) {
 	dir := t.TempDir()
-	path := dir + "/crashes.json"
+	path := Path(dir, "crashes.json")
 
 	// Create Core, trigger a panic through SafeGo, check crash file
 	// ErrorPanic.filePath is unexported — but we can test via the package-level
