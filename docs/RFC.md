@@ -2378,6 +2378,149 @@ This is a cross-cutting service that consumes other services' capabilities. It's
 
 ---
 
+## Pass Six — Cross-Repo Patterns and Cascade Analysis
+
+> Sixth review. Tracing how real services compose with Core across repos.
+> Following the actual execution path of a single event through the system.
+
+### P6-1. ACTION Cascade Is Synchronous, Nested, and Unbounded
+
+When `AgentCompleted` fires, it triggers a synchronous cascade 4 levels deep:
+
+```
+c.ACTION(AgentCompleted)
+  → QA handler: runs build+test (30+ seconds), then:
+    c.ACTION(QAResult)
+      → PR handler: git push + Forge API (10+ seconds), then:
+        c.ACTION(PRCreated)
+          → Verify handler: test + merge API (20+ seconds), then:
+            c.ACTION(PRMerged)
+              → all 5 handlers called again (type-check, skip)
+          → remaining handlers called
+      → remaining handlers called
+  → Ingest handler: runs for AgentCompleted
+  → Poke handler: runs for AgentCompleted
+```
+
+**Problems:**
+1. **Blocking** — the entire cascade runs on ONE goroutine. If QA takes 30s and merge takes 20s, the Poke handler doesn't fire for 50+ seconds.
+2. **No timeout** — if the Forge merge API hangs, everything blocks indefinitely.
+3. **Nested depth** — 4 levels of `c.ACTION()` inside `c.ACTION()`. Stack grows linearly.
+4. **Handler fanout** — 5 handlers × 4 nested broadcasts ≈ 30+ handler invocations for one event.
+5. **Queue starvation** — Poke (which drains the queue) can't fire until the entire pipeline completes. Other agent completions wait behind this one.
+
+**This explains observed behaviour:** sometimes agents complete but the queue doesn't drain for minutes. The Poke handler is blocked behind a slow Forge API call 3 levels deep in the cascade.
+
+**Resolution:** The pipeline should not be nested ACTION broadcasts. It should be a **Task** (Section 18.6):
+
+```go
+c.Task("agent-completion-pipeline", core.TaskDef{
+    Steps: []core.Step{
+        {Action: "agentic.qa",     Async: false},
+        {Action: "agentic.auto-pr", Async: false},
+        {Action: "agentic.verify",  Async: false},
+        {Action: "agentic.ingest",  Async: true},  // parallel, don't block
+        {Action: "agentic.poke",    Async: true},  // parallel, don't block
+    },
+})
+```
+
+The Task executor runs steps in order, with `Async: true` steps dispatched in parallel. Ingest and Poke don't wait for the pipeline — they fire immediately. The pipeline has a timeout. Each step has its own error handling.
+
+### P6-2. Every Handler Receives Every Message — O(handlers × messages)
+
+All 5 handlers are called for every ACTION. Each handler type-checks and skips if it's not their message. With N handlers and M message types, this is O(N×M) per event — every handler processes every message even if it only cares about one type.
+
+With 12 message types and 5 handlers, that's 60 type-checks per agent completion cascade. Scales poorly as more handlers are added.
+
+**Resolution:** The Action system (Section 18) fixes this — named Actions route directly:
+
+```go
+c.Action("on.agent.completed").Run(opts)  // only handlers for THIS action
+```
+
+No broadcast to all handlers. No type-checking. Direct dispatch by name.
+
+### P6-3. Handlers Can't Tell If They're Inside a Nested Dispatch
+
+A handler receiving `QAResult` can't tell if it was triggered by a top-level `c.ACTION(QAResult)` or by a nested call from inside the AgentCompleted handler. There's no dispatch context, no parent message ID, no trace.
+
+**Resolution:** With the Action system, each invocation gets a context that tracks the chain:
+
+```go
+func handler(ctx context.Context, opts core.Options) core.Result {
+    // ctx carries: parent action, trace ID, depth
+}
+```
+
+### P6-4. Monitor Package Is Half-Migrated
+
+```go
+notifier ChannelNotifier // TODO(phase3): remove — replaced by c.ACTION()
+```
+
+Monitor has a `ChannelNotifier` field with a TODO to replace it with IPC. It's using a direct callback pattern alongside the IPC system. Two notification paths for the same events.
+
+**Resolution:** Complete the migration. Remove `ChannelNotifier`. All events go through `c.ACTION()` (or named Actions once Section 18 is implemented).
+
+### P6-5. Two Patterns for "Service Needs Core" — .core Field vs ServiceRuntime
+
+Pass five found that core/agent sets `.core = c` manually while core/gui embeds `ServiceRuntime[T]`. But there's a third pattern:
+
+```go
+// Pattern 3: RegisterHandlers receives *Core as parameter
+func RegisterHandlers(c *core.Core, s *PrepSubsystem) {
+    c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
+        // c is passed again — which one to use?
+    })
+}
+```
+
+The handler receives `*Core` as a parameter, but the service already has `s.core`. Two references to the same Core. If they ever diverge (multiple Core instances in tests), bugs ensue.
+
+**Resolution:** Handlers should use the Core from the handler parameter (it's the dispatching Core). Services should use their embedded Core. Document: "handler's `c` parameter is the current Core. `s.core` is the Core from registration time. In single-Core apps they're the same."
+
+### P6-6. Message Types Are Untyped — Any Handler Can Emit Any Message
+
+```go
+c.ACTION(messages.PRMerged{...})  // anyone can emit this
+```
+
+There's no ownership model. The Verify handler emits `PRMerged` but any code with a Core reference could emit `PRMerged` at any time. A rogue service could emit `AgentCompleted` for an agent that never existed.
+
+**Resolution:** With named Actions, emission becomes explicit:
+
+```go
+c.Action("event.pr.merged").Emit(opts)  // must be registered
+```
+
+If no service registered the `event.pr.merged` action, the emit does nothing. Registration IS permission — same model as process execution.
+
+### P6-7. The Aggregator Pattern (MCP) Has No Formal Support
+
+core/mcp discovers all services and registers their capabilities as MCP tools. This is a cross-cutting "aggregator" pattern that reads the full registry. But there's no API for "give me all capabilities" — MCP hand-rolls it by checking each known service.
+
+**Resolution:** `c.Registry("actions").List("*")` gives the full capability map. MCP's Register function becomes:
+
+```go
+func Register(c *core.Core) core.Result {
+    for _, name := range c.Registry("actions").Names() {
+        def := c.Action(name).Def()
+        mcpServer.AddTool(name, def.Description, def.Schema)
+    }
+}
+```
+
+The aggregator reads from Registry. Any service's Actions are auto-exposed via MCP. No hand-wiring.
+
+### P6-8. go-process OnShutdown Kills All Processes — But Core Doesn't Wait
+
+go-process's `OnShutdown` sends SIGTERM to all running processes. But `ServiceShutdown` calls `OnStop` sequentially. If process service stops first, other services that depend on running processes lose their child processes mid-operation.
+
+**Resolution:** Shutdown order should be reverse registration order (Section P4-1 — Registry maintains insertion order). Services registered last stop first. Since go-process is typically registered early, it stops last — giving other services time to finish their process-dependent work before processes are killed.
+
+---
+
 ## Versioning
 
 ### Release Model
