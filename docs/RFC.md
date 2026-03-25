@@ -3832,7 +3832,334 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 - CorePHP/CoreTS alignment (different release cycles)
 - Full ecosystem AX-7 coverage (core/go + core/agent are the reference)
 
+## 21. Entitlement — The Permission Primitive (Design)
+
+> Status: Design spec. Brings v0.9.0 boundary model into v0.8.0.
+> Core provides the primitive. go-entitlements and commerce-matrix provide implementations.
+
+### 21.1 The Problem
+
+`*Core` grants God Mode (P11-1). Every service sees everything. The 14 findings in Root Cause 2 all stem from this. The conclave is trusted — but the SaaS platform (RFC-004), the commerce hierarchy (RFC-005), and the agent sandbox all need boundaries.
+
+Three systems ask the same question with different vocabulary:
+
+```
+Can [subject] do [action] with [quantity] in [context]?
+```
+
+| System | Subject | Action | Quantity | Context |
+|--------|---------|--------|----------|---------|
+| RFC-004 Entitlements | workspace | feature.code | N | active packages |
+| RFC-005 Commerce Matrix | entity (M1/M2/M3) | permission.key | 1 | hierarchy path |
+| Core Actions | this Core instance | action.name | 1 | registered services |
+
+### 21.2 The Primitive
+
+```go
+// Entitlement is the result of a permission check.
+// Carries context for both boolean gates (Allowed) and usage limits (Limit/Used/Remaining).
+// Maps directly to RFC-004 EntitlementResult and RFC-005 PermissionResult.
+type Entitlement struct {
+    Allowed   bool   // permission granted
+    Unlimited bool   // no cap (agency tier, admin, trusted conclave)
+    Limit     int    // total allowed (0 = boolean gate, no quantity dimension)
+    Used      int    // current consumption
+    Remaining int    // Limit - Used
+    Reason    string // denial reason — for UI feedback and audit logging
+}
+
+// Entitled checks if an action is permitted in the current context.
+// Default: always returns Allowed=true, Unlimited=true (trusted conclave).
+// With go-entitlements: checks workspace packages, features, usage, boosts.
+// With commerce-matrix: checks entity hierarchy, lock cascade.
+//
+//   e := c.Entitled("process.run")           // boolean — can this Core run processes?
+//   e := c.Entitled("social.accounts", 3)    // quantity — can workspace create 3 more accounts?
+//   if e.Allowed { proceed() }
+//   if e.NearLimit(0.8) { showWarning() }
+func (c *Core) Entitled(action string, quantity ...int) Entitlement
+```
+
+### 21.3 The Checker — Consumer-Provided
+
+Core defines the interface. Consumer packages provide the implementation.
+
+```go
+// EntitlementChecker answers "can [subject] do [action] with [quantity]?"
+// Subject comes from context (workspace, entity, user — consumer's concern).
+type EntitlementChecker func(action string, quantity int, ctx context.Context) Entitlement
+```
+
+Registration via Core:
+
+```go
+// SetEntitlementChecker replaces the default (permissive) checker.
+// Called by go-entitlements or commerce-matrix during OnStartup.
+//
+//   func (s *EntitlementService) OnStartup(ctx context.Context) core.Result {
+//       s.Core().SetEntitlementChecker(s.check)
+//       return core.Result{OK: true}
+//   }
+func (c *Core) SetEntitlementChecker(checker EntitlementChecker)
+```
+
+Default checker (no entitlements package loaded):
+
+```go
+// defaultChecker — trusted conclave, everything permitted
+func defaultChecker(action string, quantity int, ctx context.Context) Entitlement {
+    return Entitlement{Allowed: true, Unlimited: true}
+}
+```
+
+### 21.4 Enforcement Point — Action.Run()
+
+The entitlement check lives in `Action.Run()`, before execution. One enforcement point for all capabilities.
+
+```go
+func (a *Action) Run(ctx context.Context, opts Options) (result Result) {
+    if !a.Exists() { return not-registered }
+    if !a.enabled { return disabled }
+
+    // Entitlement check — permission boundary
+    if e := a.core.Entitled(a.Name); !e.Allowed {
+        return Result{E("action.Run",
+            Concat("not entitled: ", a.Name, " — ", e.Reason), nil), false}
+    }
+
+    defer func() { /* panic recovery */ }()
+    return a.Handler(ctx, opts)
+}
+```
+
+Three states for any action:
+
+| State | Exists() | Entitled() | Run() |
+|-------|----------|------------|-------|
+| Not registered | false | — | Result{OK: false} "not registered" |
+| Registered, not entitled | true | false | Result{OK: false} "not entitled" |
+| Registered and entitled | true | true | executes handler |
+
+### 21.5 How RFC-004 (SaaS Entitlements) Plugs In
+
+go-entitlements registers as a service and replaces the checker:
+
+```go
+// In go-entitlements:
+func (s *Service) OnStartup(ctx context.Context) core.Result {
+    s.Core().SetEntitlementChecker(func(action string, qty int, ctx context.Context) core.Entitlement {
+        workspace := s.workspaceFromContext(ctx)
+        if workspace == nil {
+            return core.Entitlement{Allowed: true, Unlimited: true} // no workspace = system context
+        }
+
+        result := s.Can(workspace, action, qty)
+
+        return core.Entitlement{
+            Allowed:   result.IsAllowed(),
+            Unlimited: result.IsUnlimited(),
+            Limit:     result.Limit,
+            Used:      result.Used,
+            Remaining: result.Remaining,
+            Reason:    result.Message(),
+        }
+    })
+    return core.Result{OK: true}
+}
+```
+
+Maps 1:1 to RFC-004's `EntitlementResult`:
+- `$result->isAllowed()` → `e.Allowed`
+- `$result->isUnlimited()` → `e.Unlimited`
+- `$result->limit` → `e.Limit`
+- `$result->used` → `e.Used`
+- `$result->remaining` → `e.Remaining`
+- `$result->getMessage()` → `e.Reason`
+- `$result->isNearLimit()` → `e.NearLimit(0.8)`
+- `$result->getUsagePercentage()` → `e.UsagePercent()`
+
+### 21.6 How RFC-005 (Commerce Matrix) Plugs In
+
+commerce-matrix registers and replaces the checker with hierarchy-aware logic:
+
+```go
+// In commerce-matrix:
+func (s *MatrixService) OnStartup(ctx context.Context) core.Result {
+    s.Core().SetEntitlementChecker(func(action string, qty int, ctx context.Context) core.Entitlement {
+        entity := s.entityFromContext(ctx)
+        if entity == nil {
+            return core.Entitlement{Allowed: true, Unlimited: true}
+        }
+
+        result := s.Can(entity, action, "")
+
+        return core.Entitlement{
+            Allowed: result.IsAllowed(),
+            Reason:  result.Reason,
+        }
+    })
+    return core.Result{OK: true}
+}
+```
+
+Maps to RFC-005's cascade model:
+- `M1 says NO → everything below is NO` → checker walks hierarchy, returns `{Allowed: false, Reason: "Locked by M1"}`
+- Training mode → checker returns `{Allowed: false, Reason: "undefined — training required"}`
+- Production strict mode → undefined = denied
+
+### 21.7 Composing Both Systems
+
+When a SaaS platform ALSO has commerce hierarchy (Host UK), the checker composes internally:
+
+```go
+func (s *CompositeService) check(action string, qty int, ctx context.Context) core.Entitlement {
+    // Check commerce matrix first (hard permissions)
+    matrixResult := s.matrix.Can(entityFromCtx(ctx), action, "")
+    if matrixResult.IsDenied() {
+        return core.Entitlement{Allowed: false, Reason: matrixResult.Reason}
+    }
+
+    // Then check entitlements (usage limits)
+    entResult := s.entitlements.Can(workspaceFromCtx(ctx), action, qty)
+    return core.Entitlement{
+        Allowed:   entResult.IsAllowed(),
+        Unlimited: entResult.IsUnlimited(),
+        Limit:     entResult.Limit,
+        Used:      entResult.Used,
+        Remaining: entResult.Remaining,
+        Reason:    entResult.Message(),
+    }
+}
+```
+
+Matrix (hierarchy) gates first. Entitlements (usage) gate second. One checker, composed.
+
+### 21.8 Convenience Methods on Entitlement
+
+```go
+// NearLimit returns true if usage exceeds the threshold percentage.
+// RFC-004: $result->isNearLimit() uses 80% threshold.
+//
+//   if e.NearLimit(0.8) { showUpgradePrompt() }
+func (e Entitlement) NearLimit(threshold float64) bool
+
+// UsagePercent returns current usage as a percentage of the limit.
+// RFC-004: $result->getUsagePercentage()
+//
+//   pct := e.UsagePercent()  // 75.0
+func (e Entitlement) UsagePercent() float64
+
+// RecordUsage is called after a gated action succeeds.
+// Delegates to the entitlement service for usage tracking.
+// This is the equivalent of RFC-004's $workspace->recordUsage().
+//
+//   e := c.Entitled("ai.credits", 10)
+//   if e.Allowed {
+//       doWork()
+//       c.RecordUsage("ai.credits", 10)
+//   }
+func (c *Core) RecordUsage(action string, quantity ...int)
+```
+
+### 21.9 Audit Trail — RFC-004 Section: Audit Logging
+
+Every entitlement check can be logged via `core.Security()`:
+
+```go
+func (c *Core) Entitled(action string, quantity ...int) Entitlement {
+    qty := 1
+    if len(quantity) > 0 {
+        qty = quantity[0]
+    }
+
+    e := c.entitlementChecker(action, qty, c.Context())
+
+    // Audit logging for denials (P11-6)
+    if !e.Allowed {
+        Security("entitlement.denied", "action", action, "quantity", qty, "reason", e.Reason)
+    }
+
+    return e
+}
+```
+
+### 21.10 Core Struct Changes
+
+```go
+type Core struct {
+    // ... existing fields ...
+    entitlementChecker EntitlementChecker  // default: everything permitted
+}
+```
+
+Constructor:
+
+```go
+func New(opts ...CoreOption) *Core {
+    c := &Core{
+        // ... existing ...
+        entitlementChecker: defaultChecker,
+    }
+    // ...
+}
+```
+
+### 21.11 What This Does NOT Do
+
+- **Does not add database dependencies** — Core is stdlib only. Usage tracking, package management, billing — all in consumer packages.
+- **Does not define features** — The feature catalogue (social.accounts, ai.credits, etc.) is defined by the SaaS platform, not Core.
+- **Does not manage subscriptions** — Commerce (RFC-005) and billing (Blesta/Stripe) are consumer concerns.
+- **Does not replace Action registration** — Registration IS capability. Entitlement IS permission. Both must be true.
+- **Does not enforce at Config/Data/Fs level** — v0.8.0 gates Actions only. Config/Data/Fs gating is v0.9.0+ (requires CoreView or scoped Core).
+
+### 21.12 The Subsystem Map (Updated)
+
+```
+c.Registry()     — universal named collection
+c.Options()      — input configuration
+c.App()          — identity
+c.Config()       — runtime settings
+c.Data()         — embedded assets
+c.Drive()        — connection config (WHERE)
+c.API()          — remote streams (HOW) [planned]
+c.Fs()           — filesystem
+c.Process()      — managed execution (Action sugar)
+c.Action()       — named callables (register, invoke, inspect)
+c.Task()         — composed Action sequences
+c.IPC()          — local message bus
+c.Cli()          — command tree
+c.Log()          — logging
+c.Error()        — panic recovery
+c.I18n()         — internationalisation
+c.Entitled()     — permission check (NEW)
+c.RecordUsage()  — usage tracking (NEW)
+```
+
+### 21.13 Implementation Plan
+
+```
+1. Add Entitlement struct to contract.go (DTO)
+2. Add EntitlementChecker type to contract.go
+3. Add entitlementChecker field to Core struct
+4. Add defaultChecker (always permitted)
+5. Add c.Entitled() method
+6. Add c.SetEntitlementChecker() method
+7. Add c.RecordUsage() method (delegates to checker service)
+8. Add NearLimit() / UsagePercent() convenience methods
+9. Wire into Action.Run() — enforcement point
+10. AX-7 tests: Good (permitted), Bad (denied), Ugly (no checker, quantity, near-limit)
+11. Update RFC-025 with entitlement pattern
+```
+
+Zero new dependencies. ~100 lines of code. The entire permission model for the ecosystem.
+
+---
+
 ## Changelog
+
+- 2026-03-25: Added Section 21 — Entitlement primitive design. Bridges RFC-004 (SaaS feature gating), RFC-005 (Commerce Matrix hierarchy), and Core Actions into one permission primitive.
+- 2026-03-25: Implementation session — Plans 1-5 complete. 456 tests, 84.4% coverage, 100% AX-7 naming. See RFC.plan.md "What Was Shipped" section.
+- 2026-03-25: Pass Three — 8 spec contradictions (P3-1 through P3-8). Lifecycle returns, Process/Action mismatch, getter inconsistency, dual-purpose methods, error leaking, Data overlap, Action error model, Registry lock modes.
 
 - 2026-03-25: Pass Three — 8 spec contradictions (P3-1 through P3-8). Lifecycle returns, Process/Action mismatch, getter inconsistency, dual-purpose methods, error leaking, Data overlap, Action error model, Registry lock modes.
 - 2026-03-25: Pass Two — 8 architectural findings (P2-1 through P2-8)
