@@ -2211,6 +2211,173 @@ All service operations lock on `c.Lock("srv")` — registration, lookup, listing
 
 ---
 
+## Pass Five — Consumer Experience
+
+> Fifth review. Looking at Core from the outside — what does a service author
+> actually experience? Where does the API confuse, contradict, or surprise?
+
+### P5-1. ServiceRuntime Is Not Used by core/agent — Two Registration Camps
+
+The RFC documents `ServiceRuntime[T]` as THE pattern. But core/agent's three main services don't use it:
+
+```go
+// core/agent (agentic, brain, monitor) — manual pattern:
+func Register(c *core.Core) core.Result {
+    svc := NewPrep()
+    svc.core = c     // manual Core assignment
+    return core.Result{Value: svc, OK: true}
+}
+
+// core/gui (display, window, menu, etc.) — ServiceRuntime pattern:
+func Register(c *core.Core) core.Result {
+    svc := &DisplayService{
+        ServiceRuntime: core.NewServiceRuntime(c, DisplayOpts{}),
+    }
+    return core.Result{Value: svc, OK: true}
+}
+```
+
+Two camps exist: CLI services set `.core` manually. GUI services embed `ServiceRuntime[T]`. Both work. Neither is wrong. But the RFC only documents one pattern.
+
+**Resolution:** Document both patterns. `ServiceRuntime[T]` is for services that need typed options. Manual `.core = c` is for services that manage their own config. Neither is preferred — use whichever fits.
+
+### P5-2. Register Returns Result but OnStartup Returns error — P3-1 Impact on Consumer
+
+From a consumer's perspective, they write two functions with different return types for the same service:
+
+```go
+func Register(c *core.Core) core.Result { ... }      // Result
+func (s *Svc) OnStartup(ctx context.Context) error { ... }  // error
+```
+
+This is P3-1 from the consumer's side. The cognitive load is: "my factory returns Result but my lifecycle returns error." Every service author encounters this inconsistency.
+
+### P5-3. No Way to Declare Service Dependencies
+
+Services register independently. If brain depends on process being started first, there's no way to express that:
+
+```go
+core.New(
+    core.WithService(process.Register),  // must be first?
+    core.WithService(brain.Register),    // depends on process?
+    core.WithService(agentic.Register),  // depends on brain + process?
+)
+```
+
+The order in `core.New()` is the implicit dependency graph. But P4-1 says startup order is non-deterministic (map iteration). So even if you order them in `New()`, they might start in different order.
+
+**Resolution:** With the Action system (Section 18), dependencies become capability checks:
+
+```go
+func (s *Brain) OnStartup(ctx context.Context) error {
+    if !s.Core().Action("process.run").Exists() {
+        return core.E("brain", "requires process service", nil)
+    }
+    // safe to use process
+}
+```
+
+Or with Registry (Section 20), declare dependencies:
+
+```go
+core.WithService(brain.Register).DependsOn("process")
+```
+
+### P5-4. HandleIPCEvents Is Auto-Discovered via Reflect — Magic
+
+```go
+if handler, ok := instance.(interface {
+    HandleIPCEvents(*Core, Message) Result
+}); ok {
+    c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handler.HandleIPCEvents)
+}
+```
+
+If your service has a method called `HandleIPCEvents` with exactly the right signature, it's automatically registered as an IPC handler. No explicit opt-in. A service author might not realise their method is being called for EVERY IPC message.
+
+**Resolution:** Document this clearly. Or replace with explicit registration during `OnStartup`:
+
+```go
+func (s *Svc) OnStartup(ctx context.Context) error {
+    s.Core().RegisterAction(s.handleEvents)  // explicit
+    return nil
+}
+```
+
+Auto-discovery is convenient but anti-AX — an agent can't tell from reading the code that `HandleIPCEvents` is special. There's no annotation, no interface declaration, just a magic method name.
+
+### P5-5. Commands Are Registered During OnStartup — Invisible Dependency
+
+```go
+func (s *PrepSubsystem) OnStartup(ctx context.Context) error {
+    s.registerCommands(ctx)       // registers CLI commands
+    s.registerForgeCommands()     // more commands
+    s.registerWorkspaceCommands() // more commands
+    return nil
+}
+```
+
+Commands are registered inside OnStartup, not during factory construction. This means:
+- Commands don't exist until ServiceStartup runs
+- `c.Commands()` returns empty before startup
+- If startup fails partway, some commands exist and some don't
+
+**Resolution:** Consider allowing command registration during factory (before startup). Or document that commands are only available after `ServiceStartup` completes. With Actions (Section 18), commands ARE Actions — registered the same way, available the same time.
+
+### P5-6. No Service Discovery — Only Lookup by Name
+
+```go
+svc, ok := core.ServiceFor[*Brain](c, "brain")
+```
+
+You must know the service name AND type. There's no:
+- "give me all services that implement interface X"
+- "give me all services in the 'monitoring' category"
+- "what services are registered?"
+
+`c.Services()` returns names but not types or capabilities.
+
+**Resolution:** With `Registry[T]` and the Action system, this becomes capability-based:
+
+```go
+c.Registry("actions").List("monitor.*")   // all monitoring capabilities
+c.Registry("services").Each(func(name string, svc *Service) {
+    // iterate all services
+})
+```
+
+### P5-7. Factory Receives *Core But Can't Tell If Other Services Exist
+
+During `WithService` execution, factories run in order. Factory #3 can see services #1 and #2 (they're registered). But it can't safely USE them because `OnStartup` hasn't run yet.
+
+```go
+// In factory — service exists but isn't started:
+func Register(c *core.Core) core.Result {
+    brain, ok := core.ServiceFor[*Brain](c, "brain")
+    // ok=true — brain's factory already ran
+    // but brain.OnStartup() hasn't — brain isn't ready
+}
+```
+
+**Resolution:** Factories should only create and return. All inter-service communication happens after startup, via IPC. Document: "factories create, OnStartup connects."
+
+### P5-8. The MCP Subsystem Pattern (core/mcp) — Not in the RFC
+
+core/mcp's `Register` function discovers ALL other services to build the MCP tool list:
+
+```go
+func Register(c *core.Core) core.Result {
+    // discovers agentic, brain, monitor subsystems
+    // registers their tools with the MCP server
+}
+```
+
+This is a cross-cutting service that consumes other services' capabilities. It's a real pattern but not documented in the RFC. With Actions, it becomes: "MCP service lists all registered Actions and exposes them as MCP tools."
+
+**Resolution:** Document the "aggregator service" pattern — a service that reads from `c.Registry("actions")` and builds an external interface (MCP, REST, CLI) from it. This is the bridge between Core's internal Action registry and external protocols.
+
+---
+
 ## Versioning
 
 ### Release Model
