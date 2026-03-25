@@ -533,6 +533,12 @@ core.FilterArgs(args)              // strip flags, keep positional
 core.ID()                          // "id-42-a3f2b1" — unique per process
 core.ValidateName("brain")        // Result{OK: true} — rejects "", ".", "..", path seps
 core.SanitisePath("../../x")      // "x" — extracts safe base, "invalid" for dangerous
+
+// JSON (wraps encoding/json — consumers don't import it directly)
+core.JSONMarshal(myStruct)         // Result{Value: []byte, OK: bool}
+core.JSONMarshalString(myStruct)   // string (returns "{}" on error)
+core.JSONUnmarshal(data, &target)  // Result{OK: bool}
+core.JSONUnmarshalString(s, &target)
 ```
 
 ---

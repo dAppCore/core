@@ -108,7 +108,7 @@ func (a *API) Call(endpoint string, action string, opts Options) Result {
 	defer stream.Close()
 
 	// Encode the action call as JSON-RPC (MCP compatible)
-	payload := Concat(`{"action":"`, action, `","options":`, optionsToJSON(opts), `}`)
+	payload := Concat(`{"action":"`, action, `","options":`, JSONMarshalString(opts), `}`)
 
 	if err := stream.Send([]byte(payload)); err != nil {
 		return Result{err, false}
@@ -139,25 +139,6 @@ func extractScheme(transport string) string {
 	return transport
 }
 
-// optionsToJSON is a minimal JSON serialiser for Options.
-// core/go stays stdlib-only — no encoding/json import.
-func optionsToJSON(opts Options) string {
-	b := NewBuilder()
-	b.WriteString("{")
-	first := true
-	for i := 0; ; i++ {
-		r := opts.Get(Sprintf("_key_%d", i))
-		if !r.OK {
-			break
-		}
-		// This is a placeholder — real implementation needs proper iteration
-		_ = first
-		first = false
-	}
-	// Simple fallback: serialize known keys
-	b.WriteString("}")
-	return b.String()
-}
 
 // RemoteAction resolves "host:action.name" syntax for transparent remote dispatch.
 // If the action name contains ":", the prefix is the endpoint and the suffix is the action.
