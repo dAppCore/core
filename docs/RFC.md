@@ -1772,9 +1772,54 @@ This API follows RFC-025 Agent Experience (AX):
 8. **Naming encodes architecture** — CamelCase = primitive brick, UPPERCASE = consumer convenience
 9. **File = concern** — one file, one job (ipc.go = registry, action.go = execution, contract.go = types)
 
+## Versioning
+
+### Release Model
+
+```
+v0.7.x  — current stable (the API this RFC documents)
+v0.7.*  — mechanical fixes to align code with RFC spec (issues 2,3,13,14,15)
+v0.8.0  — production stable: all 16 issues resolved, Sections 17-20 implemented
+v0.8.*  — patches only: each patch is a process gap to investigate
+v0.9.0  — next design cycle (repeat: RFC spec → implement → stabilise → tag)
+```
+
+### The Cadence
+
+1. **RFC spec** — design the target version in prose (this document)
+2. **v0.7.x patches** — mechanical fixes that don't change the API contract
+3. **Implementation** — build Sections 17-20, resolve design issues
+4. **AX-7 at 100%** — every function has Good/Bad/Ugly tests
+5. **Tag v0.8.0** — only when 100% confident it's production ready
+6. **Measure v0.8.x** — each patch tells you what the spec missed
+
+The fallout versions are the feedback loop. v0.8.1 means the spec missed one thing. v0.8.15 means the spec missed fifteen things. The patch count per release IS the quality metric — it tells you how wrong you were.
+
+### What v0.8.0 Requires
+
+| Requirement | Status |
+|-------------|--------|
+| All 16 Known Issues resolved in code | 15/16 resolved in RFC, 1 blocked (Issue 7) |
+| Section 17: c.Process() primitive | Spec'd, needs go-process v0.7.0 |
+| Section 18: Action/Task system | Spec'd, needs implementation |
+| Section 19: c.API() streams | Spec'd, needs implementation |
+| Section 20: Registry[T] primitive | Spec'd, needs implementation |
+| AX-7 test coverage at 100% | core/go at 14%, core/agent at 92% |
+| RFC-025 compliance | All code examples match implementation |
+| Zero os/exec in consumer packages | core/agent done, go-process is the only allowed user |
+| AGENTS.md + llm.txt on all repos | core/go, core/agent, core/docs done |
+
+### What Does NOT Block v0.8.0
+
+- core/cli v0.7.0 update (extension, not primitive)
+- Borg/DataNode integration (separate ecosystem)
+- CorePHP/CoreTS alignment (different release cycles)
+- Full ecosystem AX-7 coverage (core/go + core/agent are the reference)
+
 ## Changelog
 
-- 2026-03-25: Added Section 20 — Registry universal collection primitive. Resolved Issues 1, 6, 9, 12, 16. Updated subsystem map to 14.
+- 2026-03-25: Added versioning model + v0.8.0 requirements
+- 2026-03-25: Resolved all 16 Known Issues. Added Section 20 (Registry).
 - 2026-03-25: Added Section 19 — API/Stream remote transport primitive
 - 2026-03-25: Added Known Issues 9-16 (ADHD brain dump recovery — CommandLifecycle, Array[T], ConfigVar[T], Ipc struct, Lock allocation, Startables/Stoppables, stale comment, task.go concerns)
 - 2026-03-25: Added Section 18 — Action and Task execution primitives
