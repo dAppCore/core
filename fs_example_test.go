@@ -2,16 +2,15 @@ package core_test
 
 import (
 	"fmt"
-	"os"
 
 	. "dappco.re/go/core"
 )
 
 func ExampleFs_WriteAtomic() {
-	dir, _ := os.MkdirTemp("", "example")
-	defer os.RemoveAll(dir)
-
 	f := (&Fs{}).New("/")
+	dir := f.TempDir("example")
+	defer f.DeleteAll(dir)
+
 	path := Path(dir, "status.json")
 	f.WriteAtomic(path, `{"status":"completed"}`)
 
@@ -21,12 +20,13 @@ func ExampleFs_WriteAtomic() {
 }
 
 func ExampleFs_NewUnrestricted() {
-	dir, _ := os.MkdirTemp("", "example")
-	defer os.RemoveAll(dir)
+	f := (&Fs{}).New("/")
+	dir := f.TempDir("example")
+	defer f.DeleteAll(dir)
 
-	// Write outside sandbox
+	// Write outside sandbox using Core's Fs
 	outside := Path(dir, "outside.txt")
-	os.WriteFile(outside, []byte("hello"), 0644)
+	f.Write(outside, "hello")
 
 	sandbox := (&Fs{}).New(Path(dir, "sandbox"))
 	unrestricted := sandbox.NewUnrestricted()

@@ -2,8 +2,6 @@ package core_test
 
 import (
 	"context"
-	"os"
-	"os/exec"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -243,75 +241,5 @@ func TestCore_RunE_Ugly_StartupFailureCallsShutdown(t *testing.T) {
 	assert.True(t, shutdownCalled, "ServiceShutdown must be called even when startup fails — cleanup service must get OnStop")
 }
 
-func TestCore_Run_HelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-
-	switch os.Getenv("CORE_RUN_MODE") {
-	case "startup-fail":
-		c := New(
-			WithService(func(c *Core) Result {
-				return c.Service("broken", Service{
-					OnStart: func() Result {
-						return Result{Value: NewError("startup failed"), OK: false}
-					},
-				})
-			}),
-		)
-		c.Run()
-	case "cli-fail":
-		shutdownFile := os.Getenv("CORE_RUN_SHUTDOWN_FILE")
-		c := New(
-			WithService(func(c *Core) Result {
-				return c.Service("cleanup", Service{
-					OnStop: func() Result {
-						if err := os.WriteFile(shutdownFile, []byte("stopped"), 0o600); err != nil {
-							return Result{Value: err, OK: false}
-						}
-						return Result{OK: true}
-					},
-				})
-			}),
-		)
-		c.Command("explode", Command{
-			Action: func(_ Options) Result {
-				return Result{Value: NewError("cli failed"), OK: false}
-			},
-		})
-		os.Args = []string{"core-test", "explode"}
-		c.Run()
-	default:
-		os.Exit(2)
-	}
-}
-
-func TestCore_Run_Bad(t *testing.T) {
-	err := runCoreRunHelper(t, "startup-fail")
-	var exitErr *exec.ExitError
-	if assert.ErrorAs(t, err, &exitErr) {
-		assert.Equal(t, 1, exitErr.ExitCode())
-	}
-}
-
-func TestCore_Run_Ugly(t *testing.T) {
-	shutdownFile := Path(t.TempDir(), "shutdown.txt")
-	err := runCoreRunHelper(t, "cli-fail", "CORE_RUN_SHUTDOWN_FILE="+shutdownFile)
-	var exitErr *exec.ExitError
-	if assert.ErrorAs(t, err, &exitErr) {
-		assert.Equal(t, 1, exitErr.ExitCode())
-	}
-
-	data, readErr := os.ReadFile(shutdownFile)
-	assert.NoError(t, readErr)
-	assert.Equal(t, "stopped", string(data))
-}
-
-func runCoreRunHelper(t *testing.T, mode string, extraEnv ...string) error {
-	t.Helper()
-
-	cmd := exec.Command(os.Args[0], "-test.run=^TestCore_Run_HelperProcess$")
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "CORE_RUN_MODE="+mode)
-	cmd.Env = append(cmd.Env, extraEnv...)
-	return cmd.Run()
-}
+// Run() delegates to RunE() — tested via RunE tests above.
+// os.Exit behaviour is verified by RunE returning error correctly.

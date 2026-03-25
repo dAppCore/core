@@ -2,6 +2,7 @@
 package core
 
 import (
+	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -165,6 +166,26 @@ func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
 		return Result{err, false}
 	}
 	return Result{OK: true}
+}
+
+// TempDir creates a temporary directory and returns its path.
+// The caller is responsible for cleanup via fs.DeleteAll().
+//
+//	dir := fs.TempDir("agent-workspace")
+//	defer fs.DeleteAll(dir)
+func (m *Fs) TempDir(prefix string) string {
+	dir, err := os.MkdirTemp("", prefix)
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
+// DirFS returns an fs.FS rooted at the given directory path.
+//
+//	fsys := core.DirFS("/path/to/templates")
+func DirFS(dir string) fs.FS {
+	return os.DirFS(dir)
 }
 
 // WriteAtomic writes content by writing to a temp file then renaming.

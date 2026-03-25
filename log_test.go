@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"os"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -141,7 +140,7 @@ func TestLog_LogPanic_Recover_Good(t *testing.T) {
 
 func TestLog_SetOutput_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
-	l.SetOutput(os.Stderr)
+	l.SetOutput(NewBuilder())
 	l.Info("redirected")
 }
 

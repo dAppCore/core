@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"os"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -93,9 +92,9 @@ func TestEmbed_Extract_Good(t *testing.T) {
 	r := Extract(testFS, dir, nil)
 	assert.True(t, r.OK)
 
-	content, err := os.ReadFile(dir + "/testdata/test.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "hello from testdata\n", string(content))
+	cr := (&Fs{}).New("/").Read(dir + "/testdata/test.txt")
+	assert.True(t, cr.OK)
+	assert.Equal(t, "hello from testdata\n", cr.Value)
 }
 
 // --- Asset Pack ---
@@ -149,12 +148,12 @@ func TestEmbed_GeneratePack_Empty_Good(t *testing.T) {
 func TestEmbed_GeneratePack_WithFiles_Good(t *testing.T) {
 	dir := t.TempDir()
 	assetDir := dir + "/mygroup"
-	os.MkdirAll(assetDir, 0755)
-	os.WriteFile(assetDir+"/hello.txt", []byte("hello world"), 0644)
+	(&Fs{}).New("/").EnsureDir(assetDir)
+	(&Fs{}).New("/").Write(assetDir+"/hello.txt", "hello world")
 
 	source := "package test\nimport \"dappco.re/go/core\"\nfunc example() {\n\t_, _ = core.GetAsset(\"mygroup\", \"hello.txt\")\n}\n"
 	goFile := dir + "/test.go"
-	os.WriteFile(goFile, []byte(source), 0644)
+	(&Fs{}).New("/").Write(goFile, source)
 
 	sr := ScanAssets([]string{goFile})
 	assert.True(t, sr.OK)
@@ -171,42 +170,44 @@ func TestEmbed_Extract_WithTemplate_Good(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create an in-memory FS with a template file and a plain file
-	tmplDir := os.DirFS(t.TempDir())
+	tmplDir := DirFS(t.TempDir())
 
 	// Use a real temp dir with files
 	srcDir := t.TempDir()
-	os.WriteFile(srcDir+"/plain.txt", []byte("static content"), 0644)
-	os.WriteFile(srcDir+"/greeting.tmpl", []byte("Hello {{.Name}}!"), 0644)
-	os.MkdirAll(srcDir+"/sub", 0755)
-	os.WriteFile(srcDir+"/sub/nested.txt", []byte("nested"), 0644)
+	(&Fs{}).New("/").Write(srcDir+"/plain.txt", "static content")
+	(&Fs{}).New("/").Write(srcDir+"/greeting.tmpl", "Hello {{.Name}}!")
+	(&Fs{}).New("/").EnsureDir(srcDir+"/sub")
+	(&Fs{}).New("/").Write(srcDir+"/sub/nested.txt", "nested")
 
 	_ = tmplDir
-	fsys := os.DirFS(srcDir)
+	fsys := DirFS(srcDir)
 	data := map[string]string{"Name": "World"}
 
 	r := Extract(fsys, dir, data)
 	assert.True(t, r.OK)
 
+	f := (&Fs{}).New("/")
+
 	// Plain file copied
-	content, err := os.ReadFile(dir + "/plain.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "static content", string(content))
+	cr := f.Read(dir + "/plain.txt")
+	assert.True(t, cr.OK)
+	assert.Equal(t, "static content", cr.Value)
 
 	// Template processed and .tmpl stripped
-	greeting, err := os.ReadFile(dir + "/greeting")
-	assert.NoError(t, err)
-	assert.Equal(t, "Hello World!", string(greeting))
+	gr := f.Read(dir + "/greeting")
+	assert.True(t, gr.OK)
+	assert.Equal(t, "Hello World!", gr.Value)
 
 	// Nested directory preserved
-	nested, err := os.ReadFile(dir + "/sub/nested.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "nested", string(nested))
+	nr := f.Read(dir + "/sub/nested.txt")
+	assert.True(t, nr.OK)
+	assert.Equal(t, "nested", nr.Value)
 }
 
 func TestEmbed_Extract_BadTargetDir_Ugly(t *testing.T) {
 	srcDir := t.TempDir()
-	os.WriteFile(srcDir+"/f.txt", []byte("x"), 0644)
-	r := Extract(os.DirFS(srcDir), "/nonexistent/deeply/nested/impossible", nil)
+	(&Fs{}).New("/").Write(srcDir+"/f.txt", "x")
+	r := Extract(DirFS(srcDir), "/nonexistent/deeply/nested/impossible", nil)
 	// Should fail gracefully, not panic
 	_ = r
 }
@@ -247,9 +248,9 @@ func TestEmbed_EmbedFS_Original_Good(t *testing.T) {
 func TestEmbed_Extract_NilData_Good(t *testing.T) {
 	dir := t.TempDir()
 	srcDir := t.TempDir()
-	os.WriteFile(srcDir+"/file.txt", []byte("no template"), 0644)
+	(&Fs{}).New("/").Write(srcDir+"/file.txt", "no template")
 
-	r := Extract(os.DirFS(srcDir), dir, nil)
+	r := Extract(DirFS(srcDir), dir, nil)
 	assert.True(t, r.OK)
 }
 

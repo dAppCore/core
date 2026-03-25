@@ -3,7 +3,6 @@ package core_test
 import (
 	"io"
 	"io/fs"
-	"os"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -83,7 +82,7 @@ func TestFs_Stat_Good(t *testing.T) {
 	c.Fs().Write(path, "data")
 	r := c.Fs().Stat(path)
 	assert.True(t, r.OK)
-	assert.Equal(t, "stat.txt", r.Value.(os.FileInfo).Name())
+	assert.Equal(t, "stat.txt", r.Value.(fs.FileInfo).Name())
 }
 
 func TestFs_Open_Good(t *testing.T) {
@@ -181,7 +180,7 @@ func TestFs_WriteMode_Good(t *testing.T) {
 	assert.True(t, c.Fs().WriteMode(path, "secret", 0600).OK)
 	r := c.Fs().Stat(path)
 	assert.True(t, r.OK)
-	assert.Equal(t, "secret.txt", r.Value.(os.FileInfo).Name())
+	assert.Equal(t, "secret.txt", r.Value.(fs.FileInfo).Name())
 }
 
 // --- Zero Value ---
@@ -204,7 +203,7 @@ func TestFs_ZeroValue_List_Good(t *testing.T) {
 	dir := t.TempDir()
 	zeroFs := &Fs{}
 
-	os.WriteFile(Path(dir, "a.txt"), []byte("a"), 0644)
+	(&Fs{}).New("/").Write(Path(dir, "a.txt"), "a")
 	r := zeroFs.List(dir)
 	assert.True(t, r.OK)
 	entries := r.Value.([]fs.DirEntry)
@@ -294,7 +293,8 @@ func TestFs_WriteAtomic_Ugly_NoTempFileLeftOver(t *testing.T) {
 	c.Fs().WriteAtomic(path, "content")
 
 	// Check no .tmp files remain
-	entries, _ := os.ReadDir(dir)
+	lr := c.Fs().List(dir)
+	entries, _ := lr.Value.([]fs.DirEntry)
 	for _, e := range entries {
 		assert.False(t, Contains(e.Name(), ".tmp."), "temp file should not remain after successful atomic write")
 	}
@@ -322,7 +322,7 @@ func TestFs_NewUnrestricted_Good(t *testing.T) {
 func TestFs_NewUnrestricted_Good_CanReadOutsideSandbox(t *testing.T) {
 	dir := t.TempDir()
 	outside := Path(dir, "outside.txt")
-	os.WriteFile(outside, []byte("hello"), 0644)
+	(&Fs{}).New("/").Write(outside, "hello")
 
 	sandboxed := (&Fs{}).New(Path(dir, "sandbox"))
 	unrestricted := sandboxed.NewUnrestricted()
@@ -335,7 +335,7 @@ func TestFs_NewUnrestricted_Good_CanReadOutsideSandbox(t *testing.T) {
 func TestFs_NewUnrestricted_Ugly_OriginalStaysSandboxed(t *testing.T) {
 	dir := t.TempDir()
 	sandbox := Path(dir, "sandbox")
-	os.MkdirAll(sandbox, 0755)
+	(&Fs{}).New("/").EnsureDir(sandbox)
 
 	sandboxed := (&Fs{}).New(sandbox)
 	_ = sandboxed.NewUnrestricted() // getting unrestricted doesn't affect original

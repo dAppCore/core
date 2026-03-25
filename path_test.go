@@ -3,17 +3,15 @@
 package core_test
 
 import (
-	"os"
 	"testing"
 
 	core "dappco.re/go/core"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPath_Relative(t *testing.T) {
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
+	home := core.Env("DIR_HOME")
+
 	ds := core.Env("DS")
 	assert.Equal(t, home+ds+"Code"+ds+".core", core.Path("Code", ".core"))
 }
@@ -24,14 +22,14 @@ func TestPath_Absolute(t *testing.T) {
 }
 
 func TestPath_Empty(t *testing.T) {
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
+	home := core.Env("DIR_HOME")
+
 	assert.Equal(t, home, core.Path())
 }
 
 func TestPath_Cleans(t *testing.T) {
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
+	home := core.Env("DIR_HOME")
+
 	assert.Equal(t, home+core.Env("DS")+"Code", core.Path("Code", "sub", ".."))
 }
 
@@ -77,9 +75,10 @@ func TestPath_EnvConsistency(t *testing.T) {
 
 func TestPath_PathGlob_Good(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(core.Path(dir, "a.txt"), []byte("a"), 0644)
-	os.WriteFile(core.Path(dir, "b.txt"), []byte("b"), 0644)
-	os.WriteFile(core.Path(dir, "c.log"), []byte("c"), 0644)
+	f := (&core.Fs{}).New("/")
+	f.Write(core.Path(dir, "a.txt"), "a")
+	f.Write(core.Path(dir, "b.txt"), "b")
+	f.Write(core.Path(dir, "c.log"), "c")
 
 	matches := core.PathGlob(core.Path(dir, "*.txt"))
 	assert.Len(t, matches, 2)
