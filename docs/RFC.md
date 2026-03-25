@@ -3756,6 +3756,35 @@ The five root causes map to a priority order:
 
 Root causes 1-3 are fixable. Root cause 4 is mitigable. Root cause 5 is a v0.9.0 architecture change.
 
+### Cross-References — Existing RFCs That Solve Open Problems
+
+Core/go provides the INTERFACE (stdlib only). Consumer packages bring the IMPLEMENTATION. These existing RFCs map directly to open findings:
+
+| Finding | Existing RFC | Core Provides (interface) | Consumer Provides (impl) |
+|---------|-------------|--------------------------|-------------------------|
+| P13-5: Sync startup | RFC-002 (Event-Driven Modules) | `Startable` + event declarations | Lazy instantiation based on `$listens` pattern |
+| P11-1: God Mode | RFC-004 (Entitlements) | `c.Entitlement(action) bool` | Package/feature gating, usage limits |
+| P11-3: Secret exposure | RFC-012 (SMSG) | `c.Secret(name) string` | SMSG decrypt, Vault, env fallback |
+| P9-6: No validation | RFC-009 (Sigil Transforms) | Composable transform chain interface | Validators, sanitisers, reversible transforms |
+| P11-2: Fs sandbox bypass | RFC-014 (TIM) | `c.Fs()` sandbox root | TIM container = OS-level isolation boundary |
+| P13-2: Go only | RFC-013 (DataNode) | `c.Data()` mounts `fs.FS` | DataNode = in-memory fs, test mounts, cross-language data |
+| P2-8: Logging gap | RFC-003 (Config Channels) | `c.Config()` with channel context | Settings vary by surface (CLI vs MCP vs HTTP) |
+
+**The pattern:** Core defines a primitive with a Go interface. The RFC describes the concept. A consumer package implements it. Core stays stdlib-only. The ecosystem gets rich features via composition.
+
+```
+core/go:          c.Secret(name) → looks up in Registry["secrets"]
+go-smsg:          registers SMSG decryptor as secret provider
+go-vault:         registers HashiCorp Vault as secret provider
+env fallback:     built into core/go (os.Getenv) — no extra dependency
+
+core/go:          c.Entitlement(action) → looks up in Registry["entitlements"]
+go-entitlements:  ports RFC-004 from CorePHP, registers package/feature checker
+default:          built into core/go — returns true (no restrictions, trusted conclave)
+```
+
+No dependency injected into core/go. The interface is the primitive. The implementation is the consumer.
+
 ---
 
 ## Versioning
