@@ -3790,16 +3790,29 @@ No dependency injected into core/go. The interface is the primitive. The impleme
 
 ---
 
+## Consumer RFCs
+
+core/go provides the primitives. These RFCs describe how consumers use them:
+
+| Package | RFC | Scope |
+|---------|-----|-------|
+| go-process | `core/go-process/docs/RFC.md` | Action handlers for process.run/start/kill, ManagedProcess, daemon registry |
+| core/agent | `core/agent/docs/RFC.md` | Named Actions, completion pipeline (P6-1 fix), WriteAtomic migration, Process migration, Entitlement gating |
+
+Each consumer RFC is self-contained — an agent can implement it from the document alone.
+
+---
+
 ## Versioning
 
 ### Release Model
 
 ```
-v0.7.x  — current stable (the API this RFC documents)
-v0.7.*  — mechanical fixes to align code with RFC spec (issues 2,3,13,14,15)
-v0.8.0  — production stable: all 16 issues resolved, Sections 17-20 implemented
-v0.8.*  — patches only: each patch is a process gap to investigate
-v0.9.0  — next design cycle (repeat: RFC spec → implement → stabilise → tag)
+v0.7.x  — previous stable
+v0.8.0  — current: Plans 1-5 implemented, Sections 17-21, type Task any removed
+          456 tests, 84.4% coverage, 100% AX-7 naming
+v0.8.*  — patches: Entitlement implementation (Section 21), consumer alignment
+v0.9.0  — next cycle: Config/Data/Fs entitlement gating, c.API() streams
 ```
 
 ### The Cadence
@@ -3817,22 +3830,28 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 
 | Requirement | Status |
 |-------------|--------|
-| All 16 Known Issues resolved in code | 15/16 resolved in RFC, 1 blocked (Issue 7) |
-| Section 17: c.Process() primitive | Spec'd, needs go-process v0.7.0 |
-| Section 18: Action/Task system | Spec'd, needs implementation |
-| Section 19: c.API() streams | Spec'd, needs implementation |
-| Section 20: Registry[T] primitive | Spec'd, needs implementation |
-| AX-7 test coverage at 100% | core/go at 14%, core/agent at 92% |
-| RFC-025 compliance | All code examples match implementation |
-| Zero os/exec in consumer packages | core/agent done, go-process is the only allowed user |
-| AGENTS.md + llm.txt on all repos | core/go, core/agent, core/docs done |
+| All 16 Known Issues resolved in code | **Done** (2026-03-25) |
+| Section 17: c.Process() primitive | **Done** — Action sugar |
+| Section 18: Action/Task system | **Done** — ActionDef→Action, TaskDef→Task, type Task any removed |
+| Section 19: c.API() streams | Design spec in RFC, not yet implemented |
+| Section 20: Registry[T] primitive | **Done** — all 5 registries migrated |
+| Section 21: Entitlement primitive | Designed, implementation pending |
+| AX-7 test coverage at 100% | **Done** — core/go 456/456 (100%) |
+| Zero os/exec in core/go | **Done** — App.Find() uses os.Stat |
+| type Task any removed | **Done** — PerformAsync takes named action + Options |
+| Startable/Stoppable return Result | **Done** — breaking, clean |
+| CommandLifecycle removed | **Done** → Command.Managed field |
+| Consumer RFCs written | **Done** — go-process/docs/RFC.md, core/agent/docs/RFC.md |
+
+### What Blocks v0.8.0 Tag
+
+- Section 21: Entitlement primitive implementation (~100 lines)
+- go-process v0.7.0 alignment (consumer RFC written, ready to implement)
 
 ### What Does NOT Block v0.8.0
 
-- core/cli v0.7.0 update (extension, not primitive)
-- Borg/DataNode integration (separate ecosystem)
-- CorePHP/CoreTS alignment (different release cycles)
-- Full ecosystem AX-7 coverage (core/go + core/agent are the reference)
+- Ecosystem sweep (Plan 6 — after consumers align)
+- core/cli update (extension, not primitive)
 
 ## 21. Entitlement — The Permission Primitive (Design)
 
