@@ -800,6 +800,228 @@ Current state → target state:
 
 ---
 
+## 18. Action and Task — The Execution Primitives (Planned)
+
+> Status: Design spec. Replaces the current `ACTION`/`PERFORM` broadcast model
+> with named, composable execution units.
+
+### 18.1 The Concept
+
+The current IPC has three verbs:
+- `ACTION(msg)` — broadcast fire-and-forget
+- `QUERY(q)` — first responder wins
+- `PERFORM(t)` — first executor wins
+
+This works but treats everything as anonymous messages. There's no way to:
+- Name a callable and invoke it by name
+- Chain callables into flows
+- Schedule a callable for later
+- Inspect what callables are registered
+
+**Action** is the fix. An Action is a named, registered callable. The atomic unit of work in Core.
+
+### 18.2 core.Action() — The Atomic Unit
+
+```go
+// Register a named action
+c.Action("git.log", func(ctx context.Context, opts core.Options) core.Result {
+    dir := opts.String("dir")
+    return c.Process().RunIn(ctx, dir, "git", "log", "--oneline", "-20")
+})
+
+// Invoke by name
+r := c.Action("git.log").Run(ctx, core.NewOptions(
+    core.Option{Key: "dir", Value: "/path/to/repo"},
+))
+if r.OK {
+    log := r.Value.(string)
+}
+
+// Check if an action exists (permission check)
+if c.Action("process.run").Exists() {
+    // process capability is available
+}
+```
+
+`c.Action(name)` is dual-purpose like `c.Service(name)`:
+- With a handler arg → registers the action
+- Without → returns the action for invocation
+
+### 18.3 Action Signature
+
+```go
+// ActionHandler is the function signature for all actions.
+type ActionHandler func(context.Context, Options) Result
+
+// ActionDef is a registered action.
+type ActionDef struct {
+    Name        string
+    Handler     ActionHandler
+    Description string        // AX: human + agent readable
+    Schema      Options       // declares expected input keys (optional)
+}
+```
+
+### 18.4 Where Actions Come From
+
+Services register their actions during `OnStartup`. This is the same pattern as command registration — services own their capabilities:
+
+```go
+func (s *MyService) OnStartup(ctx context.Context) error {
+    c := s.Core()
+
+    c.Action("process.run", s.handleRun)
+    c.Action("process.start", s.handleStart)
+    c.Action("process.kill", s.handleKill)
+
+    c.Action("git.clone", s.handleGitClone)
+    c.Action("git.push", s.handleGitPush)
+
+    return nil
+}
+```
+
+go-process registers `process.*` actions. core/agent registers `agentic.*` actions. The action namespace IS the capability map.
+
+### 18.5 The Permission Model
+
+If `process.run` is not registered, calling it returns `Result{OK: false}`. This is the same "registration IS permission" model from Section 17.7, but generalised to ALL capabilities:
+
+```go
+// Full Core — everything available
+c := core.New(
+    core.WithService(process.Register),   // registers process.* actions
+    core.WithService(agentic.Register),   // registers agentic.* actions
+    core.WithService(brain.Register),     // registers brain.* actions
+)
+
+// Sandboxed Core — no process, no brain
+c := core.New(
+    core.WithService(agentic.Register),   // only agentic.* actions
+)
+// c.Action("process.run").Run(...)  → Result{OK: false}
+// c.Action("brain.recall").Run(...) → Result{OK: false}
+```
+
+### 18.6 core.Task() — Composing Actions
+
+A Task is a named sequence, chain, or graph of Actions. Think n8n nodes but in code.
+
+```go
+// Sequential chain — stops on first failure
+c.Task("deploy", core.TaskDef{
+    Description: "Build, test, and deploy to production",
+    Steps: []core.Step{
+        {Action: "go.build",   With: core.Options{...}},
+        {Action: "go.test",    With: core.Options{...}},
+        {Action: "docker.push", With: core.Options{...}},
+        {Action: "ansible.deploy", With: core.Options{...}},
+    },
+})
+
+// Run the task
+r := c.Task("deploy").Run(ctx, core.NewOptions(
+    core.Option{Key: "target", Value: "production"},
+))
+```
+
+### 18.7 Task Composition Patterns
+
+```go
+// Chain — sequential, output of each feeds next
+c.Task("review-pipeline", core.TaskDef{
+    Steps: []core.Step{
+        {Action: "agentic.dispatch", With: opts},
+        {Action: "agentic.verify",   Input: "previous"},  // gets output of dispatch
+        {Action: "agentic.merge",    Input: "previous"},
+    },
+})
+
+// Parallel — all run concurrently, wait for all
+c.Task("multi-repo-sweep", core.TaskDef{
+    Parallel: []core.Step{
+        {Action: "agentic.dispatch", With: optsGoIO},
+        {Action: "agentic.dispatch", With: optsGoLog},
+        {Action: "agentic.dispatch", With: optsGoMCP},
+    },
+})
+
+// Conditional — branch on result
+c.Task("qa-gate", core.TaskDef{
+    Steps: []core.Step{
+        {Action: "go.test"},
+        {
+            If:   "previous.OK",
+            Then: core.Step{Action: "agentic.merge"},
+            Else: core.Step{Action: "agentic.flag-review"},
+        },
+    },
+})
+
+// Scheduled — run at a specific time or interval
+c.Task("nightly-sweep", core.TaskDef{
+    Schedule: "0 2 * * *",  // cron: 2am daily
+    Steps: []core.Step{
+        {Action: "agentic.scan"},
+        {Action: "agentic.dispatch-fixes", Input: "previous"},
+    },
+})
+```
+
+### 18.8 How This Relates to Existing IPC
+
+The current IPC verbs become invocation modes for Actions:
+
+| Current | Becomes | Purpose |
+|---------|---------|---------|
+| `c.ACTION(msg)` | `c.Action("name").Broadcast(opts)` | Fire-and-forget to ALL handlers |
+| `c.QUERY(q)` | `c.Action("name").Query(opts)` | First responder wins |
+| `c.PERFORM(t)` | `c.Action("name").Run(opts)` | Execute and return result |
+| `c.PerformAsync(t)` | `c.Action("name").RunAsync(opts)` | Background with progress |
+
+The anonymous message types (`Message`, `Query`, `Task`) still work for backwards compatibility. Named Actions are the AX-native way forward.
+
+### 18.9 How Process Fits
+
+Section 17's `c.Process()` is syntactic sugar over Actions:
+
+```go
+// c.Process().Run(ctx, "git", "log") is equivalent to:
+c.Action("process.run").Run(ctx, core.NewOptions(
+    core.Option{Key: "command", Value: "git"},
+    core.Option{Key: "args", Value: []string{"log"}},
+))
+
+// c.Process().Start(ctx, opts) is equivalent to:
+c.Action("process.start").Run(ctx, core.NewOptions(
+    core.Option{Key: "command", Value: opts.Command},
+    core.Option{Key: "args", Value: opts.Args},
+    core.Option{Key: "detach", Value: true},
+))
+```
+
+The `Process` primitive is a typed convenience layer. Under the hood, it's Actions all the way down.
+
+### 18.10 Inspecting the Action Registry
+
+```go
+// List all registered actions
+actions := c.Actions()  // []string{"process.run", "process.start", "agentic.dispatch", ...}
+
+// Check capabilities
+c.Action("process.run").Exists()    // true if go-process registered
+c.Action("brain.recall").Exists()   // true if brain registered
+
+// Get action metadata
+def := c.Action("agentic.dispatch").Def()
+// def.Description = "Dispatch a subagent to work on a task"
+// def.Schema = Options with expected keys
+```
+
+This makes the capability map queryable. An agent can inspect what Actions are available before attempting to use them.
+
+---
+
 ## Design Philosophy
 
 ### Core Is Lego Bricks
