@@ -1220,17 +1220,36 @@ Each layer imports the one below. core/go imports nothing from the ecosystem —
 
 ## Known Issues
 
-### 1. Dual IPC Naming
+### 1. Naming Convention — UPPERCASE vs CamelCase (Resolved)
 
-`ACTION()` and `Action()` do the same thing. `QUERY()` and `Query()`. Two names for one operation. Pick one or document when to use which.
+The naming convention encodes the architecture:
+
+| Style | Meaning | Example |
+|-------|---------|---------|
+| `CamelCase()` | **Primitive** — the Lego brick, the building block | `c.Action("name")`, `c.Service("name")`, `c.Config()` |
+| `UPPERCASE()` | **Consumer convenience** — sugar over primitives, works out of the box | `c.ACTION(msg)`, `c.QUERY(q)`, `c.PERFORM(t)` |
+
+**Current code has this backwards.** `ACTION()` is the uppercase method but it's mapped to the raw dispatch. `Action()` is CamelCase but it's just an alias.
+
+**Resolution:**
 
 ```go
-// Currently both exist:
-c.ACTION(msg)  // uppercase alias
-c.Action(msg)  // actual implementation
+// CamelCase = primitive (the registry, the brick)
+c.Action("process.run")           // get/register a named Action
+c.Action("process.run").Run(opts) // invoke by name
+c.Action("process.run").Exists()  // capability check
+
+// UPPERCASE = consumer convenience (sugar, shortcuts)
+c.ACTION(msg)    // broadcast to all — sugar over c.Action("broadcast").Run()
+c.QUERY(q)       // first responder — sugar over c.Action("query").Run()
+c.PERFORM(t)     // execute task — sugar over c.Action("perform").Run()
+
+// CamelCase subsystem = owns the registry
+c.IPC()          // the conclave's bus — owns the Action registry
+c.IPC().Actions() // all registered action names
 ```
 
-**Recommendation:** Keep both — `ACTION`/`QUERY`/`PERFORM` are the public "intent" API (semantically loud, used by services). `Action`/`Query`/`Perform` are the implementation methods. Document: services use uppercase, Core internals use lowercase.
+The UPPERCASE methods stay for backwards compatibility and convenience — a service that just wants to broadcast uses `c.ACTION(msg)`. A service that needs to inspect capabilities or invoke by name uses `c.Action("name")`.
 
 ### 2. MustServiceFor Uses Panic
 
@@ -1370,18 +1389,46 @@ A typed wrapper around a config value with set/unset tracking. Only used interna
 
 **Resolution:** Either promote to a documented primitive (useful for the config layering problem) or inline it as unexported since it's only used in `config.go`.
 
-### 12. Ipc Is a Data-Only Struct
+### 12. Ipc — From Data-Only Struct to Registry Owner (Resolved)
 
-`Ipc` holds handler slices and mutexes but has zero methods. All IPC methods (`Action`, `Query`, `RegisterAction`, etc.) live on `*Core`. The `c.IPC()` accessor returns the raw struct, but there's nothing a consumer can do with it directly.
+`Ipc` currently holds handler slices and mutexes but has zero methods. All IPC methods live on `*Core`. The `c.IPC()` accessor returns the raw struct with nothing useful on it.
 
-**Problem:** `c.IPC()` suggests there's a useful API on the returned type, but there isn't. It's like `c.Fs()` returning a struct with no methods — misleading.
+**Resolution:** With the naming convention from Issue 1 resolved, the roles are clear:
 
-**Resolution:** Either:
-- Add methods to `Ipc` (move `Action`/`Query`/`RegisterAction` from Core to Ipc)
-- Remove the `c.IPC()` accessor (consumers use `c.ACTION()`/`c.RegisterAction()` directly)
-- Or keep it but document that it's for inspection only (handler count, registered types)
+```
+c.Action("name")       — CamelCase primitive: register/invoke/inspect named Actions
+c.ACTION(msg)          — UPPERCASE convenience: broadcast (sugar over primitives)
+c.IPC()                — CamelCase subsystem: OWNS the Action registry
+```
 
-With Section 18 (Actions), `Ipc` could become the Action registry — `c.IPC().Actions()` returns registered action names, `c.IPC().Exists("process.run")` checks capabilities.
+`c.IPC()` becomes the conclave's brain — the registry of all capabilities:
+
+```go
+// Registry inspection (on Ipc)
+c.IPC().Actions()                     // []string — all registered action names
+c.IPC().Action("process.run")         // *ActionDef — metadata, handler, schema
+c.IPC().Handlers()                    // int — total registered handlers
+c.IPC().Tasks()                       // []string — registered task flows
+
+// Primitive operations (on Core — delegates to IPC)
+c.Action("process.run", handler)      // register
+c.Action("process.run").Run(opts)     // invoke
+c.Action("process.run").Exists()      // check
+
+// Consumer convenience (on Core — sugar)
+c.ACTION(msg)                         // broadcast to all handlers
+c.QUERY(q)                            // first responder wins
+c.PERFORM(t)                          // execute task
+```
+
+Three layers, one registry:
+- **`c.IPC()`** owns the data (Action registry, handler slices, task flows)
+- **`c.Action()`** is the primitive API for interacting with it
+- **`c.ACTION()`** is the convenience shortcut for common patterns
+
+This is the same pattern as:
+- **`c.Drive()`** owns connection config, **`c.API()`** opens streams using it
+- **`c.Data()`** owns mounts, **`c.Embed()`** was the legacy shortcut
 
 ### 13. Lock() Allocates on Every Call
 
