@@ -44,6 +44,7 @@ type Action struct {
 	Description string
 	Schema      Options // declares expected input keys (optional)
 	enabled     bool
+	core        *Core // for entitlement checks during Run()
 }
 
 // Run executes the action with panic recovery.
@@ -56,6 +57,12 @@ func (a *Action) Run(ctx context.Context, opts Options) (result Result) {
 	}
 	if !a.enabled {
 		return Result{E("action.Run", Concat("action disabled: ", a.Name), nil), false}
+	}
+	// Entitlement check — permission boundary
+	if a.core != nil {
+		if e := a.core.Entitled(a.Name); !e.Allowed {
+			return Result{E("action.Run", Concat("not entitled: ", a.Name, " — ", e.Reason), nil), false}
+		}
 	}
 	defer func() {
 		if r := recover(); r != nil {
@@ -90,7 +97,7 @@ func (a *Action) safeName() string {
 //	c.Action("process.run").Exists()           // check
 func (c *Core) Action(name string, handler ...ActionHandler) *Action {
 	if len(handler) > 0 {
-		def := &Action{Name: name, Handler: handler[0], enabled: true}
+		def := &Action{Name: name, Handler: handler[0], enabled: true, core: c}
 		c.ipc.actions.Set(name, def)
 		return def
 	}

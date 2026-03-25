@@ -32,6 +32,9 @@ type Core struct {
 	info     *SysInfo         // c.Env("key")        — Read-only system/environment information
 	i18n     *I18n            // c.I18n()           — Internationalisation and locale collection
 
+	entitlementChecker EntitlementChecker // default: everything permitted
+	usageRecorder      UsageRecorder      // default: nil (no-op)
+
 	context       context.Context
 	cancel        context.CancelFunc
 	taskIDCounter atomic.Uint64
