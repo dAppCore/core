@@ -3673,6 +3673,77 @@ The meta-assumption: this RFC is complete. It's not. It's the best single-sessio
 
 ---
 
+## Synthesis — Five Root Causes
+
+> With all 108 findings in context, the patterns emerge. 60 findings
+> cluster into 5 root causes. Fix the root, fix the cluster.
+
+### Root Cause 1: Type Erasure via Result{any} — 16 findings
+
+`Result{Value: any, OK: bool}` erases all type information. Every consumer writes bare type assertions that panic on wrong types. The LOC reduction is real but the compile-time safety loss creates 50+ hidden panic sites.
+
+**The tension is fundamental.** Result exists to reduce downstream LOC. But `any` means the compiler can't help. This isn't fixable without abandoning Result — which defeats Core's purpose.
+
+**Mitigation, not fix:** Typed convenience methods (`ReadString`, `ListEntries`, `ConfigGet[T]`). AX-7 Ugly tests for every type assertion. `Registry[T]` where generics work. Accept `Result` as the integration seam where types meet.
+
+### Root Cause 2: No Internal Boundaries — 14 findings
+
+`*Core` grants God Mode. Every service sees everything. The unexported fields were an attempt at boundaries but `unsafe.Pointer` proves they don't work. The conclave has no isolation.
+
+**This is by design for v0.8.0.** All services are first-party trusted code. The Lego Bricks philosophy says "export everything." The tension is: Lego Bricks vs Least Privilege.
+
+**Resolution for v0.9.0+:** Capability-based Core views. A service receives `*CoreView` that only exposes permitted subsystems. The full `*Core` exists but services get filtered projections. This preserves Lego Bricks (the bricks exist) while adding boundaries (not all bricks are visible to all consumers).
+
+### Root Cause 3: Synchronous Everything — 12 findings
+
+IPC dispatch is synchronous. Startup is synchronous. File I/O assumes no concurrency. The one async path (`PerformAsync`) is unbounded. When anything runs concurrently — which it does in production — races emerge.
+
+**The cascade (P6-1) is the symptom.** The root cause is that Core was designed for sequential execution and concurrency was added incrementally without revisiting the foundations.
+
+**Resolution:** The Action/Task system (Section 18) is the fix. Actions execute with concurrency control. Tasks define parallel/sequential composition. The IPC bus stops being the execution engine — it becomes the notification channel. PERFORM replaces ACTION for request/response. Async is opt-in per Action, not per handler.
+
+### Root Cause 4: No Recovery Path — 10 findings
+
+Every failure mode is "log and crash." `os.Exit(1)` bypasses defers. Startup failure leaks running services. Panicking handlers crash the process. `SafeGo` exists but isn't used.
+
+**One fix resolves most of this cluster:**
+
+```go
+func (c *Core) Run() error {
+    defer c.ServiceShutdown(context.Background())
+    // ... no os.Exit, return errors
+}
+```
+
+`defer` ensures cleanup always runs. Returning `error` lets `main()` handle the exit. Panic recovery in ACTION handlers prevents cascade crashes. Wire `SafeGo` as the standard goroutine launcher.
+
+### Root Cause 5: Missing Primitives — 8 findings
+
+The guardrail coverage is incomplete. Strings have primitives. Paths have primitives. Errors have primitives. But JSON, time, IDs, validation, and health don't. Each gap means consumers reinvent the wheel — and weaker models get it wrong.
+
+**Resolution:** Prioritise by usage frequency:
+1. `core.ID()` — used everywhere, 3 different patterns today
+2. `core.Validate(name/path)` — copy-pasted 3 times today
+3. `core.Health()` — needed for production monitoring
+4. `core.Time()` / timestamp convention — document RFC3339
+5. JSON — judgment call, may be unnecessary wrapping
+
+### What This Means for v0.8.0
+
+The five root causes map to a priority order:
+
+| Priority | Root Cause | v0.8.0 Action |
+|----------|-----------|---------------|
+| 1 | No recovery (10) | Fix Run(), add defer, panic recovery — **Phase 1** |
+| 2 | Synchronous (12) | Fix ACTION chain bug, design Task system — **Phase 1-2** |
+| 3 | Missing primitives (8) | Add ID, Validate, Health — **Phase 1** |
+| 4 | Type erasure (16) | Add typed convenience methods, AX-7 tests — **ongoing** |
+| 5 | No boundaries (14) | Accept for v0.8.0, design CoreView for v0.9.0 — **deferred** |
+
+Root causes 1-3 are fixable. Root cause 4 is mitigable. Root cause 5 is a v0.9.0 architecture change.
+
+---
+
 ## Versioning
 
 ### Release Model
