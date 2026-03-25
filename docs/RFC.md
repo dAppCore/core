@@ -3308,6 +3308,143 @@ c.Registry("services").Delete("rogue")          // removes entirely
 
 ---
 
+## Pass Twelve — Migration Risk
+
+> Twelfth review. 44 repos import core/go. What breaks when we ship v0.8.0?
+> Categorise every RFC change by blast radius.
+
+### P12-1. The Blast Radius — 44 Consumer Repos
+
+Every breaking change in core/go ripples to 44 repositories across the ecosystem. The highest-risk changes:
+
+| Change | Blast Radius | Files Affected |
+|--------|-------------|----------------|
+| P3-1: Startable returns Result | 26 files | Every OnStartup/OnShutdown impl |
+| P7-5: Run() returns error | 15 files | Every main.go calling c.Run() |
+| I9: CommandLifecycle → Managed | ~10 files | Services with daemon commands |
+| I3: Remove Embed() | 0 files | Nobody uses it — safe |
+
+### P12-2. Migration Phasing — What Can Ship Independently
+
+**Phase 1: Additive (zero breakage)**
+- Section 17: `c.Process()` — new accessor
+- Section 18: `c.Action()` — new accessor
+- Section 19: `c.API()` — new accessor
+- Section 20: `Registry[T]` — new type
+- P7-4: Add `defer ServiceShutdown` to Run()
+- P4-3: Fix ACTION chain (!OK doesn't stop broadcast)
+- P7-3: Add panic recovery to ACTION handlers
+- I3: Remove `Embed()` (zero consumers)
+
+These can ship as v0.7.x patches. No consumer breakage.
+
+**Phase 2: Internal refactor (no API change)**
+- I16: task.go → action.go (file rename, same package)
+- I5: Move RegisterAction to ipc.go (same package)
+- P9-1: Remove os/exec from app.go
+- P11-2: Add Fs.NewUnrestricted() to replace unsafe.Pointer hacks
+
+**Phase 3: Breaking changes (need ecosystem sweep)**
+- P3-1: Startable/Stoppable return Result — 26 files to update
+- P7-5: Run() returns error — 15 main.go files
+- I9: Command.Managed replaces CommandLifecycle
+
+Phase 3 is the only one that requires a coordinated ecosystem update. Phases 1-2 can ship immediately.
+
+### P12-3. The Startable Change Is The Biggest Risk
+
+26 files across the ecosystem implement `OnStartup(ctx) error`. Changing to `OnStartup(ctx) Result` means:
+
+```go
+// Before (26 files):
+func (s *Svc) OnStartup(ctx context.Context) error {
+    return nil
+}
+
+// After:
+func (s *Svc) OnStartup(ctx context.Context) core.Result {
+    return core.Result{OK: true}
+}
+```
+
+This is a mechanical change but it touches every service in every repo. One Codex dispatch per repo with the template: "change OnStartup/OnShutdown return type from error to core.Result."
+
+**Alternative:** Keep `error` return. Accept the inconsistency (P3-1) as the cost of not breaking 26 files. Add `Result`-returning variants as new interfaces:
+
+```go
+type StartableV2 interface { OnStartup(ctx context.Context) Result }
+```
+
+Core checks for V2 first, falls back to V1. No breakage. V1 is deprecated. Consumers migrate at their own pace.
+
+### P12-4. The Run() Change Can Be Backwards Compatible
+
+```go
+// Current:
+func (c *Core) Run() { ... os.Exit(1) }
+
+// Add alongside (no breakage):
+func (c *Core) RunE() error { ... return err }
+```
+
+`Run()` stays for backwards compatibility. `RunE()` is the new pattern. `Run()` internally calls `RunE()` and handles the exit. Consumers migrate when ready.
+
+### P12-5. The Critical Bugs Are Phase 1 — Ship Immediately
+
+The 3 critical bugs (P4-3, P6-1, P7-2) are all Phase 1 (additive/internal):
+
+| Bug | Fix | Phase | Risk |
+|-----|-----|-------|------|
+| P4-3: ACTION !OK stops chain | Change loop to continue on !OK | 1 | Low — behaviour improves |
+| P7-2: No cleanup on startup failure | Add shutdown call before exit | 1 | Low — adds safety |
+| P7-3: ACTION handlers no panic recovery | Wrap in defer/recover | 1 | Low — adds safety |
+
+These can ship tomorrow as v0.7.1 with zero consumer breakage.
+
+### P12-6. The Cascade Fix (P6-1) Requires core/agent Change
+
+Fixing the synchronous cascade (P6-1) means core/agent's handlers.go must change from nested `c.ACTION()` calls to a Task pipeline. This is a core/agent change, not a core/go change.
+
+```go
+// Current (core/agent/handlers.go):
+c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
+    // runs QA, then calls c.ACTION(QAResult) — nested, blocking
+})
+
+// Target:
+c.Task("agent.completion", core.TaskDef{
+    Steps: []{Action: "agentic.qa"}, {Action: "agentic.pr"}, ...
+})
+```
+
+This needs Section 18 (Actions/Tasks) implemented first. So the cascade fix depends on the Action system, which is Phase 1 (additive). But the handler refactor in core/agent is a separate change.
+
+### P12-7. 44 Repos Need AX-7 Tests Before v0.8.0 Tagging
+
+The v0.8.0 checklist says "AX-7 at 100%." Currently:
+- core/go: 14% AX-7 (83.6% statement coverage, wrong naming)
+- core/agent: 92% AX-7 (79.9% statement coverage)
+- Other 42 repos: unknown
+
+Getting all 44 repos to AX-7 100% before v0.8.0 is unrealistic. Scope it:
+- core/go + core/agent at 100% = v0.8.0 (reference implementations)
+- Other repos adopt incrementally via Codex sweeps
+- Each repo gets AX-7 as part of the Phase 3 ecosystem sweep
+
+### P12-8. The Migration Tool — Codex Dispatches From the RFC
+
+The RFC IS the migration spec. Each Phase maps to a Codex dispatch:
+
+```
+Phase 1: dispatch to core/go — "implement Section 17-20, fix P4-3/P7-2/P7-3"
+Phase 2: dispatch to core/go — "refactor task.go→action.go, remove os/exec from app.go"
+Phase 3: sweep all 44 repos — "update OnStartup/OnShutdown to Result, Run→RunE"
+```
+
+The RFC sections are detailed enough that a Codex agent can implement them. That's the AX promise — the spec IS the implementation guide.
+
+---
+
 ## Versioning
 
 ### Release Model
