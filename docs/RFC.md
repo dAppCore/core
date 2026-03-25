@@ -554,7 +554,112 @@ func (s *MyService) DoWork() {
 
 ---
 
-## Design Principles
+## Design Philosophy
+
+### Core Is Lego Bricks
+
+Core is infrastructure, not an encapsulated library. Downstream packages (core/agent, core/mcp, go-process) compose with Core's primitives. **Exported fields are intentional, not accidental.** Every unexported field that forces a consumer to write a wrapper method adds LOC downstream — the opposite of Core's purpose.
+
+```go
+// Core reduces downstream code:
+if r.OK { use(r.Value) }
+
+// vs Go convention that adds downstream LOC:
+val, err := thing.Get()
+if err != nil {
+    return fmt.Errorf("get: %w", err)
+}
+```
+
+This is why `core.Result` exists — it replaces multiple lines of error handling with `if r.OK {}`. That's the design: expose the primitive, reduce consumer code.
+
+### Export Rules
+
+| Should Export | Why |
+|--------------|-----|
+| Struct fields used by consumers | Removes accessor boilerplate downstream |
+| Registry types (`serviceRegistry`) | Lets consumers extend service management |
+| IPC internals (`Ipc` handlers) | Lets consumers build custom dispatch |
+| Lifecycle hooks (`OnStart`, `OnStop`) | Composable without interface overhead |
+
+| Should NOT Export | Why |
+|------------------|-----|
+| Mutexes and sync primitives | Concurrency must be managed by Core |
+| Context/cancel pairs | Lifecycle is Core's responsibility |
+| Internal counters | Implementation detail, not a brick |
+
+### Why core/go Is Minimal
+
+core/go deliberately avoids importing anything beyond stdlib + go-io + go-log. This keeps it as a near-pure stdlib implementation. Packages that add external dependencies (CLI frameworks, HTTP routers, MCP SDK) live in separate repos:
+
+```
+core/go          — pure primitives (stdlib only)
+core/go-process  — process management (adds os/exec)
+core/go-cli      — CLI framework (if separated)
+core/mcp         — MCP server (adds go-sdk)
+core/agent       — orchestration (adds forge, yaml, mcp)
+```
+
+Each layer imports the one below. core/go imports nothing from the ecosystem — everything imports core/go.
+
+## Known Issues
+
+### 1. Dual IPC Naming
+
+`ACTION()` and `Action()` do the same thing. `QUERY()` and `Query()`. Two names for one operation. Pick one or document when to use which.
+
+```go
+// Currently both exist:
+c.ACTION(msg)  // uppercase alias
+c.Action(msg)  // actual implementation
+```
+
+**Recommendation:** Keep both — `ACTION`/`QUERY`/`PERFORM` are the public "intent" API (semantically loud, used by services). `Action`/`Query`/`Perform` are the implementation methods. Document: services use uppercase, Core internals use lowercase.
+
+### 2. MustServiceFor Uses Panic
+
+```go
+func MustServiceFor[T any](c *Core, name string) T {
+    panic(...)
+}
+```
+
+RFC-025 says "no hidden panics." `Must` prefix signals it, but the pattern contradicts the Result philosophy. Consider deprecating in favour of `ServiceFor` + `if !ok` pattern.
+
+### 3. Embed() Legacy Accessor
+
+```go
+func (c *Core) Embed() Result { return c.data.Get("app") }
+```
+
+Dead accessor with "use Data()" comment. Should be removed — it's API surface clutter that confuses agents.
+
+### 4. Package-Level vs Core-Level Logging
+
+```go
+core.Info("msg")       // global default logger
+c.Log().Info("msg")    // Core's logger instance
+```
+
+Both work. Global functions exist for code without Core access (early init, proc.go helpers). Services with Core access should use `c.Log()`. Document the boundary.
+
+### 5. RegisterAction Lives in task.go
+
+IPC registration (`RegisterAction`, `RegisterActions`, `RegisterTask`) is in `task.go` but the dispatch functions (`Action`, `Query`, `QueryAll`) are in `ipc.go`. All IPC should be in one file or the split should follow a clear boundary (dispatch vs registration).
+
+### 6. serviceRegistry Is Unexported
+
+`serviceRegistry` is unexported, meaning consumers can't extend service management. Per the Lego Bricks philosophy, this should be exported so downstream packages can build on it.
+
+### 7. No c.Process() Accessor
+
+Process management (go-process) should be a Core subsystem accessor like `c.Fs()`, not a standalone service retrieved via `ServiceFor`. Planned for go-process v0.7.0 update.
+
+### 8. NewRuntime / NewWithFactories — Legacy
+
+These pre-v0.7.0 functions take `app any` instead of `*Core`. Verify if they're still used — if not, deprecate.
+
+## AX Principles Applied
 
 This API follows RFC-025 Agent Experience (AX):
 
@@ -564,6 +669,7 @@ This API follows RFC-025 Agent Experience (AX):
 4. **Universal types** — Option, Options, Result everywhere
 5. **Event-driven** — ACTION/QUERY/PERFORM, not direct function calls between services
 6. **Tests as spec** — `TestFile_Function_{Good,Bad,Ugly}` for every function
+7. **Export primitives** — Core is Lego bricks, not an encapsulated library
 
 ## Changelog
 
