@@ -2909,6 +2909,145 @@ The guardrail primitives (Array[T], Registry[T], ConfigVar[T]) are Core's answer
 
 ---
 
+## Pass Nine — What's Missing, What Shouldn't Be There
+
+> Ninth review. What should Core provide that it doesn't? What does Core
+> contain that belongs elsewhere?
+
+### P9-1. core/go Imports os/exec — Violates Its Own Rule
+
+`app.go` imports `os/exec` for `exec.LookPath`:
+
+```go
+func (a App) Find(filename, name string) Result {
+    path, err := exec.LookPath(filename)
+```
+
+Core says "zero os/exec — go-process is the only allowed user" (Section 17). But Core itself violates this. `App.Find()` locates binaries on PATH — a process concern that belongs in go-process.
+
+**Resolution:** Move `App.Find()` to go-process or make it a `process.which` Action. Core shouldn't import the package it tells consumers not to use.
+
+### P9-2. core/go Uses reflect for Service Name Discovery
+
+```go
+typeOf := reflect.TypeOf(instance)
+pkgPath := typeOf.PkgPath()
+name := Lower(parts[len(parts)-1])
+```
+
+`WithService` uses `reflect` to auto-discover the service name from the factory's return type's package path. This is magic (P5-4) and fragile — renaming a package changes the service name.
+
+**Resolution:** `WithName` already exists for explicit naming. Consider making `WithService` require a name, or document that the auto-discovered name IS the package name and changing it is a breaking change.
+
+### P9-3. No JSON Primitive — Every Consumer Imports encoding/json
+
+core/agent's agentic package has 15+ files importing `encoding/json`. Core provides string helpers (`core.Contains`, `core.Split`) but no JSON helpers. Every consumer writes:
+
+```go
+data, err := json.Marshal(thing)      // no core wrapper
+json.NewDecoder(resp.Body).Decode(&v) // no core wrapper
+```
+
+**Resolution:** Consider `core.JSON.Marshal()` / `core.JSON.Unmarshal()` or `core.ToJSON()` / `core.FromJSON()`. Same guardrail pattern as strings — one import, one pattern, model-proof. Or accept that `encoding/json` is stdlib and doesn't need wrapping.
+
+**The test:** Does wrapping JSON add value beyond import consistency? Strings helpers add value (they're on `core.` so agents find them). JSON helpers might just be noise. This one is a judgment call.
+
+### P9-4. No Time Primitive — Timestamps Are Ad-Hoc
+
+Every service formats time differently:
+
+```go
+time.Now().Format("2006-01-02T15-04-05")   // agentic events
+time.Now().Format(time.RFC3339)             // review queue
+time.Now()                                  // status.UpdatedAt
+```
+
+No standard timestamp format across the ecosystem.
+
+**Resolution:** `core.Now()` returning a Core-standard timestamp, or `core.FormatTime(t)` with one format. Or document the convention: "all timestamps use RFC3339" and let consumers use `time` directly.
+
+### P9-5. No ID Generation Primitive — Multiple Patterns Exist
+
+```go
+// plan.go — crypto/rand hex
+b := make([]byte, 3)
+rand.Read(b)
+return slug + "-" + hex.EncodeToString(b)
+
+// task.go — atomic counter
+taskID := "task-" + strconv.FormatUint(c.taskIDCounter.Add(1), 10)
+
+// go-process — atomic counter
+id := fmt.Sprintf("proc-%d", s.idCounter.Add(1))
+```
+
+Three different ID generation patterns. No standard `core.NewID()`.
+
+**Resolution:** `core.ID()` that returns a unique string. Implementation can be atomic counter, UUID, or whatever — but one function, one pattern. Same guardrail logic as everything else.
+
+### P9-6. No Validation Primitive — Input Validation Is Scattered
+
+```go
+// Repo name validation — agentic/prep.go
+repoName := core.PathBase(input.Repo)
+if repoName == "." || repoName == ".." || repoName == "" {
+    return core.E("prep", "invalid repo name", nil)
+}
+
+// Command path validation — command.go
+if path == "" || HasPrefix(path, "/") || HasSuffix(path, "/") || Contains(path, "//") {
+    return Result{E("core.Command", "invalid command path", nil), false}
+}
+
+// Plan ID sanitisation — agentic/plan.go
+safe := core.PathBase(id)
+if safe == "." || safe == ".." || safe == "" {
+    safe = "invalid"
+}
+```
+
+Every validation is hand-rolled. The same path traversal check appears in three places with slight variations.
+
+**Resolution:** `core.ValidateName(s)` / `core.ValidatePath(s)` / `core.SanitisePath(s)` — reusable validation primitives. One check, used everywhere. A model can't forget the `..` check if it's in the primitive.
+
+### P9-7. Error Codes Are Optional and Unused
+
+```go
+func WrapCode(err error, code, op, msg string) error { ... }
+func NewCode(code, msg string) error { ... }
+func ErrorCode(err error) string { ... }
+```
+
+Error codes exist in the type system but nobody uses them. No consumer calls `WrapCode` or checks `ErrorCode`. The infrastructure is there but the convention isn't established.
+
+**Resolution:** Either remove error codes (dead feature) or define a code taxonomy and use it. Error codes are useful for API responses (HTTP status codes map to error codes) and for monitoring (count errors by code). But they need a convention to be useful.
+
+### P9-8. Core Has No Observability Primitive
+
+Core has:
+- `c.Log()` — structured logging
+- `c.Error()` — panic recovery + crash reports
+- `ActionTaskProgress` — progress tracking
+
+Core does NOT have:
+- Metrics (counters, gauges, histograms)
+- Tracing (span IDs, parent/child relationships)
+- Health checks (readiness, liveness)
+
+go-process has health checks. But they're per-daemon, not per-service. There's no `c.Health()` primitive that aggregates all services' health status.
+
+**Resolution:** Consider `c.Health()` as a primitive:
+
+```go
+c.Health().Ready()           // bool — all services started
+c.Health().Live()            // bool — not in shutdown
+c.Health().Check("brain")    // per-service health
+```
+
+Metrics and tracing are extension concerns — they belong in separate packages like go-process. But health is fundamental enough to be a Core primitive. Every service could implement `Healthy() bool` alongside `Startable`/`Stoppable`.
+
+---
+
 ## Versioning
 
 ### Release Model
