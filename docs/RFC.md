@@ -3165,6 +3165,149 @@ Passes are referenced as P2-1, P3-2, etc. but they're not in the table of conten
 
 ---
 
+## Pass Eleven — Security Model
+
+> Eleventh review. The conclave's threat model. What can a service do?
+> What's the actual isolation? Where are the secrets?
+
+### P11-1. Every Service Has God Mode
+
+A registered service receives `*Core`. With it, it can:
+
+| Capability | Method | Risk |
+|-----------|--------|------|
+| Read all config | `c.Config().Get(anything)` | Secret exposure |
+| Write all config | `c.Config().Set(anything, anything)` | Config corruption |
+| Read all data | `c.Data().ReadString(any/path)` | Data exfiltration |
+| List all services | `c.Services()` | Reconnaissance |
+| Access any service | `ServiceFor[T](c, name)` | Lateral movement |
+| Broadcast any event | `c.ACTION(any_message)` | Event spoofing |
+| Register handlers | `c.RegisterAction(spy)` | Eavesdropping |
+| Register commands | `c.Command("admin/nuke", fn)` | Capability injection |
+| Read environment | `c.Env("FORGE_TOKEN")` | Secret theft |
+| Write filesystem | `c.Fs().Write(any, any)` | Data destruction |
+| Delete filesystem | `c.Fs().DeleteAll(any)` | Data destruction |
+
+There's no per-service permission model. Registration grants full access. This is fine for a trusted conclave (all services from your own codebase) but dangerous for plugins or third-party services.
+
+**Resolution:** For v0.8.0, accept God Mode — all services are first-party. For v0.9.0+, consider capability-based Core views where a service receives a restricted `*Core` that only exposes permitted subsystems.
+
+### P11-2. The Fs Sandbox Is Bypassed by unsafe.Pointer
+
+Pass Two (P2-2) said `Fs.root` is "correctly unexported — the security boundary." But core/agent bypasses it:
+
+```go
+type fsRoot struct{ root string }
+f := &core.Fs{}
+(*fsRoot)(unsafe.Pointer(f)).root = root
+```
+
+Two files (`paths.go` and `detect.go`) use `unsafe.Pointer` to overwrite the private `root` field, creating unrestricted Fs instances. The security boundary that P2-2 praised is already broken by the first consumer.
+
+**Resolution:** Add `Fs.NewUnrestricted()` or `Fs.New("/")` as a legitimate API. If consumers need unrestricted access, give them a door instead of letting them pick the lock. Then `go vet` rules or linting can flag `unsafe.Pointer` usage on Core types.
+
+### P11-3. core.Env() Exposes All Environment Variables — Including Secrets
+
+```go
+c.Env("FORGE_TOKEN")      // returns the token
+c.Env("OPENAI_API_KEY")   // returns the key
+c.Env("ANTHROPIC_API_KEY") // returns the key
+```
+
+Any service can read any environment variable. API keys, tokens, database passwords — all accessible via `c.Env()`. There's no secret/non-secret distinction.
+
+**Resolution:** Consider `c.Secret(name)` that reads from a secure store (encrypted file, vault) rather than plain environment variables. Or `c.Env()` with a redaction list — keys matching `*TOKEN*`, `*KEY*`, `*SECRET*`, `*PASSWORD*` are redacted in logs but still accessible to code.
+
+The logging system already has `SetRedactKeys` — extend this to Env access logging.
+
+### P11-4. ACTION Event Spoofing — Any Code Can Emit Any Message
+
+P6-6 noted this from a design perspective. From a security perspective:
+
+```go
+// A rogue service can fake agent completions:
+c.ACTION(messages.AgentCompleted{
+    Agent: "codex", Repo: "go-io", Status: "completed",
+})
+// This triggers the ENTIRE pipeline: QA → PR → Verify → Merge
+// For an agent that never existed
+```
+
+No authentication on messages. No sender identity. Any service can emit any message type and trigger any pipeline.
+
+**Resolution:** Named Actions (Section 18) help — `c.Action("event.agent.completed").Emit()` requires the action to be registered. But the emitter still isn't authenticated. Consider adding sender identity to IPC:
+
+```go
+c.ACTION(msg, core.Sender("agentic"))  // identifies who sent it
+```
+
+Handlers can then filter by sender. Not cryptographic security — but traceability.
+
+### P11-5. RegisterAction Can Install a Spy Handler
+
+```go
+c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
+    // sees EVERY message in the conclave
+    // can log, exfiltrate, or modify behaviour
+    log.Printf("SPY: %T %+v", msg, msg)
+    return core.Result{OK: true}
+})
+```
+
+A single `RegisterAction` call installs a handler that receives every IPC message. Combined with P11-1 (God Mode), a service can silently observe all inter-service communication.
+
+**Resolution:** For trusted conclaves, this is a feature (monitoring, debugging). For untrusted environments, IPC handlers need scope: "this handler only receives messages of type X." Named Actions (Section 18) solve this — each handler is registered for a specific action, not all messages.
+
+### P11-6. No Audit Trail — No Logging of Security-Relevant Operations
+
+There's no automatic logging when:
+- A service registers (who registered what)
+- A handler is added (who's listening)
+- Config is modified (who changed what)
+- Environment variables are read (who accessed secrets)
+- Filesystem is written (who wrote where)
+
+All operations are silent. The `core.Security()` log level exists but nothing calls it.
+
+**Resolution:** Core should emit `core.Security()` logs for:
+- Service registration: `Security("service.registered", "name", name, "caller", caller)`
+- Config writes: `Security("config.set", "key", key, "caller", caller)`
+- Secret access: `Security("secret.accessed", "key", key, "caller", caller)`
+- Fs writes outside Data mounts: `Security("fs.write", "path", path, "caller", caller)`
+
+### P11-7. ServiceLock Has No Authentication
+
+```go
+c.LockApply()  // anyone can call this
+c.LockEnable() // anyone can call this
+```
+
+ServiceLock prevents late registration. But any code with `*Core` can call `LockApply()` prematurely, locking out legitimate services that haven't registered yet. Or call `LockEnable()` to arm the lock before it should be.
+
+**Resolution:** `LockApply` should only be callable from `New()` (during construction). Post-construction, the lock is managed by Core, not by consumers. With Registry[T], `Lock()` becomes a Registry method — and Registry access can be scoped.
+
+### P11-8. The Permission-by-Registration Model Has No Revocation
+
+Section 17.7 says "no handler = no capability." But once a service registers, there's no way to revoke its capabilities:
+
+- Can't unregister a service
+- Can't remove an ACTION handler
+- Can't revoke filesystem access
+- Can't deregister an Action
+
+The conclave is append-only. Services join but never leave (except on shutdown). For hot-reload (P3-8), a misbehaving service can't be ejected.
+
+**Resolution:** Registry needs `Delete(name)` and `Disable(name)`:
+
+```go
+c.Registry("actions").Disable("rogue.action")  // stops dispatch, keeps registered
+c.Registry("services").Delete("rogue")          // removes entirely
+```
+
+`Disable` is soft — the action exists but doesn't execute. `Delete` is hard — the action is gone. Both require the caller to have sufficient authority — which loops back to P11-1 (God Mode).
+
+---
+
 ## Versioning
 
 ### Release Model
