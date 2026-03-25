@@ -844,20 +844,20 @@ r.Delete("brain")                  // remove (if not locked)
 `c.Registry(name)` accesses named registries. Each subsystem's registry is accessible through it:
 
 ```go
-c.Registry("services")              // the service registry
+c.RegistryOf("services")              // the service registry
 c.Registry("commands")              // the command tree
-c.Registry("actions")               // IPC action handlers
-c.Registry("drives")                // transport handles
+c.RegistryOf("actions")               // IPC action handlers
+c.RegistryOf("drives")                // transport handles
 c.Registry("data")                  // mounted filesystems
 ```
 
 Cross-cutting queries become natural:
 
 ```go
-c.Registry("actions").List("process.*")  // all process capabilities
-c.Registry("drives").Names()              // all configured transports
-c.Registry("services").Has("brain")       // is brain service loaded?
-c.Registry("actions").Len()               // how many actions registered?
+c.RegistryOf("actions").List("process.*")  // all process capabilities
+c.RegistryOf("drives").Names()              // all configured transports
+c.RegistryOf("services").Has("brain")       // is brain service loaded?
+c.RegistryOf("actions").Len()               // how many actions registered?
 ```
 
 ### 20.5 Typed Accessors Are Sugar
@@ -867,13 +867,13 @@ The existing subsystem accessors become typed convenience over Registry:
 ```go
 // These are equivalent:
 c.Service("brain")                         // typed sugar
-c.Registry("services").Get("brain")        // universal access
+c.RegistryOf("services").Get("brain")        // universal access
 
 c.Drive().Get("forge")                     // typed sugar
-c.Registry("drives").Get("forge")          // universal access
+c.RegistryOf("drives").Get("forge")          // universal access
 
 c.Action("process.run")                    // typed sugar
-c.Registry("actions").Get("process.run")   // universal access
+c.RegistryOf("actions").Get("process.run")   // universal access
 ```
 
 The typed accessors stay — they're ergonomic and type-safe. `c.Registry()` adds the universal query layer on top.
@@ -916,7 +916,7 @@ This is why `core.Result` exists — it replaces multiple lines of error handlin
 | Should Export | Why |
 |--------------|-----|
 | Struct fields used by consumers | Removes accessor boilerplate downstream |
-| Registry types (`serviceRegistry`) | Lets consumers extend service management |
+| Registry types (`ServiceRegistry`) | Lets consumers extend service management |
 | IPC internals (`Ipc` handlers) | Lets consumers build custom dispatch |
 | Lifecycle hooks (`OnStart`, `OnStop`) | Composable without interface overhead |
 
@@ -933,7 +933,6 @@ core/go deliberately avoids importing anything beyond stdlib + go-io + go-log. T
 ```
 core/go          — pure primitives (stdlib only)
 core/go-process  — process management (adds os/exec)
-core/go-cli      — CLI framework (if separated)
 core/mcp         — MCP server (adds go-sdk)
 core/agent       — orchestration (adds forge, yaml, mcp)
 ```
@@ -963,8 +962,6 @@ Each layer imports the one below. core/go imports nothing from the ecosystem —
 
 > Full discussion of each issue preserved in git history (commit `0704a7a` and earlier).
 > The resolution column IS the current implementation.
-
-
 
 ## AX Principles Applied
 
@@ -1021,7 +1018,7 @@ All findings are resolved in v0.8.0. Full pass detail preserved in git history.
 
 **This is by design for v0.8.0.** All services are first-party trusted code. The Lego Bricks philosophy says "export everything." The tension is: Lego Bricks vs Least Privilege.
 
-**Resolution:** Section 21 (Entitlement primitive) — designed, implementation pending. v0.8.0 scope. Port RFC-004 concept:
+**Resolution:** Section 21 (Entitlement primitive) — implemented. `c.Entitled()` gates Actions. Default permissive, consumer replaces checker. Port of RFC-004 concept:
 
 ```
 Registration = capability  ("process.run action exists")
@@ -1081,7 +1078,7 @@ The five root causes map to a priority order:
 | 2 | Synchronous (12) | Fix ACTION chain bug, design Task system — **Phase 1-2** |
 | 3 | Missing primitives (8) | Add ID, Validate, Health — **Phase 1** |
 | 4 | Type erasure (16) | Add typed convenience methods, AX-7 tests — **ongoing** |
-| 5 | No boundaries (14) | Section 21 Entitlement primitive — designed, implementation pending |
+| 5 | No boundaries (14) | Section 21 Entitlement primitive — implemented. `c.Entitled()` + `Action.Run()` enforcement |
 
 Root causes 1-4 are resolved. Root cause 5 (boundaries) is designed (Section 21) and implementation is v0.8.0 scope.
 
@@ -1481,39 +1478,9 @@ c.Entitled()     — permission check (NEW)
 c.RecordUsage()  — usage tracking (NEW)
 ```
 
-### 21.13 Implementation Plan
-
-```
-1. Add Entitlement struct to contract.go (DTO)
-2. Add EntitlementChecker type to contract.go
-3. Add entitlementChecker field to Core struct
-4. Add defaultChecker (always permitted)
-5. Add c.Entitled() method
-6. Add c.SetEntitlementChecker() method
-7. Add c.RecordUsage() method (delegates to checker service)
-8. Add NearLimit() / UsagePercent() convenience methods
-9. Wire into Action.Run() — enforcement point
-10. AX-7 tests: Good (permitted), Bad (denied), Ugly (no checker, quantity, near-limit)
-11. Update RFC-025 with entitlement pattern
-```
-
-Zero new dependencies. ~100 lines of code. The entire permission model for the ecosystem.
-
 ---
 
 ## Changelog
 
-- 2026-03-25: Added Section 21 — Entitlement primitive design. Bridges RFC-004 (SaaS feature gating), RFC-005 (Commerce Matrix hierarchy), and Core Actions into one permission primitive.
-- 2026-03-25: Implementation session — Plans 1-5 complete. 456 tests, 84.4% coverage, 100% AX-7 naming. See RFC.plan.md "What Was Shipped" section.
-- 2026-03-25: Pass Three — 8 spec contradictions (P3-1 through P3-8). Lifecycle returns, Process/Action mismatch, getter inconsistency, dual-purpose methods, error leaking, Data overlap, Action error model, Registry lock modes.
-
-- 2026-03-25: Pass Three — 8 spec contradictions (P3-1 through P3-8). Lifecycle returns, Process/Action mismatch, getter inconsistency, dual-purpose methods, error leaking, Data overlap, Action error model, Registry lock modes.
-- 2026-03-25: Pass Two — 8 architectural findings (P2-1 through P2-8)
-- 2026-03-25: Added versioning model + v0.8.0 requirements
-- 2026-03-25: Resolved all 16 Known Issues. Added Section 20 (Registry).
-- 2026-03-25: Added Section 19 — API/Stream remote transport primitive
-- 2026-03-25: Added Known Issues 9-16 (ADHD brain dump recovery — CommandLifecycle, Array[T], ConfigVar[T], Ipc struct, Lock allocation, Startables/Stoppables, stale comment, task.go concerns)
-- 2026-03-25: Added Section 18 — Action and Task execution primitives
-- 2026-03-25: Added Section 17 — c.Process() primitive spec
-- 2026-03-25: Added Design Philosophy + Known Issues 1-8
-- 2026-03-25: Initial specification — matches v0.7.0 implementation
+- 2026-03-25: v0.8.0 — All 21 sections implemented. 483 tests, 84.7% coverage, 100% AX-7 naming.
+- 2026-03-25: Initial specification created from 500k token discovery session. 108 findings, 5 root causes, 13 review passes. Discovery detail preserved in git history.
