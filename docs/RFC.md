@@ -1467,21 +1467,57 @@ The comment shows the old API where `New()` returned `Result`. The actual signat
 
 **Resolution:** Fix the comment to match the signature. `New()` returns `*Core` because Core is the one type that can't wrap its own creation in `Result` (it doesn't exist yet).
 
-### 16. task.go Mixes Concerns
+### 16. task.go Mixes Concerns (Resolved)
 
-`task.go` contains:
-- `PerformAsync` — background task dispatch with panic recovery
-- `Perform` — synchronous task execution (first handler wins)
-- `Progress` — progress broadcast
-- `RegisterAction` — ACTION handler registration
-- `RegisterActions` — batch ACTION handler registration
-- `RegisterTask` — TASK handler registration
+`task.go` contains six functions that belong in two different files:
 
-This is two concerns: **task execution** (Perform/PerformAsync/Progress) and **IPC handler registration** (RegisterAction/RegisterActions/RegisterTask).
+**Current task.go → splits into:**
 
-With Section 18 (Actions), this file becomes the Action executor. `RegisterAction` becomes `c.Action("name", handler)`. `Perform` becomes `c.Action("name").Run()`. The registration and execution unify under the Action primitive.
+| Function | Target File | Role | Why |
+|----------|------------|------|-----|
+| `RegisterAction` | `ipc.go` | IPC registry | Registers handlers in `c.IPC()`'s registry |
+| `RegisterActions` | `ipc.go` | IPC registry | Batch variant of above |
+| `RegisterTask` | `ipc.go` | IPC registry | Same pattern, different handler type |
+| `Perform` | `action.go` (new) | Action primitive | `c.Action("name").Run()` — synchronous execution |
+| `PerformAsync` | `action.go` | Action primitive | `c.Action("name").RunAsync()` — background with panic recovery + progress |
+| `Progress` | `action.go` | Action primitive | Progress is per-Action, broadcasts via `c.ACTION()` |
 
-**Resolution:** When implementing Section 18, refactor task.go into action.go (the Action registry and executor) and keep `PerformAsync` as a method on Action (`c.Action("name").RunAsync()`).
+**The file rename tells the story:** `task.go` → `action.go`. Actions are the atom (Section 18). Tasks are compositions of Actions (Section 18.6) — they get their own file when the flow system is built.
+
+**What stays in contract.go (message types):**
+
+```go
+type ActionTaskStarted struct {
+    TaskIdentifier string
+    Task           Task
+}
+
+type ActionTaskProgress struct {
+    TaskIdentifier string
+    Task           Task
+    Progress       float64
+    Message        string
+}
+
+type ActionTaskCompleted struct {
+    TaskIdentifier string
+    Task           Task
+    Result         any
+    Error          error
+}
+```
+
+These names are already correct — they're `ACTION` messages (broadcast events) about Task lifecycle. The naming convention from Issue 1 validates them: `Action` prefix = it's a broadcast message type. `Task` in the name = it's about task lifecycle. No rename needed.
+
+**The semantic clarity after the split:**
+
+```
+ipc.go      — registry: where handlers are stored
+action.go   — execution: where Actions run (sync, async, progress)
+contract.go — types: message definitions, interfaces, options
+```
+
+Registration is IPC's job. Execution is Action's job. Types are shared contracts. Three files, three concerns, zero overlap.
 
 ## AX Principles Applied
 
@@ -1494,6 +1530,8 @@ This API follows RFC-025 Agent Experience (AX):
 5. **Event-driven** — ACTION/QUERY/PERFORM, not direct function calls between services
 6. **Tests as spec** — `TestFile_Function_{Good,Bad,Ugly}` for every function
 7. **Export primitives** — Core is Lego bricks, not an encapsulated library
+8. **Naming encodes architecture** — CamelCase = primitive brick, UPPERCASE = consumer convenience
+9. **File = concern** — one file, one job (ipc.go = registry, action.go = execution, contract.go = types)
 
 ## Changelog
 
