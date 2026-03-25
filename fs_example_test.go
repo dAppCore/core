@@ -3,7 +3,6 @@ package core_test
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	. "dappco.re/go/core"
 )
@@ -13,7 +12,7 @@ func ExampleFs_WriteAtomic() {
 	defer os.RemoveAll(dir)
 
 	f := (&Fs{}).New("/")
-	path := filepath.Join(dir, "status.json")
+	path := Path(dir, "status.json")
 	f.WriteAtomic(path, `{"status":"completed"}`)
 
 	r := f.Read(path)
@@ -26,10 +25,10 @@ func ExampleFs_NewUnrestricted() {
 	defer os.RemoveAll(dir)
 
 	// Write outside sandbox
-	outside := filepath.Join(dir, "outside.txt")
+	outside := Path(dir, "outside.txt")
 	os.WriteFile(outside, []byte("hello"), 0644)
 
-	sandbox := (&Fs{}).New(filepath.Join(dir, "sandbox"))
+	sandbox := (&Fs{}).New(Path(dir, "sandbox"))
 	unrestricted := sandbox.NewUnrestricted()
 
 	r := unrestricted.Read(outside)

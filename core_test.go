@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -296,7 +295,7 @@ func TestCore_Run_Bad(t *testing.T) {
 }
 
 func TestCore_Run_Ugly(t *testing.T) {
-	shutdownFile := filepath.Join(t.TempDir(), "shutdown.txt")
+	shutdownFile := Path(t.TempDir(), "shutdown.txt")
 	err := runCoreRunHelper(t, "cli-fail", "CORE_RUN_SHUTDOWN_FILE="+shutdownFile)
 	var exitErr *exec.ExitError
 	if assert.ErrorAs(t, err, &exitErr) {

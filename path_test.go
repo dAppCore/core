@@ -4,7 +4,6 @@ package core_test
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	core "dappco.re/go/core"
@@ -78,11 +77,11 @@ func TestPath_EnvConsistency(t *testing.T) {
 
 func TestPath_PathGlob_Good(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
-	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b"), 0644)
-	os.WriteFile(filepath.Join(dir, "c.log"), []byte("c"), 0644)
+	os.WriteFile(core.Path(dir, "a.txt"), []byte("a"), 0644)
+	os.WriteFile(core.Path(dir, "b.txt"), []byte("b"), 0644)
+	os.WriteFile(core.Path(dir, "c.log"), []byte("c"), 0644)
 
-	matches := core.PathGlob(filepath.Join(dir, "*.txt"))
+	matches := core.PathGlob(core.Path(dir, "*.txt"))
 	assert.Len(t, matches, 2)
 }
 
