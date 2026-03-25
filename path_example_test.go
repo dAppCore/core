@@ -26,3 +26,13 @@ func ExamplePathExt() {
 	// Output: .pdf
 }
 
+func ExampleCleanPath() {
+	fmt.Println(CleanPath("/tmp//file", "/"))
+	fmt.Println(CleanPath("a/b/../c", "/"))
+	fmt.Println(CleanPath("deploy/to/homelab", "/"))
+	// Output:
+	// /tmp/file
+	// a/c
+	// deploy/to/homelab
+}
+

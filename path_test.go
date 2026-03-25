@@ -109,3 +109,4 @@ func TestPath_PathDir_TrailingSlash(t *testing.T) {
 	result := core.PathDir("/Users/snider/Code/")
 	assert.Equal(t, "/Users/snider/Code", result)
 }
+
