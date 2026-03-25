@@ -312,13 +312,4 @@ func ExampleConfig() {
 	// true
 }
 
-// --- Error ---
-
-func ExampleE() {
-	err := E("service.Start", "database connection failed", nil)
-	fmt.Println(Operation(err))
-	fmt.Println(ErrorMessage(err))
-	// Output:
-	// service.Start
-	// database connection failed
-}
+// Error examples in error_example_test.go
