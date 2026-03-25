@@ -3692,7 +3692,21 @@ The meta-assumption: this RFC is complete. It's not. It's the best single-sessio
 
 **This is by design for v0.8.0.** All services are first-party trusted code. The Lego Bricks philosophy says "export everything." The tension is: Lego Bricks vs Least Privilege.
 
-**Resolution for v0.9.0+:** Capability-based Core views. A service receives `*CoreView` that only exposes permitted subsystems. The full `*Core` exists but services get filtered projections. This preserves Lego Bricks (the bricks exist) while adding boundaries (not all bricks are visible to all consumers).
+**Resolution for v0.9.0+:** Entitlements, not CoreView. The boundary system already exists in CorePHP (RFC-004: Entitlements). Port it:
+
+```
+Registration = capability  ("process.run action exists")
+Entitlement  = permission  ("this Core is ALLOWED to run processes")
+```
+
+```go
+c.Entitlement("process.run")  // true if both registered AND permitted
+c.Action("process.run").Run() // checks entitlement before executing
+```
+
+The Entitlement system (RFC-004) answers "can this workspace do this action?" with package-based feature gating, usage limits, and boost mechanics. Config Channels (RFC-003) add context — "what settings apply on this surface (CLI vs MCP vs HTTP)?" Together they provide the boundary model without removing Lego Bricks — all bricks exist, entitlements control which ones are usable.
+
+See: RFC-003 (Config Channels), RFC-004 (Entitlements), RFC-005 (Commerce Matrix).
 
 ### Root Cause 3: Synchronous Everything — 12 findings
 
