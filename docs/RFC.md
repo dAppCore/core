@@ -1151,6 +1151,7 @@ The pieces are scattered across the ecosystem:
 ### 19.8 The Full Subsystem Map
 
 ```
+c.Registry()  — universal named collection (the brick all registries use)
 c.Options()   — input configuration (what was passed to New)
 c.App()       — identity (name, version)
 c.Config()    — runtime settings
@@ -1159,14 +1160,151 @@ c.Drive()     — connection config (WHERE to reach things)
 c.API()       — remote streams (HOW to reach things)
 c.Fs()        — filesystem
 c.Process()   — managed execution
-c.IPC()       — local message bus + Action registry
+c.Action()    — named callables (register, invoke, inspect)
+c.IPC()       — local message bus (consumes Action registry)
 c.Cli()       — command tree
 c.Log()       — logging
 c.Error()     — panic recovery
 c.I18n()      — internationalisation
 ```
 
-13 subsystems. Each one is a primitive. Packages extend them. The conclave is the composition of all registered services and their capabilities.
+14 subsystems. `c.Registry()` is the foundation — most other subsystems build on it.
+
+---
+
+## 20. Registry — The Universal Collection Primitive (Planned)
+
+> Status: Design spec. Extracts the pattern shared by 5+ existing registries.
+
+### 20.1 The Problem
+
+Core has multiple independent registry implementations that all do the same thing:
+
+```
+serviceRegistry  — map[string]*Service + mutex + locked
+commandRegistry  — map[string]*Command + mutex
+Ipc handlers     — []func + mutex
+Drive            — map[string]*DriveHandle + mutex
+Data             — map[string]*Embed
+```
+
+Five registries, five implementations of: named map + thread safety + optional locking.
+
+### 20.2 The Primitive
+
+```go
+// Registry is a thread-safe named collection. The universal brick
+// for all named registries in Core.
+type Registry[T any] struct {
+    items  map[string]T
+    mu     sync.RWMutex
+    locked bool
+}
+```
+
+### 20.3 Operations
+
+```go
+r := core.NewRegistry[*Service]()
+
+r.Set("brain", brainSvc)          // register
+r.Get("brain")                     // Result{brainSvc, true}
+r.Has("brain")                     // true
+r.Names()                          // []string{"brain", "monitor", ...}
+r.List("brain.*")                  // glob/prefix match
+r.Each(func(name string, item T))  // iterate
+r.Len()                            // count
+r.Lock()                           // prevent further Set calls
+r.Locked()                         // bool
+r.Delete("brain")                  // remove (if not locked)
+```
+
+### 20.4 Core Accessor
+
+`c.Registry(name)` accesses named registries. Each subsystem's registry is accessible through it:
+
+```go
+c.Registry("services")              // the service registry
+c.Registry("commands")              // the command tree
+c.Registry("actions")               // IPC action handlers
+c.Registry("drives")                // transport handles
+c.Registry("data")                  // mounted filesystems
+```
+
+Cross-cutting queries become natural:
+
+```go
+c.Registry("actions").List("process.*")  // all process capabilities
+c.Registry("drives").Names()              // all configured transports
+c.Registry("services").Has("brain")       // is brain service loaded?
+c.Registry("actions").Len()               // how many actions registered?
+```
+
+### 20.5 Typed Accessors Are Sugar
+
+The existing subsystem accessors become typed convenience over Registry:
+
+```go
+// These are equivalent:
+c.Service("brain")                         // typed sugar
+c.Registry("services").Get("brain")        // universal access
+
+c.Drive().Get("forge")                     // typed sugar
+c.Registry("drives").Get("forge")          // universal access
+
+c.Action("process.run")                    // typed sugar
+c.Registry("actions").Get("process.run")   // universal access
+```
+
+The typed accessors stay — they're ergonomic and type-safe. `c.Registry()` adds the universal query layer on top.
+
+### 20.6 Why This Matters for IPC
+
+This resolves Issue 6 (serviceRegistry unexported) and Issue 12 (Ipc data-only struct) cleanly:
+
+**IPC is safe to expose Actions and Handlers** because it doesn't control the write path. The Registry does:
+
+```go
+// IPC reads from the registry (safe, read-only)
+c.IPC().Actions()    // reads c.Registry("actions").Names()
+c.IPC().Handlers()   // reads c.Registry("handlers").Len()
+
+// Registration goes through the primitive (controlled)
+c.Action("process.run", handler)  // writes to c.Registry("actions")
+
+// Locking goes through the primitive
+c.Registry("actions").Lock()      // no more registration after startup
+```
+
+IPC is a consumer of the registry, not the owner of the data. The Registry primitive owns the data. This is the separation that makes it safe to export everything.
+
+### 20.7 ServiceRegistry and CommandRegistry Become Exported
+
+With `Registry[T]` as the brick:
+
+```go
+type ServiceRegistry struct {
+    *Registry[*Service]
+}
+
+type CommandRegistry struct {
+    *Registry[*Command]
+}
+```
+
+These are now exported types — consumers can extend service management and command routing. But they can't bypass the lock because `Registry.Set()` checks `locked`. The primitive enforces the contract.
+
+### 20.8 What This Replaces
+
+| Current | Becomes |
+|---------|---------|
+| `serviceRegistry` (unexported, custom map+mutex) | `ServiceRegistry` embedding `Registry[*Service]` |
+| `commandRegistry` (unexported, custom map+mutex) | `CommandRegistry` embedding `Registry[*Command]` |
+| `Drive.handles` (internal map+mutex) | `Drive` embedding `Registry[*DriveHandle]` |
+| `Data.mounts` (internal map) | `Data` embedding `Registry[*Embed]` |
+| `Ipc.ipcHandlers` (internal slice+mutex) | `Registry[ActionHandler]` in IPC |
+| 5 separate lock implementations | One `Registry.Lock()` / `Registry.Locked()` |
+| `WithServiceLock()` | `c.Registry("services").Lock()` |
 
 ---
 
@@ -1535,6 +1673,7 @@ This API follows RFC-025 Agent Experience (AX):
 
 ## Changelog
 
+- 2026-03-25: Added Section 20 — Registry universal collection primitive. Resolved Issues 1, 6, 9, 12, 16. Updated subsystem map to 14.
 - 2026-03-25: Added Section 19 — API/Stream remote transport primitive
 - 2026-03-25: Added Known Issues 9-16 (ADHD brain dump recovery — CommandLifecycle, Array[T], ConfigVar[T], Ipc struct, Lock allocation, Startables/Stoppables, stale comment, task.go concerns)
 - 2026-03-25: Added Section 18 — Action and Task execution primitives
