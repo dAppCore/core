@@ -1069,15 +1069,15 @@ The guardrail coverage was incomplete. Strings have primitives. Paths have primi
 
 The five root causes map to a priority order:
 
-| Priority | Root Cause | v0.8.0 Action |
-|----------|-----------|---------------|
-| 1 | No recovery (10) | Fix Run(), add defer, panic recovery — **Phase 1** |
-| 2 | Synchronous (12) | Fix ACTION chain bug, design Task system — **Phase 1-2** |
-| 3 | Missing primitives (8) | Add ID, Validate, Health — **Phase 1** |
-| 4 | Type erasure (16) | Add typed convenience methods, AX-7 tests — **ongoing** |
-| 5 | No boundaries (14) | Section 21 Entitlement primitive — implemented. `c.Entitled()` + `Action.Run()` enforcement |
+| Priority | Root Cause | Resolution |
+|----------|-----------|------------|
+| 1 | No recovery (10) | **Done** — `RunE()`, `defer ServiceShutdown`, panic recovery |
+| 2 | Synchronous (12) | **Done** — ACTION chain fixed, Task composition |
+| 3 | Missing primitives (8) | **Done** — `ID()`, `ValidateName()`, `WriteAtomic()`, `NewUnrestricted()` |
+| 4 | Type erasure (16) | **Mitigated** — typed convenience methods, AX-7 Ugly tests, `Registry[T]` |
+| 5 | No boundaries (14) | **Done** — `c.Entitled()` + `Action.Run()` enforcement |
 
-Root causes 1-4 are resolved. Root cause 5 (boundaries) is designed (Section 21) and implementation is v0.8.0 scope.
+All 5 root causes resolved.
 
 ### Cross-References — Existing RFCs That Solve Open Problems
 
@@ -1086,7 +1086,7 @@ Core/go provides the INTERFACE (stdlib only). Consumer packages bring the IMPLEM
 | Finding | Existing RFC | Core Provides (interface) | Consumer Provides (impl) |
 |---------|-------------|--------------------------|-------------------------|
 | P13-5: Sync startup | RFC-002 (Event-Driven Modules) | `Startable` + event declarations | Lazy instantiation based on `$listens` pattern |
-| P11-1: God Mode | RFC-004 (Entitlements) | `c.Entitlement(action) bool` | Package/feature gating, usage limits |
+| P11-1: God Mode | RFC-004 (Entitlements) | `c.Entitled(action) Entitlement` | Package/feature gating, usage limits |
 | P11-3: Secret exposure | RFC-012 (SMSG) | `c.Secret(name) string` | SMSG decrypt, Vault, env fallback |
 | P9-6: No validation | RFC-009 (Sigil Transforms) | Composable transform chain interface | Validators, sanitisers, reversible transforms |
 | P11-2: Fs sandbox bypass | RFC-014 (TIM) | `c.Fs()` sandbox root | TIM container = OS-level isolation boundary |
@@ -1096,14 +1096,9 @@ Core/go provides the INTERFACE (stdlib only). Consumer packages bring the IMPLEM
 **The pattern:** Core defines a primitive with a Go interface. The RFC describes the concept. A consumer package implements it. Core stays stdlib-only. The ecosystem gets rich features via composition.
 
 ```
-core/go:          c.Secret(name) → looks up in Registry["secrets"]
-go-smsg:          registers SMSG decryptor as secret provider
-go-vault:         registers HashiCorp Vault as secret provider
-env fallback:     built into core/go (os.Getenv) — no extra dependency
-
-core/go:          c.Entitlement(action) → looks up in Registry["entitlements"]
-go-entitlements:  ports RFC-004 from CorePHP, registers package/feature checker
-default:          built into core/go — returns true (no restrictions, trusted conclave)
+core/go:          c.Entitled(action) → calls EntitlementChecker
+go-entitlements:  replaces checker with package/feature/usage logic
+default:          built-in checker returns Allowed=true (trusted conclave)
 ```
 
 No dependency injected into core/go. The interface is the primitive. The implementation is the consumer.
@@ -1136,14 +1131,13 @@ v0.8.*  — patches tell us where the agentic process missed things
 
 ### The Cadence
 
-1. **RFC spec** — design the target version in prose (this document)
-2. **v0.7.x patches** — mechanical fixes that don't change the API contract
-3. **Implementation** — build Sections 17-20, resolve design issues
-4. **AX-7 at 100%** — every function has Good/Bad/Ugly tests
-5. **Tag v0.8.0** — only when 100% confident it's production ready
-6. **Measure v0.8.x** — each patch tells you what the spec missed
+1. **RFC spec** — design the target version in prose
+2. **Implement** — build to spec with AX-7 tests from day one
+3. **Refine** — review passes catch drift between spec and code
+4. **Tag** — when all sections implemented and tests pass
+5. **Measure** — patch count tells you what the spec missed
 
-The fallout versions are the feedback loop. v0.8.1 means the spec missed one thing. v0.8.15 means the spec missed fifteen things. The patch count per release IS the quality metric — it tells you how wrong you were.
+v0.8.1 means the spec missed one thing. v0.8.15 means fifteen. The patch count IS the quality metric.
 
 ### What v0.8.0 Requires
 
@@ -1151,11 +1145,11 @@ The fallout versions are the feedback loop. v0.8.1 means the spec missed one thi
 |-------------|--------|
 | All 16 Known Issues resolved in code | **Done** (2026-03-25) |
 | Section 17: c.Process() primitive | **Done** — Action sugar |
-| Section 18: Action/Task system | **Done** — ActionDef→Action, TaskDef→Task, type Task any removed |
+| Section 18: Action/Task system | **Done** — Action, Task, PerformAsync, type Task any removed |
 | Section 19: c.API() streams | **Done** — Stream interface, protocol handlers, RemoteAction |
 | Section 20: Registry[T] primitive | **Done** — all 5 registries migrated |
 | Section 21: Entitlement primitive | **Done** — Entitled(), SetEntitlementChecker(), RecordUsage(), Action.Run() enforcement |
-| AX-7 test coverage at 100% | **Done** — core/go 456/456 (100%) |
+| AX-7 test coverage at 100% | **Done** — core/go 483 tests (100% naming) |
 | Zero os/exec in core/go | **Done** — App.Find() uses os.Stat |
 | type Task any removed | **Done** — PerformAsync takes named action + Options |
 | Startable/Stoppable return Result | **Done** — breaking, clean |
