@@ -15,7 +15,7 @@ type testOpts struct {
 	Timeout int
 }
 
-func TestServiceRuntime_Good(t *testing.T) {
+func TestRuntime_ServiceRuntime_Good(t *testing.T) {
 	c := New()
 	opts := testOpts{URL: "https://api.lthn.ai", Timeout: 30}
 	rt := NewServiceRuntime(c, opts)
@@ -28,7 +28,7 @@ func TestServiceRuntime_Good(t *testing.T) {
 
 // --- NewWithFactories ---
 
-func TestNewWithFactories_Good(t *testing.T) {
+func TestRuntime_NewWithFactories_Good(t *testing.T) {
 	r := NewWithFactories(nil, map[string]ServiceFactory{
 		"svc1": func() Result { return Result{Value: Service{}, OK: true} },
 		"svc2": func() Result { return Result{Value: Service{}, OK: true} },
@@ -38,14 +38,14 @@ func TestNewWithFactories_Good(t *testing.T) {
 	assert.NotNil(t, rt.Core)
 }
 
-func TestNewWithFactories_NilFactory_Good(t *testing.T) {
+func TestRuntime_NewWithFactories_NilFactory_Good(t *testing.T) {
 	r := NewWithFactories(nil, map[string]ServiceFactory{
 		"bad": nil,
 	})
 	assert.True(t, r.OK) // nil factories skipped
 }
 
-func TestNewRuntime_Good(t *testing.T) {
+func TestRuntime_NewRuntime_Good(t *testing.T) {
 	r := NewRuntime(nil)
 	assert.True(t, r.OK)
 }

@@ -78,14 +78,12 @@ assert.Equal(t, "pong", c.QUERY("ping").Value)
 ```
 
 ```go
-c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
-	if t == "compute" {
-		return core.Result{Value: 42, OK: true}
-	}
-	return core.Result{}
+c.Action("compute", func(_ context.Context, _ core.Options) core.Result {
+	return core.Result{Value: 42, OK: true}
 })
 
-assert.Equal(t, 42, c.PERFORM("compute").Value)
+r := c.Action("compute").Run(context.Background(), core.NewOptions())
+assert.Equal(t, 42, r.Value)
 ```
 
 ## Test Async Work

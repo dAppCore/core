@@ -69,20 +69,15 @@ c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result {
 	return core.Result{}
 })
 
-c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
-	switch task := t.(type) {
-	case createWorkspaceTask:
-		path := "/tmp/agent-workbench/" + task.Name
-		return core.Result{Value: path, OK: true}
-	}
-	return core.Result{}
+c.Action("workspace.create", func(_ context.Context, opts core.Options) core.Result {
+	name := opts.String("name")
+	path := "/tmp/agent-workbench/" + name
+	return core.Result{Value: path, OK: true}
 })
 
 c.Command("workspace/create", core.Command{
 	Action: func(opts core.Options) core.Result {
-		return c.PERFORM(createWorkspaceTask{
-			Name: opts.String("name"),
-		})
+		return c.Action("workspace.create").Run(context.Background(), opts)
 	},
 })
 ```
@@ -170,20 +165,15 @@ func main() {
 		return core.Result{}
 	})
 
-	c.RegisterTask(func(_ *core.Core, t core.Task) core.Result {
-		switch task := t.(type) {
-		case createWorkspaceTask:
-			path := c.Config().String("workspace.root") + "/" + task.Name
-			return core.Result{Value: path, OK: true}
-		}
-		return core.Result{}
+	c.Action("workspace.create", func(_ context.Context, opts core.Options) core.Result {
+		name := opts.String("name")
+		path := c.Config().String("workspace.root") + "/" + name
+		return core.Result{Value: path, OK: true}
 	})
 
 	c.Command("workspace/create", core.Command{
 		Action: func(opts core.Options) core.Result {
-			return c.PERFORM(createWorkspaceTask{
-				Name: opts.String("name"),
-			})
+			return c.Action("workspace.create").Run(context.Background(), opts)
 		},
 	})
 

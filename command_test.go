@@ -102,78 +102,25 @@ func TestCommand_I18nKey_Simple_Good(t *testing.T) {
 	assert.Equal(t, "cmd.serve.description", cmd.I18nKey())
 }
 
-// --- Lifecycle ---
+// --- Managed ---
 
-func TestCommand_Lifecycle_NoImpl_Good(t *testing.T) {
+func TestCommand_IsManaged_Good(t *testing.T) {
 	c := New()
-	c.Command("serve", Command{Action: func(_ Options) Result {
-		return Result{Value: "running", OK: true}
-	}})
+	c.Command("serve", Command{
+		Action:  func(_ Options) Result { return Result{Value: "running", OK: true} },
+		Managed: "process.daemon",
+	})
 	cmd := c.Command("serve").Value.(*Command)
-
-	r := cmd.Start(NewOptions())
-	assert.True(t, r.OK)
-	assert.Equal(t, "running", r.Value)
-
-	assert.False(t, cmd.Stop().OK)
-	assert.False(t, cmd.Restart().OK)
-	assert.False(t, cmd.Reload().OK)
-	assert.False(t, cmd.Signal("HUP").OK)
+	assert.True(t, cmd.IsManaged())
 }
 
-// --- Lifecycle with Implementation ---
-
-type testLifecycle struct {
-	started   bool
-	stopped   bool
-	restarted bool
-	reloaded  bool
-	signalled string
-}
-
-func (l *testLifecycle) Start(opts Options) Result {
-	l.started = true
-	return Result{Value: "started", OK: true}
-}
-func (l *testLifecycle) Stop() Result {
-	l.stopped = true
-	return Result{OK: true}
-}
-func (l *testLifecycle) Restart() Result {
-	l.restarted = true
-	return Result{OK: true}
-}
-func (l *testLifecycle) Reload() Result {
-	l.reloaded = true
-	return Result{OK: true}
-}
-func (l *testLifecycle) Signal(sig string) Result {
-	l.signalled = sig
-	return Result{Value: sig, OK: true}
-}
-
-func TestCommand_Lifecycle_WithImpl_Good(t *testing.T) {
+func TestCommand_IsManaged_Bad_NotManaged(t *testing.T) {
 	c := New()
-	lc := &testLifecycle{}
-	c.Command("daemon", Command{Lifecycle: lc})
-	cmd := c.Command("daemon").Value.(*Command)
-
-	r := cmd.Start(NewOptions())
-	assert.True(t, r.OK)
-	assert.True(t, lc.started)
-
-	assert.True(t, cmd.Stop().OK)
-	assert.True(t, lc.stopped)
-
-	assert.True(t, cmd.Restart().OK)
-	assert.True(t, lc.restarted)
-
-	assert.True(t, cmd.Reload().OK)
-	assert.True(t, lc.reloaded)
-
-	r = cmd.Signal("HUP")
-	assert.True(t, r.OK)
-	assert.Equal(t, "HUP", lc.signalled)
+	c.Command("deploy", Command{
+		Action: func(_ Options) Result { return Result{OK: true} },
+	})
+	cmd := c.Command("deploy").Value.(*Command)
+	assert.False(t, cmd.IsManaged())
 }
 
 func TestCommand_Duplicate_Bad(t *testing.T) {
@@ -190,18 +137,21 @@ func TestCommand_InvalidPath_Bad(t *testing.T) {
 	assert.False(t, c.Command("double//slash", Command{}).OK)
 }
 
-// --- Cli Run with Lifecycle ---
+// --- Cli Run with Managed ---
 
-func TestCli_Run_Lifecycle_Good(t *testing.T) {
+func TestCli_Run_Managed_Good(t *testing.T) {
 	c := New()
-	lc := &testLifecycle{}
-	c.Command("serve", Command{Lifecycle: lc})
+	ran := false
+	c.Command("serve", Command{
+		Action:  func(_ Options) Result { ran = true; return Result{OK: true} },
+		Managed: "process.daemon",
+	})
 	r := c.Cli().Run("serve")
 	assert.True(t, r.OK)
-	assert.True(t, lc.started)
+	assert.True(t, ran)
 }
 
-func TestCli_Run_NoActionNoLifecycle_Bad(t *testing.T) {
+func TestCli_Run_NoAction_Bad(t *testing.T) {
 	c := New()
 	c.Command("empty", Command{})
 	r := c.Cli().Run("empty")

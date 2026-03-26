@@ -29,11 +29,11 @@ type Service struct {
 	OnReload func() Result
 }
 
-// serviceRegistry holds registered services.
-type serviceRegistry struct {
-	services    map[string]*Service
+// ServiceRegistry holds registered services. Embeds Registry[*Service]
+// for thread-safe named storage with insertion order.
+type ServiceRegistry struct {
+	*Registry[*Service]
 	lockEnabled bool
-	locked      bool
 }
 
 // --- Core service methods ---
@@ -44,12 +44,11 @@ type serviceRegistry struct {
 //	r := c.Service("auth")
 func (c *Core) Service(name string, service ...Service) Result {
 	if len(service) == 0 {
-		c.Lock("srv").Mutex.RLock()
-		svc, ok := c.services.services[name]
-		c.Lock("srv").Mutex.RUnlock()
-		if !ok || svc == nil {
+		r := c.services.Get(name)
+		if !r.OK {
 			return Result{}
 		}
+		svc := r.Value.(*Service)
 		// Return the instance if available, otherwise the Service DTO
 		if svc.Instance != nil {
 			return Result{svc.Instance, true}
@@ -61,21 +60,16 @@ func (c *Core) Service(name string, service ...Service) Result {
 		return Result{E("core.Service", "service name cannot be empty", nil), false}
 	}
 
-	c.Lock("srv").Mutex.Lock()
-	defer c.Lock("srv").Mutex.Unlock()
-
-	if c.services.locked {
+	if c.services.Locked() {
 		return Result{E("core.Service", Concat("service \"", name, "\" not permitted — registry locked"), nil), false}
 	}
-	if _, exists := c.services.services[name]; exists {
+	if c.services.Has(name) {
 		return Result{E("core.Service", Join(" ", "service", name, "already registered"), nil), false}
 	}
 
 	srv := &service[0]
 	srv.Name = name
-	c.services.services[name] = srv
-
-	return Result{OK: true}
+	return c.services.Set(name, srv)
 }
 
 // RegisterService registers a service instance by name.
@@ -88,13 +82,10 @@ func (c *Core) RegisterService(name string, instance any) Result {
 		return Result{E("core.RegisterService", "service name cannot be empty", nil), false}
 	}
 
-	c.Lock("srv").Mutex.Lock()
-	defer c.Lock("srv").Mutex.Unlock()
-
-	if c.services.locked {
+	if c.services.Locked() {
 		return Result{E("core.RegisterService", Concat("service \"", name, "\" not permitted — registry locked"), nil), false}
 	}
-	if _, exists := c.services.services[name]; exists {
+	if c.services.Has(name) {
 		return Result{E("core.RegisterService", Join(" ", "service", name, "already registered"), nil), false}
 	}
 
@@ -103,22 +94,16 @@ func (c *Core) RegisterService(name string, instance any) Result {
 	// Auto-discover lifecycle interfaces
 	if s, ok := instance.(Startable); ok {
 		srv.OnStart = func() Result {
-			if err := s.OnStartup(c.context); err != nil {
-				return Result{err, false}
-			}
-			return Result{OK: true}
+			return s.OnStartup(c.context)
 		}
 	}
 	if s, ok := instance.(Stoppable); ok {
 		srv.OnStop = func() Result {
-			if err := s.OnShutdown(context.Background()); err != nil {
-				return Result{err, false}
-			}
-			return Result{OK: true}
+			return s.OnShutdown(context.Background())
 		}
 	}
 
-	c.services.services[name] = srv
+	c.services.Set(name, srv)
 
 	// Auto-discover IPC handler
 	if handler, ok := instance.(interface {
@@ -157,18 +142,12 @@ func MustServiceFor[T any](c *Core, name string) T {
 	return v
 }
 
-// Services returns all registered service names.
+// Services returns all registered service names in registration order.
 //
 //	names := c.Services()
 func (c *Core) Services() []string {
 	if c.services == nil {
 		return nil
 	}
-	c.Lock("srv").Mutex.RLock()
-	defer c.Lock("srv").Mutex.RUnlock()
-	var names []string
-	for k := range c.services.services {
-		names = append(names, k)
-	}
-	return names
+	return c.services.Names()
 }

@@ -25,8 +25,19 @@ func NewServiceRuntime[T any](c *Core, opts T) *ServiceRuntime[T] {
 	return &ServiceRuntime[T]{core: c, opts: opts}
 }
 
-func (r *ServiceRuntime[T]) Core() *Core     { return r.core }
-func (r *ServiceRuntime[T]) Options() T      { return r.opts }
+// Core returns the Core instance this service is registered with.
+//
+//	c := s.Core()
+func (r *ServiceRuntime[T]) Core() *Core { return r.core }
+
+// Options returns the typed options this service was created with.
+//
+//	opts := s.Options()  // MyOptions{BufferSize: 1024, ...}
+func (r *ServiceRuntime[T]) Options() T { return r.opts }
+
+// Config is a shortcut to s.Core().Config().
+//
+//	host := s.Config().String("database.host")
 func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 
 // --- Lifecycle ---
@@ -137,10 +148,14 @@ func NewRuntime(app any) Result {
 	return NewWithFactories(app, map[string]ServiceFactory{})
 }
 
+// ServiceName returns "Core" — the Runtime's service identity.
 func (r *Runtime) ServiceName() string { return "Core" }
+
+// ServiceStartup starts all services via the embedded Core.
 func (r *Runtime) ServiceStartup(ctx context.Context, options any) Result {
 	return r.Core.ServiceStartup(ctx, options)
 }
+// ServiceShutdown stops all services via the embedded Core.
 func (r *Runtime) ServiceShutdown(ctx context.Context) Result {
 	if r.Core != nil {
 		return r.Core.ServiceShutdown(ctx)

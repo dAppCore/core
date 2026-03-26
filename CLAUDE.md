@@ -4,16 +4,15 @@ Guidance for Claude Code and Codex when working with this repository.
 
 ## Module
 
-`dappco.re/go/core` — dependency injection, service lifecycle, command routing, and message-passing for Go.
+`dappco.re/go/core` — dependency injection, service lifecycle, permission, and message-passing for Go.
 
-Source files live at the module root (not `pkg/core/`). Tests live in `tests/`.
+Source files and tests live at the module root. No `pkg/` nesting.
 
 ## Build & Test
 
 ```bash
-go test ./tests/...          # run all tests
-go build .                   # verify compilation
-GOWORK=off go test ./tests/  # test without workspace
+go test ./... -count=1       # run all tests (483 tests, 84.7% coverage)
+go build ./...               # verify compilation
 ```
 
 Or via the Core CLI:
@@ -25,28 +24,23 @@ core go qa                   # fmt + vet + lint + test
 
 ## API Shape
 
-CoreGO uses the DTO/Options/Result pattern, not functional options:
-
 ```go
-c := core.New(core.Options{
-    {Key: "name", Value: "myapp"},
-})
-
-c.Service("cache", core.Service{
-    OnStart: func() core.Result { return core.Result{OK: true} },
-    OnStop:  func() core.Result { return core.Result{OK: true} },
-})
-
-c.Command("deploy/to/homelab", core.Command{
-    Action: func(opts core.Options) core.Result {
-        return core.Result{Value: "deployed", OK: true}
-    },
-})
-
-r := c.Cli().Run("deploy", "to", "homelab")
+c := core.New(
+    core.WithOption("name", "myapp"),
+    core.WithService(mypackage.Register),
+    core.WithServiceLock(),
+)
+c.Run()    // or: if err := c.RunE(); err != nil { ... }
 ```
 
-**Do not use:** `WithService`, `WithName`, `WithApp`, `WithServiceLock`, `Must*`, `ServiceFor[T]` — these no longer exist.
+Service factory:
+
+```go
+func Register(c *core.Core) core.Result {
+    svc := &MyService{ServiceRuntime: core.NewServiceRuntime(c, MyOpts{})}
+    return core.Result{Value: svc, OK: true}
+}
+```
 
 ## Subsystems
 
@@ -54,26 +48,37 @@ r := c.Cli().Run("deploy", "to", "homelab")
 |----------|---------|---------|
 | `c.Options()` | `*Options` | Input configuration |
 | `c.App()` | `*App` | Application identity |
-| `c.Data()` | `*Data` | Embedded filesystem mounts |
-| `c.Drive()` | `*Drive` | Named transport handles |
-| `c.Fs()` | `*Fs` | Local filesystem I/O |
-| `c.Config()` | `*Config` | Runtime settings |
-| `c.Cli()` | `*Cli` | CLI surface |
-| `c.Command("path")` | `Result` | Command tree |
-| `c.Service("name")` | `Result` | Service registry |
-| `c.Lock("name")` | `*Lock` | Named mutexes |
-| `c.IPC()` | `*Ipc` | Message bus |
-| `c.I18n()` | `*I18n` | Locale + translation |
+| `c.Config()` | `*Config` | Runtime settings, feature flags |
+| `c.Data()` | `*Data` | Embedded assets (Registry[*Embed]) |
+| `c.Drive()` | `*Drive` | Transport handles (Registry[*DriveHandle]) |
+| `c.Fs()` | `*Fs` | Filesystem I/O (sandboxable) |
+| `c.Cli()` | `*Cli` | CLI command framework |
+| `c.IPC()` | `*Ipc` | Message bus internals |
+| `c.Process()` | `*Process` | Managed execution (Action sugar) |
+| `c.API()` | `*API` | Remote streams (protocol handlers) |
+| `c.Action(name)` | `*Action` | Named callable (register/invoke) |
+| `c.Task(name)` | `*Task` | Composed Action sequence |
+| `c.Entitled(name)` | `Entitlement` | Permission check |
+| `c.RegistryOf(n)` | `*Registry` | Cross-cutting queries |
+| `c.I18n()` | `*I18n` | Internationalisation |
 
 ## Messaging
 
 | Method | Pattern |
 |--------|---------|
-| `c.ACTION(msg)` | Broadcast to all handlers |
+| `c.ACTION(msg)` | Broadcast to all handlers (panic recovery per handler) |
 | `c.QUERY(q)` | First responder wins |
 | `c.QUERYALL(q)` | Collect all responses |
-| `c.PERFORM(task)` | First executor wins |
-| `c.PerformAsync(task)` | Background goroutine |
+| `c.PerformAsync(action, opts)` | Background goroutine with progress |
+
+## Lifecycle
+
+```go
+type Startable interface { OnStartup(ctx context.Context) Result }
+type Stoppable interface { OnShutdown(ctx context.Context) Result }
+```
+
+`RunE()` always calls `defer ServiceShutdown` — even on startup failure or panic.
 
 ## Error Handling
 
@@ -83,13 +88,15 @@ Use `core.E()` for structured errors:
 return core.E("service.Method", "what failed", underlyingErr)
 ```
 
-## Test Naming
+**Never** use `fmt.Errorf`, `errors.New`, `os/exec`, or `unsafe.Pointer` on Core types.
 
-`_Good` (happy path), `_Bad` (expected errors), `_Ugly` (panics/edge cases).
+## Test Naming (AX-7)
+
+`TestFile_Function_{Good,Bad,Ugly}` — 100% compliance.
 
 ## Docs
 
-Full documentation in `docs/`. Start with `docs/getting-started.md`.
+Full API contract: `docs/RFC.md` (1476 lines, 21 sections).
 
 ## Go Workspace
 

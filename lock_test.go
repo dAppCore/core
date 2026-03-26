@@ -28,7 +28,7 @@ func TestLock_DifferentName_Good(t *testing.T) {
 	assert.NotEqual(t, l1, l2)
 }
 
-func TestLockEnable_Good(t *testing.T) {
+func TestLock_LockEnable_Good(t *testing.T) {
 	c := New()
 	c.Service("early", Service{})
 	c.LockEnable()
@@ -38,7 +38,7 @@ func TestLockEnable_Good(t *testing.T) {
 	assert.False(t, r.OK)
 }
 
-func TestStartables_Good(t *testing.T) {
+func TestLock_Startables_Good(t *testing.T) {
 	c := New()
 	c.Service("s", Service{OnStart: func() Result { return Result{OK: true} }})
 	r := c.Startables()
@@ -46,7 +46,7 @@ func TestStartables_Good(t *testing.T) {
 	assert.Len(t, r.Value.([]*Service), 1)
 }
 
-func TestStoppables_Good(t *testing.T) {
+func TestLock_Stoppables_Good(t *testing.T) {
 	c := New()
 	c.Service("s", Service{OnStop: func() Result { return Result{OK: true} }})
 	r := c.Stoppables()

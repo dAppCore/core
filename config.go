@@ -14,15 +14,34 @@ type ConfigVar[T any] struct {
 	set bool
 }
 
-func (v *ConfigVar[T]) Get() T      { return v.val }
-func (v *ConfigVar[T]) Set(val T)   { v.val = val; v.set = true }
+// Get returns the current value.
+//
+//	val := v.Get()
+func (v *ConfigVar[T]) Get() T { return v.val }
+
+// Set sets the value and marks it as explicitly set.
+//
+//	v.Set(true)
+func (v *ConfigVar[T]) Set(val T) { v.val = val; v.set = true }
+
+// IsSet returns true if the value was explicitly set (distinguishes "set to false" from "never set").
+//
+//	if v.IsSet() { /* explicitly configured */ }
 func (v *ConfigVar[T]) IsSet() bool { return v.set }
+
+// Unset resets to zero value and marks as not set.
+//
+//	v.Unset()
+//	v.IsSet()  // false
 func (v *ConfigVar[T]) Unset() {
 	v.set = false
 	var zero T
 	v.val = zero
 }
 
+// NewConfigVar creates a ConfigVar with an initial value marked as set.
+//
+//	debug := core.NewConfigVar(true)
 func NewConfigVar[T any](val T) ConfigVar[T] {
 	return ConfigVar[T]{val: val, set: true}
 }
@@ -82,9 +101,20 @@ func (e *Config) Get(key string) Result {
 	return Result{val, true}
 }
 
+// String retrieves a string config value (empty string if missing).
+//
+//	host := c.Config().String("database.host")
 func (e *Config) String(key string) string { return ConfigGet[string](e, key) }
-func (e *Config) Int(key string) int       { return ConfigGet[int](e, key) }
-func (e *Config) Bool(key string) bool     { return ConfigGet[bool](e, key) }
+
+// Int retrieves an int config value (0 if missing).
+//
+//	port := c.Config().Int("database.port")
+func (e *Config) Int(key string) int { return ConfigGet[int](e, key) }
+
+// Bool retrieves a bool config value (false if missing).
+//
+//	debug := c.Config().Bool("debug")
+func (e *Config) Bool(key string) bool { return ConfigGet[bool](e, key) }
 
 // ConfigGet retrieves a typed configuration value.
 func ConfigGet[T any](e *Config, key string) T {
@@ -99,6 +129,9 @@ func ConfigGet[T any](e *Config, key string) T {
 
 // --- Feature Flags ---
 
+// Enable activates a feature flag.
+//
+//	c.Config().Enable("dark-mode")
 func (e *Config) Enable(feature string) {
 	e.mu.Lock()
 	if e.ConfigOptions == nil {
@@ -109,6 +142,9 @@ func (e *Config) Enable(feature string) {
 	e.mu.Unlock()
 }
 
+// Disable deactivates a feature flag.
+//
+//	c.Config().Disable("dark-mode")
 func (e *Config) Disable(feature string) {
 	e.mu.Lock()
 	if e.ConfigOptions == nil {
@@ -119,6 +155,9 @@ func (e *Config) Disable(feature string) {
 	e.mu.Unlock()
 }
 
+// Enabled returns true if a feature flag is active.
+//
+//	if c.Config().Enabled("dark-mode") { ... }
 func (e *Config) Enabled(feature string) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -128,6 +167,9 @@ func (e *Config) Enabled(feature string) bool {
 	return e.Features[feature]
 }
 
+// EnabledFeatures returns all active feature flag names.
+//
+//	features := c.Config().EnabledFeatures()
 func (e *Config) EnabledFeatures() []string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()

@@ -2,9 +2,6 @@ package core_test
 
 import (
 	"context"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -13,24 +10,24 @@ import (
 
 // --- New ---
 
-func TestNew_Good(t *testing.T) {
+func TestCore_New_Good(t *testing.T) {
 	c := New()
 	assert.NotNil(t, c)
 }
 
-func TestNew_WithOptions_Good(t *testing.T) {
+func TestCore_New_WithOptions_Good(t *testing.T) {
 	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "myapp"})))
 	assert.NotNil(t, c)
 	assert.Equal(t, "myapp", c.App().Name)
 }
 
-func TestNew_WithOptions_Bad(t *testing.T) {
+func TestCore_New_WithOptions_Bad(t *testing.T) {
 	// Empty options — should still create a valid Core
 	c := New(WithOptions(NewOptions()))
 	assert.NotNil(t, c)
 }
 
-func TestNew_WithService_Good(t *testing.T) {
+func TestCore_New_WithService_Good(t *testing.T) {
 	started := false
 	c := New(
 		WithOptions(NewOptions(Option{Key: "name", Value: "myapp"})),
@@ -49,7 +46,7 @@ func TestNew_WithService_Good(t *testing.T) {
 	assert.True(t, started)
 }
 
-func TestNew_WithServiceLock_Good(t *testing.T) {
+func TestCore_New_WithServiceLock_Good(t *testing.T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			c.Service("allowed", Service{})
@@ -63,7 +60,7 @@ func TestNew_WithServiceLock_Good(t *testing.T) {
 	assert.False(t, reg.OK)
 }
 
-func TestNew_WithService_Bad_FailingOption(t *testing.T) {
+func TestCore_New_WithService_Bad_FailingOption(t *testing.T) {
 	secondCalled := false
 	_ = New(
 		WithService(func(c *Core) Result {
@@ -79,7 +76,7 @@ func TestNew_WithService_Bad_FailingOption(t *testing.T) {
 
 // --- Accessors ---
 
-func TestAccessors_Good(t *testing.T) {
+func TestCore_Accessors_Good(t *testing.T) {
 	c := New()
 	assert.NotNil(t, c.App())
 	assert.NotNil(t, c.Data())
@@ -147,75 +144,102 @@ func TestCore_Must_Nil_Good(t *testing.T) {
 	})
 }
 
-func TestCore_Run_HelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
+// --- RegistryOf ---
 
-	switch os.Getenv("CORE_RUN_MODE") {
-	case "startup-fail":
-		c := New(
-			WithService(func(c *Core) Result {
-				return c.Service("broken", Service{
-					OnStart: func() Result {
-						return Result{Value: NewError("startup failed"), OK: false}
-					},
-				})
-			}),
-		)
-		c.Run()
-	case "cli-fail":
-		shutdownFile := os.Getenv("CORE_RUN_SHUTDOWN_FILE")
-		c := New(
-			WithService(func(c *Core) Result {
-				return c.Service("cleanup", Service{
-					OnStop: func() Result {
-						if err := os.WriteFile(shutdownFile, []byte("stopped"), 0o600); err != nil {
-							return Result{Value: err, OK: false}
-						}
-						return Result{OK: true}
-					},
-				})
-			}),
-		)
-		c.Command("explode", Command{
-			Action: func(_ Options) Result {
-				return Result{Value: NewError("cli failed"), OK: false}
-			},
-		})
-		os.Args = []string{"core-test", "explode"}
-		c.Run()
-	default:
-		os.Exit(2)
-	}
+func TestCore_RegistryOf_Good_Services(t *testing.T) {
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("alpha", Service{})
+		}),
+		WithService(func(c *Core) Result {
+			return c.Service("bravo", Service{})
+		}),
+	)
+	reg := c.RegistryOf("services")
+	// cli is auto-registered + our 2
+	assert.True(t, reg.Has("alpha"))
+	assert.True(t, reg.Has("bravo"))
+	assert.True(t, reg.Has("cli"))
 }
 
-func TestCore_Run_Bad(t *testing.T) {
-	err := runCoreRunHelper(t, "startup-fail")
-	var exitErr *exec.ExitError
-	if assert.ErrorAs(t, err, &exitErr) {
-		assert.Equal(t, 1, exitErr.ExitCode())
-	}
+func TestCore_RegistryOf_Good_Commands(t *testing.T) {
+	c := New()
+	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Command("test", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+
+	reg := c.RegistryOf("commands")
+	assert.True(t, reg.Has("deploy"))
+	assert.True(t, reg.Has("test"))
 }
 
-func TestCore_Run_Ugly(t *testing.T) {
-	shutdownFile := filepath.Join(t.TempDir(), "shutdown.txt")
-	err := runCoreRunHelper(t, "cli-fail", "CORE_RUN_SHUTDOWN_FILE="+shutdownFile)
-	var exitErr *exec.ExitError
-	if assert.ErrorAs(t, err, &exitErr) {
-		assert.Equal(t, 1, exitErr.ExitCode())
-	}
+func TestCore_RegistryOf_Good_Actions(t *testing.T) {
+	c := New()
+	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("brain.recall", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 
-	data, readErr := os.ReadFile(shutdownFile)
-	assert.NoError(t, readErr)
-	assert.Equal(t, "stopped", string(data))
+	reg := c.RegistryOf("actions")
+	assert.True(t, reg.Has("process.run"))
+	assert.True(t, reg.Has("brain.recall"))
+	assert.Equal(t, 2, reg.Len())
 }
 
-func runCoreRunHelper(t *testing.T, mode string, extraEnv ...string) error {
-	t.Helper()
-
-	cmd := exec.Command(os.Args[0], "-test.run=^TestCore_Run_HelperProcess$")
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "CORE_RUN_MODE="+mode)
-	cmd.Env = append(cmd.Env, extraEnv...)
-	return cmd.Run()
+func TestCore_RegistryOf_Bad_Unknown(t *testing.T) {
+	c := New()
+	reg := c.RegistryOf("nonexistent")
+	assert.Equal(t, 0, reg.Len(), "unknown registry returns empty")
 }
+
+// --- RunE ---
+
+func TestCore_RunE_Good(t *testing.T) {
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("healthy", Service{
+				OnStart: func() Result { return Result{OK: true} },
+				OnStop:  func() Result { return Result{OK: true} },
+			})
+		}),
+	)
+	err := c.RunE()
+	assert.NoError(t, err)
+}
+
+func TestCore_RunE_Bad_StartupFailure(t *testing.T) {
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("broken", Service{
+				OnStart: func() Result {
+					return Result{Value: NewError("startup failed"), OK: false}
+				},
+			})
+		}),
+	)
+	err := c.RunE()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "startup failed")
+}
+
+func TestCore_RunE_Ugly_StartupFailureCallsShutdown(t *testing.T) {
+	shutdownCalled := false
+	c := New(
+		WithService(func(c *Core) Result {
+			return c.Service("cleanup", Service{
+				OnStart: func() Result { return Result{OK: true} },
+				OnStop:  func() Result { shutdownCalled = true; return Result{OK: true} },
+			})
+		}),
+		WithService(func(c *Core) Result {
+			return c.Service("broken", Service{
+				OnStart: func() Result {
+					return Result{Value: NewError("boom"), OK: false}
+				},
+			})
+		}),
+	)
+	err := c.RunE()
+	assert.Error(t, err)
+	assert.True(t, shutdownCalled, "ServiceShutdown must be called even when startup fails — cleanup service must get OnStop")
+}
+
+// Run() delegates to RunE() — tested via RunE tests above.
+// os.Exit behaviour is verified by RunE returning error correctly.

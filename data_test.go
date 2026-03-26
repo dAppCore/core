@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"embed"
-	"io"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -80,10 +79,9 @@ func TestData_Get_Good(t *testing.T) {
 
 	r := emb.Open("test.txt")
 	assert.True(t, r.OK)
-	file := r.Value.(io.ReadCloser)
-	defer file.Close()
-	content, _ := io.ReadAll(file)
-	assert.Equal(t, "hello from testdata\n", string(content))
+	cr := ReadAll(r.Value)
+	assert.True(t, cr.OK)
+	assert.Equal(t, "hello from testdata\n", cr.Value)
 }
 
 func TestData_Get_Bad(t *testing.T) {
@@ -98,12 +96,6 @@ func TestData_Mounts_Good(t *testing.T) {
 	mountTestData(t, c, "b")
 	mounts := c.Data().Mounts()
 	assert.Len(t, mounts, 2)
-}
-
-func TestEmbed_Legacy_Good(t *testing.T) {
-	c := New()
-	mountTestData(t, c, "app")
-	assert.NotNil(t, c.Embed())
 }
 
 func TestData_List_Good(t *testing.T) {

@@ -5,165 +5,172 @@ description: The repeated shapes that make CoreGO easy to navigate.
 
 # Core Primitives
 
-CoreGO is easiest to use when you read it as a small vocabulary repeated everywhere. Most of the framework is built from the same handful of types.
+CoreGO is built from a small vocabulary repeated everywhere.
 
 ## Primitive Map
 
 | Type | Used For |
 |------|----------|
-| `Options` | Input values and lightweight metadata |
+| `Option` / `Options` | Input values and metadata |
 | `Result` | Output values and success state |
 | `Service` | Lifecycle-managed components |
-| `Message` | Broadcast events |
-| `Query` | Request-response lookups |
-| `Task` | Side-effecting work items |
+| `Action` | Named callable with panic recovery + entitlement |
+| `Task` | Composed sequence of Actions |
+| `Registry[T]` | Thread-safe named collection |
+| `Entitlement` | Permission check result |
+| `Message` | Broadcast events (ACTION) |
+| `Query` | Request-response lookups (QUERY) |
 
 ## `Option` and `Options`
 
 `Option` is one key-value pair. `Options` is an ordered slice of them.
 
 ```go
-opts := core.Options{
-	{Key: "name", Value: "brain"},
-	{Key: "path", Value: "prompts"},
-	{Key: "debug", Value: true},
-}
-```
+opts := core.NewOptions(
+    core.Option{Key: "name", Value: "brain"},
+    core.Option{Key: "path", Value: "prompts"},
+    core.Option{Key: "debug", Value: true},
+)
 
-Use the helpers to read values:
-
-```go
 name := opts.String("name")
-path := opts.String("path")
 debug := opts.Bool("debug")
-hasPath := opts.Has("path")
-raw := opts.Get("name")
+raw := opts.Get("name")     // Result{Value, OK}
+opts.Has("path")             // true
+opts.Len()                   // 3
 ```
-
-### Important Details
-
-- `Get` returns the first matching key.
-- `String`, `Int`, and `Bool` do not convert between types.
-- Missing keys return zero values.
-- CLI flags with values are stored as strings, so `--port=8080` should be read with `opts.String("port")`, not `opts.Int("port")`.
 
 ## `Result`
 
-`Result` is the universal return shape.
+Universal return shape. Every Core operation returns Result.
 
 ```go
-r := core.Result{Value: "ready", OK: true}
+type Result struct {
+    Value any
+    OK    bool
+}
 
+r := c.Config().Get("host")
 if r.OK {
-	fmt.Println(r.Value)
+    host := r.Value.(string)
 }
 ```
 
-It has two jobs:
-
-- carry a value when work succeeds
-- carry either an error or an empty state when work does not succeed
-
-### `Result.Result(...)`
-
-The `Result()` method adapts plain Go values and `(value, error)` pairs into a `core.Result`.
+The `Result()` method adapts Go `(value, error)` pairs:
 
 ```go
-r1 := core.Result{}.Result("hello")
-r2 := core.Result{}.Result(file, err)
+r := core.Result{}.Result(file, err)
 ```
-
-This is how several built-in helpers bridge standard-library calls.
 
 ## `Service`
 
-`Service` is the managed lifecycle DTO stored in the registry.
+Managed lifecycle component stored in the `ServiceRegistry`.
 
 ```go
-svc := core.Service{
-	Name: "cache",
-	Options: core.Options{
-		{Key: "backend", Value: "memory"},
-	},
-	OnStart: func() core.Result {
-		return core.Result{OK: true}
-	},
-	OnStop: func() core.Result {
-		return core.Result{OK: true}
-	},
-	OnReload: func() core.Result {
-		return core.Result{OK: true}
-	},
+core.Service{
+    OnStart: func() core.Result { return core.Result{OK: true} },
+    OnStop:  func() core.Result { return core.Result{OK: true} },
 }
 ```
 
-### Important Details
-
-- `OnStart` and `OnStop` are used by the framework lifecycle.
-- `OnReload` is stored on the service DTO, but CoreGO does not currently call it automatically.
-- The registry stores `*core.Service`, not arbitrary typed service instances.
-
-## `Message`, `Query`, and `Task`
-
-These are simple aliases to `any`.
+Or via `Startable`/`Stoppable` interfaces (preferred for named services):
 
 ```go
-type Message any
-type Query any
-type Task any
+type Startable interface { OnStartup(ctx context.Context) Result }
+type Stoppable interface { OnShutdown(ctx context.Context) Result }
 ```
 
-That means your own structs become the protocol:
+## `Action`
+
+Named callable — the atomic unit of work. Registered by name, invoked by name.
 
 ```go
-type deployStarted struct {
-	Environment string
-}
+type ActionHandler func(context.Context, Options) Result
 
-type workspaceCountQuery struct{}
-
-type syncRepositoryTask struct {
-	Name string
+type Action struct {
+    Name        string
+    Handler     ActionHandler
+    Description string
+    Schema      Options
 }
 ```
 
-## `TaskWithIdentifier`
+`Action.Run()` includes panic recovery and entitlement checking.
 
-Long-running tasks can opt into task identifiers.
+## `Task`
+
+Composed sequence of Actions:
 
 ```go
-type indexedTask struct {
-	ID string
+type Task struct {
+    Name        string
+    Description string
+    Steps       []Step
 }
 
-func (t *indexedTask) SetTaskIdentifier(id string) { t.ID = id }
-func (t *indexedTask) GetTaskIdentifier() string   { return t.ID }
+type Step struct {
+    Action string
+    With   Options
+    Async  bool
+    Input  string   // "previous" = output of last step
+}
 ```
 
-If a task implements `TaskWithIdentifier`, `PerformAsync` injects the generated `task-N` identifier before dispatch.
+## `Registry[T]`
+
+Thread-safe named collection with insertion order and 3 lock modes:
+
+```go
+r := core.NewRegistry[*MyService]()
+r.Set("brain", svc)
+r.Get("brain")       // Result
+r.Has("brain")       // bool
+r.Names()            // []string (insertion order)
+r.Each(func(name string, svc *MyService) { ... })
+r.Lock()             // fully frozen
+r.Seal()             // no new keys, updates OK
+```
+
+## `Entitlement`
+
+Permission check result:
+
+```go
+type Entitlement struct {
+    Allowed   bool
+    Unlimited bool
+    Limit     int
+    Used      int
+    Remaining int
+    Reason    string
+}
+
+e := c.Entitled("social.accounts", 3)
+e.NearLimit(0.8)     // true if > 80% used
+e.UsagePercent()     // 75.0
+```
+
+## `Message` and `Query`
+
+IPC type aliases for the anonymous broadcast system:
+
+```go
+type Message any  // broadcast via ACTION
+type Query any    // request/response via QUERY
+```
+
+For typed, named dispatch use `c.Action("name").Run(ctx, opts)`.
 
 ## `ServiceRuntime[T]`
 
-`ServiceRuntime[T]` is the small helper for packages that want to keep a Core reference and a typed options struct together.
+Composition helper for services that need Core access and typed options:
 
 ```go
-type agentServiceOptions struct {
-	WorkspacePath string
+type MyService struct {
+    *core.ServiceRuntime[MyOptions]
 }
 
-type agentService struct {
-	*core.ServiceRuntime[agentServiceOptions]
-}
-
-runtime := core.NewServiceRuntime(c, agentServiceOptions{
-	WorkspacePath: "/srv/agent-workspaces",
-})
+runtime := core.NewServiceRuntime(c, MyOptions{BufferSize: 1024})
+runtime.Core()      // *Core
+runtime.Options()   // MyOptions
+runtime.Config()    // shortcut to Core().Config()
 ```
-
-It exposes:
-
-- `Core()`
-- `Options()`
-- `Config()`
-
-This helper does not register anything by itself. It is a composition aid for package authors.

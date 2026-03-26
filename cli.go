@@ -64,11 +64,7 @@ func (cl *Cli) Run(args ...string) Result {
 		return Result{}
 	}
 
-	c.commands.mu.RLock()
-	cmdCount := len(c.commands.commands)
-	c.commands.mu.RUnlock()
-
-	if cmdCount == 0 {
+	if c.commands.Len() == 0 {
 		if cl.banner != nil {
 			cl.Print(cl.banner(cl))
 		}
@@ -79,16 +75,14 @@ func (cl *Cli) Run(args ...string) Result {
 	var cmd *Command
 	var remaining []string
 
-	c.commands.mu.RLock()
 	for i := len(clean); i > 0; i-- {
 		path := JoinPath(clean[:i]...)
-		if found, ok := c.commands.commands[path]; ok {
-			cmd = found
+		if r := c.commands.Get(path); r.OK {
+			cmd = r.Value.(*Command)
 			remaining = clean[i:]
 			break
 		}
 	}
-	c.commands.mu.RUnlock()
 
 	if cmd == nil {
 		if cl.banner != nil {
@@ -116,9 +110,6 @@ func (cl *Cli) Run(args ...string) Result {
 	if cmd.Action != nil {
 		return cmd.Run(opts)
 	}
-	if cmd.Lifecycle != nil {
-		return cmd.Start(opts)
-	}
 	return Result{E("core.Cli.Run", Concat("command \"", cmd.Path, "\" is not executable"), nil), false}
 }
 
@@ -141,12 +132,9 @@ func (cl *Cli) PrintHelp() {
 		cl.Print("Commands:")
 	}
 
-	c.commands.mu.RLock()
-	defer c.commands.mu.RUnlock()
-
-	for path, cmd := range c.commands.commands {
-		if cmd.Hidden || (cmd.Action == nil && cmd.Lifecycle == nil) {
-			continue
+	c.commands.Each(func(path string, cmd *Command) {
+		if cmd.Hidden || (cmd.Action == nil && !cmd.IsManaged()) {
+			return
 		}
 		tr := c.I18n().Translate(cmd.I18nKey())
 		desc, _ := tr.Value.(string)
@@ -155,7 +143,7 @@ func (cl *Cli) PrintHelp() {
 		} else {
 			cl.Print("  %-30s %s", path, desc)
 		}
-	}
+	})
 }
 
 // SetBanner sets the banner function.

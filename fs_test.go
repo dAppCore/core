@@ -1,10 +1,7 @@
 package core_test
 
 import (
-	"io"
 	"io/fs"
-	"os"
-	"path/filepath"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -17,7 +14,7 @@ func TestFs_WriteRead_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
 
-	path := filepath.Join(dir, "test.txt")
+	path := Path(dir, "test.txt")
 	assert.True(t, c.Fs().Write(path, "hello core").OK)
 
 	r := c.Fs().Read(path)
@@ -34,7 +31,7 @@ func TestFs_Read_Bad(t *testing.T) {
 func TestFs_EnsureDir_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "sub", "dir")
+	path := Path(dir, "sub", "dir")
 	assert.True(t, c.Fs().EnsureDir(path).OK)
 	assert.True(t, c.Fs().IsDir(path))
 }
@@ -43,14 +40,14 @@ func TestFs_IsDir_Good(t *testing.T) {
 	c := New()
 	dir := t.TempDir()
 	assert.True(t, c.Fs().IsDir(dir))
-	assert.False(t, c.Fs().IsDir(filepath.Join(dir, "nonexistent")))
+	assert.False(t, c.Fs().IsDir(Path(dir, "nonexistent")))
 	assert.False(t, c.Fs().IsDir(""))
 }
 
 func TestFs_IsFile_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "test.txt")
+	path := Path(dir, "test.txt")
 	c.Fs().Write(path, "data")
 	assert.True(t, c.Fs().IsFile(path))
 	assert.False(t, c.Fs().IsFile(dir))
@@ -60,18 +57,18 @@ func TestFs_IsFile_Good(t *testing.T) {
 func TestFs_Exists_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "exists.txt")
+	path := Path(dir, "exists.txt")
 	c.Fs().Write(path, "yes")
 	assert.True(t, c.Fs().Exists(path))
 	assert.True(t, c.Fs().Exists(dir))
-	assert.False(t, c.Fs().Exists(filepath.Join(dir, "nope")))
+	assert.False(t, c.Fs().Exists(Path(dir, "nope")))
 }
 
 func TestFs_List_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	c.Fs().Write(filepath.Join(dir, "a.txt"), "a")
-	c.Fs().Write(filepath.Join(dir, "b.txt"), "b")
+	c.Fs().Write(Path(dir, "a.txt"), "a")
+	c.Fs().Write(Path(dir, "b.txt"), "b")
 	r := c.Fs().List(dir)
 	assert.True(t, r.OK)
 	assert.Len(t, r.Value.([]fs.DirEntry), 2)
@@ -80,32 +77,30 @@ func TestFs_List_Good(t *testing.T) {
 func TestFs_Stat_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "stat.txt")
+	path := Path(dir, "stat.txt")
 	c.Fs().Write(path, "data")
 	r := c.Fs().Stat(path)
 	assert.True(t, r.OK)
-	assert.Equal(t, "stat.txt", r.Value.(os.FileInfo).Name())
+	assert.Equal(t, "stat.txt", r.Value.(fs.FileInfo).Name())
 }
 
 func TestFs_Open_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "open.txt")
+	path := Path(dir, "open.txt")
 	c.Fs().Write(path, "content")
 	r := c.Fs().Open(path)
 	assert.True(t, r.OK)
-	r.Value.(io.Closer).Close()
+	CloseStream(r.Value)
 }
 
 func TestFs_Create_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "sub", "created.txt")
+	path := Path(dir, "sub", "created.txt")
 	r := c.Fs().Create(path)
 	assert.True(t, r.OK)
-	w := r.Value.(io.WriteCloser)
-	w.Write([]byte("hello"))
-	w.Close()
+	WriteAll(r.Value, "hello")
 	rr := c.Fs().Read(path)
 	assert.Equal(t, "hello", rr.Value.(string))
 }
@@ -113,13 +108,11 @@ func TestFs_Create_Good(t *testing.T) {
 func TestFs_Append_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "append.txt")
+	path := Path(dir, "append.txt")
 	c.Fs().Write(path, "first")
 	r := c.Fs().Append(path)
 	assert.True(t, r.OK)
-	w := r.Value.(io.WriteCloser)
-	w.Write([]byte(" second"))
-	w.Close()
+	WriteAll(r.Value, " second")
 	rr := c.Fs().Read(path)
 	assert.Equal(t, "first second", rr.Value.(string))
 }
@@ -127,28 +120,26 @@ func TestFs_Append_Good(t *testing.T) {
 func TestFs_ReadStream_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "stream.txt")
+	path := Path(dir, "stream.txt")
 	c.Fs().Write(path, "streamed")
 	r := c.Fs().ReadStream(path)
 	assert.True(t, r.OK)
-	r.Value.(io.Closer).Close()
+	CloseStream(r.Value)
 }
 
 func TestFs_WriteStream_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "sub", "ws.txt")
+	path := Path(dir, "sub", "ws.txt")
 	r := c.Fs().WriteStream(path)
 	assert.True(t, r.OK)
-	w := r.Value.(io.WriteCloser)
-	w.Write([]byte("stream"))
-	w.Close()
+	WriteAll(r.Value, "stream")
 }
 
 func TestFs_Delete_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "delete.txt")
+	path := Path(dir, "delete.txt")
 	c.Fs().Write(path, "gone")
 	assert.True(t, c.Fs().Delete(path).OK)
 	assert.False(t, c.Fs().Exists(path))
@@ -157,18 +148,18 @@ func TestFs_Delete_Good(t *testing.T) {
 func TestFs_DeleteAll_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	sub := filepath.Join(dir, "deep", "nested")
+	sub := Path(dir, "deep", "nested")
 	c.Fs().EnsureDir(sub)
-	c.Fs().Write(filepath.Join(sub, "file.txt"), "data")
-	assert.True(t, c.Fs().DeleteAll(filepath.Join(dir, "deep")).OK)
-	assert.False(t, c.Fs().Exists(filepath.Join(dir, "deep")))
+	c.Fs().Write(Path(sub, "file.txt"), "data")
+	assert.True(t, c.Fs().DeleteAll(Path(dir, "deep")).OK)
+	assert.False(t, c.Fs().Exists(Path(dir, "deep")))
 }
 
 func TestFs_Rename_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	old := filepath.Join(dir, "old.txt")
-	nw := filepath.Join(dir, "new.txt")
+	old := Path(dir, "old.txt")
+	nw := Path(dir, "new.txt")
 	c.Fs().Write(old, "data")
 	assert.True(t, c.Fs().Rename(old, nw).OK)
 	assert.False(t, c.Fs().Exists(old))
@@ -178,11 +169,11 @@ func TestFs_Rename_Good(t *testing.T) {
 func TestFs_WriteMode_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "secret.txt")
+	path := Path(dir, "secret.txt")
 	assert.True(t, c.Fs().WriteMode(path, "secret", 0600).OK)
 	r := c.Fs().Stat(path)
 	assert.True(t, r.OK)
-	assert.Equal(t, "secret.txt", r.Value.(os.FileInfo).Name())
+	assert.Equal(t, "secret.txt", r.Value.(fs.FileInfo).Name())
 }
 
 // --- Zero Value ---
@@ -191,7 +182,7 @@ func TestFs_ZeroValue_Good(t *testing.T) {
 	dir := t.TempDir()
 	zeroFs := &Fs{}
 
-	path := filepath.Join(dir, "zero.txt")
+	path := Path(dir, "zero.txt")
 	assert.True(t, zeroFs.Write(path, "zero value works").OK)
 	r := zeroFs.Read(path)
 	assert.True(t, r.OK)
@@ -205,7 +196,7 @@ func TestFs_ZeroValue_List_Good(t *testing.T) {
 	dir := t.TempDir()
 	zeroFs := &Fs{}
 
-	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0644)
+	(&Fs{}).New("/").Write(Path(dir, "a.txt"), "a")
 	r := zeroFs.List(dir)
 	assert.True(t, r.OK)
 	entries := r.Value.([]fs.DirEntry)
@@ -246,7 +237,7 @@ func TestFs_DeleteAll_Protected_Ugly(t *testing.T) {
 func TestFs_ReadStream_WriteStream_Good(t *testing.T) {
 	dir := t.TempDir()
 	c := New()
-	path := filepath.Join(dir, "stream.txt")
+	path := Path(dir, "stream.txt")
 	c.Fs().Write(path, "streamed")
 
 	r := c.Fs().ReadStream(path)
@@ -254,4 +245,105 @@ func TestFs_ReadStream_WriteStream_Good(t *testing.T) {
 
 	w := c.Fs().WriteStream(path)
 	assert.True(t, w.OK)
+}
+
+// --- WriteAtomic ---
+
+func TestFs_WriteAtomic_Good(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := Path(dir, "status.json")
+	r := c.Fs().WriteAtomic(path, `{"status":"completed"}`)
+	assert.True(t, r.OK)
+
+	read := c.Fs().Read(path)
+	assert.True(t, read.OK)
+	assert.Equal(t, `{"status":"completed"}`, read.Value)
+}
+
+func TestFs_WriteAtomic_Good_Overwrite(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := Path(dir, "data.txt")
+	c.Fs().WriteAtomic(path, "first")
+	c.Fs().WriteAtomic(path, "second")
+
+	read := c.Fs().Read(path)
+	assert.Equal(t, "second", read.Value)
+}
+
+func TestFs_WriteAtomic_Bad_ReadOnlyDir(t *testing.T) {
+	// Write to a non-existent root that can't be created
+	m := (&Fs{}).New("/proc/nonexistent")
+	r := m.WriteAtomic("file.txt", "data")
+	assert.False(t, r.OK, "WriteAtomic must fail when parent dir cannot be created")
+}
+
+func TestFs_WriteAtomic_Ugly_NoTempFileLeftOver(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := Path(dir, "clean.txt")
+	c.Fs().WriteAtomic(path, "content")
+
+	// Check no .tmp files remain
+	lr := c.Fs().List(dir)
+	entries, _ := lr.Value.([]fs.DirEntry)
+	for _, e := range entries {
+		assert.False(t, Contains(e.Name(), ".tmp."), "temp file should not remain after successful atomic write")
+	}
+}
+
+func TestFs_WriteAtomic_Good_CreatesParentDir(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	path := Path(dir, "sub", "dir", "file.txt")
+	r := c.Fs().WriteAtomic(path, "nested")
+	assert.True(t, r.OK)
+
+	read := c.Fs().Read(path)
+	assert.Equal(t, "nested", read.Value)
+}
+
+// --- NewUnrestricted ---
+
+func TestFs_NewUnrestricted_Good(t *testing.T) {
+	sandboxed := (&Fs{}).New(t.TempDir())
+	unrestricted := sandboxed.NewUnrestricted()
+	assert.Equal(t, "/", unrestricted.Root())
+}
+
+func TestFs_NewUnrestricted_Good_CanReadOutsideSandbox(t *testing.T) {
+	dir := t.TempDir()
+	outside := Path(dir, "outside.txt")
+	(&Fs{}).New("/").Write(outside, "hello")
+
+	sandboxed := (&Fs{}).New(Path(dir, "sandbox"))
+	unrestricted := sandboxed.NewUnrestricted()
+
+	r := unrestricted.Read(outside)
+	assert.True(t, r.OK, "unrestricted Fs must read paths outside the original sandbox")
+	assert.Equal(t, "hello", r.Value)
+}
+
+func TestFs_NewUnrestricted_Ugly_OriginalStaysSandboxed(t *testing.T) {
+	dir := t.TempDir()
+	sandbox := Path(dir, "sandbox")
+	(&Fs{}).New("/").EnsureDir(sandbox)
+
+	sandboxed := (&Fs{}).New(sandbox)
+	_ = sandboxed.NewUnrestricted() // getting unrestricted doesn't affect original
+
+	assert.Equal(t, sandbox, sandboxed.Root(), "original Fs must remain sandboxed")
+}
+
+// --- Root ---
+
+func TestFs_Root_Good(t *testing.T) {
+	m := (&Fs{}).New("/home/agent")
+	assert.Equal(t, "/home/agent", m.Root())
+}
+
+func TestFs_Root_Good_Default(t *testing.T) {
+	m := (&Fs{}).New("")
+	assert.Equal(t, "/", m.Root())
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"os"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -21,12 +20,12 @@ func mustMountTestFS(t *testing.T, basedir string) *Embed {
 	return r.Value.(*Embed)
 }
 
-func TestMount_Good(t *testing.T) {
+func TestEmbed_Mount_Good(t *testing.T) {
 	r := Mount(testFS, "testdata")
 	assert.True(t, r.OK)
 }
 
-func TestMount_Bad(t *testing.T) {
+func TestEmbed_Mount_Bad(t *testing.T) {
 	r := Mount(testFS, "nonexistent")
 	assert.False(t, r.OK)
 }
@@ -88,45 +87,45 @@ func TestEmbed_EmbedFS_Good(t *testing.T) {
 
 // --- Extract ---
 
-func TestExtract_Good(t *testing.T) {
+func TestEmbed_Extract_Good(t *testing.T) {
 	dir := t.TempDir()
 	r := Extract(testFS, dir, nil)
 	assert.True(t, r.OK)
 
-	content, err := os.ReadFile(dir + "/testdata/test.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "hello from testdata\n", string(content))
+	cr := (&Fs{}).New("/").Read(Path(dir, "testdata/test.txt"))
+	assert.True(t, cr.OK)
+	assert.Equal(t, "hello from testdata\n", cr.Value)
 }
 
 // --- Asset Pack ---
 
-func TestAddGetAsset_Good(t *testing.T) {
+func TestEmbed_AddGetAsset_Good(t *testing.T) {
 	AddAsset("test-group", "greeting", mustCompress("hello world"))
 	r := GetAsset("test-group", "greeting")
 	assert.True(t, r.OK)
 	assert.Equal(t, "hello world", r.Value.(string))
 }
 
-func TestGetAsset_Bad(t *testing.T) {
+func TestEmbed_GetAsset_Bad(t *testing.T) {
 	r := GetAsset("missing-group", "missing")
 	assert.False(t, r.OK)
 }
 
-func TestGetAssetBytes_Good(t *testing.T) {
+func TestEmbed_GetAssetBytes_Good(t *testing.T) {
 	AddAsset("bytes-group", "file", mustCompress("binary content"))
 	r := GetAssetBytes("bytes-group", "file")
 	assert.True(t, r.OK)
 	assert.Equal(t, []byte("binary content"), r.Value.([]byte))
 }
 
-func TestMountEmbed_Good(t *testing.T) {
+func TestEmbed_MountEmbed_Good(t *testing.T) {
 	r := MountEmbed(testFS, "testdata")
 	assert.True(t, r.OK)
 }
 
 // --- ScanAssets ---
 
-func TestScanAssets_Good(t *testing.T) {
+func TestEmbed_ScanAssets_Good(t *testing.T) {
 	r := ScanAssets([]string{"testdata/scantest/sample.go"})
 	assert.True(t, r.OK)
 	pkgs := r.Value.([]ScannedPackage)
@@ -134,27 +133,27 @@ func TestScanAssets_Good(t *testing.T) {
 	assert.Equal(t, "scantest", pkgs[0].PackageName)
 }
 
-func TestScanAssets_Bad(t *testing.T) {
+func TestEmbed_ScanAssets_Bad(t *testing.T) {
 	r := ScanAssets([]string{"nonexistent.go"})
 	assert.False(t, r.OK)
 }
 
-func TestGeneratePack_Empty_Good(t *testing.T) {
+func TestEmbed_GeneratePack_Empty_Good(t *testing.T) {
 	pkg := ScannedPackage{PackageName: "empty"}
 	r := GeneratePack(pkg)
 	assert.True(t, r.OK)
 	assert.Contains(t, r.Value.(string), "package empty")
 }
 
-func TestGeneratePack_WithFiles_Good(t *testing.T) {
+func TestEmbed_GeneratePack_WithFiles_Good(t *testing.T) {
 	dir := t.TempDir()
-	assetDir := dir + "/mygroup"
-	os.MkdirAll(assetDir, 0755)
-	os.WriteFile(assetDir+"/hello.txt", []byte("hello world"), 0644)
+	assetDir := Path(dir, "mygroup")
+	(&Fs{}).New("/").EnsureDir(assetDir)
+	(&Fs{}).New("/").Write(Path(assetDir, "hello.txt"), "hello world")
 
 	source := "package test\nimport \"dappco.re/go/core\"\nfunc example() {\n\t_, _ = core.GetAsset(\"mygroup\", \"hello.txt\")\n}\n"
-	goFile := dir + "/test.go"
-	os.WriteFile(goFile, []byte(source), 0644)
+	goFile := Path(dir, "test.go")
+	(&Fs{}).New("/").Write(goFile, source)
 
 	sr := ScanAssets([]string{goFile})
 	assert.True(t, sr.OK)
@@ -167,46 +166,48 @@ func TestGeneratePack_WithFiles_Good(t *testing.T) {
 
 // --- Extract (template + nested) ---
 
-func TestExtract_WithTemplate_Good(t *testing.T) {
+func TestEmbed_Extract_WithTemplate_Good(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create an in-memory FS with a template file and a plain file
-	tmplDir := os.DirFS(t.TempDir())
+	tmplDir := DirFS(t.TempDir())
 
 	// Use a real temp dir with files
 	srcDir := t.TempDir()
-	os.WriteFile(srcDir+"/plain.txt", []byte("static content"), 0644)
-	os.WriteFile(srcDir+"/greeting.tmpl", []byte("Hello {{.Name}}!"), 0644)
-	os.MkdirAll(srcDir+"/sub", 0755)
-	os.WriteFile(srcDir+"/sub/nested.txt", []byte("nested"), 0644)
+	(&Fs{}).New("/").Write(Path(srcDir, "plain.txt"), "static content")
+	(&Fs{}).New("/").Write(Path(srcDir, "greeting.tmpl"), "Hello {{.Name}}!")
+	(&Fs{}).New("/").EnsureDir(Path(srcDir, "sub"))
+	(&Fs{}).New("/").Write(Path(srcDir, "sub/nested.txt"), "nested")
 
 	_ = tmplDir
-	fsys := os.DirFS(srcDir)
+	fsys := DirFS(srcDir)
 	data := map[string]string{"Name": "World"}
 
 	r := Extract(fsys, dir, data)
 	assert.True(t, r.OK)
 
+	f := (&Fs{}).New("/")
+
 	// Plain file copied
-	content, err := os.ReadFile(dir + "/plain.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "static content", string(content))
+	cr := f.Read(Path(dir, "plain.txt"))
+	assert.True(t, cr.OK)
+	assert.Equal(t, "static content", cr.Value)
 
 	// Template processed and .tmpl stripped
-	greeting, err := os.ReadFile(dir + "/greeting")
-	assert.NoError(t, err)
-	assert.Equal(t, "Hello World!", string(greeting))
+	gr := f.Read(Path(dir, "greeting"))
+	assert.True(t, gr.OK)
+	assert.Equal(t, "Hello World!", gr.Value)
 
 	// Nested directory preserved
-	nested, err := os.ReadFile(dir + "/sub/nested.txt")
-	assert.NoError(t, err)
-	assert.Equal(t, "nested", string(nested))
+	nr := f.Read(Path(dir, "sub/nested.txt"))
+	assert.True(t, nr.OK)
+	assert.Equal(t, "nested", nr.Value)
 }
 
-func TestExtract_BadTargetDir_Ugly(t *testing.T) {
+func TestEmbed_Extract_BadTargetDir_Ugly(t *testing.T) {
 	srcDir := t.TempDir()
-	os.WriteFile(srcDir+"/f.txt", []byte("x"), 0644)
-	r := Extract(os.DirFS(srcDir), "/nonexistent/deeply/nested/impossible", nil)
+	(&Fs{}).New("/").Write(Path(srcDir, "f.txt"), "x")
+	r := Extract(DirFS(srcDir), "/nonexistent/deeply/nested/impossible", nil)
 	// Should fail gracefully, not panic
 	_ = r
 }
@@ -244,12 +245,12 @@ func TestEmbed_EmbedFS_Original_Good(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestExtract_NilData_Good(t *testing.T) {
+func TestEmbed_Extract_NilData_Good(t *testing.T) {
 	dir := t.TempDir()
 	srcDir := t.TempDir()
-	os.WriteFile(srcDir+"/file.txt", []byte("no template"), 0644)
+	(&Fs{}).New("/").Write(Path(srcDir, "file.txt"), "no template")
 
-	r := Extract(os.DirFS(srcDir), dir, nil)
+	r := Extract(DirFS(srcDir), dir, nil)
 	assert.True(t, r.OK)
 }
 

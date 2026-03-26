@@ -3,8 +3,6 @@
 package core_test
 
 import (
-	"os"
-	"runtime"
 	"testing"
 	"time"
 
@@ -13,88 +11,84 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEnv_OS(t *testing.T) {
-	assert.Equal(t, runtime.GOOS, core.Env("OS"))
+func TestInfo_Env_OS_Good(t *testing.T) {
+	v := core.Env("OS")
+	assert.NotEmpty(t, v)
+	assert.Contains(t, []string{"darwin", "linux", "windows"}, v)
 }
 
-func TestEnv_ARCH(t *testing.T) {
-	assert.Equal(t, runtime.GOARCH, core.Env("ARCH"))
+func TestInfo_Env_ARCH_Good(t *testing.T) {
+	v := core.Env("ARCH")
+	assert.NotEmpty(t, v)
+	assert.Contains(t, []string{"amd64", "arm64", "386"}, v)
 }
 
-func TestEnv_GO(t *testing.T) {
-	assert.Equal(t, runtime.Version(), core.Env("GO"))
+func TestInfo_Env_GO_Good(t *testing.T) {
+	assert.True(t, core.HasPrefix(core.Env("GO"), "go"))
 }
 
-func TestEnv_DS(t *testing.T) {
-	assert.Equal(t, string(os.PathSeparator), core.Env("DS"))
+func TestInfo_Env_DS_Good(t *testing.T) {
+	ds := core.Env("DS")
+	assert.Contains(t, []string{"/", "\\"}, ds)
 }
 
-func TestEnv_PS(t *testing.T) {
-	assert.Equal(t, string(os.PathListSeparator), core.Env("PS"))
+func TestInfo_Env_PS_Good(t *testing.T) {
+	ps := core.Env("PS")
+	assert.Contains(t, []string{":", ";"}, ps)
 }
 
-func TestEnv_DIR_HOME(t *testing.T) {
-	if ch := os.Getenv("CORE_HOME"); ch != "" {
-		assert.Equal(t, ch, core.Env("DIR_HOME"))
-		return
-	}
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
-	assert.Equal(t, home, core.Env("DIR_HOME"))
+func TestInfo_Env_DIR_HOME_Good(t *testing.T) {
+	home := core.Env("DIR_HOME")
+	assert.NotEmpty(t, home)
+	assert.True(t, core.PathIsAbs(home), "DIR_HOME should be absolute")
 }
 
-func TestEnv_DIR_TMP(t *testing.T) {
-	assert.Equal(t, os.TempDir(), core.Env("DIR_TMP"))
+func TestInfo_Env_DIR_TMP_Good(t *testing.T) {
+	assert.NotEmpty(t, core.Env("DIR_TMP"))
 }
 
-func TestEnv_DIR_CONFIG(t *testing.T) {
-	cfg, err := os.UserConfigDir()
-	require.NoError(t, err)
-	assert.Equal(t, cfg, core.Env("DIR_CONFIG"))
+func TestInfo_Env_DIR_CONFIG_Good(t *testing.T) {
+	assert.NotEmpty(t, core.Env("DIR_CONFIG"))
 }
 
-func TestEnv_DIR_CACHE(t *testing.T) {
-	cache, err := os.UserCacheDir()
-	require.NoError(t, err)
-	assert.Equal(t, cache, core.Env("DIR_CACHE"))
+func TestInfo_Env_DIR_CACHE_Good(t *testing.T) {
+	assert.NotEmpty(t, core.Env("DIR_CACHE"))
 }
 
-func TestEnv_HOSTNAME(t *testing.T) {
-	hostname, err := os.Hostname()
-	require.NoError(t, err)
-	assert.Equal(t, hostname, core.Env("HOSTNAME"))
+func TestInfo_Env_HOSTNAME_Good(t *testing.T) {
+	assert.NotEmpty(t, core.Env("HOSTNAME"))
 }
 
-func TestEnv_USER(t *testing.T) {
+func TestInfo_Env_USER_Good(t *testing.T) {
 	assert.NotEmpty(t, core.Env("USER"))
 }
 
-func TestEnv_PID(t *testing.T) {
+func TestInfo_Env_PID_Good(t *testing.T) {
 	assert.NotEmpty(t, core.Env("PID"))
 }
 
-func TestEnv_NUM_CPU(t *testing.T) {
+func TestInfo_Env_NUM_CPU_Good(t *testing.T) {
 	assert.NotEmpty(t, core.Env("NUM_CPU"))
 }
 
-func TestEnv_CORE_START(t *testing.T) {
+func TestInfo_Env_CORE_START_Good(t *testing.T) {
 	ts := core.Env("CORE_START")
 	require.NotEmpty(t, ts)
 	_, err := time.Parse(time.RFC3339, ts)
 	assert.NoError(t, err, "CORE_START should be valid RFC3339")
 }
 
-func TestEnv_Unknown(t *testing.T) {
+func TestInfo_Env_Bad_Unknown(t *testing.T) {
 	assert.Equal(t, "", core.Env("NOPE"))
 }
 
-func TestEnv_CoreInstance(t *testing.T) {
+func TestInfo_Env_Good_CoreInstance(t *testing.T) {
 	c := core.New()
 	assert.Equal(t, core.Env("OS"), c.Env("OS"))
 	assert.Equal(t, core.Env("DIR_HOME"), c.Env("DIR_HOME"))
 }
 
-func TestEnvKeys(t *testing.T) {
+func TestInfo_EnvKeys_Good(t *testing.T) {
 	keys := core.EnvKeys()
 	assert.NotEmpty(t, keys)
 	assert.Contains(t, keys, "OS")

@@ -7,6 +7,7 @@ package core
 import (
 	"context"
 	"reflect"
+	"sync"
 )
 
 // Message is the type for IPC broadcasts (fire-and-forget).
@@ -15,30 +16,25 @@ type Message any
 // Query is the type for read-only IPC requests.
 type Query any
 
-// Task is the type for IPC requests that perform side effects.
-type Task any
-
-// TaskWithIdentifier is an optional interface for tasks that need to know their assigned identifier.
-type TaskWithIdentifier interface {
-	Task
-	SetTaskIdentifier(id string)
-	GetTaskIdentifier() string
-}
-
 // QueryHandler handles Query requests. Returns Result{Value, OK}.
 type QueryHandler func(*Core, Query) Result
 
-// TaskHandler handles Task requests. Returns Result{Value, OK}.
-type TaskHandler func(*Core, Task) Result
-
 // Startable is implemented by services that need startup initialisation.
+//
+//	func (s *MyService) OnStartup(ctx context.Context) core.Result {
+//	    return core.Result{OK: true}
+//	}
 type Startable interface {
-	OnStartup(ctx context.Context) error
+	OnStartup(ctx context.Context) Result
 }
 
 // Stoppable is implemented by services that need shutdown cleanup.
+//
+//	func (s *MyService) OnShutdown(ctx context.Context) core.Result {
+//	    return core.Result{OK: true}
+//	}
 type Stoppable interface {
-	OnShutdown(ctx context.Context) error
+	OnShutdown(ctx context.Context) Result
 }
 
 // --- Action Messages ---
@@ -48,21 +44,21 @@ type ActionServiceShutdown struct{}
 
 type ActionTaskStarted struct {
 	TaskIdentifier string
-	Task           Task
+	Action         string
+	Options        Options
 }
 
 type ActionTaskProgress struct {
 	TaskIdentifier string
-	Task           Task
+	Action         string
 	Progress       float64
 	Message        string
 }
 
 type ActionTaskCompleted struct {
 	TaskIdentifier string
-	Task           Task
-	Result         any
-	Error          error
+	Action         string
+	Result         Result
 }
 
 // --- Constructor ---
@@ -81,30 +77,32 @@ type CoreOption func(*Core) Result
 // Services registered here form the application conclave — they share
 // IPC access and participate in the lifecycle (ServiceStartup/ServiceShutdown).
 //
-//	r := core.New(
-//	    core.WithOptions(core.NewOptions(core.Option{Key: "name", Value: "myapp"})),
+//	c := core.New(
+//	    core.WithOption("name", "myapp"),
 //	    core.WithService(auth.Register),
 //	    core.WithServiceLock(),
 //	)
-//	if !r.OK { log.Fatal(r.Value) }
-//	c := r.Value.(*Core)
+//	c.Run()
 func New(opts ...CoreOption) *Core {
 	c := &Core{
 		app:      &App{},
-		data:     &Data{},
-		drive:    &Drive{},
+		data:     &Data{Registry: NewRegistry[*Embed]()},
+		drive:    &Drive{Registry: NewRegistry[*DriveHandle]()},
 		fs:       (&Fs{}).New("/"),
 		config:   (&Config{}).New(),
 		error:    &ErrorPanic{},
 		log:      &ErrorLog{},
-		lock:     &Lock{},
-		ipc:      &Ipc{},
+		lock:     &Lock{locks: NewRegistry[*sync.RWMutex]()},
+		ipc:      &Ipc{actions: NewRegistry[*Action](), tasks: NewRegistry[*Task]()},
 		info:     systemInfo,
 		i18n:     &I18n{},
-		services: &serviceRegistry{services: make(map[string]*Service)},
-		commands: &commandRegistry{commands: make(map[string]*Command)},
+		api:                &API{protocols: NewRegistry[StreamFactory]()},
+		services:           &ServiceRegistry{Registry: NewRegistry[*Service]()},
+		commands:           &CommandRegistry{Registry: NewRegistry[*Command]()},
+		entitlementChecker: defaultChecker,
 	}
 	c.context, c.cancel = context.WithCancel(context.Background())
+	c.api.core = c
 
 	// Core services
 	CliRegister(c)
