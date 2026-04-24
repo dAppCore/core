@@ -9,6 +9,11 @@ import (
 )
 
 // Lock is the DTO for a named mutex.
+//
+// Mutex is the backing sync.RWMutex.
+//
+// Deprecated: direct field access forces consumers to import "sync".
+// Use the Lock/Unlock/RLock/RUnlock/TryLock methods instead. Removed in v0.9.0.
 type Lock struct {
 	Name  string
 	Mutex *sync.RWMutex
@@ -17,6 +22,9 @@ type Lock struct {
 
 // Lock returns a named Lock, creating the mutex if needed.
 // Locks are per-Core — separate Core instances do not share mutexes.
+//
+//	l := c.Lock("drain")
+//	l.Lock(); defer l.Unlock()
 func (c *Core) Lock(name string) *Lock {
 	r := c.lock.locks.Get(name)
 	if r.OK {
@@ -25,6 +33,42 @@ func (c *Core) Lock(name string) *Lock {
 	m := &sync.RWMutex{}
 	c.lock.locks.Set(name, m)
 	return &Lock{Name: name, Mutex: m}
+}
+
+// Lock acquires the named mutex for write.
+//
+//	c.Lock("drain").Lock()
+//	defer c.Lock("drain").Unlock()
+func (l *Lock) Lock() { l.Mutex.Lock() }
+
+// Unlock releases the named mutex from write.
+//
+//	c.Lock("drain").Unlock()
+func (l *Lock) Unlock() { l.Mutex.Unlock() }
+
+// RLock acquires the named mutex for read.
+//
+//	c.Lock("cache").RLock()
+//	defer c.Lock("cache").RUnlock()
+func (l *Lock) RLock() { l.Mutex.RLock() }
+
+// RUnlock releases the named mutex from read.
+//
+//	c.Lock("cache").RUnlock()
+func (l *Lock) RUnlock() { l.Mutex.RUnlock() }
+
+// TryLock attempts to acquire the write mutex without blocking.
+// Returns Result{OK: true} when acquired, Result{OK: false} when held.
+//
+//	if c.Lock("drain").TryLock().OK {
+//	    defer c.Lock("drain").Unlock()
+//	    // ...
+//	}
+func (l *Lock) TryLock() Result {
+	if l.Mutex.TryLock() {
+		return Result{OK: true}
+	}
+	return Result{OK: false}
 }
 
 // LockEnable marks that the service lock should be applied after initialisation.
