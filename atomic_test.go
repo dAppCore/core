@@ -1,0 +1,222 @@
+package core_test
+
+import (
+	"testing"
+
+	. "dappco.re/go/core"
+	"github.com/stretchr/testify/assert"
+)
+
+// --- AtomicBool ---
+
+func TestAtomic_Bool_Good(t *testing.T) {
+	var a AtomicBool
+	assert.False(t, a.Load())
+	a.Store(true)
+	assert.True(t, a.Load())
+}
+
+func TestAtomic_Bool_Bad(t *testing.T) {
+	// Bad: CompareAndSwap with wrong old returns false, no change.
+	var a AtomicBool
+	a.Store(true)
+	swapped := a.CompareAndSwap(false, false)
+	assert.False(t, swapped)
+	assert.True(t, a.Load(), "CAS with wrong old must not mutate")
+}
+
+func TestAtomic_Bool_Ugly(t *testing.T) {
+	// Ugly: 100 goroutines racing CompareAndSwap to claim a one-shot flag.
+	// Exactly one must win.
+	var a AtomicBool
+	var wins AtomicInt32
+	var wg WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if a.CompareAndSwap(false, true) {
+				wins.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, int32(1), wins.Load(),
+		"exactly one goroutine must win the CAS race")
+}
+
+// --- AtomicInt32 ---
+
+func TestAtomic_Int32_Good(t *testing.T) {
+	var a AtomicInt32
+	a.Store(5)
+	assert.Equal(t, int32(5), a.Load())
+	got := a.Add(3)
+	assert.Equal(t, int32(8), got)
+}
+
+func TestAtomic_Int32_Bad(t *testing.T) {
+	// Bad: Swap returns previous value, not new.
+	var a AtomicInt32
+	a.Store(10)
+	prev := a.Swap(20)
+	assert.Equal(t, int32(10), prev)
+	assert.Equal(t, int32(20), a.Load())
+}
+
+func TestAtomic_Int32_Ugly(t *testing.T) {
+	// Ugly: 1000 concurrent Adds. Final value must be exact (race-free).
+	var a AtomicInt32
+	var wg WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			a.Add(1)
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, int32(1000), a.Load())
+}
+
+// --- AtomicInt64 ---
+
+func TestAtomic_Int64_Good(t *testing.T) {
+	var a AtomicInt64
+	a.Store(1 << 40)
+	assert.Equal(t, int64(1<<40), a.Load())
+}
+
+func TestAtomic_Int64_Bad(t *testing.T) {
+	var a AtomicInt64
+	a.Store(100)
+	swapped := a.CompareAndSwap(99, 200)
+	assert.False(t, swapped)
+	assert.Equal(t, int64(100), a.Load())
+}
+
+func TestAtomic_Int64_Ugly(t *testing.T) {
+	var a AtomicInt64
+	var wg WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			a.Add(1)
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, int64(1000), a.Load())
+}
+
+// --- AtomicUint32 ---
+
+func TestAtomic_Uint32_Good(t *testing.T) {
+	var a AtomicUint32
+	a.Store(7)
+	assert.Equal(t, uint32(7), a.Load())
+	a.Add(3)
+	assert.Equal(t, uint32(10), a.Load())
+}
+
+func TestAtomic_Uint32_Bad(t *testing.T) {
+	var a AtomicUint32
+	a.Store(5)
+	swapped := a.CompareAndSwap(99, 10)
+	assert.False(t, swapped)
+	assert.Equal(t, uint32(5), a.Load())
+}
+
+func TestAtomic_Uint32_Ugly(t *testing.T) {
+	var a AtomicUint32
+	var wg WaitGroup
+	for i := 0; i < 500; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			a.Add(2)
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, uint32(1000), a.Load())
+}
+
+// --- AtomicUint64 ---
+
+func TestAtomic_Uint64_Good(t *testing.T) {
+	var a AtomicUint64
+	a.Store(1 << 50)
+	assert.Equal(t, uint64(1<<50), a.Load())
+}
+
+func TestAtomic_Uint64_Bad(t *testing.T) {
+	var a AtomicUint64
+	a.Store(100)
+	prev := a.Swap(200)
+	assert.Equal(t, uint64(100), prev)
+}
+
+func TestAtomic_Uint64_Ugly(t *testing.T) {
+	var a AtomicUint64
+	var wg WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			a.Add(1)
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, uint64(1000), a.Load())
+}
+
+// --- AtomicPointer ---
+
+type pointerVal struct {
+	n int
+}
+
+func TestAtomic_Pointer_Good(t *testing.T) {
+	var a AtomicPointer[pointerVal]
+	assert.Nil(t, a.Load())
+	v := &pointerVal{n: 42}
+	a.Store(v)
+	assert.Equal(t, 42, a.Load().n)
+}
+
+func TestAtomic_Pointer_Bad(t *testing.T) {
+	// Bad: Swap returns nil if no prior value.
+	var a AtomicPointer[pointerVal]
+	prev := a.Swap(&pointerVal{n: 1})
+	assert.Nil(t, prev)
+}
+
+func TestAtomic_Pointer_Ugly(t *testing.T) {
+	// Ugly: 100 goroutines racing Store; Load at the end returns one of them.
+	var a AtomicPointer[pointerVal]
+	var wg WaitGroup
+	pvs := make([]*pointerVal, 100)
+	for i := 0; i < 100; i++ {
+		pvs[i] = &pointerVal{n: i}
+		wg.Add(1)
+		go func(pv *pointerVal) {
+			defer wg.Done()
+			a.Store(pv)
+		}(pvs[i])
+	}
+	wg.Wait()
+	final := a.Load()
+	assert.NotNil(t, final, "after 100 stores, Load must return non-nil")
+	assert.GreaterOrEqual(t, final.n, 0)
+	assert.Less(t, final.n, 100)
+}
+
+func TestAtomic_Pointer_CompareAndSwap_Good(t *testing.T) {
+	var a AtomicPointer[pointerVal]
+	old := &pointerVal{n: 1}
+	new := &pointerVal{n: 2}
+	a.Store(old)
+	swapped := a.CompareAndSwap(old, new)
+	assert.True(t, swapped)
+	assert.Equal(t, 2, a.Load().n)
+}
