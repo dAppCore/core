@@ -7,7 +7,6 @@ package core
 
 import (
 	"context"
-	"os"
 	"sync"
 	"sync/atomic"
 )
@@ -156,14 +155,15 @@ func (c *Core) RunE() error {
 }
 
 // Run starts all services, runs the CLI, then shuts down.
-// Calls os.Exit(1) on failure. For error handling use RunE().
+// Calls c.Exit(1) on failure (graceful shutdown chain, 30s timeout).
+// For error handling use RunE().
 //
 //	c := core.New(core.WithService(myService.Register))
 //	c.Run()
 func (c *Core) Run() {
 	if err := c.RunE(); err != nil {
 		Error(err.Error())
-		os.Exit(1)
+		c.Exit(1)
 	}
 }
 
