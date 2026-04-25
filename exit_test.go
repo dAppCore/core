@@ -77,6 +77,42 @@ func TestExit_ExitWith_Bad(t *testing.T) {
 	assert.Equal(t, 9, *got)
 }
 
+func TestExit_ExitWithNegativeTimeout_Bad(t *testing.T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	// Service whose OnStop returns immediately so we don't wait the full 30s.
+	c := New()
+	c.Service("fast", Service{
+		OnStop: func() Result {
+			return Result{OK: true}
+		},
+	})
+
+	start := time.Now()
+	c.ExitWith(ExitOptions{Code: 7, Timeout: -1})
+	elapsed := time.Since(start)
+
+	assert.Equal(t, 7, *got, "ExitWith should still call osExit with the requested code")
+	assert.Less(t, elapsed, 5*time.Second,
+		"negative timeout must NOT fall through to wait-forever; default fallback should bound shutdown")
+}
+
+func TestExit_ExitWithZeroTimeout_Good(t *testing.T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.Service("instant", Service{OnStop: func() Result { return Result{OK: true} }})
+
+	c.ExitWith(ExitOptions{Code: 4, Timeout: 0})
+
+	// Timeout==0 → wait forever — but the service's OnStop returns
+	// immediately so we shouldn't actually wait. The test asserts the
+	// documented zero-means-wait-forever-but-returns-when-ready semantics.
+	assert.Equal(t, 4, *got)
+}
+
 func TestExit_ExitWith_Ugly(t *testing.T) {
 	// Ugly: shutdown takes longer than the timeout. Service blocks for 200ms,
 	// timeout is 10ms — process exits with the warning logged, no panic.

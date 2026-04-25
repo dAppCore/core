@@ -36,6 +36,8 @@ type ExitOptions struct {
 	Code int
 	// Timeout bounds how long ServiceShutdown may run before the process
 	// terminates anyway. Zero means wait forever (legacy behaviour).
+	// Negative is invalid — ExitWith warns and falls back to a 30s default
+	// rather than silently waiting forever.
 	Timeout time.Duration
 }
 
@@ -62,11 +64,19 @@ func (c *Core) Exit(code int) {
 //	c.ExitWith(core.ExitOptions{Code: 0, Timeout: 5 * time.Second})
 func (c *Core) ExitWith(opts ExitOptions) {
 	ctx := context.Background()
-	if opts.Timeout > 0 {
+	switch {
+	case opts.Timeout < 0:
+		// Negative timeout is invalid — log and reject; treat as 30s default.
+		Warn("invalid negative ExitOptions.Timeout, using 30s default", "timeout", opts.Timeout)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	case opts.Timeout > 0:
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
 		defer cancel()
 	}
+	// Timeout == 0 → no context, wait forever (legacy behaviour preserved per RFC §15B)
 	done := make(chan struct{})
 	go func() {
 		_ = c.ServiceShutdown(ctx)
