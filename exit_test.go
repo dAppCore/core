@@ -102,10 +102,6 @@ func TestExitWith_NegativeTimeout_Bad(t *testing.T) {
 	got, restore := captureExit(t)
 	defer restore()
 
-	previousFallback := exitNegativeTimeoutFallback
-	exitNegativeTimeoutFallback = 20 * time.Millisecond
-	t.Cleanup(func() { exitNegativeTimeoutFallback = previousFallback })
-
 	c := New()
 	release := blockShutdown(c)
 	defer release()
@@ -118,21 +114,16 @@ func TestExitWith_NegativeTimeout_Bad(t *testing.T) {
 	}()
 
 	waitForExitWithCleanup(t, done, release, 500*time.Millisecond,
-		"negative ExitOptions.Timeout must use the safe fallback, not wait forever")
+		"negative ExitOptions.Timeout must exit immediately, not wait forever")
 
 	elapsed := time.Since(start)
 	assert.Equal(t, 7, *got)
-	assert.GreaterOrEqual(t, elapsed, 10*time.Millisecond)
-	assert.Less(t, elapsed, 500*time.Millisecond)
+	assert.Less(t, elapsed, 100*time.Millisecond)
 }
 
 func TestExitWith_ZeroTimeout_Good(t *testing.T) {
 	got, restore := captureExit(t)
 	defer restore()
-
-	previousFallback := exitNegativeTimeoutFallback
-	exitNegativeTimeoutFallback = 20 * time.Millisecond
-	t.Cleanup(func() { exitNegativeTimeoutFallback = previousFallback })
 
 	c := New()
 	release := blockShutdown(c)

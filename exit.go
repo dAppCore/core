@@ -28,8 +28,6 @@ import (
 // Tests override via the testExitCode hook; production wires straight through.
 var osExit = os.Exit
 
-var exitNegativeTimeoutFallback = 30 * time.Second
-
 // ExitOptions configures graceful exit behaviour.
 //
 //	c.ExitWith(core.ExitOptions{Code: 1, Timeout: 5 * time.Second})
@@ -65,15 +63,7 @@ func (c *Core) Exit(code int) {
 func (c *Core) ExitWith(opts ExitOptions) {
 	ctx := context.Background()
 	timeout := opts.Timeout
-	switch {
-	case opts.Timeout < 0:
-		timeout = exitNegativeTimeoutFallback
-		Warn("negative exit timeout, using safe default",
-			"timeout", opts.Timeout, "default", timeout, "code", opts.Code)
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	case opts.Timeout > 0:
+	if timeout != 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
