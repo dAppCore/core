@@ -141,6 +141,27 @@ func TestExit_ExitNow_Ugly(t *testing.T) {
 		"ExitNow must skip the shutdown chain — OnStop must not run")
 }
 
+func TestRun_FailurePath_ShutdownFiresOnce_Bad(t *testing.T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	shutdownCount := 0
+	c := New()
+	c.Service("failing", Service{
+		OnStart: func() Result {
+			return Result{Value: errors.New("simulated startup failure"), OK: false}
+		},
+		OnStop: func() Result {
+			shutdownCount++
+			return Result{OK: true}
+		},
+	})
+	c.Run()
+
+	assert.Equal(t, 1, *got, "Run should call osExit(1) on failure")
+	assert.Equal(t, 1, shutdownCount, "OnStop should fire exactly once, not twice")
+}
+
 func TestExit_PackageExit_Good(t *testing.T) {
 	got, restore := captureExit(t)
 	defer restore()

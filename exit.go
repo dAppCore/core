@@ -85,6 +85,7 @@ func (c *Core) ExitWith(opts ExitOptions) {
 // ExitNow terminates immediately without running shutdown hooks.
 // Use only when shutdown is hung or unsafe (e.g. inside a panic the shutdown
 // chain may have caused).
+// Also valid when shutdown has already run via a defer chain.
 //
 //	defer func() {
 //	    if r := recover(); r != nil { c.ExitNow(2) }

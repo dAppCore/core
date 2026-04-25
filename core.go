@@ -155,7 +155,7 @@ func (c *Core) RunE() error {
 }
 
 // Run starts all services, runs the CLI, then shuts down.
-// Calls c.Exit(1) on failure (graceful shutdown chain, 30s timeout).
+// Calls c.ExitNow(1) on failure because RunE already shut down via defer.
 // For error handling use RunE().
 //
 //	c := core.New(core.WithService(myService.Register))
@@ -163,7 +163,8 @@ func (c *Core) RunE() error {
 func (c *Core) Run() {
 	if err := c.RunE(); err != nil {
 		Error(err.Error())
-		c.Exit(1)
+		// ExitNow because RunE's defer already ran ServiceShutdown.
+		c.ExitNow(1)
 	}
 }
 
