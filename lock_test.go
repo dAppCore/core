@@ -1,6 +1,8 @@
 package core_test
 
 import (
+	"os"
+	"os/exec"
 	"testing"
 
 	. "dappco.re/go/core"
@@ -87,12 +89,21 @@ func TestLock_RLockRUnlock_Good(t *testing.T) {
 }
 
 func TestLock_RLockRUnlock_Bad(t *testing.T) {
-	c := New()
-	l := c.Lock("write-held")
-	l.Lock()
-	defer l.Unlock()
-	r := l.TryLock()
-	assert.False(t, r.OK, "TryLock when write-held must fail (readers also blocked)")
+	if os.Getenv("CORE_LOCK_RUNLOCK_BAD") == "1" {
+		c := New()
+		l := c.Lock("not-rlocked")
+		l.Mutex.RUnlock()
+		return
+	}
+
+	t.Run("without-prior-rlock", func(t *testing.T) {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestLock_RLockRUnlock_Bad$")
+		cmd.Env = append(os.Environ(), "CORE_LOCK_RUNLOCK_BAD=1")
+		out, err := cmd.CombinedOutput()
+
+		assert.Error(t, err, "RUnlock without prior RLock must fail")
+		assert.Contains(t, string(out), "sync: RUnlock of unlocked RWMutex")
+	})
 }
 
 func TestLock_RLockRUnlock_Ugly(t *testing.T) {
