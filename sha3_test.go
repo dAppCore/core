@@ -9,9 +9,13 @@ import (
 )
 
 const (
-	sha3Keccak256EmptyHex = "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"
-	sha3Keccak256HelloHex = "3338be694f50c5f338814986cdf0686453a888b84f424d792af4b9202398f392"
-	sha3Keccak256QuickHex = "69070dda01975c8c120c3aada1b282394e7f032fa9cf32f4cb2259a0897dfc04"
+	sha3_256EmptyHex = "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"
+	sha3_256HelloHex = "3338be694f50c5f338814986cdf0686453a888b84f424d792af4b9202398f392"
+	sha3_256QuickHex = "69070dda01975c8c120c3aada1b282394e7f032fa9cf32f4cb2259a0897dfc04"
+
+	keccak256EmptyHex = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+	keccak256HelloHex = "1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8"
+	keccak256QuickHex = "4d741b6f1eb29cb2a9b9911c82f56fa8d73b04959d3d9d222895df6c0b28aa15"
 
 	sha3Shake128Empty32Hex = "7f9c2ba4e88f827d616045507605853ed73b8093f6efbc88eb1a6eacfa66ef26"
 	sha3Shake256Empty64Hex = "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762fd75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be"
@@ -19,32 +23,61 @@ const (
 
 // --- SHA3 ---
 
-func TestSHA3_Keccak256_Good(t *testing.T) {
-	sum := SHA3Keccak256([]byte("hello"))
+func TestSHA3_256_Good(t *testing.T) {
+	sum := SHA3_256([]byte("hello"))
 
-	assert.Equal(t, sha3Keccak256HelloHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, sha3Keccak256HelloHex, SHA3Keccak256Hex([]byte("hello")))
+	assert.Equal(t, sha3_256HelloHex, hex.EncodeToString(sum[:]))
+	assert.Equal(t, sha3_256HelloHex, SHA3_256Hex([]byte("hello")))
 }
 
-func TestSHA3_Keccak256_Bad(t *testing.T) {
-	sum := SHA3Keccak256(nil)
+func TestSHA3_256_Bad(t *testing.T) {
+	sum := SHA3_256(nil)
 
-	assert.Equal(t, sha3Keccak256EmptyHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, SHA3Keccak256(nil), SHA3Keccak256([]byte{}))
-	assert.Equal(t, SHA3Keccak256Hex(nil), SHA3Keccak256Hex([]byte{}))
+	assert.Equal(t, sha3_256EmptyHex, hex.EncodeToString(sum[:]))
+	assert.Equal(t, SHA3_256(nil), SHA3_256([]byte{}))
+	assert.Equal(t, SHA3_256Hex(nil), SHA3_256Hex([]byte{}))
 }
 
-func TestSHA3_Keccak256_Ugly(t *testing.T) {
+func TestSHA3_256_Ugly(t *testing.T) {
 	data := []byte("The quick brown fox jumps over the lazy dog")
-	sum := SHA3Keccak256(data)
-	sumHex := SHA3Keccak256Hex(data)
+	sum := SHA3_256(data)
+	sumHex := SHA3_256Hex(data)
 
 	data[0] = 't'
 
-	assert.Equal(t, sha3Keccak256QuickHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, sha3Keccak256QuickHex, sumHex)
-	assert.NotEqual(t, sum, SHA3Keccak256(data))
-	assert.NotEqual(t, sumHex, SHA3Keccak256Hex(data))
+	assert.Equal(t, sha3_256QuickHex, hex.EncodeToString(sum[:]))
+	assert.Equal(t, sha3_256QuickHex, sumHex)
+	assert.NotEqual(t, sum, SHA3_256(data))
+	assert.NotEqual(t, sumHex, SHA3_256Hex(data))
+}
+
+func TestKeccak256_Good(t *testing.T) {
+	sum := Keccak256([]byte("hello"))
+
+	assert.Equal(t, keccak256HelloHex, hex.EncodeToString(sum[:]))
+	assert.Equal(t, keccak256HelloHex, Keccak256Hex([]byte("hello")))
+}
+
+func TestKeccak256_Bad(t *testing.T) {
+	sum := Keccak256(nil)
+
+	assert.Equal(t, keccak256EmptyHex, hex.EncodeToString(sum[:]))
+	assert.Equal(t, Keccak256(nil), Keccak256([]byte{}))
+	assert.Equal(t, Keccak256Hex(nil), Keccak256Hex([]byte{}))
+	assert.NotEqual(t, SHA3_256(nil), Keccak256(nil))
+}
+
+func TestKeccak256_Ugly(t *testing.T) {
+	data := []byte("The quick brown fox jumps over the lazy dog")
+	sum := Keccak256(data)
+	sumHex := Keccak256Hex(data)
+
+	data[0] = 't'
+
+	assert.Equal(t, keccak256QuickHex, hex.EncodeToString(sum[:]))
+	assert.Equal(t, keccak256QuickHex, sumHex)
+	assert.NotEqual(t, sum, Keccak256(data))
+	assert.NotEqual(t, sumHex, Keccak256Hex(data))
 }
 
 func TestSHA3_Shake_Good(t *testing.T) {
