@@ -92,7 +92,7 @@ func TestLock_RLockRUnlock_Bad(t *testing.T) {
 	if os.Getenv("CORE_LOCK_RUNLOCK_BAD") == "1" {
 		c := New()
 		l := c.Lock("not-rlocked")
-		l.Mutex.RUnlock()
+		l.RUnlock()
 		return
 	}
 
