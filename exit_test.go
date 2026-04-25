@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,26 @@ func captureExit(t *testing.T) (codePtr *int, restore func()) {
 	prev := osExit
 	osExit = func(code int) { captured = code }
 	return codePtr, func() { osExit = prev }
+}
+
+func blockShutdown(c *Core) func() {
+	c.waitGroup.Add(1)
+	var once sync.Once
+	return func() { once.Do(c.waitGroup.Done) }
+}
+
+func waitForExitWithCleanup(t *testing.T, done <-chan struct{}, release func(), timeout time.Duration, msg string) {
+	t.Helper()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		release()
+		select {
+		case <-done:
+		case <-time.After(timeout):
+		}
+		t.Fatal(msg)
+	}
 }
 
 func TestExit_Exit_Good(t *testing.T) {
@@ -75,6 +96,89 @@ func TestExit_ExitWith_Bad(t *testing.T) {
 	c.ExitWith(ExitOptions{Code: 9, Timeout: 0})
 
 	assert.Equal(t, 9, *got)
+}
+
+func TestExitWith_NegativeTimeout_Bad(t *testing.T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	previousFallback := exitNegativeTimeoutFallback
+	exitNegativeTimeoutFallback = 20 * time.Millisecond
+	t.Cleanup(func() { exitNegativeTimeoutFallback = previousFallback })
+
+	c := New()
+	release := blockShutdown(c)
+	defer release()
+
+	done := make(chan struct{})
+	start := time.Now()
+	go func() {
+		c.ExitWith(ExitOptions{Code: 7, Timeout: -1})
+		close(done)
+	}()
+
+	waitForExitWithCleanup(t, done, release, 500*time.Millisecond,
+		"negative ExitOptions.Timeout must use the safe fallback, not wait forever")
+
+	elapsed := time.Since(start)
+	assert.Equal(t, 7, *got)
+	assert.GreaterOrEqual(t, elapsed, 10*time.Millisecond)
+	assert.Less(t, elapsed, 500*time.Millisecond)
+}
+
+func TestExitWith_ZeroTimeout_Good(t *testing.T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	previousFallback := exitNegativeTimeoutFallback
+	exitNegativeTimeoutFallback = 20 * time.Millisecond
+	t.Cleanup(func() { exitNegativeTimeoutFallback = previousFallback })
+
+	c := New()
+	release := blockShutdown(c)
+	defer release()
+
+	done := make(chan struct{})
+	go func() {
+		c.ExitWith(ExitOptions{Code: 8, Timeout: 0})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("zero ExitOptions.Timeout must preserve legacy wait-forever behaviour")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	release()
+	waitForExitWithCleanup(t, done, release, 500*time.Millisecond,
+		"zero ExitOptions.Timeout did not exit after shutdown completed")
+
+	assert.Equal(t, 8, *got)
+}
+
+func TestExitWith_PositiveTimeout_Good(t *testing.T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	release := blockShutdown(c)
+	defer release()
+
+	done := make(chan struct{})
+	start := time.Now()
+	go func() {
+		c.ExitWith(ExitOptions{Code: 6, Timeout: 20 * time.Millisecond})
+		close(done)
+	}()
+
+	waitForExitWithCleanup(t, done, release, 500*time.Millisecond,
+		"positive ExitOptions.Timeout must bound shutdown")
+
+	elapsed := time.Since(start)
+	assert.Equal(t, 6, *got)
+	assert.GreaterOrEqual(t, elapsed, 10*time.Millisecond)
+	assert.Less(t, elapsed, 500*time.Millisecond)
 }
 
 func TestExit_ExitWith_Ugly(t *testing.T) {

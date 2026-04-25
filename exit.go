@@ -28,6 +28,8 @@ import (
 // Tests override via the testExitCode hook; production wires straight through.
 var osExit = os.Exit
 
+var exitNegativeTimeoutFallback = 30 * time.Second
+
 // ExitOptions configures graceful exit behaviour.
 //
 //	c.ExitWith(core.ExitOptions{Code: 1, Timeout: 5 * time.Second})
@@ -62,9 +64,18 @@ func (c *Core) Exit(code int) {
 //	c.ExitWith(core.ExitOptions{Code: 0, Timeout: 5 * time.Second})
 func (c *Core) ExitWith(opts ExitOptions) {
 	ctx := context.Background()
-	if opts.Timeout > 0 {
+	timeout := opts.Timeout
+	switch {
+	case opts.Timeout < 0:
+		timeout = exitNegativeTimeoutFallback
+		Warn("negative exit timeout, using safe default",
+			"timeout", opts.Timeout, "default", timeout, "code", opts.Code)
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	case opts.Timeout > 0:
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 	done := make(chan struct{})
@@ -77,7 +88,7 @@ func (c *Core) ExitWith(opts ExitOptions) {
 		// shutdown completed
 	case <-ctx.Done():
 		Warn("exit timeout, forcing immediate termination",
-			"timeout", opts.Timeout, "code", opts.Code)
+			"timeout", timeout, "code", opts.Code)
 	}
 	osExit(opts.Code)
 }
