@@ -53,3 +53,83 @@ func TestLock_Stoppables_Good(t *testing.T) {
 	assert.True(t, r.OK)
 	assert.Len(t, r.Value.([]*Service), 1)
 }
+
+func TestLock_LockUnlock_Good(t *testing.T) {
+	c := New()
+	l := c.Lock("a")
+	l.Lock()
+	l.Unlock()
+}
+
+func TestLock_LockUnlock_Bad(t *testing.T) {
+	c := New()
+	l := c.Lock("held")
+	l.Lock()
+	defer l.Unlock()
+	r := l.TryLock()
+	assert.False(t, r.OK, "TryLock on already-held lock must report not-acquired")
+}
+
+func TestLock_LockUnlock_Ugly(t *testing.T) {
+	c := New()
+	l := c.Lock("reentry")
+	l.Lock()
+	l.Unlock()
+	l.Lock()
+	l.Unlock()
+}
+
+func TestLock_RLockRUnlock_Good(t *testing.T) {
+	c := New()
+	l := c.Lock("a")
+	l.RLock()
+	l.RUnlock()
+}
+
+func TestLock_RLockRUnlock_Bad(t *testing.T) {
+	c := New()
+	l := c.Lock("write-held")
+	l.Lock()
+	defer l.Unlock()
+	r := l.TryLock()
+	assert.False(t, r.OK, "TryLock when write-held must fail (readers also blocked)")
+}
+
+func TestLock_RLockRUnlock_Ugly(t *testing.T) {
+	c := New()
+	l := c.Lock("a")
+	l.RLock()
+	l.RLock()
+	l.RUnlock()
+	l.RUnlock()
+}
+
+func TestLock_TryLock_Good(t *testing.T) {
+	c := New()
+	l := c.Lock("a")
+	r := l.TryLock()
+	assert.True(t, r.OK)
+	l.Unlock()
+}
+
+func TestLock_TryLock_Bad(t *testing.T) {
+	c := New()
+	l := c.Lock("held")
+	l.Lock()
+	defer l.Unlock()
+	r := l.TryLock()
+	assert.False(t, r.OK)
+}
+
+func TestLock_TryLock_Ugly(t *testing.T) {
+	c := New()
+	l := c.Lock("a")
+	r1 := l.TryLock()
+	assert.True(t, r1.OK)
+	r2 := l.TryLock()
+	assert.False(t, r2.OK)
+	l.Unlock()
+	r3 := l.TryLock()
+	assert.True(t, r3.OK)
+	l.Unlock()
+}
