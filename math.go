@@ -1,13 +1,32 @@
 // SPDX-License-Identifier: EUPL-1.2
 
-// Math helpers for the Core framework.
+// Math and ordering helpers for the Core framework. SPOR owner for
+// the math, math/big, and cmp stdlib packages.
 
 package core
 
-import "math"
+import (
+	"cmp"
+	"math"
+)
 
 type signedOrFloat interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64
+}
+
+// Ordered is the canonical ordered constraint for Core generic helpers.
+// Alias of cmp.Ordered so consumers stay on the core surface.
+//
+//	func sortAgents[T core.Ordered](xs []T) { core.SliceSort(xs) }
+type Ordered = cmp.Ordered
+
+// Compare returns -1 when a is less than b, 0 when equal, and +1 when
+// greater. Wraps cmp.Compare for the canonical ordering.
+//
+//	order := core.Compare("alpha", "beta")  // -1
+//	order := core.Compare(7, 7)             //  0
+func Compare[T Ordered](a, b T) int {
+	return cmp.Compare(a, b)
 }
 
 // Min returns the smaller of a and b.

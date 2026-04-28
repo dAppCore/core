@@ -36,35 +36,35 @@ func TestEnv_Setenv_Ugly(t *T) {
 	AssertEqual(t, "", value)
 }
 
-func TestEnv_UnsetEnv_Good(t *T) {
+func TestEnv_Unsetenv_Good(t *T) {
 	key := envTestKey(t, "GOOD")
 	RequireNoError(t, os.Setenv(key, "set"))
 	t.Cleanup(func() {
 		RequireNoError(t, os.Unsetenv(key))
 	})
 
-	RequireNoError(t, UnsetEnv(key))
+	RequireNoError(t, Unsetenv(key))
 	_, ok := os.LookupEnv(key)
 	AssertFalse(t, ok)
 	AssertEqual(t, "", Env(key))
 }
 
-func TestEnv_UnsetEnv_Bad(t *T) {
+func TestEnv_Unsetenv_Bad(t *T) {
 	key := envTestKey(t, "BAD")
 	RequireNoError(t, os.Setenv(key, "set"))
 	t.Cleanup(func() {
 		RequireNoError(t, os.Unsetenv(key))
 	})
 
-	AssertNoError(t, UnsetEnv(key+"_WRONG"))
+	AssertNoError(t, Unsetenv(key+"_WRONG"))
 	AssertEqual(t, "set", Env(key))
 }
 
-func TestEnv_UnsetEnv_Ugly(t *T) {
+func TestEnv_Unsetenv_Ugly(t *T) {
 	key := envTestKey(t, "UGLY")
 	RequireNoError(t, os.Unsetenv(key))
 
-	AssertNoError(t, UnsetEnv(key))
+	AssertNoError(t, Unsetenv(key))
 	_, ok := os.LookupEnv(key)
 	AssertFalse(t, ok)
 }
