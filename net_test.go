@@ -3,27 +3,25 @@
 package core_test
 
 import (
-	"testing"
-
 	. "dappco.re/go/core"
 )
 
-func TestNet_ParseIP_Good_IPv4(t *testing.T) {
+func TestNet_ParseIP_Good_IPv4(t *T) {
 	ip := ParseIP("192.0.2.1")
 	AssertNotNil(t, ip)
 	AssertEqual(t, "192.0.2.1", ip.String())
 }
 
-func TestNet_ParseIP_Good_IPv6(t *testing.T) {
+func TestNet_ParseIP_Good_IPv6(t *T) {
 	ip := ParseIP("2001:db8::1")
 	AssertNotNil(t, ip)
 }
 
-func TestNet_ParseIP_Bad_Garbage(t *testing.T) {
+func TestNet_ParseIP_Bad_Garbage(t *T) {
 	AssertNil(t, ParseIP("not-an-ip"))
 }
 
-func TestNet_ParseCIDR_Good(t *testing.T) {
+func TestNet_ParseCIDR_Good(t *T) {
 	r := ParseCIDR("10.0.0.0/24")
 	AssertTrue(t, r.OK)
 	parts := r.Value.([]any)
@@ -32,12 +30,12 @@ func TestNet_ParseCIDR_Good(t *testing.T) {
 	AssertNotNil(t, parts[1]) // *IPNet
 }
 
-func TestNet_ParseCIDR_Bad(t *testing.T) {
+func TestNet_ParseCIDR_Bad(t *T) {
 	r := ParseCIDR("not/a/cidr")
 	AssertFalse(t, r.OK)
 }
 
-func TestNet_NetPipe_Good_BidirectionalIO(t *testing.T) {
+func TestNet_NetPipe_Good_BidirectionalIO(t *T) {
 	a, b := NetPipe()
 	defer a.Close()
 	defer b.Close()
@@ -50,7 +48,7 @@ func TestNet_NetPipe_Good_BidirectionalIO(t *testing.T) {
 	AssertEqual(t, "ping", string(buf))
 }
 
-func TestNet_NetListen_Good_Tcp(t *testing.T) {
+func TestNet_NetListen_Good_Tcp(t *T) {
 	r := NetListen("tcp", "127.0.0.1:0")
 	AssertTrue(t, r.OK)
 	ln := r.Value.(Listener)
@@ -58,12 +56,12 @@ func TestNet_NetListen_Good_Tcp(t *testing.T) {
 	AssertNotNil(t, ln.Addr())
 }
 
-func TestNet_NetListen_Bad_InvalidAddress(t *testing.T) {
+func TestNet_NetListen_Bad_InvalidAddress(t *T) {
 	r := NetListen("tcp", "not:a:valid:address")
 	AssertFalse(t, r.OK)
 }
 
-func TestNet_NetDial_Good_RoundTrip(t *testing.T) {
+func TestNet_NetDial_Good_RoundTrip(t *T) {
 	listener := NetListen("tcp", "127.0.0.1:0")
 	AssertTrue(t, listener.OK)
 	ln := listener.Value.(Listener)

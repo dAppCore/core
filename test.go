@@ -42,6 +42,28 @@ import (
 //	core.AssertError(t, somethingThatFails(), core.AnError.Error())
 var AnError = errors.New("core test sentinel error")
 
+// T is the canonical Go test handle, exported as core.T so test files
+// don't need a separate `import "testing"` line. Go's test runner
+// accepts *core.T in TestXxx signatures because the alias is
+// type-identical to *testing.T.
+//
+//	func TestSomething_Good(t *core.T) {
+//	    core.AssertEqual(t, expected, actual)
+//	}
+type T = testing.T
+
+// TB is the testing-handle interface (T + B), exported as core.TB so
+// helpers can accept either Test or Benchmark contexts without
+// importing testing.
+//
+//	func helper(t core.TB, ...) { t.Helper(); ... }
+type TB = testing.TB
+
+// B is the canonical Go benchmark handle, exported as core.B.
+//
+//	func BenchmarkSomething(b *core.B) { ... }
+type B = testing.B
+
 // AssertEqual fails the test if want and got are not deeply equal.
 //
 //	core.AssertEqual(t, "expected", result.Value)
