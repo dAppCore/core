@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
 
 jobs:
   test:
@@ -14,10 +16,17 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Vet
+        run: go vet ./...
+
       - name: Run tests with coverage
+        run: go test -coverprofile=coverage.out ./...
+
+      - name: Drift guards (SPOR / AX-7 / test-imports)
         run: |
-          go test -coverprofile=coverage.out ./tests/...
-          sed -i 's|dappco.re/go/core/||g' coverage.out
+          bash tests/cli/imports/check.sh
+          python3 tests/cli/naming/check.py
+          python3 tests/cli/test_imports/check.py
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
