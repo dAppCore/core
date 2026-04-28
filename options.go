@@ -167,6 +167,50 @@ func (o Options) Bool(key string) bool {
 	return b
 }
 
+// Float64 retrieves a float64 value, 0 if missing or wrong type.
+// Promotes int/int64 to float64 so JSON-decoded numbers work uniformly.
+//
+//	weight := opts.Float64("weight")
+func (o Options) Float64(key string) float64 {
+	r := o.Get(key)
+	if !r.OK {
+		return 0
+	}
+	switch v := r.Value.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	}
+	return 0
+}
+
+// Duration retrieves a Duration value, 0 if missing or wrong type.
+// Accepts a Duration directly or a string parsed via ParseDuration.
+//
+//	timeout := opts.Duration("timeout")
+func (o Options) Duration(key string) Duration {
+	r := o.Get(key)
+	if !r.OK {
+		return 0
+	}
+	switch v := r.Value.(type) {
+	case Duration:
+		return v
+	case string:
+		if d := ParseDuration(v); d.OK {
+			if dur, ok := d.Value.(Duration); ok {
+				return dur
+			}
+		}
+	}
+	return 0
+}
+
 // Len returns the number of options.
 //
 //	opts := core.NewOptions(core.Option{Key: "agent", Value: "codex"})

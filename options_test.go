@@ -324,6 +324,54 @@ func TestOptions_Options_String_Ugly(t *T) {
 	AssertEqual(t, "empty-key", opts.String(""))
 }
 
+// --- Options.Float64 ---
+
+func TestOptions_Options_Float64_Good(t *T) {
+	opts := NewOptions(Option{Key: "weight", Value: 0.75})
+	AssertEqual(t, 0.75, opts.Float64("weight"))
+}
+
+func TestOptions_Options_Float64_Bad(t *T) {
+	opts := NewOptions(Option{Key: "name", Value: "brain"})
+	AssertEqual(t, 0.0, opts.Float64("name"))
+	AssertEqual(t, 0.0, opts.Float64("missing"))
+}
+
+func TestOptions_Options_Float64_Ugly(t *T) {
+	// int and float32 promote to float64 — JSON-decoded numbers work.
+	opts := NewOptions(
+		Option{Key: "i", Value: 42},
+		Option{Key: "i64", Value: int64(99)},
+		Option{Key: "f32", Value: float32(1.5)},
+	)
+	AssertEqual(t, 42.0, opts.Float64("i"))
+	AssertEqual(t, 99.0, opts.Float64("i64"))
+	AssertEqual(t, 1.5, opts.Float64("f32"))
+}
+
+// --- Options.Duration ---
+
+func TestOptions_Options_Duration_Good(t *T) {
+	opts := NewOptions(Option{Key: "timeout", Value: 5 * Second})
+	AssertEqual(t, 5*Second, opts.Duration("timeout"))
+}
+
+func TestOptions_Options_Duration_Bad(t *T) {
+	opts := NewOptions(Option{Key: "name", Value: 12345})
+	AssertEqual(t, Duration(0), opts.Duration("name"))
+	AssertEqual(t, Duration(0), opts.Duration("missing"))
+}
+
+func TestOptions_Options_Duration_Ugly(t *T) {
+	// String values parse via ParseDuration; bad strings return 0.
+	opts := NewOptions(
+		Option{Key: "good", Value: "250ms"},
+		Option{Key: "bad", Value: "not-a-duration"},
+	)
+	AssertEqual(t, 250*Millisecond, opts.Duration("good"))
+	AssertEqual(t, Duration(0), opts.Duration("bad"))
+}
+
 func TestOptions_Result_New_Bad(t *T) {
 	r := Result{}.New(AnError)
 
