@@ -68,3 +68,28 @@ func scannerRepeat(s string, count int) string {
 	}
 	return b.String()
 }
+
+// --- NewBufReader ---
+
+func TestScanner_NewBufReader_Good(t *T) {
+	src := NewBufferString("hello\nworld\n")
+	r := NewBufReader(src)
+	line, err := r.ReadString('\n')
+	AssertNoError(t, err)
+	AssertEqual(t, "hello\n", line)
+}
+
+func TestScanner_NewBufReader_Bad(t *T) {
+	r := NewBufReader(NewBufferString(""))
+	_, err := r.ReadString('\n')
+	AssertError(t, err)
+}
+
+func TestScanner_NewBufReader_Ugly(t *T) {
+	// Multi-byte content with delimiter mid-line still reads up to + including.
+	src := NewBufferString("agent.dispatch=ok;next-line")
+	r := NewBufReader(src)
+	chunk, err := r.ReadString(';')
+	AssertNoError(t, err)
+	AssertEqual(t, "agent.dispatch=ok;", chunk)
+}
