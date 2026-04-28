@@ -83,3 +83,55 @@ func TestTable_Flush_Ugly(t *T) {
 	AssertNoError(t, table.Flush())
 	AssertNoError(t, table.Flush())
 }
+
+func TestTable_Table_Row_Good(t *T) {
+	var out bytes.Buffer
+	table := NewTable(&out)
+
+	AssertSame(t, table, table.Row("Name", "Status"))
+	AssertNoError(t, table.Flush())
+	AssertContains(t, out.String(), "Name")
+	AssertContains(t, out.String(), "Status")
+}
+
+func TestTable_Table_Row_Bad(t *T) {
+	var table *Table
+
+	AssertNil(t, table.Row("Name"))
+}
+
+func TestTable_Table_Row_Ugly(t *T) {
+	var out bytes.Buffer
+	table := NewTable(&out)
+
+	table.Row("Name", "Status", "Updated").Row("agent.dispatch", "ok", "now")
+
+	AssertNoError(t, table.Flush())
+	AssertContains(t, out.String(), "agent.dispatch")
+	AssertContains(t, out.String(), "Updated")
+}
+
+func TestTable_Table_Flush_Good(t *T) {
+	var out bytes.Buffer
+
+	err := NewTable(&out).Row("Name", "Status").Flush()
+
+	AssertNoError(t, err)
+	AssertContains(t, out.String(), "Status")
+}
+
+func TestTable_Table_Flush_Bad(t *T) {
+	var table *Table
+
+	err := table.Flush()
+
+	AssertError(t, err, "table is nil")
+}
+
+func TestTable_Table_Flush_Ugly(t *T) {
+	var out bytes.Buffer
+	table := NewTable(&out)
+
+	AssertNoError(t, table.Flush())
+	AssertEqual(t, "", out.String())
+}

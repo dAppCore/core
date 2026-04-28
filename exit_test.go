@@ -263,3 +263,110 @@ func TestExit_PackageExit_Ugly(t *T) {
 
 	AssertEqual(t, 3, *got)
 }
+
+func TestExit_Core_Exit_Good(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.Exit(0)
+
+	AssertEqual(t, 0, *got)
+}
+
+func TestExit_Core_Exit_Bad(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.Exit(70)
+
+	AssertEqual(t, 70, *got)
+}
+
+func TestExit_Core_Exit_Ugly(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.Exit(1)
+	c.Exit(2)
+
+	AssertEqual(t, 2, *got)
+}
+
+func TestExit_Core_ExitWith_Good(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.ExitWith(ExitOptions{Code: 5, Timeout: 50 * time.Millisecond})
+
+	AssertEqual(t, 5, *got)
+}
+
+func TestExit_Core_ExitWith_Bad(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.ExitWith(ExitOptions{Code: 9, Timeout: 0})
+
+	AssertEqual(t, 9, *got)
+}
+
+func TestExit_Core_ExitWith_Ugly(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	release := blockShutdown(c)
+	defer release()
+	done := make(chan struct{})
+
+	go func() {
+		c.ExitWith(ExitOptions{Code: 6, Timeout: 10 * time.Millisecond})
+		close(done)
+	}()
+
+	waitForExitWithCleanup(t, done, release, 500*time.Millisecond,
+		"ExitWith timeout did not unblock forced termination")
+	AssertEqual(t, 6, *got)
+}
+
+func TestExit_Core_ExitNow_Good(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.ExitNow(0)
+
+	AssertEqual(t, 0, *got)
+}
+
+func TestExit_Core_ExitNow_Bad(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	c := New()
+	c.ExitNow(2)
+
+	AssertEqual(t, 2, *got)
+}
+
+func TestExit_Core_ExitNow_Ugly(t *T) {
+	got, restore := captureExit(t)
+	defer restore()
+
+	stopped := false
+	c := New()
+	c.Service("agent.dispatch", Service{OnStop: func() Result {
+		stopped = true
+		return Result{OK: true}
+	}})
+
+	c.ExitNow(3)
+
+	AssertEqual(t, 3, *got)
+	AssertFalse(t, stopped)
+}

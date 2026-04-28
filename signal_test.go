@@ -64,3 +64,91 @@ func TestSignal_Stop_Ugly(t *T) {
 	r := c.Signal().Stop()
 	AssertFalse(t, r.OK)
 }
+
+func TestSignal_Core_Signal_Good(t *T) {
+	c := New()
+
+	signal := c.Signal()
+
+	AssertNotNil(t, signal)
+	AssertFalse(t, signal.Exists())
+}
+
+func TestSignal_Core_Signal_Bad(t *T) {
+	c := New()
+
+	first := c.Signal()
+	second := c.Signal()
+
+	AssertNotNil(t, first)
+	AssertNotNil(t, second)
+}
+
+func TestSignal_Core_Signal_Ugly(t *T) {
+	c := New()
+	c.Action("signal.received", func(_ context.Context, _ Options) Result {
+		return Result{OK: true}
+	})
+
+	signal := c.Signal()
+
+	AssertTrue(t, signal.Exists())
+}
+
+func TestSignal_Signal_Exists_Good(t *T) {
+	c := New()
+	c.Action("signal.received", func(_ context.Context, _ Options) Result {
+		return Result{OK: true}
+	})
+
+	AssertTrue(t, c.Signal().Exists())
+}
+
+func TestSignal_Signal_Exists_Bad(t *T) {
+	c := New()
+
+	AssertFalse(t, c.Signal().Exists())
+}
+
+func TestSignal_Signal_Exists_Ugly(t *T) {
+	c := New()
+	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+		return Result{OK: true}
+	})
+
+	AssertFalse(t, c.Signal().Exists())
+}
+
+func TestSignal_Signal_Stop_Good(t *T) {
+	c := New()
+	called := false
+	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+		called = true
+		return Result{OK: true}
+	})
+
+	r := c.Signal().Stop()
+
+	AssertTrue(t, r.OK)
+	AssertTrue(t, called)
+}
+
+func TestSignal_Signal_Stop_Bad(t *T) {
+	c := New()
+
+	r := c.Signal().Stop()
+
+	AssertFalse(t, r.OK)
+}
+
+func TestSignal_Signal_Stop_Ugly(t *T) {
+	c := New()
+	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+		return Result{Value: E("signal.stop", "agent refused shutdown", nil), OK: false}
+	})
+
+	r := c.Signal().Stop()
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "agent refused shutdown")
+}
