@@ -15,7 +15,7 @@ go get dappco.re/go
 
 ## Create a Core
 
-`New` takes zero or more `core.Options` slices, but the current implementation only reads the first one. In practice, treat the constructor as `core.New(core.Options{...})`.
+`New(opts ...CoreOption)` accepts variadic functional options. The canonical entry shape uses `core.WithName`, `core.WithOption`, `core.WithService`, and `core.WithServiceLock` to compose the Core's startup configuration.
 
 ```go
 package main
@@ -23,15 +23,15 @@ package main
 import "dappco.re/go"
 
 func main() {
-	c := core.New(core.Options{
-		{Key: "name", Value: "agent-workbench"},
-	})
+	c := core.New(
+		core.WithOption("name", "agent-workbench"),
+	)
 
 	_ = c
 }
 ```
 
-The `name` option is copied into `c.App().Name`.
+The `name` option is copied into `c.App().Name`. For services, prefer `core.WithService(factory)` or `core.WithName(name, factory)` so registration happens before lifecycle starts.
 
 ## Register a Service
 
@@ -139,9 +139,9 @@ type createWorkspaceTask struct {
 }
 
 func main() {
-	c := core.New(core.Options{
-		{Key: "name", Value: "agent-workbench"},
-	})
+	c := core.New(
+		core.WithOption("name", "agent-workbench"),
+	)
 
 	c.Config().Set("workspace.root", "/tmp/agent-workbench")
 	c.Config().Enable("workspace.templates")
