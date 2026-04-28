@@ -443,3 +443,100 @@ func TestLsp_lspServer_notify_Ugly(t *T) {
 	srv.notify("", map[string]any{"any": "thing"})
 	AssertContains(t, out.String(), "Content-Length:")
 }
+
+// --- lspResultShapeDiagnostic ---
+
+func TestLsp_lspResultShapeDiagnostic_Good(t *T) {
+	content := []byte(`package agent
+
+func dispatch() {
+	x, err := callExternal()
+	_ = x; _ = err
+}
+`)
+	diags := lspResultShapeDiagnostic("file:///agent.go", content)
+	AssertNotEmpty(t, diags)
+	AssertEqual(t, "result-shape", diags[0].Source)
+	AssertContains(t, diags[0].Message, "Result")
+}
+
+func TestLsp_lspResultShapeDiagnostic_Bad(t *T) {
+	// Non-.go file — diagnostic doesn't apply.
+	content := []byte("x, err := foo()")
+	diags := lspResultShapeDiagnostic("file:///notes.md", content)
+	AssertEmpty(t, diags)
+}
+
+func TestLsp_lspResultShapeDiagnostic_Ugly(t *T) {
+	// (T, error) inside a raw-string fixture must NOT trip the detector
+	// — the strip pass elides string literals first.
+	content := []byte("package agent\n\nvar fixture = `x, err := callExternal()`\n")
+	diags := lspResultShapeDiagnostic("file:///agent.go", content)
+	AssertEmpty(t, diags)
+}
+
+// --- lspMatchResultPattern ---
+
+func TestLsp_lspMatchResultPattern_Good(t *T) {
+	cases := []string{
+		"x, err := callExternal()",
+		"if x, err := f(); err != nil {",
+		"if err := g(); err != nil {",
+		"_, err := openFile(path)",
+	}
+	for _, line := range cases {
+		_, ok := lspMatchResultPattern(line)
+		AssertTrue(t, ok, line)
+	}
+}
+
+func TestLsp_lspMatchResultPattern_Bad(t *T) {
+	// Lines that do NOT match the (T, error) idiom.
+	clean := []string{
+		"r := callExternal()",
+		"if r := f(); !r.OK {",
+		"return Result{Value: out, OK: true}",
+		"package agent",
+	}
+	for _, line := range clean {
+		_, ok := lspMatchResultPattern(line)
+		AssertFalse(t, ok, line)
+	}
+}
+
+func TestLsp_lspMatchResultPattern_Ugly(t *T) {
+	// Edge cases — leading whitespace, indented forms.
+	indented := "\t\tx, err := callExternal()"
+	_, ok := lspMatchResultPattern(indented)
+	AssertTrue(t, ok)
+}
+
+// --- lspStripGoSyntax ---
+
+func TestLsp_lspStripGoSyntax_Good(t *T) {
+	in := false
+	out := lspStripGoSyntax(`agent := "snider" // a comment`, &in)
+	AssertContains(t, out, "agent")
+	AssertContains(t, out, ":=")
+	AssertNotContains(t, out, "snider")
+	AssertNotContains(t, out, "comment")
+}
+
+func TestLsp_lspStripGoSyntax_Bad(t *T) {
+	in := false
+	out := lspStripGoSyntax("", &in)
+	AssertEqual(t, "", out)
+}
+
+func TestLsp_lspStripGoSyntax_Ugly(t *T) {
+	// Block comment spans line — state must persist across calls.
+	in := false
+	first := lspStripGoSyntax("agent /* start", &in)
+	AssertTrue(t, in)
+	AssertContains(t, first, "agent")
+
+	second := lspStripGoSyntax("inside */ end", &in)
+	AssertFalse(t, in)
+	AssertContains(t, second, "end")
+	AssertNotContains(t, second, "inside")
+}

@@ -400,6 +400,156 @@ func lspExtractDocumentChange(params any) (string, []byte) {
 
 func init() {
 	LSPRegisterDiagnostic("test-imports", lspTestImportsDiagnostic)
+	LSPRegisterDiagnostic("result-shape", lspResultShapeDiagnostic)
+}
+
+// lspResultShapeDiagnostic flags the classic Go `(value, error)` and
+// `if err := f(); err != nil` patterns. core/go-shaped code returns
+// core.Result, so any `, err :=` or `if err :=` is a tell that the
+// callee hasn't been wrapped (or the caller hasn't switched to the
+// Result-returning helper).
+//
+// Production .go files: every assignment-with-error is a smell.
+// Test .go files: tests should call core helpers, not stdlib direct.
+// *_internal_test.go and *_fuzz_test.go: NOT exempt — same rule.
+//
+// Examples flagged:
+//
+//	x, err := foo()                 // → use r := foo(); r.Value.(*X)
+//	_, err := bar()                 // → r := bar(); if !r.OK { ... }
+//	if x, err := f(); err != nil {  // → r := f(); if !r.OK { ... }
+//	if err := g(); err != nil {     // → r := g(); if !r.OK { ... }
+//
+// String literals and comments are best-effort skipped — diagnostic
+// is advisory anyway. Apply quick-fix: convert callee to Result return
+// or wrap call site with `Result{}.New(value, err)`.
+func lspResultShapeDiagnostic(uri string, content []byte) []LSPDiagnostic {
+	if !HasSuffix(uri, ".go") {
+		return nil
+	}
+
+	var diags []LSPDiagnostic
+	lines := Split(string(content), "\n")
+	inBlockComment := false
+	for i, line := range lines {
+		stripped := lspStripGoSyntax(line, &inBlockComment)
+		if stripped == "" {
+			continue
+		}
+		if msg, ok := lspMatchResultPattern(stripped); ok {
+			diags = append(diags, LSPDiagnostic{
+				Range: LSPRange{
+					Start: LSPPosition{Line: i, Character: 0},
+					End:   LSPPosition{Line: i, Character: len(line)},
+				},
+				Severity: LSPSeverityWarning,
+				Source:   "result-shape",
+				Code:     "result-shape.error-pair",
+				Message:  msg,
+			})
+		}
+	}
+	return diags
+}
+
+// lspMatchResultPattern returns (suggestion, true) when line contains
+// one of the (T, error) or single-error idioms. Patterns covered:
+//
+//	"x, err := f(...)"           — value + error declaration
+//	"x, err = f(...)"            — value + error assignment
+//	"_, err := f(...)"           — discarded value + error
+//	"if x, err := f(...);"        — if-init with value + error
+//	"if err := f(...);"           — if-init with single error
+//
+// The match runs against a syntax-stripped line (strings/comments
+// removed) so fixture content inside raw strings doesn't false-trip.
+func lspMatchResultPattern(stripped string) (string, bool) {
+	// Trim leading whitespace
+	s := stripped
+	for len(s) > 0 && (s[0] == ' ' || s[0] == '\t') {
+		s = s[1:]
+	}
+
+	// "if err := X(...); err != nil"
+	if HasPrefix(s, "if err :=") || HasPrefix(s, "if err  :=") {
+		return "result-shape: `if err := f(); err != nil` — switch to `r := f(); if !r.OK`", true
+	}
+
+	// "if x, err := f(...);"
+	if HasPrefix(s, "if ") && Contains(s, ", err :=") && Contains(s, ";") {
+		return "result-shape: `if x, err := f(); err != nil` — wrap callee in Result or use core's Result-returning equivalent", true
+	}
+
+	// Bare assignment forms: detect `, err :=` or `, err =` after an identifier
+	if Contains(s, ", err :=") {
+		return "result-shape: `x, err := f()` — wrap callee in Result or use `Result{}.New(value, err)`", true
+	}
+	if Contains(s, ", err =") {
+		return "result-shape: `x, err = f()` — wrap callee in Result or use `Result{}.New(value, err)`", true
+	}
+
+	return "", false
+}
+
+// lspStripGoSyntax removes string literals and comments from line so
+// pattern detectors don't false-trip on fixture content. Tracks
+// inBlockComment across calls (Go /* ... */ block comments span lines).
+func lspStripGoSyntax(line string, inBlockComment *bool) string {
+	out := make([]byte, 0, len(line))
+	i := 0
+	n := len(line)
+	for i < n {
+		// Inside a block comment — skip until "*/"
+		if *inBlockComment {
+			if i+1 < n && line[i] == '*' && line[i+1] == '/' {
+				*inBlockComment = false
+				i += 2
+				continue
+			}
+			i++
+			continue
+		}
+		// Line comment "//"
+		if i+1 < n && line[i] == '/' && line[i+1] == '/' {
+			break
+		}
+		// Block comment open "/*"
+		if i+1 < n && line[i] == '/' && line[i+1] == '*' {
+			*inBlockComment = true
+			i += 2
+			continue
+		}
+		// Raw string `...`
+		if line[i] == '`' {
+			i++
+			for i < n && line[i] != '`' {
+				i++
+			}
+			if i < n {
+				i++
+			}
+			continue
+		}
+		// Quoted string "..." or '...'
+		if line[i] == '"' || line[i] == '\'' {
+			delim := line[i]
+			i++
+			for i < n && line[i] != delim {
+				if line[i] == '\\' && i+1 < n {
+					i += 2
+					continue
+				}
+				i++
+			}
+			if i < n {
+				i++
+			}
+			continue
+		}
+		out = append(out, line[i])
+		i++
+	}
+	return string(out)
 }
 
 // lspTestImportsDiagnostic flags any non-`dappco.re/go` import in
