@@ -4,6 +4,22 @@ import (
 	. "dappco.re/go"
 )
 
+func ExampleDriveHandle() {
+	handle := DriveHandle{Name: "forge", Transport: "https://forge.example"}
+	Println(handle.Name)
+	Println(handle.Transport)
+	// Output:
+	// forge
+	// https://forge.example
+}
+
+func ExampleDrive() {
+	d := &Drive{Registry: NewRegistry[*DriveHandle]()}
+	d.New(NewOptions(Option{Key: "name", Value: "forge"}))
+	Println(d.Names())
+	// Output: [forge]
+}
+
 func ExampleDrive_New() {
 	c := New()
 	c.Drive().New(NewOptions(

@@ -12,6 +12,40 @@ func ExampleEntitlement_UsagePercent() {
 	// Output: 75
 }
 
+func ExampleEntitlement_NearLimit_threshold() {
+	e := Entitlement{Limit: 100, Used: 90}
+	Println(e.NearLimit(0.8))
+	// Output: true
+}
+
+func ExampleEntitlementChecker() {
+	var checker EntitlementChecker = func(action string, quantity int, _ context.Context) Entitlement {
+		return Entitlement{Allowed: action == "deploy" && quantity <= 1}
+	}
+	Println(checker("deploy", 1, context.Background()).Allowed)
+	// Output: true
+}
+
+func ExampleUsageRecorder() {
+	var recorded string
+	var recorder UsageRecorder = func(action string, quantity int, _ context.Context) {
+		recorded = Sprintf("%s:%d", action, quantity)
+	}
+	recorder("ai.credits", 3, context.Background())
+	Println(recorded)
+	// Output: ai.credits:3
+}
+
+func ExampleCore_Entitled() {
+	c := New()
+	e := c.Entitled("deploy")
+	Println(e.Allowed)
+	Println(e.Unlimited)
+	// Output:
+	// true
+	// true
+}
+
 func ExampleCore_SetEntitlementChecker() {
 	c := New()
 	c.SetEntitlementChecker(func(action string, qty int, _ context.Context) Entitlement {

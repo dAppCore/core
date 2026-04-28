@@ -17,6 +17,13 @@ func ExampleNewArray() {
 	// true
 }
 
+func ExampleArray_Add() {
+	a := NewArray[string]()
+	a.Add("alpha", "bravo")
+	Println(a.AsSlice())
+	// Output: [alpha bravo]
+}
+
 func ExampleArray_AddUnique() {
 	a := NewArray[string]()
 	a.AddUnique("alpha")
@@ -25,6 +32,15 @@ func ExampleArray_AddUnique() {
 
 	Println(a.Len())
 	// Output: 2
+}
+
+func ExampleArray_Contains() {
+	a := NewArray("alpha", "bravo")
+	Println(a.Contains("bravo"))
+	Println(a.Contains("charlie"))
+	// Output:
+	// true
+	// false
 }
 
 func ExampleArray_Filter() {
@@ -37,4 +53,47 @@ func ExampleArray_Filter() {
 	r := a.Filter(func(n int) bool { return n%2 == 0 })
 	Println(r.OK)
 	// Output: true
+}
+
+func ExampleArray_Each() {
+	a := NewArray("alpha", "bravo", "charlie")
+	var labels []string
+	a.Each(func(item string) {
+		labels = append(labels, Upper(item[:1]))
+	})
+	Println(labels)
+	// Output: [A B C]
+}
+
+func ExampleArray_Remove() {
+	a := NewArray("alpha", "bravo", "charlie")
+	a.Remove("bravo")
+	Println(a.AsSlice())
+	// Output: [alpha charlie]
+}
+
+func ExampleArray_Deduplicate() {
+	a := NewArray("alpha", "alpha", "bravo")
+	a.Deduplicate()
+	Println(a.AsSlice())
+	// Output: [alpha bravo]
+}
+
+func ExampleArray_Len() {
+	a := NewArray("alpha", "bravo")
+	Println(a.Len())
+	// Output: 2
+}
+
+func ExampleArray_Clear() {
+	a := NewArray("alpha", "bravo")
+	a.Clear()
+	Println(a.Len())
+	// Output: 0
+}
+
+func ExampleArray_AsSlice() {
+	a := NewArray("alpha", "bravo")
+	Println(a.AsSlice())
+	// Output: [alpha bravo]
 }

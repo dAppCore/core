@@ -15,6 +15,15 @@ func ExampleMutex() {
 	// unlocked
 }
 
+func ExampleMutex_TryLock() {
+	var mu Mutex
+	if mu.TryLock().OK {
+		Println("acquired")
+		mu.Unlock()
+	}
+	// Output: acquired
+}
+
 func ExampleRWMutex() {
 	var mu RWMutex
 	mu.RLock()
@@ -26,6 +35,24 @@ func ExampleRWMutex() {
 	// Output:
 	// read-locked
 	// write-locked
+}
+
+func ExampleRWMutex_TryLock() {
+	var mu RWMutex
+	if mu.TryLock().OK {
+		Println("write")
+		mu.Unlock()
+	}
+	// Output: write
+}
+
+func ExampleRWMutex_TryRLock() {
+	var mu RWMutex
+	if mu.TryRLock().OK {
+		Println("read")
+		mu.RUnlock()
+	}
+	// Output: read
 }
 
 func ExampleOnce() {

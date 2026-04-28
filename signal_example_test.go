@@ -18,6 +18,32 @@ func ExampleCore_Signal_exists() {
 	// no signal service registered
 }
 
+func ExampleCore_Signal() {
+	c := New()
+	Println(c.Signal() != nil)
+	// Output: true
+}
+
+func ExampleSignal_Stop() {
+	c := New()
+	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+		return Result{Value: "stopped", OK: true}
+	})
+	r := c.Signal().Stop()
+	Println(r.Value)
+	// Output: stopped
+}
+
+func ExampleSignal_Exists() {
+	c := New()
+	Println(c.Signal().Exists())
+	c.Action("signal.received", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	Println(c.Signal().Exists())
+	// Output:
+	// false
+	// true
+}
+
 // ExampleCore_Signal_subscribe shows the action-subscription pattern. In
 // production the go-process service registers signal.received and broadcasts
 // on each OS signal; here we register a stub action to demonstrate the surface.

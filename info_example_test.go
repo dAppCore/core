@@ -4,6 +4,11 @@ import (
 	. "dappco.re/go"
 )
 
+func ExampleSysInfo() {
+	var info *SysInfo
+	_ = info
+}
+
 func ExampleEnv() {
 	Println(Env("OS"))   // e.g. "darwin"
 	Println(Env("ARCH")) // e.g. "arm64"

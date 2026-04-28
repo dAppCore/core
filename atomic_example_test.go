@@ -18,6 +18,37 @@ func ExampleAtomicBool() {
 	// ready
 }
 
+func ExampleAtomicBool_Swap() {
+	var ready AtomicBool
+	ready.Store(true)
+	Println(ready.Swap(false))
+	Println(ready.Load())
+	// Output:
+	// true
+	// false
+}
+
+func ExampleAtomicBool_CompareAndSwap() {
+	var ready AtomicBool
+	Println(ready.CompareAndSwap(false, true))
+	Println(ready.Load())
+	// Output:
+	// true
+	// true
+}
+
+func ExampleAtomicInt32() {
+	var counter AtomicInt32
+	counter.Store(10)
+	Println(counter.Add(5))
+	Println(counter.Swap(1))
+	Println(counter.Load())
+	// Output:
+	// 15
+	// 15
+	// 1
+}
+
 func ExampleAtomicInt64() {
 	var counter AtomicInt64
 	counter.Add(1)
@@ -26,6 +57,26 @@ func ExampleAtomicInt64() {
 	Println(counter.Load())
 	// Output:
 	// 3
+}
+
+func ExampleAtomicInt64_Swap() {
+	var counter AtomicInt64
+	counter.Store(7)
+	Println(counter.Swap(9))
+	Println(counter.Load())
+	// Output:
+	// 7
+	// 9
+}
+
+func ExampleAtomicInt64_CompareAndSwap() {
+	var counter AtomicInt64
+	counter.Store(7)
+	Println(counter.CompareAndSwap(7, 9))
+	Println(counter.Load())
+	// Output:
+	// true
+	// 9
 }
 
 func ExampleAtomicInt32_CompareAndSwap() {
@@ -41,6 +92,50 @@ func ExampleAtomicInt32_CompareAndSwap() {
 	// already claimed
 }
 
+func ExampleAtomicUint32() {
+	var counter AtomicUint32
+	counter.Store(10)
+	Println(counter.Add(5))
+	Println(counter.Swap(1))
+	Println(counter.Load())
+	// Output:
+	// 15
+	// 15
+	// 1
+}
+
+func ExampleAtomicUint32_CompareAndSwap() {
+	var counter AtomicUint32
+	counter.Store(10)
+	Println(counter.CompareAndSwap(10, 11))
+	Println(counter.Load())
+	// Output:
+	// true
+	// 11
+}
+
+func ExampleAtomicUint64() {
+	var counter AtomicUint64
+	counter.Store(10)
+	Println(counter.Add(5))
+	Println(counter.Swap(1))
+	Println(counter.Load())
+	// Output:
+	// 15
+	// 15
+	// 1
+}
+
+func ExampleAtomicUint64_CompareAndSwap() {
+	var counter AtomicUint64
+	counter.Store(10)
+	Println(counter.CompareAndSwap(10, 11))
+	Println(counter.Load())
+	// Output:
+	// true
+	// 11
+}
+
 type config struct {
 	name string
 }
@@ -54,5 +149,31 @@ func ExampleAtomicPointer() {
 	Println(current.Load().name)
 	// Output:
 	// v1
+	// v2
+}
+
+func ExampleAtomicPointer_Swap() {
+	var current AtomicPointer[config]
+	first := &config{name: "v1"}
+	second := &config{name: "v2"}
+	current.Store(first)
+
+	Println(current.Swap(second).name)
+	Println(current.Load().name)
+	// Output:
+	// v1
+	// v2
+}
+
+func ExampleAtomicPointer_CompareAndSwap() {
+	var current AtomicPointer[config]
+	first := &config{name: "v1"}
+	second := &config{name: "v2"}
+	current.Store(first)
+
+	Println(current.CompareAndSwap(first, second))
+	Println(current.Load().name)
+	// Output:
+	// true
 	// v2
 }

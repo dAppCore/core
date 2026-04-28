@@ -6,6 +6,43 @@ import (
 	. "dappco.re/go"
 )
 
+type exampleRegisteredService struct {
+	name string
+}
+
+func ExampleService() {
+	svc := Service{Name: "cache", Options: NewOptions(Option{Key: "size", Value: 128})}
+	Println(svc.Name)
+	Println(svc.Options.Int("size"))
+	// Output:
+	// cache
+	// 128
+}
+
+func ExampleServiceRegistry() {
+	registry := &ServiceRegistry{Registry: NewRegistry[*Service]()}
+	registry.Set("cache", &Service{Name: "cache"})
+	Println(registry.Names())
+	// Output: [cache]
+}
+
+func ExampleCore_Service() {
+	c := New()
+	c.Service("cache", Service{})
+	Println(c.Service("cache").OK)
+	// Output: true
+}
+
+func ExampleCore_RegisterService() {
+	c := New()
+	r := c.RegisterService("worker", &exampleRegisteredService{name: "worker"})
+	Println(r.OK)
+	Println(c.Service("worker").Value.(*exampleRegisteredService).name)
+	// Output:
+	// true
+	// worker
+}
+
 func ExampleServiceFor() {
 	c := New(
 		WithService(func(c *Core) Result {
@@ -18,6 +55,22 @@ func ExampleServiceFor() {
 	svc := c.Service("cache")
 	Println(svc.OK)
 	// Output: true
+}
+
+func ExampleMustServiceFor() {
+	c := New()
+	c.RegisterService("worker", &exampleRegisteredService{name: "worker"})
+	svc := MustServiceFor[*exampleRegisteredService](c, "worker")
+	Println(svc.name)
+	// Output: worker
+}
+
+func ExampleCore_Services() {
+	c := New()
+	c.Service("cache", Service{})
+	c.Service("worker", Service{})
+	Println(c.Services())
+	// Output: [cli cache worker]
 }
 
 func ExampleWithService() {

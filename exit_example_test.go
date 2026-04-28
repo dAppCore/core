@@ -1,8 +1,6 @@
 package core_test
 
 import (
-	"time"
-
 	. "dappco.re/go"
 )
 
@@ -19,8 +17,8 @@ func ExampleCore_Exit() {
 // ExampleCore_ExitWith demonstrates a custom shutdown timeout.
 func ExampleCore_ExitWith() {
 	c := New()
-	_ = c // c.ExitWith(core.ExitOptions{Code: 0, Timeout: 5*time.Second})
-	_ = ExitOptions{Code: 0, Timeout: 5 * time.Second}
+	_ = c // c.ExitWith(core.ExitOptions{Code: 0})
+	_ = ExitOptions{Code: 0}
 	Println("configured")
 	// Output:
 	// configured

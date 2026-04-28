@@ -48,3 +48,23 @@ func ExampleCore_PerformAsync() {
 	Println(HasPrefix(r.Value.(string), "id-"))
 	// Output: true
 }
+
+func ExampleCore_Progress() {
+	c := New()
+	var progress float64
+	var message string
+	c.RegisterAction(func(_ *Core, msg Message) Result {
+		if ev, ok := msg.(ActionTaskProgress); ok {
+			progress = ev.Progress
+			message = ev.Message
+		}
+		return Result{OK: true}
+	})
+
+	c.Progress("task-1", 0.5, "halfway", "deploy")
+	Println(progress)
+	Println(message)
+	// Output:
+	// 0.5
+	// halfway
+}
