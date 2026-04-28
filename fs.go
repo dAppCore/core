@@ -3,7 +3,6 @@ package core
 
 import (
 	"io/fs"
-	"path/filepath"
 )
 
 // Fs is a sandboxed local filesystem backend.
@@ -85,17 +84,17 @@ func (m *Fs) path(p string) string {
 	// If the path is relative and the medium is rooted at "/",
 	// treat it as relative to the current working directory.
 	// This makes io.Local behave more like the standard 'os' package.
-	if root == "/" && !filepath.IsAbs(p) {
+	if root == "/" && !PathIsAbs(p) {
 		cwd := ""
 		if r := Getwd(); r.OK {
 			cwd = r.Value.(string)
 		}
-		return filepath.Join(cwd, p)
+		return PathJoin(cwd, p)
 	}
 
-	// Use filepath.Clean with a leading slash to resolve all .. and . internally
+	// Use a leading slash to resolve all .. and . internally
 	// before joining with the root. This is a standard way to sandbox paths.
-	clean := filepath.Clean("/" + p)
+	clean := CleanPath("/"+p, string(PathSeparator))
 
 	// If root is "/", allow absolute paths through
 	if root == "/" {
@@ -103,7 +102,7 @@ func (m *Fs) path(p string) string {
 	}
 
 	// Strip leading "/" so Join works correctly with root
-	return filepath.Join(root, clean[1:])
+	return PathJoin(root, clean[1:])
 }
 
 // validatePath ensures the path is within the sandbox, following symlinks if they exist.
@@ -117,7 +116,7 @@ func (m *Fs) validatePath(p string) Result {
 	}
 
 	// Split the cleaned path into components
-	parts := Split(filepath.Clean("/"+p), string(PathSeparator))
+	parts := Split(CleanPath("/"+p, string(PathSeparator)), string(PathSeparator))
 	current := root
 
 	for _, part := range parts {
@@ -125,9 +124,10 @@ func (m *Fs) validatePath(p string) Result {
 			continue
 		}
 
-		next := filepath.Join(current, part)
-		realNext, err := filepath.EvalSymlinks(next)
-		if err != nil {
+		next := PathJoin(current, part)
+		realNextResult := PathEvalSymlinks(next)
+		if !realNextResult.OK {
+			err, _ := realNextResult.Value.(error)
 			if IsNotExist(err) {
 				// Part doesn't exist, we can't follow symlinks anymore.
 				// Since the path is already Cleaned and current is safe,
@@ -137,10 +137,15 @@ func (m *Fs) validatePath(p string) Result {
 			}
 			return Result{err, false}
 		}
+		realNext := realNextResult.Value.(string)
 
 		// Verify the resolved part is still within the root
-		rel, err := filepath.Rel(root, realNext)
-		if err != nil || HasPrefix(rel, "..") {
+		relResult := PathRel(root, realNext)
+		rel := ""
+		if relResult.OK {
+			rel = relResult.Value.(string)
+		}
+		if !relResult.OK || HasPrefix(rel, "..") {
 			// Security event: sandbox escape attempt
 			username := "unknown"
 			if r := UserCurrent(); r.OK {
@@ -148,6 +153,7 @@ func (m *Fs) validatePath(p string) Result {
 			}
 			Print(Stderr(), "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
 				Now().Format(TimeRFC3339), root, p, realNext, username)
+			err, _ := relResult.Value.(error)
 			if err == nil {
 				err = E("fs.validatePath", Concat("sandbox escape: ", p, " resolves outside ", m.root), nil)
 			}
@@ -199,7 +205,7 @@ func (m *Fs) WriteMode(p, content string, mode FileMode) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+	if r := MkdirAll(PathDir(full), 0755); !r.OK {
 		return r
 	}
 	if r := WriteFile(full, []byte(content), mode); !r.OK {
@@ -268,7 +274,7 @@ func (m *Fs) WriteAtomic(p, content string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+	if r := MkdirAll(PathDir(full), 0755); !r.OK {
 		return r
 	}
 
@@ -403,7 +409,7 @@ func (m *Fs) Create(p string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+	if r := MkdirAll(PathDir(full), 0755); !r.OK {
 		return r
 	}
 	return Create(full)
@@ -421,7 +427,7 @@ func (m *Fs) Append(p string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+	if r := MkdirAll(PathDir(full), 0755); !r.OK {
 		return r
 	}
 	return OpenFile(full, O_APPEND|O_CREATE|O_WRONLY, 0644)
@@ -549,7 +555,7 @@ type FsEntry struct {
 //
 // Symlinks are not followed: validatePath rejects any symlink that resolves
 // outside the sandbox before descent, and the underlying walker uses
-// filepath.WalkDir which does not traverse into symlinked directories.
+// PathWalkDir which does not traverse into symlinked directories.
 //
 //	for entry, err := range c.Fs().WalkSeq("./") {
 //		if err != nil { break }
@@ -596,25 +602,28 @@ func (m *Fs) walkSeq(root string, skip map[string]struct{}) Seq2[FsEntry, error]
 			return
 		}
 		stop := false
-		_ = filepath.WalkDir(fullRoot, func(path string, d fs.DirEntry, walkErr error) error {
+		_ = PathWalkDir(fullRoot, func(path string, d FsDirEntry, walkErr error) error {
 			if stop {
-				return filepath.SkipAll
+				return PathSkipAll
 			}
 			if walkErr != nil {
 				if !yield(FsEntry{}, walkErr) {
 					stop = true
-					return filepath.SkipAll
+					return PathSkipAll
 				}
 				return nil
 			}
 			if d.IsDir() && skip != nil && path != fullRoot {
 				if _, ok := skip[d.Name()]; ok {
-					return filepath.SkipDir
+					return PathSkipDir
 				}
 			}
-			rel, relErr := filepath.Rel(fullRoot, path)
-			if relErr != nil {
+			relResult := PathRel(fullRoot, path)
+			rel := ""
+			if !relResult.OK {
 				rel = path
+			} else {
+				rel = relResult.Value.(string)
 			}
 			info, _ := d.Info()
 			mode := fs.FileMode(0)
@@ -629,7 +638,7 @@ func (m *Fs) walkSeq(root string, skip map[string]struct{}) Seq2[FsEntry, error]
 			}
 			if !yield(entry, nil) {
 				stop = true
-				return filepath.SkipAll
+				return PathSkipAll
 			}
 			return nil
 		})

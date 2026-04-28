@@ -11,7 +11,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
-	"encoding/hex"
 	"hash"
 )
 
@@ -27,7 +26,7 @@ func SHA256(data []byte) [32]byte {
 //	sum := core.SHA256Hex([]byte("hello"))
 func SHA256Hex(data []byte) string {
 	sum := SHA256(data)
-	return hex.EncodeToString(sum[:])
+	return HexEncode(sum[:])
 }
 
 // SHA256String returns the SHA-256 digest of s.

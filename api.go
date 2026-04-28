@@ -28,7 +28,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 )
 
 // Stream is a bidirectional connection to a remote endpoint.
@@ -296,8 +295,8 @@ func HTTPPost(url, contentType string, body Reader) Result {
 
 // HTTPPostForm performs an HTTP POST with form-encoded values.
 //
-//	r := core.HTTPPostForm(url, url.Values{"key": {"value"}})
-func HTTPPostForm(target string, data url.Values) Result {
+//	r := core.HTTPPostForm(url, core.URLValues{"key": {"value"}})
+func HTTPPostForm(target string, data URLValues) Result {
 	resp, err := http.PostForm(target, data)
 	if err != nil {
 		return Result{err, false}

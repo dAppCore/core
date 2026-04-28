@@ -4,10 +4,7 @@
 
 package core
 
-import (
-	"cmp"
-	"math"
-)
+import "math"
 
 type signedOrFloat interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64
@@ -16,8 +13,8 @@ type signedOrFloat interface {
 // Min returns the smaller of a and b.
 //
 //	low := core.Min(3, 7)
-func Min[T cmp.Ordered](a, b T) T {
-	if cmp.Compare(a, b) <= 0 {
+func Min[T Ordered](a, b T) T {
+	if Compare(a, b) <= 0 {
 		return a
 	}
 	return b
@@ -26,8 +23,8 @@ func Min[T cmp.Ordered](a, b T) T {
 // Max returns the larger of a and b.
 //
 //	high := core.Max(3, 7)
-func Max[T cmp.Ordered](a, b T) T {
-	if cmp.Compare(a, b) >= 0 {
+func Max[T Ordered](a, b T) T {
+	if Compare(a, b) >= 0 {
 		return a
 	}
 	return b
@@ -41,6 +38,13 @@ func Abs[T signedOrFloat](x T) T {
 		return -x
 	}
 	return x
+}
+
+// IsNaN reports whether x is a floating-point NaN.
+//
+//	if core.IsNaN(value) { return core.E("math", "not a number", nil) }
+func IsNaN(x float64) bool {
+	return math.IsNaN(x)
 }
 
 // Pow returns x raised to the power y.

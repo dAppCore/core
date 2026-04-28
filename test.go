@@ -30,7 +30,6 @@
 package core
 
 import (
-	"math"
 	"testing"
 )
 
@@ -350,11 +349,11 @@ func AssertErrorIs(t testing.TB, err, target error, msg ...string) {
 //	core.AssertInDelta(t, expected, actual, 0.0001)
 func AssertInDelta(t testing.TB, want, got, delta float64, msg ...string) {
 	t.Helper()
-	if math.IsNaN(want) || math.IsNaN(got) {
+	if IsNaN(want) || IsNaN(got) {
 		t.Errorf("AssertInDelta NaN involved want=%v got=%v%s", want, got, assertMsg(msg))
 		return
 	}
-	diff := math.Abs(want - got)
+	diff := Abs(want - got)
 	if diff > delta {
 		t.Errorf("AssertInDelta want=%v got=%v delta=%v actual-diff=%v%s", want, got, delta, diff, assertMsg(msg))
 	}

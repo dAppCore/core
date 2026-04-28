@@ -6,10 +6,6 @@
 
 package core
 
-import (
-	"maps"
-)
-
 // --- ServiceRuntime (embedded by consumer services) ---
 
 // ServiceRuntime is embedded in services to provide access to the Core and typed options.
@@ -148,7 +144,8 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
 	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "core"})))
 	c.app.Runtime = app
 
-	names := SliceSorted(maps.Keys(factories))
+	names := MapKeys(factories)
+	SliceSort(names)
 	for _, name := range names {
 		factory := factories[name]
 		if factory == nil {

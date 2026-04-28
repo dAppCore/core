@@ -4,10 +4,6 @@
 
 package core
 
-import (
-	"path/filepath"
-)
-
 // App holds the application identity and optional GUI runtime.
 //
 //	app := core.App{}.New(core.NewOptions(
@@ -69,7 +65,7 @@ func (a App) Find(filename, name string) Result {
 		return Result{E("app.Find", "PATH is empty", nil), false}
 	}
 	for _, dir := range Split(pathEnv, string(PathListSeparator)) {
-		candidate := filepath.Join(dir, filename)
+		candidate := PathJoin(dir, filename)
 		if isExecutable(candidate) {
 			abs := PathAbs(candidate)
 			if !abs.OK {

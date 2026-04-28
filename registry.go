@@ -22,10 +22,6 @@
 //	Locked — fully frozen, no writes at all
 package core
 
-import (
-	"path/filepath"
-)
-
 // registryMode controls write behaviour.
 type registryMode int
 
@@ -121,7 +117,7 @@ func (r *Registry[T]) Names() []string {
 }
 
 // List returns items whose names match the glob pattern.
-// Uses filepath.Match semantics: "*" matches any sequence, "?" matches one char.
+// Uses PathMatch semantics: "*" matches any sequence, "?" matches one char.
 //
 //	services := r.List("process.*")
 func (r *Registry[T]) List(pattern string) []T {
@@ -130,7 +126,7 @@ func (r *Registry[T]) List(pattern string) []T {
 
 	var result []T
 	for _, name := range r.order {
-		if matched, _ := filepath.Match(pattern, name); matched {
+		if matched := PathMatch(pattern, name); matched.OK && matched.Value.(bool) {
 			if !r.disabled[name] {
 				result = append(result, r.items[name])
 			}

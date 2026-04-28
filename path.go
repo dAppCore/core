@@ -19,6 +19,26 @@ package core
 
 import "path/filepath"
 
+// PathWalkFunc visits one path during a filesystem walk.
+//
+//	var fn core.PathWalkFunc
+//	_ = fn
+type PathWalkFunc = filepath.WalkFunc
+
+// PathWalkDirFunc visits one path during a directory walk.
+//
+//	fn := func(path string, d core.FsDirEntry, err error) error { return err }
+//	_ = fn
+type PathWalkDirFunc = WalkDirFunc
+
+var (
+	// PathSkipDir tells PathWalkDir to skip the current directory.
+	PathSkipDir = filepath.SkipDir
+
+	// PathSkipAll tells PathWalkDir to stop walking immediately.
+	PathSkipAll = filepath.SkipAll
+)
+
 // Path builds a clean, absolute filesystem path from segments.
 // Uses Env("DS") for the OS directory separator.
 // Relative paths are anchored to DIR_HOME. Absolute paths pass through.
@@ -40,6 +60,14 @@ func Path(segments ...string) string {
 		return CleanPath(p, ds)
 	}
 	return CleanPath(home+ds+p, ds)
+}
+
+// PathJoin joins path segments using OS-native filepath semantics.
+// Unlike Path, it preserves relative paths.
+//
+//	core.PathJoin("deploy", "to", "homelab") // "deploy/to/homelab"
+func PathJoin(segments ...string) string {
+	return filepath.Join(segments...)
 }
 
 // PathBase returns the last element of a path.
@@ -160,6 +188,18 @@ func PathGlob(pattern string) []string {
 	return matches
 }
 
+// PathMatch reports whether name matches the shell file name pattern.
+//
+//	r := core.PathMatch("process.*", "process.run")
+//	if r.OK && r.Value.(bool) { core.Println("matched") }
+func PathMatch(pattern, name string) Result {
+	matched, err := filepath.Match(pattern, name)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{matched, true}
+}
+
 // PathRel returns target expressed as a path relative to base. Both
 // arguments must be either both absolute or both relative; otherwise
 // the call returns Result.OK=false with the underlying error.
@@ -185,6 +225,39 @@ func PathAbs(p string) Result {
 		return Result{err, false}
 	}
 	return Result{a, true}
+}
+
+// PathEvalSymlinks returns p after resolving symbolic links.
+//
+//	r := core.PathEvalSymlinks("/tmp/current")
+//	if r.OK { resolved := r.Value.(string); _ = resolved }
+func PathEvalSymlinks(p string) Result {
+	resolved, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{resolved, true}
+}
+
+// PathToSlash converts OS-native separators in p to slash separators.
+//
+//	p := core.PathToSlash(core.PathJoin("templates", "agent"))
+func PathToSlash(p string) string {
+	return filepath.ToSlash(p)
+}
+
+// PathWalk walks the file tree rooted at root.
+//
+//	err := core.PathWalk("/tmp/workspace", fn)
+func PathWalk(root string, fn PathWalkFunc) error {
+	return filepath.Walk(root, fn)
+}
+
+// PathWalkDir walks the file tree rooted at root using directory entries.
+//
+//	err := core.PathWalkDir("/tmp/workspace", fn)
+func PathWalkDir(root string, fn PathWalkDirFunc) error {
+	return filepath.WalkDir(root, fn)
 }
 
 // PathChangeExt returns p with its file extension replaced by newExt.

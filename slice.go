@@ -5,7 +5,6 @@
 package core
 
 import (
-	"cmp"
 	"slices"
 	"sort"
 )
@@ -34,9 +33,9 @@ func SliceClone[T any](s []T) []T {
 // SliceSort sorts s in place in ascending order.
 //
 //	core.SliceSort(scores)
-func SliceSort[T cmp.Ordered](s []T) {
+func SliceSort[T Ordered](s []T) {
 	sort.Slice(s, func(i, j int) bool {
-		return cmp.Compare(s[i], s[j]) < 0
+		return Compare(s[i], s[j]) < 0
 	})
 }
 
@@ -69,7 +68,7 @@ func SliceReverse[T any](s []T) {
 // SliceSorted collects seq into a sorted slice.
 //
 //	names := core.SliceSorted(seq)
-func SliceSorted[T cmp.Ordered](seq Seq[T]) []T {
+func SliceSorted[T Ordered](seq Seq[T]) []T {
 	return slices.Sorted(seq)
 }
 

@@ -7,10 +7,7 @@
 package core
 
 import (
-	"encoding/json"
 	"errors"
-	"maps"
-	"path/filepath"
 )
 
 // ErrorSink is the shared interface for error reporting.
@@ -401,7 +398,7 @@ func (h *ErrorPanic) Recover() {
 			Architecture:    Arch(),
 			Version:         GoVersion(),
 		},
-		Meta: maps.Clone(h.meta),
+		Meta: MapClone(h.meta),
 	}
 
 	if h.onCrash != nil {
@@ -466,16 +463,16 @@ func (h *ErrorPanic) appendReport(report CrashReport) {
 	}
 
 	reports = append(reports, report)
-	data, err := json.MarshalIndent(reports, "", "  ")
-	if err != nil {
-		Default().Error(Concat("crash report marshal failed: ", err.Error()))
+	data := JSONMarshalIndent(reports, "", "  ")
+	if !data.OK {
+		Default().Error(Concat("crash report marshal failed: ", data.Error()))
 		return
 	}
-	if r := MkdirAll(filepath.Dir(h.filePath), 0755); !r.OK {
+	if r := MkdirAll(PathDir(h.filePath), 0755); !r.OK {
 		Default().Error(Concat("crash report dir failed: ", r.Error()))
 		return
 	}
-	if r := WriteFile(h.filePath, data, 0600); !r.OK {
+	if r := WriteFile(h.filePath, data.Value.([]byte), 0600); !r.OK {
 		Default().Error(Concat("crash report write failed: ", r.Error()))
 	}
 }

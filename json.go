@@ -27,6 +27,18 @@ func JSONMarshal(v any) Result {
 	return Result{data, true}
 }
 
+// JSONMarshalIndent serialises a value to indented JSON bytes.
+//
+//	r := core.JSONMarshalIndent(report, "", "  ")
+//	if r.OK { data := r.Value.([]byte) }
+func JSONMarshalIndent(v any, prefix, indent string) Result {
+	data, err := json.MarshalIndent(v, prefix, indent)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{data, true}
+}
+
 // JSONMarshalString serialises a value to a JSON string.
 //
 //	s := core.JSONMarshalString(myStruct)

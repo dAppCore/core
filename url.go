@@ -7,10 +7,21 @@ package core
 
 import "net/url"
 
+// URL is the canonical parsed URL type.
+//
+//	r := core.URLParse("https://example.com/path")
+//	if r.OK { u := r.Value.(*core.URL); _ = u }
+type URL = url.URL
+
+// URLValues is the canonical URL form/query values map.
+//
+//	values := core.URLValues{"key": {"value"}}
+type URLValues = url.Values
+
 // URLParse parses a raw URL string.
 //
 //	r := core.URLParse("https://example.com/path")
-//	if r.OK { u := r.Value.(*url.URL) }
+//	if r.OK { u := r.Value.(*core.URL) }
 func URLParse(rawURL string) Result {
 	u, err := url.Parse(rawURL)
 	if err != nil {

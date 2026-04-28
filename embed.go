@@ -22,15 +22,11 @@
 package core
 
 import (
-	"bytes"
 	"compress/gzip"
 	"embed"
-	"encoding/base64"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
-	"text/template"
 )
 
 // --- Runtime: Asset Registry ---
@@ -143,7 +139,7 @@ func ScanAssets(filenames []string) Result {
 			return Result{err, false}
 		}
 
-		baseDir := filepath.Dir(filename)
+		baseDir := PathDir(filename)
 		pkg, ok := packageMap[baseDir]
 		if !ok {
 			pkg = &ScannedPackage{BaseDirectory: baseDir}
@@ -183,8 +179,9 @@ func ScanAssets(filenames []string) Result {
 									group = TrimPrefix(TrimSuffix(glit.Value, "\""), "\"")
 								}
 							}
-							fullPath, err := filepath.Abs(filepath.Join(baseDir, group, path))
-							if err != nil {
+							fullPath := PathAbs(PathJoin(baseDir, group, path))
+							if !fullPath.OK {
+								err, _ := fullPath.Value.(error)
 								scanErr = Wrap(err, "core.ScanAssets", Join(" ", "could not determine absolute path for asset", path, "in group", group))
 								return false
 							}
@@ -192,7 +189,7 @@ func ScanAssets(filenames []string) Result {
 								Name: path,
 
 								Group:    group,
-								FullPath: fullPath,
+								FullPath: fullPath.Value.(string),
 							})
 						}
 					}
@@ -201,12 +198,13 @@ func ScanAssets(filenames []string) Result {
 					if len(call.Args) == 1 {
 						if lit, ok := call.Args[0].(*ast.BasicLit); ok {
 							path := TrimPrefix(TrimSuffix(lit.Value, "\""), "\"")
-							fullPath, err := filepath.Abs(filepath.Join(baseDir, path))
-							if err != nil {
+							fullPath := PathAbs(PathJoin(baseDir, path))
+							if !fullPath.OK {
+								err, _ := fullPath.Value.(error)
 								scanErr = Wrap(err, "core.ScanAssets", Join(" ", "could not determine absolute path for group", path))
 								return false
 							}
-							pkg.Groups = append(pkg.Groups, fullPath)
+							pkg.Groups = append(pkg.Groups, fullPath.Value.(string))
 							// Track for variable resolution
 						}
 					}
@@ -263,11 +261,11 @@ func GeneratePack(pkg ScannedPackage) Result {
 				return Result{err, false}
 			}
 			localPath := TrimPrefix(file, groupPath+"/")
-			relGroup, err := filepath.Rel(pkg.BaseDirectory, groupPath)
-			if err != nil {
-				return Result{err, false}
+			relGroup := PathRel(pkg.BaseDirectory, groupPath)
+			if !relGroup.OK {
+				return relGroup
 			}
-			b.WriteString(Sprintf("\tcore.AddAsset(%q, %q, %q)\n", relGroup, localPath, data))
+			b.WriteString(Sprintf("\tcore.AddAsset(%q, %q, %q)\n", relGroup.Value.(string), localPath, data))
 			packed[file] = true
 		}
 	}
@@ -300,30 +298,27 @@ func compressFile(path string) (string, error) {
 }
 
 func compress(input string) (string, error) {
-	var buf bytes.Buffer
-	b64 := base64.NewEncoder(base64.StdEncoding, &buf)
-	gz, err := gzip.NewWriterLevel(b64, gzip.BestCompression)
+	buf := NewBuffer()
+	gz, err := gzip.NewWriterLevel(buf, gzip.BestCompression)
 	if err != nil {
 		return "", err
 	}
 	if _, err := gz.Write([]byte(input)); err != nil {
 		_ = gz.Close()
-		_ = b64.Close()
 		return "", err
 	}
 	if err := gz.Close(); err != nil {
-		_ = b64.Close()
 		return "", err
 	}
-	if err := b64.Close(); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return Base64Encode(buf.Bytes()), nil
 }
 
 func decompress(input string) (string, error) {
-	b64 := base64.NewDecoder(base64.StdEncoding, NewReader(input))
-	gz, err := gzip.NewReader(b64)
+	data := Base64Decode(input)
+	if !data.OK {
+		return "", data.Value.(error)
+	}
+	gz, err := gzip.NewReader(NewBuffer(data.Value.([]byte)))
 	if err != nil {
 		return "", err
 	}
@@ -337,7 +332,7 @@ func decompress(input string) (string, error) {
 
 func getAllFiles(dir string) ([]string, error) {
 	var result []string
-	err := filepath.WalkDir(dir, func(path string, d FsDirEntry, err error) error {
+	err := PathWalkDir(dir, func(path string, d FsDirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -389,7 +384,7 @@ func MountEmbed(efs embed.FS, basedir string) Result {
 }
 
 func (s *Embed) path(name string) Result {
-	joined := filepath.ToSlash(filepath.Join(s.basedir, name))
+	joined := PathToSlash(PathJoin(s.basedir, name))
 	if HasPrefix(joined, "..") || Contains(joined, "/../") || HasSuffix(joined, "/..") {
 		return Result{E("embed.path", Concat("path traversal rejected: ", name), nil), false}
 	}
@@ -561,10 +556,11 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 	}
 
 	// Ensure target directory exists
-	targetDir, err := filepath.Abs(targetDir)
-	if err != nil {
-		return Result{err, false}
+	absTargetDir := PathAbs(targetDir)
+	if !absTargetDir.OK {
+		return absTargetDir
 	}
+	targetDir = absTargetDir.Value.(string)
 	if r := MkdirAll(targetDir, 0755); !r.OK {
 		return r
 	}
@@ -573,6 +569,7 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 	var dirs []string
 	var templateFiles []string
 	var standardFiles []string
+	var err error
 
 	err = WalkDir(fsys, ".", func(path string, d FsDirEntry, err error) error {
 		if err != nil {
@@ -585,7 +582,7 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 			dirs = append(dirs, path)
 			return nil
 		}
-		filename := filepath.Base(path)
+		filename := PathBase(path)
 		if _, ignored := opt.IgnoreFiles[filename]; ignored {
 			return nil
 		}
@@ -602,11 +599,12 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 
 	// safePath ensures a rendered path stays under targetDir.
 	safePath := func(rendered string) (string, error) {
-		abs, err := filepath.Abs(rendered)
-		if err != nil {
-			return "", err
+		absResult := PathAbs(rendered)
+		if !absResult.OK {
+			return "", absResult.Value.(error)
 		}
-		if !HasPrefix(abs, targetDir+string(filepath.Separator)) && abs != targetDir {
+		abs := absResult.Value.(string)
+		if !HasPrefix(abs, targetDir+string(PathSeparator)) && abs != targetDir {
 			return "", E("embed.Extract", Concat("path escapes target: ", abs), nil)
 		}
 		return abs, nil
@@ -614,7 +612,7 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 
 	// Create directories (names may contain templates)
 	for _, dir := range dirs {
-		target, err := safePath(renderPath(filepath.Join(targetDir, dir), data))
+		target, err := safePath(renderPath(PathJoin(targetDir, dir), data))
 		if err != nil {
 			return Result{err, false}
 		}
@@ -625,23 +623,24 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 
 	// Process template files
 	for _, path := range templateFiles {
-		tmpl, err := template.ParseFS(fsys, path)
-		if err != nil {
-			return Result{err, false}
+		tmplResult := ParseTemplateFS(fsys, path)
+		if !tmplResult.OK {
+			return tmplResult
 		}
+		tmpl := tmplResult.Value.(*Template)
 
-		targetFile := renderPath(filepath.Join(targetDir, path), data)
+		targetFile := renderPath(PathJoin(targetDir, path), data)
 
 		// Strip template filters from filename
-		dir := filepath.Dir(targetFile)
-		name := filepath.Base(targetFile)
+		dir := PathDir(targetFile)
+		name := PathBase(targetFile)
 		for _, filter := range opt.TemplateFilters {
 			name = Replace(name, filter, "")
 		}
 		if renamed := opt.RenameFiles[name]; renamed != "" {
 			name = renamed
 		}
-		targetFile, err = safePath(filepath.Join(dir, name))
+		targetFile, err = safePath(PathJoin(dir, name))
 		if err != nil {
 			return Result{err, false}
 		}
@@ -651,9 +650,9 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 			return r
 		}
 		f := r.Value.(*OSFile)
-		if err := tmpl.Execute(f, data); err != nil {
+		if executed := ExecuteTemplate(tmpl, f, data); !executed.OK {
 			f.Close()
-			return Result{err, false}
+			return executed
 		}
 		f.Close()
 	}
@@ -661,11 +660,11 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 	// Copy standard files
 	for _, path := range standardFiles {
 		targetPath := path
-		name := filepath.Base(path)
+		name := PathBase(path)
 		if renamed := opt.RenameFiles[name]; renamed != "" {
-			targetPath = filepath.Join(filepath.Dir(path), renamed)
+			targetPath = PathJoin(PathDir(path), renamed)
 		}
-		target, err := safePath(renderPath(filepath.Join(targetDir, targetPath), data))
+		target, err := safePath(renderPath(PathJoin(targetDir, targetPath), data))
 		if err != nil {
 			return Result{err, false}
 		}
@@ -690,12 +689,12 @@ func renderPath(path string, data any) string {
 	if data == nil {
 		return path
 	}
-	tmpl, err := template.New("path").Parse(path)
-	if err != nil {
+	tmplResult := ParseTemplate("path", path)
+	if !tmplResult.OK {
 		return path
 	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	buf := NewBuffer()
+	if executed := ExecuteTemplate(tmplResult.Value.(*Template), buf, data); !executed.OK {
 		return path
 	}
 	return buf.String()
@@ -708,7 +707,7 @@ func copyFile(fsys FS, source, target string) error {
 	}
 	defer s.Close()
 
-	if r := MkdirAll(filepath.Dir(target), 0755); !r.OK {
+	if r := MkdirAll(PathDir(target), 0755); !r.OK {
 		return r.Value.(error)
 	}
 

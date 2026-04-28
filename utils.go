@@ -5,12 +5,6 @@
 
 package core
 
-import (
-	crand "crypto/rand"
-	"encoding/hex"
-	"strconv"
-)
-
 // --- ID Generation ---
 
 var idCounter AtomicUint64
@@ -21,13 +15,15 @@ var idCounter AtomicUint64
 //	id := core.ID()  // "id-1-a3f2b1"
 //	id2 := core.ID() // "id-2-c7e4d9"
 func ID() string {
-	return Concat("id-", strconv.FormatUint(idCounter.Add(1), 10), "-", shortRand())
+	return Concat("id-", FormatUint(idCounter.Add(1), 10), "-", shortRand())
 }
 
 func shortRand() string {
-	b := make([]byte, 3)
-	crand.Read(b)
-	return hex.EncodeToString(b)
+	r := RandomBytes(3)
+	if !r.OK {
+		return "000000"
+	}
+	return HexEncode(r.Value.([]byte))
 }
 
 // --- Validation ---

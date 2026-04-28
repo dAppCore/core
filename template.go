@@ -70,6 +70,17 @@ func ParseTemplateFiles(filenames ...string) Result {
 	return Result{t, true}
 }
 
+// ParseTemplateFS parses one or more templates from fsys.
+//
+//	r := core.ParseTemplateFS(fsys, "README.md.tmpl")
+func ParseTemplateFS(fsys FS, patterns ...string) Result {
+	t, err := template.ParseFS(fsys, patterns...)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{t, true}
+}
+
 // ExecuteTemplate runs the template with the given data, writing to w.
 //
 //	r := core.ExecuteTemplate(tmpl, &buf, data)

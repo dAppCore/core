@@ -9,7 +9,6 @@ package core
 import (
 	"crypto/sha3"
 	"encoding/binary"
-	"encoding/hex"
 	"math/bits"
 )
 
@@ -67,7 +66,7 @@ func SHA3_256(data []byte) [32]byte {
 //	sum := core.SHA3_256Hex([]byte("hello"))
 func SHA3_256Hex(data []byte) string {
 	sum := SHA3_256(data)
-	return hex.EncodeToString(sum[:])
+	return HexEncode(sum[:])
 }
 
 // Keccak256 returns the legacy pre-NIST Keccak-256 digest of data.
@@ -109,7 +108,7 @@ func Keccak256(data []byte) [32]byte {
 //	sum := core.Keccak256Hex([]byte("hello"))
 func Keccak256Hex(data []byte) string {
 	sum := Keccak256(data)
-	return hex.EncodeToString(sum[:])
+	return HexEncode(sum[:])
 }
 
 // SHA3Shake128 returns outLen bytes from SHAKE128 applied to data.

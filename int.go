@@ -32,6 +32,13 @@ func FormatInt(i int64, base int) string {
 	return strconv.FormatInt(i, base)
 }
 
+// FormatUint converts a uint64 to a string in the given base.
+//
+//	s := core.FormatUint(255, 16) // "ff"
+func FormatUint(i uint64, base int) string {
+	return strconv.FormatUint(i, base)
+}
+
 // ParseInt converts a string in the given base and bit size to an int64.
 //
 //	r := core.ParseInt("ff", 16, 64)
