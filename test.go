@@ -64,6 +64,15 @@ type TB = testing.TB
 //	func BenchmarkSomething(b *core.B) { ... }
 type B = testing.B
 
+// F is the canonical Go fuzz harness, exported as core.F so fuzz files
+// stay on the single-import pattern. Used in FuzzXxx(f *F) signatures.
+//
+//	func FuzzURLParse(f *F) {
+//	    f.Add("https://example.com/path?q=1")
+//	    f.Fuzz(func(t *T, raw string) { ... })
+//	}
+type F = testing.F
+
 // AssertEqual fails the test if want and got are not deeply equal.
 //
 //	core.AssertEqual(t, "expected", result.Value)
