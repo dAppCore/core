@@ -8,7 +8,6 @@ package core
 import (
 	goio "io"
 	"os"
-	"os/user"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -347,16 +346,16 @@ func (l *Log) Security(msg string, keyvals ...any) {
 	}
 }
 
-// Username returns the current system username.
-// It uses os/user for reliability and falls back to environment variables.
+// Username returns the current system username, falling back to USER /
+// USERNAME env vars when user lookup fails (e.g. distroless containers
+// without a /etc/passwd entry).
 //
 //	user := core.Username()
 //	core.Println(user)
 func Username() string {
-	if u, err := user.Current(); err == nil {
-		return u.Username
+	if r := UserCurrent(); r.OK {
+		return r.Value.(*User).Username
 	}
-	// Fallback for environments where user lookup might fail
 	if u := os.Getenv("USER"); u != "" {
 		return u
 	}

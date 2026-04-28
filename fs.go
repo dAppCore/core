@@ -4,9 +4,7 @@ package core
 import (
 	"io"
 	"io/fs"
-	"iter"
 	"os"
-	"os/user"
 	"path/filepath"
 	"time"
 )
@@ -121,8 +119,8 @@ func (m *Fs) validatePath(p string) Result {
 		if err != nil || HasPrefix(rel, "..") {
 			// Security event: sandbox escape attempt
 			username := "unknown"
-			if u, err := user.Current(); err == nil {
-				username = u.Username
+			if r := UserCurrent(); r.OK {
+				username = r.Value.(*User).Username
 			}
 			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
 				time.Now().Format(time.RFC3339), root, p, realNext, username)
@@ -520,7 +518,7 @@ type FsEntry struct {
 //		if err != nil { break }
 //		if !entry.IsDir { /* file */ }
 //	}
-func (m *Fs) WalkSeq(root string) iter.Seq2[FsEntry, error] {
+func (m *Fs) WalkSeq(root string) Seq2[FsEntry, error] {
 	return m.walkSeq(root, nil)
 }
 
@@ -533,7 +531,7 @@ func (m *Fs) WalkSeq(root string) iter.Seq2[FsEntry, error] {
 //		if err != nil { break }
 //		if !entry.IsDir { /* file */ }
 //	}
-func (m *Fs) WalkSeqSkip(root string, skipNames ...string) iter.Seq2[FsEntry, error] {
+func (m *Fs) WalkSeqSkip(root string, skipNames ...string) Seq2[FsEntry, error] {
 	skip := make(map[string]struct{}, len(skipNames))
 	for _, name := range skipNames {
 		if name != "" {
@@ -544,7 +542,7 @@ func (m *Fs) WalkSeqSkip(root string, skipNames ...string) iter.Seq2[FsEntry, er
 }
 
 // walkSeq is the shared implementation behind WalkSeq and WalkSeqSkip.
-func (m *Fs) walkSeq(root string, skip map[string]struct{}) iter.Seq2[FsEntry, error] {
+func (m *Fs) walkSeq(root string, skip map[string]struct{}) Seq2[FsEntry, error] {
 	return func(yield func(FsEntry, error) bool) {
 		vp := m.validatePath(root)
 		if !vp.OK {
