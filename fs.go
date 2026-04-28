@@ -2,11 +2,9 @@
 package core
 
 import (
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 // Fs is a sandboxed local filesystem backend.
@@ -17,6 +15,30 @@ import (
 type Fs struct {
 	root string
 }
+
+// FS is a generic filesystem accepted by Mount and Extract.
+//
+//	fsys := core.DirFS("templates")
+//	r := core.Mount(fsys, ".")
+type FS = fs.FS
+
+// FsFile is a file opened from an FS.
+//
+//	r := emb.Open("README.md")
+//	if r.OK { file := r.Value.(core.FsFile); _ = file }
+type FsFile = fs.File
+
+// FsDirEntry is a directory entry returned by filesystem walkers.
+//
+//	r := emb.ReadDir(".")
+//	if r.OK { entries := r.Value.([]core.FsDirEntry); _ = entries }
+type FsDirEntry = fs.DirEntry
+
+// WalkDirFunc visits one path during a filesystem walk.
+//
+//	fn := func(path string, d core.FsDirEntry, err error) error { return err }
+//	_ = fn
+type WalkDirFunc = fs.WalkDirFunc
 
 // New initialises an Fs with the given root directory.
 // Root "/" means unrestricted access. Empty root defaults to "/".
@@ -123,7 +145,7 @@ func (m *Fs) validatePath(p string) Result {
 				username = r.Value.(*User).Username
 			}
 			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
-				time.Now().Format(time.RFC3339), root, p, realNext, username)
+				Now().Format(TimeRFC3339), root, p, realNext, username)
 			if err == nil {
 				err = E("fs.validatePath", Concat("sandbox escape: ", p, " resolves outside ", m.root), nil)
 			}
@@ -200,8 +222,44 @@ func (m *Fs) TempDir(prefix string) string {
 // DirFS returns an fs.FS rooted at the given directory path.
 //
 //	fsys := core.DirFS("/path/to/templates")
-func DirFS(dir string) fs.FS {
+func DirFS(dir string) FS {
 	return os.DirFS(dir)
+}
+
+// ReadDir reads a directory from fsys.
+//
+//	r := core.ReadDir(core.DirFS("templates"), ".")
+func ReadDir(fsys FS, name string) Result {
+	return Result{}.New(fs.ReadDir(fsys, name))
+}
+
+// ReadFile reads a file from fsys.
+//
+//	r := core.ReadFile(core.DirFS("templates"), "README.md")
+func ReadFile(fsys FS, name string) Result {
+	data, err := fs.ReadFile(fsys, name)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{data, true}
+}
+
+// Sub returns an FS rooted at dir inside fsys.
+//
+//	r := core.Sub(core.DirFS("templates"), "agent")
+func Sub(fsys FS, dir string) Result {
+	sub, err := fs.Sub(fsys, dir)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{sub, true}
+}
+
+// WalkDir walks fsys from root, calling fn for each file or directory.
+//
+//	err := core.WalkDir(core.DirFS("templates"), ".", fn)
+func WalkDir(fsys FS, root string, fn WalkDirFunc) error {
+	return fs.WalkDir(fsys, root, fn)
 }
 
 // WriteAtomic writes content by writing to a temp file then renaming.
@@ -387,37 +445,17 @@ func (m *Fs) WriteStream(path string) Result {
 	return m.Create(path)
 }
 
-// ReadAll reads all bytes from a ReadCloser and closes it.
-// Wraps io.ReadAll so consumers don't import "io".
-//
-//	r := fs.ReadStream(path)
-//	data := core.ReadAll(r.Value)
-func ReadAll(reader any) Result {
-	rc, ok := reader.(io.Reader)
-	if !ok {
-		return Result{E("core.ReadAll", "not a reader", nil), false}
-	}
-	data, err := io.ReadAll(rc)
-	if closer, ok := reader.(io.Closer); ok {
-		closer.Close()
-	}
-	if err != nil {
-		return Result{err, false}
-	}
-	return Result{string(data), true}
-}
-
 // WriteAll writes content to a writer and closes it if it implements Closer.
 //
 //	r := fs.WriteStream(path)
 //	core.WriteAll(r.Value, "content")
 func WriteAll(writer any, content string) Result {
-	wc, ok := writer.(io.Writer)
+	wc, ok := writer.(Writer)
 	if !ok {
 		return Result{E("core.WriteAll", "not a writer", nil), false}
 	}
 	_, err := wc.Write([]byte(content))
-	if closer, ok := writer.(io.Closer); ok {
+	if closer, ok := writer.(Closer); ok {
 		closer.Close()
 	}
 	if err != nil {
@@ -426,11 +464,11 @@ func WriteAll(writer any, content string) Result {
 	return Result{OK: true}
 }
 
-// CloseStream closes any value that implements io.Closer.
+// CloseStream closes any value that implements Closer.
 //
 //	core.CloseStream(r.Value)
 func CloseStream(v any) {
-	if closer, ok := v.(io.Closer); ok {
+	if closer, ok := v.(Closer); ok {
 		closer.Close()
 	}
 }

@@ -2,7 +2,7 @@
 
 // Embedded assets for the Core framework.
 //
-// Embed provides scoped filesystem access for go:embed and any fs.FS.
+// Embed provides scoped filesystem access for go:embed and any FS.
 // Also includes build-time asset packing (AST scanner + compressor)
 // and template-based directory extraction.
 //
@@ -29,8 +29,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -332,19 +330,16 @@ func decompress(input string) (string, error) {
 		return "", err
 	}
 
-	data, err := io.ReadAll(gz)
-	if err != nil {
-		return "", err
+	r := ReadAll(gz)
+	if !r.OK {
+		return "", r.Value.(error)
 	}
-	if err := gz.Close(); err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return r.Value.(string), nil
 }
 
 func getAllFiles(dir string) ([]string, error) {
 	var result []string
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(path string, d FsDirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -358,7 +353,7 @@ func getAllFiles(dir string) ([]string, error) {
 
 // --- Embed: Scoped Filesystem Mount ---
 
-// Embed wraps an fs.FS with a basedir for scoped access.
+// Embed wraps an FS with a basedir for scoped access.
 // All paths are relative to basedir.
 //
 //	r := core.Mount(core.DirFS("testdata"), "prompts")
@@ -367,15 +362,15 @@ func getAllFiles(dir string) ([]string, error) {
 //	core.Println(emb.BaseDirectory())
 type Embed struct {
 	basedir string
-	fsys    fs.FS
+	fsys    FS
 	embedFS *embed.FS // original embed.FS for type-safe access via EmbedFS()
 }
 
-// Mount creates a scoped view of an fs.FS anchored at basedir.
+// Mount creates a scoped view of an FS anchored at basedir.
 //
 //	r := core.Mount(myFS, "lib/prompts")
 //	if r.OK { emb := r.Value.(*Embed) }
-func Mount(fsys fs.FS, basedir string) Result {
+func Mount(fsys FS, basedir string) Result {
 	s := &Embed{fsys: fsys, basedir: basedir}
 
 	if efs, ok := fsys.(embed.FS); ok {
@@ -406,7 +401,7 @@ func (s *Embed) path(name string) Result {
 // Open opens the named file for reading.
 //
 //	r := emb.Open("test.txt")
-//	if r.OK { file := r.Value.(fs.File) }
+//	if r.OK { file := r.Value.(core.FsFile); _ = file }
 func (s *Embed) Open(name string) Result {
 	r := s.path(name)
 	if !r.OK {
@@ -431,7 +426,7 @@ func (s *Embed) ReadDir(name string) Result {
 	if !r.OK {
 		return r
 	}
-	return Result{}.New(fs.ReadDir(s.fsys, r.Value.(string)))
+	return ReadDir(s.fsys, r.Value.(string))
 }
 
 // ReadFile reads the named file.
@@ -443,11 +438,7 @@ func (s *Embed) ReadFile(name string) Result {
 	if !r.OK {
 		return r
 	}
-	data, err := fs.ReadFile(s.fsys, r.Value.(string))
-	if err != nil {
-		return Result{err, false}
-	}
-	return Result{data, true}
+	return ReadFile(s.fsys, r.Value.(string))
 }
 
 // ReadString reads the named file as a string.
@@ -471,21 +462,21 @@ func (s *Embed) Sub(subDir string) Result {
 	if !r.OK {
 		return r
 	}
-	sub, err := fs.Sub(s.fsys, r.Value.(string))
-	if err != nil {
-		return Result{err, false}
+	sub := Sub(s.fsys, r.Value.(string))
+	if !sub.OK {
+		return sub
 	}
-	return Result{&Embed{fsys: sub, basedir: "."}, true}
+	return Result{&Embed{fsys: sub.Value.(FS), basedir: "."}, true}
 }
 
-// FS returns the underlying fs.FS.
+// FS returns the underlying FS.
 //
 //	r := core.Mount(core.DirFS("testdata"), "prompts")
 //	if !r.OK { return r }
 //	emb := r.Value.(*core.Embed)
 //	fsys := emb.FS()
 //	_ = fsys
-func (s *Embed) FS() fs.FS {
+func (s *Embed) FS() FS {
 	return s.fsys
 }
 
@@ -537,7 +528,7 @@ type ExtractOptions struct {
 	RenameFiles map[string]string
 }
 
-// Extract copies a template directory from an fs.FS to targetDir,
+// Extract copies a template directory from an FS to targetDir,
 // processing Go text/template in filenames and file contents.
 //
 // Files containing a template filter substring (default: ".tmpl") have
@@ -553,7 +544,7 @@ type ExtractOptions struct {
 //	data := map[string]string{"Name": "homelab"}
 //	r := core.Extract(fsys, "/tmp/agent-workspace", data)
 //	if !r.OK { return r }
-func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Result {
+func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result {
 	opt := ExtractOptions{
 		TemplateFilters: []string{".tmpl"},
 		IgnoreFiles:     make(map[string]struct{}),
@@ -585,7 +576,7 @@ func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Res
 	var templateFiles []string
 	var standardFiles []string
 
-	err = fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+	err = WalkDir(fsys, ".", func(path string, d FsDirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -711,7 +702,7 @@ func renderPath(path string, data any) string {
 	return buf.String()
 }
 
-func copyFile(fsys fs.FS, source, target string) error {
+func copyFile(fsys FS, source, target string) error {
 	s, err := fsys.Open(source)
 	if err != nil {
 		return err
@@ -728,6 +719,9 @@ func copyFile(fsys fs.FS, source, target string) error {
 	}
 	defer d.Close()
 
-	_, err = io.Copy(d, s)
-	return err
+	r := Copy(d, s)
+	if !r.OK {
+		return r.Value.(error)
+	}
+	return nil
 }

@@ -9,12 +9,11 @@ import (
 	crand "crypto/rand"
 	"encoding/hex"
 	"strconv"
-	"sync/atomic"
 )
 
 // --- ID Generation ---
 
-var idCounter atomic.Uint64
+var idCounter AtomicUint64
 
 // ID returns a unique identifier. Format: "id-{counter}-{random}".
 // Counter is process-wide atomic. Random suffix prevents collision across restarts.

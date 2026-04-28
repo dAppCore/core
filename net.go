@@ -23,10 +23,7 @@
 //	a, b := core.NetPipe()  // in-memory test connection pair
 package core
 
-import (
-	"net"
-	"time"
-)
+import "net"
 
 // Conn is the canonical network connection interface.
 //
@@ -146,7 +143,7 @@ type IPMask = net.IPMask
 
 // Dialer holds connection-establishment options.
 //
-//	dialer := &core.Dialer{Timeout: 5 * time.Second}
+//	dialer := &core.Dialer{Timeout: 5 * core.Second}
 //	conn, err := dialer.Dial("tcp", "127.0.0.1:8080")
 //	if err == nil { defer conn.Close() }
 type Dialer = net.Dialer
@@ -193,8 +190,8 @@ func NetDial(network, address string) Result {
 
 // NetDialTimeout opens a connection with a deadline.
 //
-//	r := core.NetDialTimeout("tcp", "host:port", 5*time.Second)
-func NetDialTimeout(network, address string, timeout time.Duration) Result {
+//	r := core.NetDialTimeout("tcp", "host:port", 5*core.Second)
+func NetDialTimeout(network, address string, timeout Duration) Result {
 	c, err := net.DialTimeout(network, address, timeout)
 	if err != nil {
 		return Result{err, false}

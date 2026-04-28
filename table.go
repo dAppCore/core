@@ -4,10 +4,7 @@
 
 package core
 
-import (
-	"io"
-	"text/tabwriter"
-)
+import "text/tabwriter"
 
 // Table writes tab-aligned rows to an underlying writer.
 //
@@ -22,10 +19,10 @@ type Table struct {
 // NewTable creates a Table that writes tab-aligned rows to w.
 //
 //	table := core.NewTable(out)
-func NewTable(w io.Writer) *Table {
+func NewTable(w Writer) *Table {
 	if w == nil {
 		return &Table{
-			writer: tabwriter.NewWriter(io.Discard, 0, 0, 2, ' ', 0),
+			writer: tabwriter.NewWriter(Discard, 0, 0, 2, ' ', 0),
 			err:    E("core.NewTable", "writer is nil", nil),
 		}
 	}

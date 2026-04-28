@@ -22,10 +22,6 @@
 //	c.Data().Extract("agent/workspace/default", "/tmp/ws", data)
 package core
 
-import (
-	"io/fs"
-)
-
 // Data manages mounted embedded filesystems from core packages.
 // Embeds Registry[*Embed] for thread-safe named storage.
 //
@@ -54,9 +50,9 @@ func (d *Data) New(opts Options) Result {
 		return r
 	}
 
-	fsys, ok := r.Value.(fs.FS)
+	fsys, ok := r.Value.(FS)
 	if !ok {
-		return Result{E("data.New", "source is not fs.FS", nil), false}
+		return Result{E("data.New", "source is not core.FS", nil), false}
 	}
 
 	path := opts.String("path")
@@ -114,7 +110,7 @@ func (d *Data) ReadString(path string) Result {
 // List returns directory entries at a path.
 //
 //	r := c.Data().List("agent/persona/code")
-//	if r.OK { entries := r.Value.([]fs.DirEntry) }
+//	if r.OK { entries := r.Value.([]core.FsDirEntry) }
 func (d *Data) List(path string) Result {
 	emb, rel := d.resolve(path)
 	if emb == nil {
@@ -136,7 +132,7 @@ func (d *Data) ListNames(path string) Result {
 	if !r.OK {
 		return r
 	}
-	entries := r.Value.([]fs.DirEntry)
+	entries := r.Value.([]FsDirEntry)
 	var names []string
 	for _, e := range entries {
 		name := e.Name()

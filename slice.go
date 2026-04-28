@@ -24,6 +24,13 @@ func SliceIndex[T comparable](s []T, v T) int {
 	return slices.Index(s, v)
 }
 
+// SliceClone returns a shallow copy of s.
+//
+//	copy := core.SliceClone([]string{"a", "b"})
+func SliceClone[T any](s []T) []T {
+	return slices.Clone(s)
+}
+
 // SliceSort sorts s in place in ascending order.
 //
 //	core.SliceSort(scores)
@@ -57,6 +64,13 @@ func SliceUniq[T comparable](s []T) []T {
 //	core.SliceReverse(items)
 func SliceReverse[T any](s []T) {
 	slices.Reverse(s)
+}
+
+// SliceSorted collects seq into a sorted slice.
+//
+//	names := core.SliceSorted(seq)
+func SliceSorted[T cmp.Ordered](seq Seq[T]) []T {
+	return slices.Sorted(seq)
 }
 
 // SliceFilter returns a new slice containing only elements for which

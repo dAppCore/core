@@ -8,7 +8,6 @@
 package core
 
 import (
-	"io"
 	"os"
 )
 
@@ -26,7 +25,7 @@ type CliOptions struct{}
 //	cli.Print("%s ready", c.App().Name)
 type Cli struct {
 	*ServiceRuntime[CliOptions]
-	output io.Writer
+	output Writer
 	banner func(*Cli) string
 }
 
@@ -49,7 +48,7 @@ func (cl *Cli) Print(format string, args ...any) {
 // SetOutput sets the CLI output writer.
 //
 //	c.Cli().SetOutput(os.Stderr)
-func (cl *Cli) SetOutput(w io.Writer) {
+func (cl *Cli) SetOutput(w Writer) {
 	cl.output = w
 }
 

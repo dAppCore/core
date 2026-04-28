@@ -5,10 +5,7 @@
 
 package core
 
-import (
-	"sync"
-	"sync/atomic"
-)
+import "sync"
 
 // --- Core Struct ---
 
@@ -40,9 +37,9 @@ type Core struct {
 
 	context       Context
 	cancel        CancelFunc
-	taskIDCounter atomic.Uint64
+	taskIDCounter AtomicUint64
 	waitGroup     sync.WaitGroup
-	shutdown      atomic.Bool
+	shutdown      AtomicBool
 }
 
 // --- Accessors ---

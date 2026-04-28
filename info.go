@@ -36,7 +36,6 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
-	"time"
 )
 
 // OS returns the operating system name (darwin, linux, windows, etc.)
@@ -149,7 +148,7 @@ func init() {
 	}
 
 	// Timestamps
-	i.values["CORE_START"] = time.Now().UTC().Format(time.RFC3339)
+	i.values["CORE_START"] = Now().UTC().Format(TimeRFC3339)
 }
 
 // Env returns a system information value by key.

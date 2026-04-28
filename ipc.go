@@ -6,10 +6,7 @@
 
 package core
 
-import (
-	"slices"
-	"sync"
-)
+import "sync"
 
 // Ipc holds IPC dispatch data and the named action registry.
 //
@@ -29,7 +26,7 @@ type Ipc struct {
 // Each handler is wrapped in panic recovery. All handlers fire regardless of individual results.
 func (c *Core) broadcast(msg Message) Result {
 	c.ipc.ipcMu.RLock()
-	handlers := slices.Clone(c.ipc.ipcHandlers)
+	handlers := SliceClone(c.ipc.ipcHandlers)
 	c.ipc.ipcMu.RUnlock()
 
 	for _, h := range handlers {
@@ -50,7 +47,7 @@ func (c *Core) broadcast(msg Message) Result {
 //	r := c.Query(MyQuery{})
 func (c *Core) Query(q Query) Result {
 	c.ipc.queryMu.RLock()
-	handlers := slices.Clone(c.ipc.queryHandlers)
+	handlers := SliceClone(c.ipc.queryHandlers)
 	c.ipc.queryMu.RUnlock()
 
 	for _, h := range handlers {
@@ -68,7 +65,7 @@ func (c *Core) Query(q Query) Result {
 //	results := r.Value.([]any)
 func (c *Core) QueryAll(q Query) Result {
 	c.ipc.queryMu.RLock()
-	handlers := slices.Clone(c.ipc.queryHandlers)
+	handlers := SliceClone(c.ipc.queryHandlers)
 	c.ipc.queryMu.RUnlock()
 
 	var results []any

@@ -4,10 +4,7 @@
 
 package core
 
-import (
-	"reflect"
-	"sync"
-)
+import "sync"
 
 // Message is the type for IPC broadcasts (fire-and-forget).
 //
@@ -198,8 +195,8 @@ func WithService(factory func(*Core) Result) CoreOption {
 		}
 		// Auto-discover the service name from the instance's package path.
 		instance := r.Value
-		typeOf := reflect.TypeOf(instance)
-		if typeOf.Kind() == reflect.Ptr {
+		typeOf := TypeOf(instance)
+		if typeOf.Kind() == KindPointer {
 			typeOf = typeOf.Elem()
 		}
 		pkgPath := typeOf.PkgPath()

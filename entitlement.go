@@ -19,7 +19,6 @@
 //	c.SetUsageRecorder(myRecorder)
 package core
 
-
 // Entitlement is the result of a permission check.
 // Carries context for both boolean gates (Allowed) and usage limits (Limit/Used/Remaining).
 //

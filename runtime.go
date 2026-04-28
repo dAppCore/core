@@ -8,7 +8,6 @@ package core
 
 import (
 	"maps"
-	"slices"
 )
 
 // --- ServiceRuntime (embedded by consumer services) ---
@@ -149,7 +148,7 @@ func NewWithFactories(app any, factories map[string]ServiceFactory) Result {
 	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "core"})))
 	c.app.Runtime = app
 
-	names := slices.Sorted(maps.Keys(factories))
+	names := SliceSorted(maps.Keys(factories))
 	for _, name := range names {
 		factory := factories[name]
 		if factory == nil {

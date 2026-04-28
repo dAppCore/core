@@ -9,14 +9,12 @@ package core
 import (
 	"encoding/json"
 	"errors"
-	"iter"
 	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"sync"
-	"time"
 )
 
 // ErrorSink is the shared interface for error reporting.
@@ -242,7 +240,7 @@ func Root(err error) error {
 //	for op := range core.AllOperations(err) {
 //	    core.Println(op)
 //	}
-func AllOperations(err error) iter.Seq[string] {
+func AllOperations(err error) Seq[string] {
 	return func(yield func(string) bool) {
 		for err != nil {
 			if e, ok := err.(*Err); ok {
@@ -352,7 +350,7 @@ func (el *ErrorLog) Must(err error, op, msg string) {
 //	report := core.CrashReport{Error: "panic: agent failed", Meta: map[string]string{"service": "agent"}}
 //	core.Println(report.Error)
 type CrashReport struct {
-	Timestamp time.Time         `json:"timestamp"`
+	Timestamp Time              `json:"timestamp"`
 	Error     string            `json:"error"`
 	Stack     string            `json:"stack"`
 	System    CrashSystem       `json:"system,omitempty"`
@@ -399,7 +397,7 @@ func (h *ErrorPanic) Recover() {
 	}
 
 	report := CrashReport{
-		Timestamp: time.Now(),
+		Timestamp: Now(),
 		Error:     err.Error(),
 		Stack:     string(debug.Stack()),
 		System: CrashSystem{

@@ -88,6 +88,11 @@ type Seeker = io.Seeker
 //	if errors.Is(err, core.EOF) { /* end of stream */ }
 var EOF = io.EOF
 
+// Discard is a Writer on which all Write calls succeed without doing anything.
+//
+//	table := core.NewTable(core.Discard)
+var Discard Writer = io.Discard
+
 // Copy copies from src to dst until EOF on src or an error occurs.
 // Returns Result wrapping the number of bytes copied (int64).
 //
@@ -123,4 +128,23 @@ func WriteString(w Writer, s string) Result {
 		return Result{err, false}
 	}
 	return Result{n, true}
+}
+
+// ReadAll reads all bytes from reader and closes it when it implements Closer.
+//
+//	r := core.ReadAll(core.NewReader("hello"))
+//	if r.OK { core.Println(r.Value.(string)) }
+func ReadAll(reader any) Result {
+	rc, ok := reader.(Reader)
+	if !ok {
+		return Result{E("core.ReadAll", "not a reader", nil), false}
+	}
+	data, err := io.ReadAll(rc)
+	if closer, ok := reader.(Closer); ok {
+		closer.Close()
+	}
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{string(data), true}
 }

@@ -25,7 +25,6 @@
 //	c.Process().Run(ctx, "git", "log")  // Result{OK: false}
 package core
 
-
 // Process is the Core primitive for process management.
 // Zero dependencies — delegates to named Actions.
 //

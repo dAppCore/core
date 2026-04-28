@@ -8,10 +8,7 @@ package core
 import (
 	goio "io"
 	"os"
-	"slices"
 	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // Level defines logging verbosity.
@@ -156,7 +153,7 @@ func NewLog(opts LogOptions) *Log {
 	return &Log{
 		level:          opts.Level,
 		output:         output,
-		redactKeys:     slices.Clone(opts.RedactKeys),
+		redactKeys:     SliceClone(opts.RedactKeys),
 		StyleTimestamp: identity,
 		StyleDebug:     identity,
 		StyleInfo:      identity,
@@ -205,7 +202,7 @@ func (l *Log) SetOutput(w goio.Writer) {
 //	log.SetRedactKeys("token", "authorization")
 func (l *Log) SetRedactKeys(keys ...string) {
 	l.mu.Lock()
-	l.redactKeys = slices.Clone(keys)
+	l.redactKeys = SliceClone(keys)
 	l.mu.Unlock()
 }
 
@@ -222,7 +219,7 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 	redactKeys := l.redactKeys
 	l.mu.RUnlock()
 
-	timestamp := styleTimestamp(time.Now().Format("15:04:05"))
+	timestamp := styleTimestamp(Now().Format("15:04:05"))
 
 	// Copy keyvals to avoid mutating the caller's slice
 	keyvals = append([]any(nil), keyvals...)
@@ -278,7 +275,7 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 
 			// Redaction logic
 			keyStr := Sprint(key)
-			if slices.Contains(redactKeys, keyStr) {
+			if SliceContains(redactKeys, keyStr) {
 				val = "[REDACTED]"
 			}
 
@@ -364,7 +361,7 @@ func Username() string {
 
 // --- Default logger ---
 
-var defaultLogPtr atomic.Pointer[Log]
+var defaultLogPtr AtomicPointer[Log]
 
 func init() {
 	l := NewLog(LogOptions{Level: LevelInfo})

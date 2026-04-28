@@ -26,7 +26,6 @@
 //	names := c.Actions()  // ["process.run", "agentic.dispatch", ...]
 package core
 
-
 // ActionHandler is the function signature for all named actions.
 //
 //	func(ctx Context, opts core.Options) core.Result

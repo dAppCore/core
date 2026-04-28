@@ -142,7 +142,6 @@ func TestOptions_Result_New_Error_Bad(t *T) {
 	AssertEqual(t, err, r.Value)
 }
 
-
 // --- WithOption ---
 
 func TestOptions_WithOption_Good(t *T) {

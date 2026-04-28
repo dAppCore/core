@@ -17,7 +17,6 @@
 
 package core
 
-
 // Service is a managed component with optional lifecycle.
 //
 //	svc := core.Service{Name: "agent", OnStart: func() core.Result { return core.Result{OK: true} }}

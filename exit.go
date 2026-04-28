@@ -18,10 +18,7 @@
 
 package core
 
-import (
-	"os"
-	"time"
-)
+import "os"
 
 // osExit is the singular call to os.Exit in core/go.
 // Tests override via the testExitCode hook; production wires straight through.
@@ -29,13 +26,13 @@ var osExit = os.Exit
 
 // ExitOptions configures graceful exit behaviour.
 //
-//	c.ExitWith(core.ExitOptions{Code: 1, Timeout: 5 * time.Second})
+//	c.ExitWith(core.ExitOptions{Code: 1, Timeout: 5 * core.Second})
 type ExitOptions struct {
 	// Code is the process exit code passed to os.Exit.
 	Code int
 	// Timeout bounds how long ServiceShutdown may run before the process
 	// terminates anyway. Zero means wait forever (legacy behaviour).
-	Timeout time.Duration
+	Timeout Duration
 }
 
 // Exit terminates the process with the given code, after running shutdown hooks.
@@ -50,7 +47,7 @@ type ExitOptions struct {
 //	    return core.Result{OK: true}
 //	})
 func (c *Core) Exit(code int) {
-	c.ExitWith(ExitOptions{Code: code, Timeout: 30 * time.Second})
+	c.ExitWith(ExitOptions{Code: code, Timeout: 30 * Second})
 }
 
 // ExitWith runs ServiceShutdown with the given timeout, then exits.
@@ -58,7 +55,7 @@ func (c *Core) Exit(code int) {
 // a warning is logged.
 //
 //	// daemon with a tighter shutdown budget
-//	c.ExitWith(core.ExitOptions{Code: 0, Timeout: 5 * time.Second})
+//	c.ExitWith(core.ExitOptions{Code: 0, Timeout: 5 * core.Second})
 func (c *Core) ExitWith(opts ExitOptions) {
 	ctx := Background()
 	timeout := opts.Timeout
