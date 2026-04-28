@@ -54,29 +54,29 @@ func (a App) New(opts Options) App {
 func (a App) Find(filename, name string) Result {
 	// If filename contains a separator, check it directly
 	if Contains(filename, string(os.PathSeparator)) {
-		abs, err := filepath.Abs(filename)
-		if err != nil {
-			return Result{err, false}
+		abs := PathAbs(filename)
+		if !abs.OK {
+			return abs
 		}
-		if isExecutable(abs) {
-			return Result{&App{Name: name, Filename: filename, Path: abs}, true}
+		if isExecutable(abs.Value.(string)) {
+			return Result{&App{Name: name, Filename: filename, Path: abs.Value.(string)}, true}
 		}
 		return Result{E("app.Find", Concat(filename, " not found"), nil), false}
 	}
 
 	// Search PATH
-	pathEnv := os.Getenv("PATH")
+	pathEnv := Env("PATH")
 	if pathEnv == "" {
 		return Result{E("app.Find", "PATH is empty", nil), false}
 	}
 	for _, dir := range Split(pathEnv, string(os.PathListSeparator)) {
 		candidate := filepath.Join(dir, filename)
 		if isExecutable(candidate) {
-			abs, err := filepath.Abs(candidate)
-			if err != nil {
+			abs := PathAbs(candidate)
+			if !abs.OK {
 				continue
 			}
-			return Result{&App{Name: name, Filename: filename, Path: abs}, true}
+			return Result{&App{Name: name, Filename: filename, Path: abs.Value.(string)}, true}
 		}
 	}
 	return Result{E("app.Find", Concat(filename, " not found on PATH"), nil), false}

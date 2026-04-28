@@ -24,7 +24,6 @@ package core
 
 import (
 	"io/fs"
-	"path/filepath"
 )
 
 // Data manages mounted embedded filesystems from core packages.
@@ -138,7 +137,7 @@ func (d *Data) ListNames(path string) Result {
 	for _, e := range entries {
 		name := e.Name()
 		if !e.IsDir() {
-			name = TrimSuffix(name, filepath.Ext(name))
+			name = TrimSuffix(name, PathExt(name))
 		}
 		names = append(names, name)
 	}

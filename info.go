@@ -35,7 +35,6 @@ package core
 import (
 	"os"
 	"runtime"
-	"strconv"
 	"time"
 )
 
@@ -57,8 +56,8 @@ func init() {
 	i.values["GO"] = runtime.Version()
 	i.values["DS"] = string(os.PathSeparator)
 	i.values["PS"] = string(os.PathListSeparator)
-	i.values["PID"] = strconv.Itoa(os.Getpid())
-	i.values["NUM_CPU"] = strconv.Itoa(runtime.NumCPU())
+	i.values["PID"] = Itoa(os.Getpid())
+	i.values["NUM_CPU"] = Itoa(runtime.NumCPU())
 	i.values["USER"] = Username()
 
 	if h, err := os.Hostname(); err == nil {

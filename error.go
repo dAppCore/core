@@ -357,8 +357,8 @@ func (h *ErrorPanic) Reports(n int) Result {
 		return Result{err, false}
 	}
 	var reports []CrashReport
-	if err := json.Unmarshal(data, &reports); err != nil {
-		return Result{err, false}
+	if r := JSONUnmarshal(data, &reports); !r.OK {
+		return r
 	}
 	if n <= 0 || len(reports) <= n {
 		return Result{reports, true}
@@ -374,7 +374,7 @@ func (h *ErrorPanic) appendReport(report CrashReport) {
 
 	var reports []CrashReport
 	if data, err := os.ReadFile(h.filePath); err == nil {
-		if err := json.Unmarshal(data, &reports); err != nil {
+		if r := JSONUnmarshal(data, &reports); !r.OK {
 			reports = nil
 		}
 	}
