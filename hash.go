@@ -7,8 +7,12 @@
 package core
 
 import (
+	"crypto/hkdf"
+	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/hex"
+	"hash"
 )
 
 // SHA256 returns the SHA-256 digest of data.
@@ -38,4 +42,37 @@ func SHA256String(s string) [32]byte {
 //	sum := core.SHA256HexString("hello")
 func SHA256HexString(s string) string {
 	return SHA256Hex([]byte(s))
+}
+
+// HMAC returns the HMAC digest for data using key and algo.
+// Supported algorithms are "sha256" and "sha512"; unknown algorithms panic.
+//
+//	digest := core.HMAC("sha256", []byte("key"), []byte("payload"))
+func HMAC(algo string, key, data []byte) []byte {
+	mac := hmac.New(hashFor(algo), key)
+	mac.Write(data)
+	return mac.Sum(nil)
+}
+
+// HKDF derives length bytes from secret using salt, info, and algo.
+// Supported algorithms are "sha256" and "sha512"; unknown algorithms panic.
+//
+//	key := core.HKDF("sha256", secret, salt, []byte("session"), 32)
+func HKDF(algo string, secret, salt, info []byte, length int) []byte {
+	key, err := hkdf.Key(hashFor(algo), secret, salt, string(info), length)
+	if err != nil {
+		panic(err)
+	}
+	return key
+}
+
+func hashFor(algo string) func() hash.Hash {
+	switch algo {
+	case "sha256":
+		return sha256.New
+	case "sha512":
+		return sha512.New
+	default:
+		panic(Concat("unknown hash algorithm: ", algo))
+	}
 }
