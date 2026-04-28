@@ -160,6 +160,33 @@ func PathGlob(pattern string) []string {
 	return matches
 }
 
+// PathRel returns target expressed as a path relative to base. Both
+// arguments must be either both absolute or both relative; otherwise
+// the call returns Result.OK=false with the underlying error.
+//
+//	core.PathRel("/var/lib/foo", "/var/lib/foo/bar/baz")  // Result.Value="bar/baz"
+//	core.PathRel("/a", "/b")                              // Result.Value="../b"
+func PathRel(base, target string) Result {
+	r, err := filepath.Rel(base, target)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{r, true}
+}
+
+// PathAbs returns the absolute representation of p, anchored to the
+// current working directory when p is relative.
+//
+//	core.PathAbs("./relative/path")   // "/cwd/relative/path"
+//	core.PathAbs("/already/absolute") // "/already/absolute"
+func PathAbs(p string) Result {
+	a, err := filepath.Abs(p)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{a, true}
+}
+
 // lastIndex returns the index of the last occurrence of substr in s, or -1.
 func lastIndex(s, substr string) int {
 	if substr == "" || s == "" {

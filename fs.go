@@ -4,6 +4,7 @@ package core
 import (
 	"io"
 	"io/fs"
+	"iter"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -420,4 +421,105 @@ func (m *Fs) Rename(oldPath, newPath string) Result {
 		return Result{err, false}
 	}
 	return Result{OK: true}
+}
+
+// FsEntry is a directory entry yielded by WalkSeq and WalkSeqSkip.
+// Path is relative to the walk root.
+type FsEntry struct {
+	Path  string // relative to walk root, OS-native separator
+	Name  string // basename
+	IsDir bool
+	Mode  fs.FileMode
+}
+
+// WalkSeq walks the directory tree rooted at root within the Fs sandbox,
+// yielding every entry depth-first. Iteration stops on caller break.
+//
+// Symlinks are not followed: validatePath rejects any symlink that resolves
+// outside the sandbox before descent, and the underlying walker uses
+// filepath.WalkDir which does not traverse into symlinked directories.
+//
+//	for entry, err := range c.Fs().WalkSeq("./") {
+//		if err != nil { break }
+//		if !entry.IsDir { /* file */ }
+//	}
+func (m *Fs) WalkSeq(root string) iter.Seq2[FsEntry, error] {
+	return m.walkSeq(root, nil)
+}
+
+// WalkSeqSkip walks like WalkSeq but skips any directory whose basename
+// appears in skipNames (e.g. "vendor", "node_modules", ".git"). Skipped
+// directories are not descended into; their contents are never yielded.
+// The walk root itself is never skipped, even if its basename matches.
+//
+//	for entry, err := range c.Fs().WalkSeqSkip("./", "vendor", "node_modules", ".git") {
+//		if err != nil { break }
+//		if !entry.IsDir { /* file */ }
+//	}
+func (m *Fs) WalkSeqSkip(root string, skipNames ...string) iter.Seq2[FsEntry, error] {
+	skip := make(map[string]struct{}, len(skipNames))
+	for _, name := range skipNames {
+		if name != "" {
+			skip[name] = struct{}{}
+		}
+	}
+	return m.walkSeq(root, skip)
+}
+
+// walkSeq is the shared implementation behind WalkSeq and WalkSeqSkip.
+func (m *Fs) walkSeq(root string, skip map[string]struct{}) iter.Seq2[FsEntry, error] {
+	return func(yield func(FsEntry, error) bool) {
+		vp := m.validatePath(root)
+		if !vp.OK {
+			err, _ := vp.Value.(error)
+			if err == nil {
+				err = E("fs.WalkSeq", "invalid walk root", nil)
+			}
+			yield(FsEntry{}, err)
+			return
+		}
+		fullRoot, _ := vp.Value.(string)
+		if fullRoot == "" {
+			yield(FsEntry{}, E("fs.WalkSeq", "validatePath returned empty root", nil))
+			return
+		}
+		stop := false
+		_ = filepath.WalkDir(fullRoot, func(path string, d fs.DirEntry, walkErr error) error {
+			if stop {
+				return filepath.SkipAll
+			}
+			if walkErr != nil {
+				if !yield(FsEntry{}, walkErr) {
+					stop = true
+					return filepath.SkipAll
+				}
+				return nil
+			}
+			if d.IsDir() && skip != nil && path != fullRoot {
+				if _, ok := skip[d.Name()]; ok {
+					return filepath.SkipDir
+				}
+			}
+			rel, relErr := filepath.Rel(fullRoot, path)
+			if relErr != nil {
+				rel = path
+			}
+			info, _ := d.Info()
+			mode := fs.FileMode(0)
+			if info != nil {
+				mode = info.Mode()
+			}
+			entry := FsEntry{
+				Path:  rel,
+				Name:  d.Name(),
+				IsDir: d.IsDir(),
+				Mode:  mode,
+			}
+			if !yield(entry, nil) {
+				stop = true
+				return filepath.SkipAll
+			}
+			return nil
+		})
+	}
 }

@@ -108,3 +108,45 @@ func TestPath_PathDir_TrailingSlash(t *testing.T) {
 	assert.Equal(t, "/Users/snider/Code", result)
 }
 
+// --- PathRel ---
+
+func TestPath_PathRel_Good_Descendant(t *testing.T) {
+	r := core.PathRel("/var/lib/foo", "/var/lib/foo/bar/baz")
+	assert.True(t, r.OK)
+	assert.Equal(t, "bar/baz", r.Value.(string))
+}
+
+func TestPath_PathRel_Good_Sibling(t *testing.T) {
+	r := core.PathRel("/a", "/b")
+	assert.True(t, r.OK)
+	assert.Equal(t, "../b", r.Value.(string))
+}
+
+func TestPath_PathRel_Good_Identical(t *testing.T) {
+	r := core.PathRel("/x/y", "/x/y")
+	assert.True(t, r.OK)
+	assert.Equal(t, ".", r.Value.(string))
+}
+
+func TestPath_PathRel_Bad_MixedAbsRel(t *testing.T) {
+	// filepath.Rel rejects when one is absolute and the other relative.
+	r := core.PathRel("/abs/path", "rel/path")
+	assert.False(t, r.OK)
+}
+
+// --- PathAbs ---
+
+func TestPath_PathAbs_Good_AlreadyAbsolute(t *testing.T) {
+	r := core.PathAbs("/already/absolute")
+	assert.True(t, r.OK)
+	assert.Equal(t, "/already/absolute", r.Value.(string))
+}
+
+func TestPath_PathAbs_Good_Relative(t *testing.T) {
+	r := core.PathAbs("./relative/path")
+	assert.True(t, r.OK)
+	abs := r.Value.(string)
+	// Resolved against cwd — must end in the relative tail and be absolute.
+	assert.True(t, len(abs) > 0 && abs[0] == '/', "PathAbs must return absolute: %s", abs)
+	assert.Contains(t, abs, "relative/path")
+}

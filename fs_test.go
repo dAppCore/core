@@ -347,3 +347,136 @@ func TestFs_Root_Good_Default(t *testing.T) {
 	m := (&Fs{}).New("")
 	assert.Equal(t, "/", m.Root())
 }
+
+// --- WalkSeq / WalkSeqSkip ---
+
+// walkSeqSeed builds a small fixture tree under dir for the walk tests.
+//
+//	root/
+//	  a.txt
+//	  sub/
+//	    b.txt
+//	  vendor/
+//	    skipme.txt
+//	  .git/
+//	    HEAD
+func walkSeqSeed(t *testing.T, dir string) {
+	t.Helper()
+	c := New()
+	c.Fs().Write(Path(dir, "a.txt"), "alpha")
+	c.Fs().Write(Path(dir, "sub", "b.txt"), "bravo")
+	c.Fs().Write(Path(dir, "vendor", "skipme.txt"), "skip")
+	c.Fs().Write(Path(dir, ".git", "HEAD"), "ref: refs/heads/main")
+}
+
+func TestFs_WalkSeq_Good(t *testing.T) {
+	dir := t.TempDir()
+	walkSeqSeed(t, dir)
+	c := New()
+	seen := map[string]bool{}
+	for entry, err := range c.Fs().WalkSeq(dir) {
+		assert.NoError(t, err)
+		seen[entry.Name] = true
+	}
+	assert.True(t, seen["a.txt"])
+	assert.True(t, seen["b.txt"])
+	assert.True(t, seen["sub"])
+	assert.True(t, seen["vendor"])
+	assert.True(t, seen["skipme.txt"])
+	assert.True(t, seen[".git"])
+	assert.True(t, seen["HEAD"])
+}
+
+func TestFs_WalkSeq_Good_BreakStops(t *testing.T) {
+	dir := t.TempDir()
+	walkSeqSeed(t, dir)
+	c := New()
+	count := 0
+	for entry, err := range c.Fs().WalkSeq(dir) {
+		assert.NoError(t, err)
+		_ = entry
+		count++
+		if count == 2 {
+			break
+		}
+	}
+	assert.Equal(t, 2, count)
+}
+
+func TestFs_WalkSeq_Good_RelPath(t *testing.T) {
+	dir := t.TempDir()
+	walkSeqSeed(t, dir)
+	c := New()
+	rels := []string{}
+	for entry, err := range c.Fs().WalkSeq(dir) {
+		assert.NoError(t, err)
+		if !entry.IsDir {
+			rels = append(rels, entry.Path)
+		}
+	}
+	// Paths are relative to the walk root, never start with the absolute dir.
+	for _, p := range rels {
+		assert.False(t, len(p) > 0 && p[0] == '/', "rel path leaked absolute: %s", p)
+	}
+}
+
+func TestFs_WalkSeqSkip_Good(t *testing.T) {
+	dir := t.TempDir()
+	walkSeqSeed(t, dir)
+	c := New()
+	seen := map[string]bool{}
+	for entry, err := range c.Fs().WalkSeqSkip(dir, "vendor", ".git") {
+		assert.NoError(t, err)
+		seen[entry.Name] = true
+	}
+	assert.True(t, seen["a.txt"])
+	assert.True(t, seen["sub"])
+	assert.True(t, seen["b.txt"])
+	// Skipped directory names themselves still appear (as the entry where
+	// skip is decided), but their contents do not.
+	assert.False(t, seen["skipme.txt"], "vendor contents should be skipped")
+	assert.False(t, seen["HEAD"], ".git contents should be skipped")
+}
+
+func TestFs_WalkSeqSkip_Good_RootBasenameNotSkipped(t *testing.T) {
+	// If the user explicitly walks a directory whose basename matches a
+	// skipName, the walk root itself is still entered.
+	parent := t.TempDir()
+	c := New()
+	c.Fs().Write(Path(parent, "vendor", "kept.txt"), "kept")
+	seen := map[string]bool{}
+	for entry, err := range c.Fs().WalkSeqSkip(Path(parent, "vendor"), "vendor") {
+		assert.NoError(t, err)
+		seen[entry.Name] = true
+	}
+	assert.True(t, seen["kept.txt"], "walk root must not be self-skipped")
+}
+
+func TestFs_WalkSeq_Good_SandboxContainment(t *testing.T) {
+	// Fs sandboxed to a temp dir; walking ".." must NOT escape — every
+	// yielded entry path must remain inside the sandbox root.
+	root := t.TempDir()
+	sandbox := (&Fs{}).New(root)
+	c := New()
+	c.Fs().Write(Path(root, "inside.txt"), "ok")
+
+	for entry, err := range sandbox.WalkSeq("..") {
+		assert.NoError(t, err)
+		// Entry paths are relative to the (resolved) walk root; they
+		// must never start with ".." which would indicate escape.
+		assert.False(t, len(entry.Path) >= 2 && entry.Path[:2] == "..",
+			"sandbox escape: %s", entry.Path)
+	}
+}
+
+func TestFs_WalkSeq_Good_FileMode(t *testing.T) {
+	dir := t.TempDir()
+	c := New()
+	c.Fs().WriteMode(Path(dir, "secret.key"), "x", 0o600)
+	for entry, err := range c.Fs().WalkSeq(dir) {
+		assert.NoError(t, err)
+		if entry.Name == "secret.key" {
+			assert.Equal(t, fs.FileMode(0o600), entry.Mode.Perm())
+		}
+	}
+}
