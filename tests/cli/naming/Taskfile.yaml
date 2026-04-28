@@ -1,0 +1,21 @@
+# AX-7 — Test{File}_{Function}_{Good|Bad|Ugly} naming guard.
+#
+# Every public function/method/type-constructor in core/go production
+# code must have all three Test*_Good, Test*_Bad, Test*_Ugly variants.
+# The triplet drives coverage without contrived tests: if a function
+# has no Bad case, its surface is too narrow; if no Ugly case, the
+# edges aren't understood.
+
+version: "3"
+
+tasks:
+  default:
+    desc: Verify _Good/_Bad/_Ugly triplet for every public symbol.
+    deps:
+      - check
+
+  check:
+    desc: List public symbols missing one or more Test*_{Good,Bad,Ugly} variants.
+    dir: ../../..
+    cmds:
+      - bash tests/cli/naming/check.sh
