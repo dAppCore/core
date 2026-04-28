@@ -162,3 +162,110 @@ func TestCommand_EmptyPath_Bad(t *T) {
 	r := c.Command("", Command{})
 	AssertFalse(t, r.OK)
 }
+
+// --- AX-7 canonical triplets ---
+
+func TestCommand_Command_I18nKey_Good(t *T) {
+	cmd := &Command{Path: "deploy/to/homelab"}
+	AssertEqual(t, "cmd.deploy.to.homelab.description", cmd.I18nKey())
+}
+
+func TestCommand_Command_I18nKey_Bad(t *T) {
+	cmd := &Command{Description: "cmd.custom.description", Path: "deploy"}
+	AssertEqual(t, "cmd.custom.description", cmd.I18nKey())
+}
+
+func TestCommand_Command_I18nKey_Ugly(t *T) {
+	cmd := &Command{}
+	AssertEqual(t, "cmd..description", cmd.I18nKey())
+}
+
+func TestCommand_Command_Run_Good(t *T) {
+	cmd := &Command{Path: "agent/run", Action: func(opts Options) Result {
+		return Result{Value: opts.String("agent"), OK: true}
+	}}
+	r := cmd.Run(NewOptions(Option{Key: "agent", Value: "codex"}))
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "codex", r.Value)
+}
+
+func TestCommand_Command_Run_Bad(t *T) {
+	cmd := &Command{Path: "agent/run"}
+	r := cmd.Run(NewOptions())
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "not executable")
+}
+
+func TestCommand_Command_Run_Ugly(t *T) {
+	cmd := &Command{Path: "agent/run", Action: func(opts Options) Result {
+		return Result{Value: opts.Len(), OK: true}
+	}}
+	r := cmd.Run(NewOptions())
+	AssertTrue(t, r.OK)
+	AssertEqual(t, 0, r.Value)
+}
+
+func TestCommand_Command_IsManaged_Good(t *T) {
+	cmd := &Command{Managed: "process.daemon"}
+	AssertTrue(t, cmd.IsManaged())
+}
+
+func TestCommand_Command_IsManaged_Bad(t *T) {
+	cmd := &Command{}
+	AssertFalse(t, cmd.IsManaged())
+}
+
+func TestCommand_Command_IsManaged_Ugly(t *T) {
+	cmd := &Command{Managed: " "}
+	AssertTrue(t, cmd.IsManaged())
+}
+
+func TestCommand_Core_Command_Good(t *T) {
+	c := New()
+	r := c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result {
+		return Result{Value: "deployed", OK: true}
+	}})
+	AssertTrue(t, r.OK)
+	AssertTrue(t, c.Command("deploy/to/homelab").OK)
+}
+
+func TestCommand_Core_Command_Bad(t *T) {
+	c := New()
+	AssertFalse(t, c.Command("/deploy", Command{}).OK)
+	AssertFalse(t, c.Command("deploy//homelab", Command{}).OK)
+}
+
+func TestCommand_Core_Command_Ugly(t *T) {
+	c := New()
+	c.Command("deploy/to/homelab", Command{})
+	r := c.Command("deploy", Command{Action: func(_ Options) Result {
+		return Result{Value: "parent", OK: true}
+	}})
+	AssertTrue(t, r.OK)
+	parent := c.Command("deploy").Value.(*Command)
+	AssertNotNil(t, parent)
+	AssertNotEmpty(t, parent.I18nKey())
+}
+
+func TestCommand_Core_Commands_Good(t *T) {
+	c := New()
+	c.Command("agent/prepare", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Command("agent/dispatch", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	commands := c.Commands()
+	AssertContains(t, commands, "agent/prepare")
+	AssertContains(t, commands, "agent/dispatch")
+}
+
+func TestCommand_Core_Commands_Bad(t *T) {
+	c := New()
+	AssertEmpty(t, c.Commands())
+}
+
+func TestCommand_Core_Commands_Ugly(t *T) {
+	c := New()
+	c.Command("agent/prepare", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	commands := c.Commands()
+	commands[0] = "mutated"
+	AssertContains(t, c.Commands(), "agent/prepare")
+	AssertNotContains(t, c.Commands(), "mutated")
+}

@@ -80,3 +80,169 @@ func TestCLI_AssertCLIs_Good(t *T) {
 		{Name: "second", Cmd: "go", Args: []string{"env"}, WantOK: true, Output: "fixture-output\n"},
 	})
 }
+
+// --- AX-7 canonical triplets ---
+
+func TestCli_CliRegister_Good(t *T) {
+	c := New()
+	r := c.Service("cli")
+	AssertTrue(t, r.OK)
+	AssertNotNil(t, c.Cli())
+}
+
+func TestCli_CliRegister_Bad(t *T) {
+	c := New()
+	r := CliRegister(c)
+	AssertFalse(t, r.OK)
+}
+
+func TestCli_CliRegister_Ugly(t *T) {
+	AssertPanics(t, func() {
+		CliRegister(nil)
+	})
+}
+
+func TestCli_Cli_Print_Good(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().Print("agent %s ready", "codex")
+	AssertEqual(t, "agent codex ready\n", buf.String())
+}
+
+func TestCli_Cli_Print_Bad(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().Print("agent %s ready")
+	AssertContains(t, buf.String(), "%!s(MISSING)")
+}
+
+func TestCli_Cli_Print_Ugly(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().Print("")
+	AssertEqual(t, "\n", buf.String())
+}
+
+func TestCli_Cli_SetOutput_Good(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().Print("homelab")
+	AssertEqual(t, "homelab\n", buf.String())
+}
+
+func TestCli_Cli_SetOutput_Bad(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().SetOutput(buf)
+	c.Cli().Print("agent")
+	AssertEqual(t, "agent\n", buf.String())
+}
+
+func TestCli_Cli_SetOutput_Ugly(t *T) {
+	c := New()
+	first := NewBuffer()
+	second := NewBuffer()
+	c.Cli().SetOutput(first)
+	c.Cli().Print("first")
+	c.Cli().SetOutput(second)
+	c.Cli().Print("second")
+	AssertEqual(t, "first\n", first.String())
+	AssertEqual(t, "second\n", second.String())
+}
+
+func TestCli_Cli_Run_Good(t *T) {
+	c := New()
+	var target string
+	c.Command("deploy/to/homelab", Command{Action: func(opts Options) Result {
+		target = opts.String("target")
+		return Result{Value: "deployed", OK: true}
+	}})
+	r := c.Cli().Run("deploy", "to", "homelab", "--target=lethean")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "lethean", target)
+}
+
+func TestCli_Cli_Run_Bad(t *T) {
+	c := New()
+	c.Command("agent/status", Command{})
+	r := c.Cli().Run("agent", "status")
+	AssertFalse(t, r.OK)
+}
+
+func TestCli_Cli_Run_Ugly(t *T) {
+	c := New(WithOption("name", "homelab"))
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().SetBanner(func(_ *Cli) string { return "homelab ops" })
+	r := c.Cli().Run("missing")
+	AssertFalse(t, r.OK)
+	AssertContains(t, buf.String(), "homelab ops")
+}
+
+func TestCli_Cli_PrintHelp_Good(t *T) {
+	c := New(WithOption("name", "homelab"))
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Command("agent/status", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Cli().PrintHelp()
+	AssertContains(t, buf.String(), "homelab commands:")
+	AssertContains(t, buf.String(), "agent/status")
+}
+
+func TestCli_Cli_PrintHelp_Bad(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Command("agent/hidden", Command{Hidden: true, Action: func(_ Options) Result { return Result{OK: true} }})
+	c.Cli().PrintHelp()
+	AssertNotContains(t, buf.String(), "agent/hidden")
+}
+
+func TestCli_Cli_PrintHelp_Ugly(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().PrintHelp()
+	AssertEqual(t, "Commands:\n", buf.String())
+}
+
+func TestCli_Cli_SetBanner_Good(t *T) {
+	c := New()
+	c.Cli().SetBanner(func(_ *Cli) string { return "dAppCore agent" })
+	AssertEqual(t, "dAppCore agent", c.Cli().Banner())
+}
+
+func TestCli_Cli_SetBanner_Bad(t *T) {
+	c := New(WithOption("name", "homelab"))
+	c.Cli().SetBanner(nil)
+	AssertEqual(t, "homelab", c.Cli().Banner())
+}
+
+func TestCli_Cli_SetBanner_Ugly(t *T) {
+	c := New(WithOption("name", "homelab"))
+	c.Cli().SetBanner(func(cl *Cli) string {
+		return Concat(cl.Core().App().Name, " banner")
+	})
+	AssertEqual(t, "homelab banner", c.Cli().Banner())
+}
+
+func TestCli_Cli_Banner_Good(t *T) {
+	c := New()
+	c.Cli().SetBanner(func(_ *Cli) string { return "agent dispatch" })
+	AssertEqual(t, "agent dispatch", c.Cli().Banner())
+}
+
+func TestCli_Cli_Banner_Bad(t *T) {
+	c := New(WithOption("name", "homelab"))
+	AssertEqual(t, "homelab", c.Cli().Banner())
+}
+
+func TestCli_Cli_Banner_Ugly(t *T) {
+	c := New()
+	AssertEqual(t, "", c.Cli().Banner())
+}

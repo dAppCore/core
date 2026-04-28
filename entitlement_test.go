@@ -231,3 +231,153 @@ func TestEntitlement_Ugly_SaaSGatingPattern(t *T) {
 	e = c.Entitled("premium.feature")
 	AssertFalse(t, e.Allowed)
 }
+
+// --- AX-7 canonical triplets ---
+
+func TestEntitlement_Entitlement_NearLimit_Good(t *T) {
+	e := Entitlement{Allowed: true, Limit: 100, Used: 85}
+	AssertTrue(t, e.NearLimit(0.8))
+}
+
+func TestEntitlement_Entitlement_NearLimit_Bad(t *T) {
+	e := Entitlement{Allowed: true, Unlimited: true, Limit: 100, Used: 99}
+	AssertFalse(t, e.NearLimit(0.8))
+}
+
+func TestEntitlement_Entitlement_NearLimit_Ugly(t *T) {
+	e := Entitlement{Allowed: true, Limit: 0, Used: 10}
+	AssertFalse(t, e.NearLimit(0.1))
+}
+
+func TestEntitlement_Entitlement_UsagePercent_Good(t *T) {
+	e := Entitlement{Limit: 200, Used: 50}
+	AssertEqual(t, 25.0, e.UsagePercent())
+}
+
+func TestEntitlement_Entitlement_UsagePercent_Bad(t *T) {
+	e := Entitlement{Limit: 0, Used: 50}
+	AssertEqual(t, 0.0, e.UsagePercent())
+}
+
+func TestEntitlement_Entitlement_UsagePercent_Ugly(t *T) {
+	e := Entitlement{Limit: 10, Used: 15}
+	AssertEqual(t, 150.0, e.UsagePercent())
+}
+
+func TestEntitlement_Core_Entitled_Good(t *T) {
+	c := New()
+	e := c.Entitled("agent.dispatch")
+	AssertTrue(t, e.Allowed)
+	AssertTrue(t, e.Unlimited)
+}
+
+func TestEntitlement_Core_Entitled_Bad(t *T) {
+	c := New()
+	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+		return Entitlement{Allowed: false, Reason: "agent quota exhausted"}
+	})
+	e := c.Entitled("agent.dispatch")
+	AssertFalse(t, e.Allowed)
+	AssertEqual(t, "agent quota exhausted", e.Reason)
+}
+
+func TestEntitlement_Core_Entitled_Ugly(t *T) {
+	c := New()
+	seenQuantity := 0
+	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+		seenQuantity = quantity
+		return Entitlement{Allowed: true}
+	})
+	c.Entitled("agent.dispatch")
+	AssertEqual(t, 1, seenQuantity)
+}
+
+func TestEntitlement_Core_SetEntitlementChecker_Good(t *T) {
+	c := New()
+	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+		return Entitlement{Allowed: action == "agent.dispatch"}
+	})
+	AssertTrue(t, c.Entitled("agent.dispatch").Allowed)
+}
+
+func TestEntitlement_Core_SetEntitlementChecker_Bad(t *T) {
+	c := New()
+	c.SetEntitlementChecker(nil)
+	AssertPanics(t, func() {
+		c.Entitled("agent.dispatch")
+	})
+}
+
+func TestEntitlement_Core_SetEntitlementChecker_Ugly(t *T) {
+	c := New()
+	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+		return Entitlement{Allowed: false, Reason: "first checker"}
+	})
+	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+		return Entitlement{Allowed: true, Reason: "replacement checker"}
+	})
+	e := c.Entitled("agent.dispatch")
+	AssertTrue(t, e.Allowed)
+	AssertEqual(t, "replacement checker", e.Reason)
+}
+
+func TestEntitlement_Core_RecordUsage_Good(t *T) {
+	c := New()
+	recorded := ""
+	recordedQuantity := 0
+	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+		recorded = action
+		recordedQuantity = quantity
+	})
+	c.RecordUsage("agent.dispatch", 3)
+	AssertEqual(t, "agent.dispatch", recorded)
+	AssertEqual(t, 3, recordedQuantity)
+}
+
+func TestEntitlement_Core_RecordUsage_Bad(t *T) {
+	c := New()
+	AssertNotPanics(t, func() {
+		c.RecordUsage("agent.dispatch", 3)
+	})
+}
+
+func TestEntitlement_Core_RecordUsage_Ugly(t *T) {
+	c := New()
+	recordedQuantity := 0
+	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+		recordedQuantity = quantity
+	})
+	c.RecordUsage("agent.dispatch")
+	AssertEqual(t, 1, recordedQuantity)
+}
+
+func TestEntitlement_Core_SetUsageRecorder_Good(t *T) {
+	c := New()
+	recorded := false
+	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+		recorded = true
+	})
+	c.RecordUsage("agent.dispatch")
+	AssertTrue(t, recorded)
+}
+
+func TestEntitlement_Core_SetUsageRecorder_Bad(t *T) {
+	c := New()
+	c.SetUsageRecorder(nil)
+	AssertNotPanics(t, func() {
+		c.RecordUsage("agent.dispatch")
+	})
+}
+
+func TestEntitlement_Core_SetUsageRecorder_Ugly(t *T) {
+	c := New()
+	recorded := "none"
+	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+		recorded = "first"
+	})
+	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+		recorded = "second"
+	})
+	c.RecordUsage("agent.dispatch")
+	AssertEqual(t, "second", recorded)
+}

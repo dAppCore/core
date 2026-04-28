@@ -252,6 +252,312 @@ func TestEmbed_Extract_NilData_Good(t *T) {
 	AssertTrue(t, r.OK)
 }
 
+// --- AX-7 canonical triplets ---
+
+func TestEmbed_AddAsset_Good(t *T) {
+	AddAsset("lane-c-agent", "persona/developer.md", mustCompress("agent ready"))
+	r := GetAsset("lane-c-agent", "persona/developer.md")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "agent ready", r.Value.(string))
+}
+
+func TestEmbed_AddAsset_Bad(t *T) {
+	AddAsset("lane-c-bad", "broken.txt", "not-base64")
+	r := GetAsset("lane-c-bad", "broken.txt")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_AddAsset_Ugly(t *T) {
+	AddAsset("lane-c-overwrite", "status.txt", mustCompress("old"))
+	AddAsset("lane-c-overwrite", "status.txt", mustCompress("new"))
+	r := GetAsset("lane-c-overwrite", "status.txt")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "new", r.Value.(string))
+}
+
+func TestEmbed_GetAsset_Good(t *T) {
+	AddAsset("lane-c-get", "agent.txt", mustCompress("codex"))
+	r := GetAsset("lane-c-get", "agent.txt")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "codex", r.Value.(string))
+}
+
+func TestEmbed_GetAsset_Ugly(t *T) {
+	AddAsset("lane-c-corrupt", "agent.txt", "%%%")
+	r := GetAsset("lane-c-corrupt", "agent.txt")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_GetAssetBytes_Bad(t *T) {
+	r := GetAssetBytes("lane-c-missing", "missing.txt")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_GetAssetBytes_Ugly(t *T) {
+	AddAsset("lane-c-bytes-corrupt", "agent.bin", "not-gzip")
+	r := GetAssetBytes("lane-c-bytes-corrupt", "agent.bin")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_ScanAssets_Ugly(t *T) {
+	r := ScanAssets([]string{})
+	AssertTrue(t, r.OK)
+	AssertEmpty(t, r.Value.([]ScannedPackage))
+}
+
+func TestEmbed_GeneratePack_Good(t *T) {
+	dir := t.TempDir()
+	asset := Path(dir, "agent.txt")
+	(&Fs{}).New("/").Write(asset, "dispatch ready")
+	pkg := ScannedPackage{
+		PackageName:   "agentpack",
+		BaseDirectory: dir,
+		Assets: []AssetRef{{
+			Name:     "agent.txt",
+			Group:    "persona",
+			FullPath: asset,
+		}},
+	}
+	r := GeneratePack(pkg)
+	AssertTrue(t, r.OK)
+	source := r.Value.(string)
+	AssertContains(t, source, "package agentpack")
+	AssertContains(t, source, "core.AddAsset")
+}
+
+func TestEmbed_GeneratePack_Bad(t *T) {
+	dir := t.TempDir()
+	pkg := ScannedPackage{
+		PackageName:   "agentpack",
+		BaseDirectory: dir,
+		Assets: []AssetRef{{
+			Name:     "missing.txt",
+			Group:    "persona",
+			FullPath: Path(dir, "missing.txt"),
+		}},
+	}
+	r := GeneratePack(pkg)
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_GeneratePack_Ugly(t *T) {
+	dir := t.TempDir()
+	group := Path(dir, "assets")
+	f := (&Fs{}).New("/")
+	f.EnsureDir(group)
+	f.Write(Path(group, "agent.txt"), "dispatch ready")
+	pkg := ScannedPackage{
+		PackageName:   "agentpack",
+		BaseDirectory: dir,
+		Groups:        []string{group},
+	}
+	r := GeneratePack(pkg)
+	AssertTrue(t, r.OK)
+	AssertContains(t, r.Value.(string), `core.AddAsset("assets", "agent.txt"`)
+}
+
+func TestEmbed_Mount_Ugly(t *T) {
+	dir := t.TempDir()
+	r := Mount(DirFS(dir), ".")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, ".", r.Value.(*Embed).BaseDirectory())
+}
+
+func TestEmbed_MountEmbed_Bad(t *T) {
+	r := MountEmbed(testFS, "missing")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_MountEmbed_Ugly(t *T) {
+	r := MountEmbed(testFS, ".")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, ".", r.Value.(*Embed).BaseDirectory())
+}
+
+func TestEmbed_Embed_Open_Good(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.Open("test.txt")
+	AssertTrue(t, r.OK)
+	read := ReadAll(r.Value)
+	AssertTrue(t, read.OK)
+	AssertEqual(t, "hello from testdata\n", read.Value.(string))
+}
+
+func TestEmbed_Embed_Open_Bad(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.Open("missing.txt")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_Open_Ugly(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.Open("../../etc/passwd")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadDir_Good(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadDir(".")
+	AssertTrue(t, r.OK)
+	AssertNotEmpty(t, r.Value.([]FsDirEntry))
+}
+
+func TestEmbed_Embed_ReadDir_Bad(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadDir("missing")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadDir_Ugly(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadDir("test.txt")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadFile_Good(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadFile("test.txt")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "hello from testdata\n", string(r.Value.([]byte)))
+}
+
+func TestEmbed_Embed_ReadFile_Bad(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadFile("missing.txt")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadFile_Ugly(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadFile("../../secrets/token")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadString_Good(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadString("test.txt")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "hello from testdata\n", r.Value.(string))
+}
+
+func TestEmbed_Embed_ReadString_Bad(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadString("missing.txt")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadString_Ugly(t *T) {
+	dir := t.TempDir()
+	(&Fs{}).New("/").Write(Path(dir, "empty.txt"), "")
+	r := Mount(DirFS(dir), ".")
+	AssertTrue(t, r.OK)
+	read := r.Value.(*Embed).ReadString("empty.txt")
+	AssertTrue(t, read.OK)
+	AssertEqual(t, "", read.Value.(string))
+}
+
+func TestEmbed_Embed_Sub_Good(t *T) {
+	emb := mustMountTestFS(t, ".")
+	r := emb.Sub("tests/data")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, ".", r.Value.(*Embed).BaseDirectory())
+}
+
+func TestEmbed_Embed_Sub_Bad(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.Sub("missing")
+	AssertTrue(t, r.OK)
+	AssertFalse(t, r.Value.(*Embed).ReadDir(".").OK)
+}
+
+func TestEmbed_Embed_Sub_Ugly(t *T) {
+	emb := mustMountTestFS(t, ".")
+	r := emb.Sub("../../")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_FS_Good(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	AssertNotNil(t, emb.FS())
+	r := ReadDir(emb.FS(), "tests/data")
+	AssertTrue(t, r.OK)
+}
+
+func TestEmbed_Embed_FS_Bad(t *T) {
+	dir := t.TempDir()
+	emb := Mount(DirFS(dir), ".").Value.(*Embed)
+	r := ReadDir(emb.FS(), "missing")
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_FS_Ugly(t *T) {
+	dir := t.TempDir()
+	(&Fs{}).New("/").Write(Path(dir, "agent.txt"), "ready")
+	emb := Mount(DirFS(dir), ".").Value.(*Embed)
+	r := ReadFSFile(emb.FS(), "agent.txt")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "ready", string(r.Value.([]byte)))
+}
+
+func TestEmbed_Embed_EmbedFS_Good(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	_, err := emb.EmbedFS().ReadFile("tests/data/test.txt")
+	AssertNoError(t, err)
+}
+
+func TestEmbed_Embed_EmbedFS_Bad(t *T) {
+	dir := t.TempDir()
+	emb := Mount(DirFS(dir), ".").Value.(*Embed)
+	_, err := emb.EmbedFS().ReadFile("agent.txt")
+	AssertError(t, err)
+}
+
+func TestEmbed_Embed_EmbedFS_Ugly(t *T) {
+	emb := mustMountTestFS(t, ".")
+	_, err := emb.EmbedFS().ReadFile("tests/data/test.txt")
+	AssertNoError(t, err)
+}
+
+func TestEmbed_Embed_BaseDirectory_Good(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	AssertEqual(t, "tests/data", emb.BaseDirectory())
+}
+
+func TestEmbed_Embed_BaseDirectory_Bad(t *T) {
+	emb := Mount(DirFS(t.TempDir()), ".").Value.(*Embed)
+	AssertEqual(t, ".", emb.BaseDirectory())
+}
+
+func TestEmbed_Embed_BaseDirectory_Ugly(t *T) {
+	emb := mustMountTestFS(t, "tests/data/")
+	AssertEqual(t, "tests/data/", emb.BaseDirectory())
+}
+
+func TestEmbed_Extract_Bad(t *T) {
+	dir := t.TempDir()
+	src := t.TempDir()
+	(&Fs{}).New("/").Write(Path(src, "broken.tmpl"), "hello {{")
+	r := Extract(DirFS(src), dir, map[string]string{"Agent": "codex"})
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Extract_Ugly(t *T) {
+	target := t.TempDir()
+	src := t.TempDir()
+	f := (&Fs{}).New("/")
+	f.Write(Path(src, "README.tmpl"), "agent {{.Agent}}")
+	f.Write(Path(src, "skip.txt"), "skip")
+	r := Extract(DirFS(src), target, map[string]string{"Agent": "codex"}, ExtractOptions{
+		IgnoreFiles: map[string]struct{}{"skip.txt": {}},
+		RenameFiles: map[string]string{"README": "README.md"},
+	})
+	AssertTrue(t, r.OK)
+	read := f.Read(Path(target, "README.md"))
+	AssertTrue(t, read.OK)
+	AssertEqual(t, "agent codex", read.Value)
+	AssertFalse(t, f.Exists(Path(target, "skip.txt")))
+}
+
 func mustCompress(input string) string {
 	var buf bytes.Buffer
 	b64 := base64.NewEncoder(base64.StdEncoding, &buf)

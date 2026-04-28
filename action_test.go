@@ -242,3 +242,169 @@ func TestAction_Tasks_Good(t *T) {
 	c.Task("review", Task{Steps: []Step{{Action: "y"}}})
 	AssertEqual(t, []string{"deploy", "review"}, c.Tasks())
 }
+
+// --- AX-7 canonical triplets ---
+
+func TestAction_Action_Run_Good(t *T) {
+	c := New()
+	a := c.Action("agent.dispatch", func(_ context.Context, opts Options) Result {
+		return Result{Value: opts.String("agent"), OK: true}
+	})
+	r := a.Run(Background(), NewOptions(Option{Key: "agent", Value: "codex"}))
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "codex", r.Value)
+}
+
+func TestAction_Action_Run_Bad(t *T) {
+	a := &Action{Name: "agent.missing"}
+	r := a.Run(Background(), NewOptions())
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "not registered")
+}
+
+func TestAction_Action_Run_Ugly(t *T) {
+	c := New()
+	a := c.Action("agent.panic", func(_ context.Context, _ Options) Result {
+		panic("dispatch crashed")
+	})
+	r := a.Run(Background(), NewOptions())
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "panic")
+}
+
+func TestAction_Action_Exists_Good(t *T) {
+	a := &Action{Name: "agent.dispatch", Handler: func(_ context.Context, _ Options) Result { return Result{OK: true} }}
+	AssertTrue(t, a.Exists())
+}
+
+func TestAction_Action_Exists_Bad(t *T) {
+	a := &Action{Name: "agent.dispatch"}
+	AssertFalse(t, a.Exists())
+}
+
+func TestAction_Action_Exists_Ugly(t *T) {
+	var a *Action
+	AssertFalse(t, a.Exists())
+}
+
+func TestAction_Core_Action_Good(t *T) {
+	c := New()
+	a := c.Action("agent.dispatch", func(_ context.Context, _ Options) Result {
+		return Result{Value: "queued", OK: true}
+	})
+	AssertTrue(t, a.Exists())
+	AssertEqual(t, "queued", c.Action("agent.dispatch").Run(Background(), NewOptions()).Value)
+}
+
+func TestAction_Core_Action_Bad(t *T) {
+	c := New()
+	a := c.Action("agent.missing")
+	AssertFalse(t, a.Exists())
+	AssertFalse(t, a.Run(Background(), NewOptions()).OK)
+}
+
+func TestAction_Core_Action_Ugly(t *T) {
+	c := New()
+	c.Action("agent.dispatch", func(_ context.Context, _ Options) Result { return Result{Value: "v1", OK: true} })
+	c.Action("agent.dispatch", func(_ context.Context, _ Options) Result { return Result{Value: "v2", OK: true} })
+	r := c.Action("agent.dispatch").Run(Background(), NewOptions())
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "v2", r.Value)
+}
+
+func TestAction_Core_Actions_Good(t *T) {
+	c := New()
+	c.Action("agent.prepare", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("agent.dispatch", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	AssertEqual(t, []string{"agent.prepare", "agent.dispatch"}, c.Actions())
+}
+
+func TestAction_Core_Actions_Bad(t *T) {
+	c := New()
+	AssertEmpty(t, c.Actions())
+}
+
+func TestAction_Core_Actions_Ugly(t *T) {
+	c := New()
+	c.Action("agent.prepare", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	names := c.Actions()
+	names[0] = "mutated"
+	AssertEqual(t, []string{"agent.prepare"}, c.Actions())
+}
+
+func TestAction_Task_Run_Good(t *T) {
+	c := New()
+	c.Action("agent.prepare", func(_ context.Context, _ Options) Result {
+		return Result{Value: "prepared", OK: true}
+	})
+	task := &Task{Name: "agent.dispatch", Steps: []Step{{Action: "agent.prepare"}}}
+	r := task.Run(Background(), c, NewOptions())
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "prepared", r.Value)
+}
+
+func TestAction_Task_Run_Bad(t *T) {
+	c := New()
+	task := &Task{Name: "agent.dispatch", Steps: []Step{{Action: "agent.missing"}}}
+	r := task.Run(Background(), c, NewOptions())
+	AssertFalse(t, r.OK)
+}
+
+func TestAction_Task_Run_Ugly(t *T) {
+	c := New()
+	c.Action("agent.prepare", func(_ context.Context, _ Options) Result {
+		return Result{Value: "session-token", OK: true}
+	})
+	c.Action("agent.dispatch", func(_ context.Context, opts Options) Result {
+		return Result{Value: opts.String("_input"), OK: true}
+	})
+	task := &Task{Name: "agent.pipeline", Steps: []Step{
+		{Action: "agent.prepare"},
+		{Action: "agent.dispatch", Input: "previous"},
+	}}
+	r := task.Run(Background(), c, NewOptions())
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "session-token", r.Value)
+}
+
+func TestAction_Core_Task_Good(t *T) {
+	c := New()
+	task := c.Task("agent.pipeline", Task{Steps: []Step{{Action: "agent.prepare"}}})
+	AssertEqual(t, "agent.pipeline", task.Name)
+	AssertLen(t, task.Steps, 1)
+}
+
+func TestAction_Core_Task_Bad(t *T) {
+	c := New()
+	task := c.Task("agent.missing")
+	r := task.Run(Background(), c, NewOptions())
+	AssertFalse(t, r.OK)
+}
+
+func TestAction_Core_Task_Ugly(t *T) {
+	c := New()
+	c.Task("agent.pipeline", Task{Steps: []Step{{Action: "agent.prepare"}}})
+	c.Task("agent.pipeline", Task{Steps: []Step{{Action: "agent.dispatch"}}})
+	task := c.Task("agent.pipeline")
+	AssertEqual(t, "agent.dispatch", task.Steps[0].Action)
+}
+
+func TestAction_Core_Tasks_Good(t *T) {
+	c := New()
+	c.Task("agent.prepare", Task{Steps: []Step{{Action: "agent.prepare"}}})
+	c.Task("agent.dispatch", Task{Steps: []Step{{Action: "agent.dispatch"}}})
+	AssertEqual(t, []string{"agent.prepare", "agent.dispatch"}, c.Tasks())
+}
+
+func TestAction_Core_Tasks_Bad(t *T) {
+	c := New()
+	AssertEmpty(t, c.Tasks())
+}
+
+func TestAction_Core_Tasks_Ugly(t *T) {
+	c := New()
+	c.Task("agent.prepare", Task{Steps: []Step{{Action: "agent.prepare"}}})
+	tasks := c.Tasks()
+	tasks[0] = "mutated"
+	AssertEqual(t, []string{"agent.prepare"}, c.Tasks())
+}

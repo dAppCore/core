@@ -129,3 +129,81 @@ func TestContract_WithService_FactoryError_Bad(t *T) {
 	AssertNotNil(t, c)
 	AssertFalse(t, secondCalled, "second option should not run after first fails")
 }
+
+// --- AX-7 canonical backfill ---
+
+func TestContract_New_Ugly(t *T) {
+	c := New(WithServiceLock())
+	r := c.Service("late-agent", Service{})
+	AssertFalse(t, r.OK)
+	AssertTrue(t, c.Service("cli").OK)
+}
+
+func TestContract_WithName_Bad(t *T) {
+	opt := WithName("agent", func(c *Core) Result {
+		return Result{OK: true}
+	})
+	r := opt(New())
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "failed to create service")
+}
+
+func TestContract_WithName_Ugly(t *T) {
+	opt := WithName("", func(c *Core) Result {
+		return Result{Value: &stubNamedService{}, OK: true}
+	})
+	r := opt(New())
+	AssertFalse(t, r.OK)
+}
+
+func TestContract_WithOption_Bad(t *T) {
+	c := New(WithOption("name", 42))
+	AssertEqual(t, "", c.App().Name)
+	AssertEqual(t, 42, c.Options().Get("name").Value)
+}
+
+func TestContract_WithOption_Ugly(t *T) {
+	c := New(WithOption("", "root-option"))
+	r := c.Options().Get("")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "root-option", r.Value)
+}
+
+func TestContract_WithOptions_Ugly(t *T) {
+	opts := NewOptions()
+	c := New(WithOptions(opts))
+	AssertNotNil(t, c.Options())
+	AssertEqual(t, "", c.App().Name)
+}
+
+func TestContract_WithService_Bad(t *T) {
+	opt := WithService(func(c *Core) Result {
+		return Result{Value: NewError("factory failed"), OK: false}
+	})
+	r := opt(New())
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "factory failed")
+}
+
+func TestContract_WithService_Ugly(t *T) {
+	c := New()
+	opt := WithService(func(c *Core) Result {
+		c.Service("self-registered", Service{})
+		return Result{OK: true}
+	})
+	r := opt(c)
+	AssertTrue(t, r.OK)
+	AssertTrue(t, c.Service("self-registered").OK)
+}
+
+func TestContract_WithServiceLock_Bad(t *T) {
+	c := New(WithServiceLock())
+	r := c.Service("late-agent", Service{})
+	AssertFalse(t, r.OK)
+}
+
+func TestContract_WithServiceLock_Ugly(t *T) {
+	c := New(WithServiceLock())
+	AssertTrue(t, c.Service("cli").OK)
+	AssertContains(t, c.Services(), "cli")
+}

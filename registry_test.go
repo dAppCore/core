@@ -383,3 +383,383 @@ func TestRegistry_Ugly_ConcurrentReadWrite(t *T) {
 	wg.Wait()
 	AssertEqual(t, 50, r.Len())
 }
+
+// --- AX-7 canonical triplets ---
+
+func TestRegistry_NewRegistry_Good(t *T) {
+	r := NewRegistry[string]()
+	AssertNotNil(t, r)
+	AssertEqual(t, 0, r.Len())
+	AssertFalse(t, r.Locked())
+	AssertFalse(t, r.Sealed())
+}
+
+func TestRegistry_NewRegistry_Bad(t *T) {
+	r := NewRegistry[*Service]()
+	AssertFalse(t, r.Get("missing").OK)
+	AssertEmpty(t, r.Names())
+}
+
+func TestRegistry_NewRegistry_Ugly(t *T) {
+	r := NewRegistry[*Service]()
+	res := r.Set("nil-service", nil)
+	AssertTrue(t, res.OK)
+	AssertTrue(t, r.Get("nil-service").OK)
+	AssertNil(t, r.Get("nil-service").Value)
+}
+
+func TestRegistry_Registry_Set_Good(t *T) {
+	r := NewRegistry[string]()
+	res := r.Set("agent.dispatch", "enabled")
+	AssertTrue(t, res.OK)
+	AssertEqual(t, "enabled", r.Get("agent.dispatch").Value)
+}
+
+func TestRegistry_Registry_Set_Bad(t *T) {
+	r := NewRegistry[string]()
+	r.Lock()
+	res := r.Set("agent.dispatch", "enabled")
+	AssertFalse(t, res.OK)
+}
+
+func TestRegistry_Registry_Set_Ugly(t *T) {
+	r := NewRegistry[int]()
+	res := r.Set("", 42)
+	AssertTrue(t, res.OK)
+	AssertEqual(t, 42, r.Get("").Value)
+}
+
+func TestRegistry_Registry_Get_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("homelab.health", "green")
+	res := r.Get("homelab.health")
+	AssertTrue(t, res.OK)
+	AssertEqual(t, "green", res.Value)
+}
+
+func TestRegistry_Registry_Get_Bad(t *T) {
+	r := NewRegistry[string]()
+	res := r.Get("homelab.missing")
+	AssertFalse(t, res.OK)
+	AssertNil(t, res.Value)
+}
+
+func TestRegistry_Registry_Get_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("", "root action")
+	res := r.Get("")
+	AssertTrue(t, res.OK)
+	AssertEqual(t, "root action", res.Value)
+}
+
+func TestRegistry_Registry_Has_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("session.token", "present")
+	AssertTrue(t, r.Has("session.token"))
+}
+
+func TestRegistry_Registry_Has_Bad(t *T) {
+	r := NewRegistry[string]()
+	AssertFalse(t, r.Has("session.token"))
+}
+
+func TestRegistry_Registry_Has_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("session.token", "present")
+	r.Delete("session.token")
+	AssertFalse(t, r.Has("session.token"))
+}
+
+func TestRegistry_Registry_Names_Good(t *T) {
+	r := NewRegistry[int]()
+	r.Set("agent.prepare", 1)
+	r.Set("agent.dispatch", 2)
+	r.Set("agent.verify", 3)
+	AssertEqual(t, []string{"agent.prepare", "agent.dispatch", "agent.verify"}, r.Names())
+}
+
+func TestRegistry_Registry_Names_Bad(t *T) {
+	r := NewRegistry[int]()
+	AssertEmpty(t, r.Names())
+}
+
+func TestRegistry_Registry_Names_Ugly(t *T) {
+	r := NewRegistry[int]()
+	r.Set("agent.prepare", 1)
+	names := r.Names()
+	names[0] = "mutated"
+	AssertEqual(t, []string{"agent.prepare"}, r.Names())
+}
+
+func TestRegistry_Registry_List_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	r.Set("agent.dispatch", "dispatch")
+	r.Set("homelab.health", "health")
+	items := r.List("agent.*")
+	AssertLen(t, items, 2)
+	AssertContains(t, items, "prepare")
+	AssertContains(t, items, "dispatch")
+}
+
+func TestRegistry_Registry_List_Bad(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	AssertEmpty(t, r.List("agent.["))
+}
+
+func TestRegistry_Registry_List_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	r.Set("agent.dispatch", "dispatch")
+	r.Disable("agent.dispatch")
+	AssertEqual(t, []string{"prepare"}, r.List("agent.*"))
+}
+
+func TestRegistry_Registry_Each_Good(t *T) {
+	r := NewRegistry[int]()
+	r.Set("agent.prepare", 1)
+	r.Set("agent.dispatch", 2)
+	sum := 0
+	var names []string
+	r.Each(func(name string, value int) {
+		names = append(names, name)
+		sum += value
+	})
+	AssertEqual(t, []string{"agent.prepare", "agent.dispatch"}, names)
+	AssertEqual(t, 3, sum)
+}
+
+func TestRegistry_Registry_Each_Bad(t *T) {
+	r := NewRegistry[int]()
+	called := false
+	r.Each(func(_ string, _ int) {
+		called = true
+	})
+	AssertFalse(t, called)
+}
+
+func TestRegistry_Registry_Each_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	r.Set("agent.dispatch", "dispatch")
+	r.Disable("agent.dispatch")
+	var names []string
+	r.Each(func(name string, _ string) {
+		names = append(names, name)
+	})
+	AssertEqual(t, []string{"agent.prepare"}, names)
+}
+
+func TestRegistry_Registry_Len_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	r.Set("agent.dispatch", "dispatch")
+	AssertEqual(t, 2, r.Len())
+}
+
+func TestRegistry_Registry_Len_Bad(t *T) {
+	r := NewRegistry[string]()
+	AssertEqual(t, 0, r.Len())
+}
+
+func TestRegistry_Registry_Len_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	r.Disable("agent.prepare")
+	AssertEqual(t, 1, r.Len(), "disabled entries are still registered")
+	r.Delete("agent.prepare")
+	AssertEqual(t, 0, r.Len())
+}
+
+func TestRegistry_Registry_Delete_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	res := r.Delete("agent.prepare")
+	AssertTrue(t, res.OK)
+	AssertFalse(t, r.Has("agent.prepare"))
+}
+
+func TestRegistry_Registry_Delete_Bad(t *T) {
+	r := NewRegistry[string]()
+	res := r.Delete("agent.prepare")
+	AssertFalse(t, res.OK)
+}
+
+func TestRegistry_Registry_Delete_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.prepare", "prepare")
+	r.Lock()
+	res := r.Delete("agent.prepare")
+	AssertFalse(t, res.OK)
+	AssertTrue(t, r.Has("agent.prepare"))
+}
+
+func TestRegistry_Registry_Disable_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "dispatch")
+	res := r.Disable("agent.dispatch")
+	AssertTrue(t, res.OK)
+	AssertTrue(t, r.Disabled("agent.dispatch"))
+}
+
+func TestRegistry_Registry_Disable_Bad(t *T) {
+	r := NewRegistry[string]()
+	res := r.Disable("agent.dispatch")
+	AssertFalse(t, res.OK)
+}
+
+func TestRegistry_Registry_Disable_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "dispatch")
+	r.Disable("agent.dispatch")
+	AssertTrue(t, r.Get("agent.dispatch").OK)
+	AssertEmpty(t, r.List("agent.*"))
+}
+
+func TestRegistry_Registry_Enable_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "dispatch")
+	r.Disable("agent.dispatch")
+	res := r.Enable("agent.dispatch")
+	AssertTrue(t, res.OK)
+	AssertFalse(t, r.Disabled("agent.dispatch"))
+}
+
+func TestRegistry_Registry_Enable_Bad(t *T) {
+	r := NewRegistry[string]()
+	res := r.Enable("agent.dispatch")
+	AssertFalse(t, res.OK)
+}
+
+func TestRegistry_Registry_Enable_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "dispatch")
+	res := r.Enable("agent.dispatch")
+	AssertTrue(t, res.OK)
+	AssertFalse(t, r.Disabled("agent.dispatch"))
+}
+
+func TestRegistry_Registry_Disabled_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "dispatch")
+	r.Disable("agent.dispatch")
+	AssertTrue(t, r.Disabled("agent.dispatch"))
+}
+
+func TestRegistry_Registry_Disabled_Bad(t *T) {
+	r := NewRegistry[string]()
+	AssertFalse(t, r.Disabled("agent.dispatch"))
+}
+
+func TestRegistry_Registry_Disabled_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "dispatch")
+	r.Disable("agent.dispatch")
+	r.Enable("agent.dispatch")
+	AssertFalse(t, r.Disabled("agent.dispatch"))
+}
+
+func TestRegistry_Registry_Lock_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Lock()
+	AssertTrue(t, r.Locked())
+}
+
+func TestRegistry_Registry_Lock_Bad(t *T) {
+	r := NewRegistry[string]()
+	r.Lock()
+	res := r.Set("late.agent", "dispatch")
+	AssertFalse(t, res.OK)
+}
+
+func TestRegistry_Registry_Lock_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "v1")
+	r.Lock()
+	res := r.Set("agent.dispatch", "v2")
+	AssertFalse(t, res.OK)
+	AssertEqual(t, "v1", r.Get("agent.dispatch").Value)
+}
+
+func TestRegistry_Registry_Locked_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Lock()
+	AssertTrue(t, r.Locked())
+}
+
+func TestRegistry_Registry_Locked_Bad(t *T) {
+	r := NewRegistry[string]()
+	AssertFalse(t, r.Locked())
+}
+
+func TestRegistry_Registry_Locked_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Lock()
+	r.Open()
+	AssertFalse(t, r.Locked())
+}
+
+func TestRegistry_Registry_Seal_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "v1")
+	r.Seal()
+	AssertTrue(t, r.Sealed())
+}
+
+func TestRegistry_Registry_Seal_Bad(t *T) {
+	r := NewRegistry[string]()
+	r.Seal()
+	res := r.Set("late.agent", "dispatch")
+	AssertFalse(t, res.OK)
+}
+
+func TestRegistry_Registry_Seal_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Set("agent.dispatch", "v1")
+	r.Seal()
+	res := r.Set("agent.dispatch", "v2")
+	AssertTrue(t, res.OK)
+	AssertEqual(t, "v2", r.Get("agent.dispatch").Value)
+}
+
+func TestRegistry_Registry_Sealed_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Seal()
+	AssertTrue(t, r.Sealed())
+}
+
+func TestRegistry_Registry_Sealed_Bad(t *T) {
+	r := NewRegistry[string]()
+	AssertFalse(t, r.Sealed())
+}
+
+func TestRegistry_Registry_Sealed_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Seal()
+	r.Open()
+	AssertFalse(t, r.Sealed())
+}
+
+func TestRegistry_Registry_Open_Good(t *T) {
+	r := NewRegistry[string]()
+	r.Lock()
+	r.Open()
+	res := r.Set("agent.dispatch", "enabled")
+	AssertTrue(t, res.OK)
+}
+
+func TestRegistry_Registry_Open_Bad(t *T) {
+	r := NewRegistry[string]()
+	r.Open()
+	AssertFalse(t, r.Locked())
+	AssertFalse(t, r.Sealed())
+}
+
+func TestRegistry_Registry_Open_Ugly(t *T) {
+	r := NewRegistry[string]()
+	r.Seal()
+	r.Open()
+	res := r.Set("late.agent", "dispatch")
+	AssertTrue(t, res.OK)
+}

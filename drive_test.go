@@ -75,3 +75,32 @@ func TestDrive_OptionsPreserved_Good(t *T) {
 	handle := r.Value.(*DriveHandle)
 	AssertEqual(t, 30, handle.Options.Int("timeout"))
 }
+
+// --- AX-7 canonical triplets ---
+
+func TestDrive_Drive_New_Good(t *T) {
+	c := New()
+	r := c.Drive().New(NewOptions(
+		Option{Key: "name", Value: "homelab"},
+		Option{Key: "transport", Value: "ssh://agent@10.69.69.165"},
+	))
+	AssertTrue(t, r.OK)
+	handle := r.Value.(*DriveHandle)
+	AssertEqual(t, "homelab", handle.Name)
+	AssertEqual(t, "ssh://agent@10.69.69.165", handle.Transport)
+}
+
+func TestDrive_Drive_New_Bad(t *T) {
+	c := New()
+	r := c.Drive().New(NewOptions(Option{Key: "transport", Value: "mcp://agent.local"}))
+	AssertFalse(t, r.OK)
+}
+
+func TestDrive_Drive_New_Ugly(t *T) {
+	c := New()
+	r := c.Drive().New(NewOptions(Option{Key: "name", Value: "loopback"}))
+	AssertTrue(t, r.OK)
+	handle := r.Value.(*DriveHandle)
+	AssertEqual(t, "", handle.Transport)
+	AssertTrue(t, c.Drive().Has("loopback"))
+}
