@@ -2,10 +2,15 @@ package core_test
 
 import . "dappco.re/go"
 
+// ExampleCliRegister registers CLI commands through `CliRegister` for a dAppCore
+// command-line tool. Command output, banners, and help text are routed through the CLI
+// abstraction.
 func ExampleCliRegister() {
 	_ = CliRegister
 }
 
+// ExampleCli_Print writes text through `Cli.Print` for a dAppCore command-line tool.
+// Command output, banners, and help text are routed through the CLI abstraction.
 func ExampleCli_Print() {
 	c := New()
 	buf := NewBuffer()
@@ -17,6 +22,9 @@ func ExampleCli_Print() {
 	// hello codex
 }
 
+// ExampleCli_SetOutput redirects output through `Cli.SetOutput` for a dAppCore
+// command-line tool. Command output, banners, and help text are routed through the CLI
+// abstraction.
 func ExampleCli_SetOutput() {
 	c := New()
 	buf := NewBuffer()
@@ -27,6 +35,9 @@ func ExampleCli_SetOutput() {
 	// Output: true
 }
 
+// ExampleCli_Run runs `Cli.Run` with representative caller inputs for a dAppCore
+// command-line tool. Command output, banners, and help text are routed through the CLI
+// abstraction.
 func ExampleCli_Run() {
 	c := New()
 	c.Command("deploy", Command{
@@ -40,6 +51,9 @@ func ExampleCli_Run() {
 	// Output: homelab
 }
 
+// ExampleCli_PrintHelp prints help text through `Cli.PrintHelp` for a dAppCore
+// command-line tool. Command output, banners, and help text are routed through the CLI
+// abstraction.
 func ExampleCli_PrintHelp() {
 	c := New(WithOption("name", "ops"))
 	buf := NewBuffer()
@@ -54,6 +68,8 @@ func ExampleCli_PrintHelp() {
 	// true
 }
 
+// ExampleCli_SetBanner sets a banner through `Cli.SetBanner` for a dAppCore command-line
+// tool. Command output, banners, and help text are routed through the CLI abstraction.
 func ExampleCli_SetBanner() {
 	c := New()
 	c.Cli().SetBanner(func(_ *Cli) string { return "ops v1" })
@@ -61,12 +77,16 @@ func ExampleCli_SetBanner() {
 	// Output: ops v1
 }
 
+// ExampleCli_Banner reads a banner through `Cli.Banner` for a dAppCore command-line tool.
+// Command output, banners, and help text are routed through the CLI abstraction.
 func ExampleCli_Banner() {
 	c := New(WithOption("name", "ops"))
 	Println(c.Cli().Banner())
 	// Output: ops
 }
 
+// ExampleCliOptions declares CLI options through `CliOptions` for a dAppCore command-line
+// tool. Command output, banners, and help text are routed through the CLI abstraction.
 func ExampleCliOptions() {
 	opts := CliOptions{}
 	Println(Sprint(opts))

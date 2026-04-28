@@ -6,18 +6,27 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleEntitlement_UsagePercent calculates usage percentage through
+// `Entitlement.UsagePercent` for usage-gated agent features. Usage checks separate policy
+// decisions from the action body.
 func ExampleEntitlement_UsagePercent() {
 	e := Entitlement{Limit: 100, Used: 75}
 	Println(e.UsagePercent())
 	// Output: 75
 }
 
+// ExampleEntitlement_NearLimit_threshold checks the near-limit threshold through
+// `Entitlement.NearLimit` for usage-gated agent features. Usage checks separate policy
+// decisions from the action body.
 func ExampleEntitlement_NearLimit_threshold() {
 	e := Entitlement{Limit: 100, Used: 90}
 	Println(e.NearLimit(0.8))
 	// Output: true
 }
 
+// ExampleEntitlementChecker declares an entitlement checker through `EntitlementChecker`
+// for usage-gated agent features. Usage checks separate policy decisions from the action
+// body.
 func ExampleEntitlementChecker() {
 	var checker EntitlementChecker = func(action string, quantity int, _ context.Context) Entitlement {
 		return Entitlement{Allowed: action == "deploy" && quantity <= 1}
@@ -26,6 +35,8 @@ func ExampleEntitlementChecker() {
 	// Output: true
 }
 
+// ExampleUsageRecorder declares a usage recorder through `UsageRecorder` for usage-gated
+// agent features. Usage checks separate policy decisions from the action body.
 func ExampleUsageRecorder() {
 	var recorded string
 	var recorder UsageRecorder = func(action string, quantity int, _ context.Context) {
@@ -36,6 +47,8 @@ func ExampleUsageRecorder() {
 	// Output: ai.credits:3
 }
 
+// ExampleCore_Entitled checks an entitlement through `Core.Entitled` for usage-gated agent
+// features. Usage checks separate policy decisions from the action body.
 func ExampleCore_Entitled() {
 	c := New()
 	e := c.Entitled("deploy")
@@ -46,6 +59,9 @@ func ExampleCore_Entitled() {
 	// true
 }
 
+// ExampleCore_SetEntitlementChecker installs an entitlement checker through
+// `Core.SetEntitlementChecker` for usage-gated agent features. Usage checks separate
+// policy decisions from the action body.
 func ExampleCore_SetEntitlementChecker() {
 	c := New()
 	c.SetEntitlementChecker(func(action string, qty int, _ context.Context) Entitlement {
@@ -73,6 +89,8 @@ func ExampleCore_SetEntitlementChecker() {
 	// true
 }
 
+// ExampleCore_RecordUsage records metered usage through `Core.RecordUsage` for usage-gated
+// agent features. Usage checks separate policy decisions from the action body.
 func ExampleCore_RecordUsage() {
 	c := New()
 	var recorded string

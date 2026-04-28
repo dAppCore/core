@@ -4,6 +4,8 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleDriveHandle defines drive handle metadata through `DriveHandle` for remote drive
+// metadata. Drive handles carry names and transports before remote API calls use them.
 func ExampleDriveHandle() {
 	handle := DriveHandle{Name: "forge", Transport: "https://forge.example"}
 	Println(handle.Name)
@@ -13,6 +15,8 @@ func ExampleDriveHandle() {
 	// https://forge.example
 }
 
+// ExampleDrive reaches drive registration through `Drive` for remote drive metadata. Drive
+// handles carry names and transports before remote API calls use them.
 func ExampleDrive() {
 	d := &Drive{Registry: NewRegistry[*DriveHandle]()}
 	d.New(NewOptions(Option{Key: "name", Value: "forge"}))
@@ -20,6 +24,8 @@ func ExampleDrive() {
 	// Output: [forge]
 }
 
+// ExampleDrive_New registers a remote drive handle from name and transport options. Drive
+// handles carry names and transports before remote API calls use them.
 func ExampleDrive_New() {
 	c := New()
 	c.Drive().New(NewOptions(
@@ -34,6 +40,8 @@ func ExampleDrive_New() {
 	// [forge]
 }
 
+// ExampleDrive_Get retrieves a value through `Drive.Get` for remote drive metadata. Drive
+// handles carry names and transports before remote API calls use them.
 func ExampleDrive_Get() {
 	c := New()
 	c.Drive().New(NewOptions(

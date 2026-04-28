@@ -6,6 +6,8 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleTask_Run runs `Task.Run` with representative caller inputs for background task
+// progress. Asynchronous work reports progress through Core task helpers.
 func ExampleTask_Run() {
 	c := New()
 	var order string
@@ -38,6 +40,8 @@ func ExampleTask_Run() {
 	// got:from-a
 }
 
+// ExampleCore_PerformAsync starts asynchronous work through `Core.PerformAsync` for
+// background task progress. Asynchronous work reports progress through Core task helpers.
 func ExampleCore_PerformAsync() {
 	c := New()
 	c.Action("bg.work", func(_ context.Context, _ Options) Result {
@@ -49,6 +53,8 @@ func ExampleCore_PerformAsync() {
 	// Output: true
 }
 
+// ExampleCore_Progress reports task progress through `Core.Progress` for background task
+// progress. Asynchronous work reports progress through Core task helpers.
 func ExampleCore_Progress() {
 	c := New()
 	var progress float64

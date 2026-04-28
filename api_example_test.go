@@ -24,6 +24,9 @@ func (s *exampleStream) Close() error {
 	return nil
 }
 
+// ExampleAPI_RegisterProtocol registers a transport protocol through
+// `API.RegisterProtocol` for a Lethean drive integration. Transport details stay behind
+// the API wrapper while callers exchange drives, streams, and Results.
 func ExampleAPI_RegisterProtocol() {
 	c := New()
 	c.API().RegisterProtocol("http", func(h *DriveHandle) (Stream, error) {
@@ -33,6 +36,9 @@ func ExampleAPI_RegisterProtocol() {
 	// Output: [http]
 }
 
+// ExampleAPI_Stream opens a stream through `API.Stream` for a Lethean drive integration.
+// Transport details stay behind the API wrapper while callers exchange drives, streams,
+// and Results.
 func ExampleAPI_Stream() {
 	c := New()
 	c.API().RegisterProtocol("http", func(h *DriveHandle) (Stream, error) {
@@ -53,6 +59,9 @@ func ExampleAPI_Stream() {
 	// Output: connected to charon
 }
 
+// ExampleAPI_Call calls a remote method through `API.Call` for a Lethean drive
+// integration. Transport details stay behind the API wrapper while callers exchange
+// drives, streams, and Results.
 func ExampleAPI_Call() {
 	c := New()
 	c.API().RegisterProtocol("http", func(_ *DriveHandle) (Stream, error) {
@@ -68,6 +77,9 @@ func ExampleAPI_Call() {
 	// Output: {"ok":true}
 }
 
+// ExampleAPI_Protocols lists transport protocols through `API.Protocols` for a Lethean
+// drive integration. Transport details stay behind the API wrapper while callers exchange
+// drives, streams, and Results.
 func ExampleAPI_Protocols() {
 	c := New()
 	c.API().RegisterProtocol("http", func(_ *DriveHandle) (Stream, error) {
@@ -77,6 +89,9 @@ func ExampleAPI_Protocols() {
 	// Output: [http]
 }
 
+// ExampleCore_RemoteAction resolves an action name locally before a remote drive prefix is
+// needed. Transport details stay behind the API wrapper while callers exchange drives,
+// streams, and Results.
 func ExampleCore_RemoteAction() {
 	c := New()
 	// Local action
@@ -90,6 +105,9 @@ func ExampleCore_RemoteAction() {
 	// Output: running
 }
 
+// ExampleHTTPGet fetches a local health endpoint through the core HTTP client wrapper for
+// a Lethean drive integration. Transport details stay behind the API wrapper while callers
+// exchange drives, streams, and Results.
 func ExampleHTTPGet() {
 	srv := NewHTTPTestServer(HandlerFunc(func(w ResponseWriter, _ *Request) {
 		WriteString(w, "ok")
@@ -103,6 +121,9 @@ func ExampleHTTPGet() {
 	// Output: ok
 }
 
+// ExampleHTTPPost sends a reader-backed payload through the core HTTP client wrapper for a
+// Lethean drive integration. Transport details stay behind the API wrapper while callers
+// exchange drives, streams, and Results.
 func ExampleHTTPPost() {
 	srv := NewHTTPTestServer(HandlerFunc(func(w ResponseWriter, _ *Request) {
 		WriteString(w, "created")
@@ -116,6 +137,9 @@ func ExampleHTTPPost() {
 	// Output: created
 }
 
+// ExampleHTTPPostForm submits form data through the core HTTP client wrapper for a Lethean
+// drive integration. Transport details stay behind the API wrapper while callers exchange
+// drives, streams, and Results.
 func ExampleHTTPPostForm() {
 	srv := NewHTTPTestServer(HandlerFunc(func(w ResponseWriter, _ *Request) {
 		WriteString(w, "submitted")
@@ -129,6 +153,9 @@ func ExampleHTTPPostForm() {
 	// Output: submitted
 }
 
+// ExampleNewHTTPRequest builds a POST request with a payload for a deployment endpoint.
+// Transport details stay behind the API wrapper while callers exchange drives, streams,
+// and Results.
 func ExampleNewHTTPRequest() {
 	r := NewHTTPRequest("POST", "https://example.com/deploy", NewReader("payload"))
 	req := r.Value.(*Request)
@@ -139,6 +166,9 @@ func ExampleNewHTTPRequest() {
 	// /deploy
 }
 
+// ExampleNewHTTPRequestContext builds a request bound to the active Core context for a
+// status endpoint. Transport details stay behind the API wrapper while callers exchange
+// drives, streams, and Results.
 func ExampleNewHTTPRequestContext() {
 	ctx := New().Context()
 	r := NewHTTPRequestContext(ctx, "GET", "https://example.com/status", nil)
@@ -150,11 +180,17 @@ func ExampleNewHTTPRequestContext() {
 	// GET
 }
 
+// ExampleHTTPStatusText reads status reason text through `HTTPStatusText` for a Lethean
+// drive integration. Transport details stay behind the API wrapper while callers exchange
+// drives, streams, and Results.
 func ExampleHTTPStatusText() {
 	Println(HTTPStatusText(201))
 	// Output: Created
 }
 
+// ExampleNewMultipartWriter creates multipart form data through `NewMultipartWriter` for a
+// Lethean drive integration. Transport details stay behind the API wrapper while callers
+// exchange drives, streams, and Results.
 func ExampleNewMultipartWriter() {
 	buf := NewBuffer()
 	writer := NewMultipartWriter(buf)
@@ -169,6 +205,9 @@ func ExampleNewMultipartWriter() {
 	// true
 }
 
+// ExampleNewMultipartReader reads multipart form data through `NewMultipartReader` for a
+// Lethean drive integration. Transport details stay behind the API wrapper while callers
+// exchange drives, streams, and Results.
 func ExampleNewMultipartReader() {
 	buf := NewBuffer()
 	writer := NewMultipartWriter(buf)
@@ -186,6 +225,9 @@ func ExampleNewMultipartReader() {
 	// codex
 }
 
+// ExampleNewHTTPTestServer creates an HTTP fixture server for handler validation.
+// Transport details stay behind the API wrapper while callers exchange drives, streams,
+// and Results.
 func ExampleNewHTTPTestServer() {
 	srv := NewHTTPTestServer(HandlerFunc(func(w ResponseWriter, _ *Request) {
 		WriteString(w, "ok")
@@ -196,6 +238,9 @@ func ExampleNewHTTPTestServer() {
 	// Output: true
 }
 
+// ExampleNewHTTPTestTLSServer creates a TLS fixture server for HTTPS handler validation.
+// Transport details stay behind the API wrapper while callers exchange drives, streams,
+// and Results.
 func ExampleNewHTTPTestTLSServer() {
 	srv := NewHTTPTestTLSServer(HandlerFunc(func(w ResponseWriter, _ *Request) {
 		WriteString(w, "ok")
@@ -206,6 +251,8 @@ func ExampleNewHTTPTestTLSServer() {
 	// Output: true
 }
 
+// ExampleNewHTTPTestRecorder records response status for handler validation. Transport
+// details stay behind the API wrapper while callers exchange drives, streams, and Results.
 func ExampleNewHTTPTestRecorder() {
 	rec := NewHTTPTestRecorder()
 	rec.WriteHeader(202)
@@ -213,6 +260,8 @@ func ExampleNewHTTPTestRecorder() {
 	// Output: 202
 }
 
+// ExampleNewHTTPTestRequest builds a request fixture for a status route. Transport details
+// stay behind the API wrapper while callers exchange drives, streams, and Results.
 func ExampleNewHTTPTestRequest() {
 	req := NewHTTPTestRequest("GET", "/status", nil)
 	Println(req.Method)

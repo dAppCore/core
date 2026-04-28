@@ -6,6 +6,8 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleAction declares action metadata for an agent dispatch workflow. Consumers copy
+// the Result-shaped handler contract for dAppCore actions and tasks.
 func ExampleAction() {
 	a := &Action{Name: "deploy", Description: "Deploy service"}
 	Println(a.Name)
@@ -15,6 +17,9 @@ func ExampleAction() {
 	// Deploy service
 }
 
+// ExampleActionHandler declares an action handler through `ActionHandler` for an agent
+// dispatch workflow. Consumers copy the Result-shaped handler contract for dAppCore
+// actions and tasks.
 func ExampleActionHandler() {
 	var handler ActionHandler = func(_ context.Context, opts Options) Result {
 		return Result{Value: opts.String("name"), OK: true}
@@ -23,6 +28,9 @@ func ExampleActionHandler() {
 	// Output: deploy
 }
 
+// ExampleAction_Run runs `Action.Run` with representative caller inputs for an agent
+// dispatch workflow. Consumers copy the Result-shaped handler contract for dAppCore
+// actions and tasks.
 func ExampleAction_Run() {
 	c := New()
 	c.Action("double", func(_ context.Context, opts Options) Result {
@@ -36,6 +44,9 @@ func ExampleAction_Run() {
 	// Output: 42
 }
 
+// ExampleCore_Action registers or retrieves an action through `Core.Action` for an agent
+// dispatch workflow. Consumers copy the Result-shaped handler contract for dAppCore
+// actions and tasks.
 func ExampleCore_Action() {
 	c := New()
 	c.Action("deploy", func(_ context.Context, _ Options) Result { return Result{OK: true} })
@@ -43,6 +54,9 @@ func ExampleCore_Action() {
 	// Output: true
 }
 
+// ExampleCore_Actions_action registers the action-oriented path through `Core.Actions` for
+// an agent dispatch workflow. Consumers copy the Result-shaped handler contract for
+// dAppCore actions and tasks.
 func ExampleCore_Actions_action() {
 	c := New()
 	c.Action("deploy", func(_ context.Context, _ Options) Result { return Result{OK: true} })
@@ -51,6 +65,8 @@ func ExampleCore_Actions_action() {
 	// Output: [deploy test]
 }
 
+// ExampleStep declares one task step through `Step` for an agent dispatch workflow.
+// Consumers copy the Result-shaped handler contract for dAppCore actions and tasks.
 func ExampleStep() {
 	step := Step{
 		Action: "deploy",
@@ -66,6 +82,8 @@ func ExampleStep() {
 	// previous
 }
 
+// ExampleTask declares a named task that points at a deployment planning step. Consumers
+// copy the Result-shaped handler contract for dAppCore actions and tasks.
 func ExampleTask() {
 	task := Task{Name: "deploy", Steps: []Step{{Action: "deploy.plan"}}}
 	Println(task.Name)
@@ -75,6 +93,9 @@ func ExampleTask() {
 	// deploy.plan
 }
 
+// ExampleCore_Task_action registers the action-oriented path through `Core.Task` for an
+// agent dispatch workflow. Consumers copy the Result-shaped handler contract for dAppCore
+// actions and tasks.
 func ExampleCore_Task_action() {
 	c := New()
 	c.Task("deploy", Task{Steps: []Step{{Action: "deploy.plan"}}})
@@ -82,6 +103,8 @@ func ExampleCore_Task_action() {
 	// Output: [deploy]
 }
 
+// ExampleCore_Tasks lists task names through `Core.Tasks` for an agent dispatch workflow.
+// Consumers copy the Result-shaped handler contract for dAppCore actions and tasks.
 func ExampleCore_Tasks() {
 	c := New()
 	c.Task("deploy", Task{})
@@ -90,6 +113,8 @@ func ExampleCore_Tasks() {
 	// Output: [deploy test]
 }
 
+// ExampleAction_Exists checks action availability before and after registering a handler.
+// Consumers copy the Result-shaped handler contract for dAppCore actions and tasks.
 func ExampleAction_Exists() {
 	c := New()
 	Println(c.Action("missing").Exists())
@@ -101,6 +126,9 @@ func ExampleAction_Exists() {
 	// true
 }
 
+// ExampleAction_Run_panicRecovery recovers a panicking handler through `Action.Run` for an
+// agent dispatch workflow. Consumers copy the Result-shaped handler contract for dAppCore
+// actions and tasks.
 func ExampleAction_Run_panicRecovery() {
 	c := New()
 	c.Action("boom", func(_ context.Context, _ Options) Result {
@@ -112,6 +140,9 @@ func ExampleAction_Run_panicRecovery() {
 	// Output: false
 }
 
+// ExampleAction_Run_entitlementDenied rejects a gated action through `Action.Run` when
+// entitlement denies access for an agent dispatch workflow. Consumers copy the
+// Result-shaped handler contract for dAppCore actions and tasks.
 func ExampleAction_Run_entitlementDenied() {
 	c := New()
 	c.Action("premium", func(_ context.Context, _ Options) Result {

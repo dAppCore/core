@@ -4,6 +4,8 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleNewArray creates a typed array through `NewArray` for an in-memory agent queue.
+// Typed collection helpers cover queue operations without exposing slices directly.
 func ExampleNewArray() {
 	a := NewArray[string]()
 	a.Add("alpha")
@@ -17,6 +19,8 @@ func ExampleNewArray() {
 	// true
 }
 
+// ExampleArray_Add adds a value through `Array.Add` for an in-memory agent queue. Typed
+// collection helpers cover queue operations without exposing slices directly.
 func ExampleArray_Add() {
 	a := NewArray[string]()
 	a.Add("alpha", "bravo")
@@ -24,6 +28,9 @@ func ExampleArray_Add() {
 	// Output: [alpha bravo]
 }
 
+// ExampleArray_AddUnique adds a value through `Array.AddUnique` only when it is absent for
+// an in-memory agent queue. Typed collection helpers cover queue operations without
+// exposing slices directly.
 func ExampleArray_AddUnique() {
 	a := NewArray[string]()
 	a.AddUnique("alpha")
@@ -34,6 +41,9 @@ func ExampleArray_AddUnique() {
 	// Output: 2
 }
 
+// ExampleArray_Contains checks text membership through `Array.Contains` for an in-memory
+// agent queue. Typed collection helpers cover queue operations without exposing slices
+// directly.
 func ExampleArray_Contains() {
 	a := NewArray("alpha", "bravo")
 	Println(a.Contains("bravo"))
@@ -43,6 +53,8 @@ func ExampleArray_Contains() {
 	// false
 }
 
+// ExampleArray_Filter filters values through `Array.Filter` for an in-memory agent queue.
+// Typed collection helpers cover queue operations without exposing slices directly.
 func ExampleArray_Filter() {
 	a := NewArray[int]()
 	a.Add(1)
@@ -55,6 +67,8 @@ func ExampleArray_Filter() {
 	// Output: true
 }
 
+// ExampleArray_Each iterates entries through `Array.Each` for an in-memory agent queue.
+// Typed collection helpers cover queue operations without exposing slices directly.
 func ExampleArray_Each() {
 	a := NewArray("alpha", "bravo", "charlie")
 	var labels []string
@@ -65,6 +79,8 @@ func ExampleArray_Each() {
 	// Output: [A B C]
 }
 
+// ExampleArray_Remove removes a value through `Array.Remove` for an in-memory agent queue.
+// Typed collection helpers cover queue operations without exposing slices directly.
 func ExampleArray_Remove() {
 	a := NewArray("alpha", "bravo", "charlie")
 	a.Remove("bravo")
@@ -72,6 +88,9 @@ func ExampleArray_Remove() {
 	// Output: [alpha charlie]
 }
 
+// ExampleArray_Deduplicate deduplicates values through `Array.Deduplicate` for an
+// in-memory agent queue. Typed collection helpers cover queue operations without exposing
+// slices directly.
 func ExampleArray_Deduplicate() {
 	a := NewArray("alpha", "alpha", "bravo")
 	a.Deduplicate()
@@ -79,12 +98,16 @@ func ExampleArray_Deduplicate() {
 	// Output: [alpha bravo]
 }
 
+// ExampleArray_Len counts entries through `Array.Len` for an in-memory agent queue. Typed
+// collection helpers cover queue operations without exposing slices directly.
 func ExampleArray_Len() {
 	a := NewArray("alpha", "bravo")
 	Println(a.Len())
 	// Output: 2
 }
 
+// ExampleArray_Clear clears entries through `Array.Clear` for an in-memory agent queue.
+// Typed collection helpers cover queue operations without exposing slices directly.
 func ExampleArray_Clear() {
 	a := NewArray("alpha", "bravo")
 	a.Clear()
@@ -92,6 +115,9 @@ func ExampleArray_Clear() {
 	// Output: 0
 }
 
+// ExampleArray_AsSlice exports values through `Array.AsSlice` as a slice for an in-memory
+// agent queue. Typed collection helpers cover queue operations without exposing slices
+// directly.
 func ExampleArray_AsSlice() {
 	a := NewArray("alpha", "bravo")
 	Println(a.AsSlice())

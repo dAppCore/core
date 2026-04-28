@@ -6,7 +6,8 @@ import (
 	. "dappco.re/go"
 )
 
-// ExampleCore_Signal_exists shows the registration check.
+// ExampleCore_Signal_exists checks whether signal handling has been registered in Core. OS
+// signal integration is represented as action-backed Core behaviour.
 func ExampleCore_Signal_exists() {
 	c := New()
 	if c.Signal().Exists() {
@@ -18,12 +19,16 @@ func ExampleCore_Signal_exists() {
 	// no signal service registered
 }
 
+// ExampleCore_Signal accesses signal handling through `Core.Signal` for process signal
+// handling. OS signal integration is represented as action-backed Core behaviour.
 func ExampleCore_Signal() {
 	c := New()
 	Println(c.Signal() != nil)
 	// Output: true
 }
 
+// ExampleSignal_Stop stops a service through `Signal.Stop` for process signal handling. OS
+// signal integration is represented as action-backed Core behaviour.
 func ExampleSignal_Stop() {
 	c := New()
 	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
@@ -34,6 +39,8 @@ func ExampleSignal_Stop() {
 	// Output: stopped
 }
 
+// ExampleSignal_Exists checks whether the signal action is registered before and after
+// installation. OS signal integration is represented as action-backed Core behaviour.
 func ExampleSignal_Exists() {
 	c := New()
 	Println(c.Signal().Exists())
@@ -44,9 +51,8 @@ func ExampleSignal_Exists() {
 	// true
 }
 
-// ExampleCore_Signal_subscribe shows the action-subscription pattern. In
-// production the go-process service registers signal.received and broadcasts
-// on each OS signal; here we register a stub action to demonstrate the surface.
+// ExampleCore_Signal_subscribe registers the action that a process signal service invokes
+// on receipt. OS signal integration is represented as action-backed Core behaviour.
 func ExampleCore_Signal_subscribe() {
 	c := New()
 	c.Action("signal.received", func(_ context.Context, opts Options) Result {

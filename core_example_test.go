@@ -6,6 +6,8 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleCore_accessors reads the grouped accessor methods through `Core` for Core
+// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_accessors() {
 	c := New(WithOption("name", "ops"))
 
@@ -34,34 +36,46 @@ func ExampleCore_accessors() {
 	// true
 }
 
+// ExampleCore_Env reads environment access through `Core.Env` for Core orchestration. Core
+// keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_Env() {
 	c := New()
 	Println(c.Env("OS") != "")
 	// Output: true
 }
 
+// ExampleCore_Context reads the active context through `Core.Context` for Core
+// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_Context() {
 	c := New()
 	Println(c.Context() != nil)
 	// Output: true
 }
 
+// ExampleCore_Core returns the Core instance through `Core.Core` for Core orchestration.
+// Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_Core() {
 	c := New()
 	Println(c.Core() == c)
 	// Output: true
 }
 
+// ExampleCore_RunE runs `Core.RunE` through the error-returning startup path for Core
+// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_RunE() {
 	c := New()
 	Println(c.RunE() == nil)
 	// Output: true
 }
 
+// ExampleCore_Run runs `Core.Run` with representative caller inputs for Core
+// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_Run() {
 	_ = New().Run
 }
 
+// ExampleCore_ACTION calls the uppercase action helper through `Core.ACTION` for Core
+// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_ACTION() {
 	c := New()
 	seen := ""
@@ -75,6 +89,8 @@ func ExampleCore_ACTION() {
 	// Output: started
 }
 
+// ExampleCore_QUERY calls the uppercase query helper through `Core.QUERY` for Core
+// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_QUERY() {
 	c := New()
 	c.RegisterQuery(func(_ *Core, q Query) Result {
@@ -86,6 +102,9 @@ func ExampleCore_QUERY() {
 	// Output: query:status
 }
 
+// ExampleCore_QUERYALL calls every matching uppercase query through `Core.QUERYALL` for
+// Core orchestration. Core keeps orchestration helpers reachable from one predictable
+// facade.
 func ExampleCore_QUERYALL() {
 	c := New()
 	c.RegisterQuery(func(_ *Core, q Query) Result {
@@ -100,6 +119,8 @@ func ExampleCore_QUERYALL() {
 	// Output: [a:status b:status]
 }
 
+// ExampleCore_LogError logs an error through `Core.LogError` for Core orchestration. Core
+// keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_LogError() {
 	c := New()
 	r := c.LogError(nil, "example", "nothing to log")
@@ -107,6 +128,8 @@ func ExampleCore_LogError() {
 	// Output: true
 }
 
+// ExampleCore_LogWarn logs a warning through `Core.LogWarn` for Core orchestration. Core
+// keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_LogWarn() {
 	c := New()
 	r := c.LogWarn(nil, "example", "nothing to warn")
@@ -114,6 +137,8 @@ func ExampleCore_LogWarn() {
 	// Output: true
 }
 
+// ExampleCore_Must unwraps a successful Result through `Core.Must` for Core orchestration.
+// Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_Must() {
 	c := New()
 	c.Must(nil, "example", "no panic")
@@ -121,6 +146,8 @@ func ExampleCore_Must() {
 	// Output: ok
 }
 
+// ExampleCore_RegistryOf retrieves a named registry through `Core.RegistryOf` for Core
+// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_RegistryOf() {
 	c := New()
 	c.Action("deploy", func(_ context.Context, _ Options) Result { return Result{OK: true} })

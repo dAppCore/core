@@ -2,6 +2,8 @@ package core_test
 
 import . "dappco.re/go"
 
+// ExampleApp_New builds application metadata from name, version, description, and binary
+// filename options. Application metadata is registered once and found later by stable names.
 func ExampleApp_New() {
 	app := App{}.New(NewOptions(
 		Option{Key: "name", Value: "forge"},
@@ -21,6 +23,8 @@ func ExampleApp_New() {
 	// forge
 }
 
+// ExampleApp_Find resolves application metadata from an executable path and display name.
+// Application metadata is registered once and found later by stable names.
 func ExampleApp_Find() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-app-example")

@@ -2,6 +2,8 @@ package core_test
 
 import . "dappco.re/go"
 
+// ExampleAddAsset adds an embedded asset through `AddAsset` for embedded asset packaging.
+// Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleAddAsset() {
 	AddAsset("example.embed", "hello.txt", "H4sIAAAAAAAC/8pIzcnJBwQAAP//hqYQNgUAAAA=")
 	r := GetAsset("example.embed", "hello.txt")
@@ -9,6 +11,8 @@ func ExampleAddAsset() {
 	// Output: hello
 }
 
+// ExampleGetAsset retrieves an embedded asset through `GetAsset` for embedded asset
+// packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleGetAsset() {
 	AddAsset("example.asset", "hello.txt", "H4sIAAAAAAAC/8pIzcnJBwQAAP//hqYQNgUAAAA=")
 	r := GetAsset("example.asset", "hello.txt")
@@ -16,6 +20,8 @@ func ExampleGetAsset() {
 	// Output: hello
 }
 
+// ExampleGetAssetBytes retrieves embedded asset bytes through `GetAssetBytes` for embedded
+// asset packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleGetAssetBytes() {
 	AddAsset("example.bytes", "hello.txt", "H4sIAAAAAAAC/8pIzcnJBwQAAP//hqYQNgUAAAA=")
 	r := GetAssetBytes("example.bytes", "hello.txt")
@@ -23,6 +29,8 @@ func ExampleGetAssetBytes() {
 	// Output: hello
 }
 
+// ExampleScanAssets scans embedded assets through `ScanAssets` for embedded asset
+// packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleScanAssets() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-scan-example")
@@ -50,6 +58,8 @@ func message() string {
 	// message.txt
 }
 
+// ExampleGeneratePack generates an asset pack through `GeneratePack` for embedded asset
+// packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleGeneratePack() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-pack-example")
@@ -75,6 +85,8 @@ func message() string {
 	// true
 }
 
+// ExampleMount mounts embedded assets through `Mount` for embedded asset packaging. Asset
+// packing, mounting, and extraction stay declarative for consumers.
 func ExampleMount() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-mount-example")
@@ -90,10 +102,14 @@ func ExampleMount() {
 	// hello
 }
 
+// ExampleMountEmbed mounts an embed filesystem through `MountEmbed` for embedded asset
+// packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleMountEmbed() {
 	_ = MountEmbed((&Embed{}).EmbedFS(), ".")
 }
 
+// ExampleEmbed_Open opens a mounted asset for streaming reads from an embedded package.
+// Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleEmbed_Open() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-embed-example")
@@ -107,6 +123,8 @@ func ExampleEmbed_Open() {
 	// Output: true
 }
 
+// ExampleEmbed_ReadDir lists directory entries through `Embed.ReadDir` for embedded asset
+// packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleEmbed_ReadDir() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-embed-example")
@@ -119,6 +137,8 @@ func ExampleEmbed_ReadDir() {
 	// Output: true
 }
 
+// ExampleEmbed_ReadFile reads a named file through `Embed.ReadFile` for embedded asset
+// packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleEmbed_ReadFile() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-embed-example")
@@ -131,6 +151,8 @@ func ExampleEmbed_ReadFile() {
 	// Output: hello
 }
 
+// ExampleEmbed_ReadString reads text content through `Embed.ReadString` for embedded asset
+// packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleEmbed_ReadString() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-embed-example")
@@ -142,6 +164,8 @@ func ExampleEmbed_ReadString() {
 	// Output: hello
 }
 
+// ExampleEmbed_Sub opens a subdirectory through `Embed.Sub` for embedded asset packaging.
+// Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleEmbed_Sub() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-embed-example")
@@ -154,6 +178,8 @@ func ExampleEmbed_Sub() {
 	// Output: hello
 }
 
+// ExampleEmbed_FS exposes a filesystem through `Embed.FS` for embedded asset packaging.
+// Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleEmbed_FS() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-embed-example")
@@ -165,11 +191,17 @@ func ExampleEmbed_FS() {
 	// Output: true
 }
 
+// ExampleEmbed_EmbedFS exposes the underlying embed filesystem through `Embed.EmbedFS` for
+// embedded asset packaging. Asset packing, mounting, and extraction stay declarative for
+// consumers.
 func ExampleEmbed_EmbedFS() {
 	emb := &Embed{}
 	_ = emb.EmbedFS()
 }
 
+// ExampleEmbed_BaseDirectory reports the embedded base directory through
+// `Embed.BaseDirectory` for embedded asset packaging. Asset packing, mounting, and
+// extraction stay declarative for consumers.
 func ExampleEmbed_BaseDirectory() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-embed-example")
@@ -181,6 +213,8 @@ func ExampleEmbed_BaseDirectory() {
 	// Output: docs
 }
 
+// ExampleExtract extracts embedded files through `Extract` for embedded asset packaging.
+// Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleExtract() {
 	fs := (&Fs{}).New("/")
 	source := fs.TempDir("core-extract-source")
@@ -197,6 +231,8 @@ func ExampleExtract() {
 	// hello codex
 }
 
+// ExampleExtractOptions declares extraction options through `ExtractOptions` for embedded
+// asset packaging. Asset packing, mounting, and extraction stay declarative for consumers.
 func ExampleExtractOptions() {
 	opts := ExtractOptions{
 		TemplateFilters: []string{".gotmpl"},

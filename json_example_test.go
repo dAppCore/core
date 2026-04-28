@@ -2,6 +2,9 @@ package core_test
 
 import . "dappco.re/go"
 
+// ExampleJSONMarshal_config initialises configuration values through `JSONMarshal` for
+// configuration serialisation. Serialisation and parsing return core Results for
+// configuration payloads.
 func ExampleJSONMarshal_config() {
 	type appConfig struct {
 		Host string `json:"host"`
@@ -12,6 +15,9 @@ func ExampleJSONMarshal_config() {
 	// Output: {"host":"localhost","port":8080}
 }
 
+// ExampleJSONMarshalString serialises a value to JSON text through `JSONMarshalString` for
+// configuration serialisation. Serialisation and parsing return core Results for
+// configuration payloads.
 func ExampleJSONMarshalString() {
 	type appConfig struct {
 		Host string `json:"host"`
@@ -21,6 +27,8 @@ func ExampleJSONMarshalString() {
 	// Output: {"host":"localhost","port":8080}
 }
 
+// ExampleJSONUnmarshal parses JSON bytes through `JSONUnmarshal` for configuration
+// serialisation. Serialisation and parsing return core Results for configuration payloads.
 func ExampleJSONUnmarshal() {
 	type appConfig struct {
 		Host string `json:"host"`
@@ -32,6 +40,9 @@ func ExampleJSONUnmarshal() {
 	// Output: localhost 8080
 }
 
+// ExampleJSONUnmarshalString_config initialises configuration values through
+// `JSONUnmarshalString` for configuration serialisation. Serialisation and parsing return
+// core Results for configuration payloads.
 func ExampleJSONUnmarshalString_config() {
 	type appConfig struct {
 		Host string `json:"host"`

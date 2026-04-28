@@ -2,12 +2,16 @@ package core_test
 
 import . "dappco.re/go"
 
+// ExampleParseIP parses an IP address through `ParseIP` for network health checks. Network
+// primitives are reached through core wrappers and Result-shaped calls.
 func ExampleParseIP() {
 	ip := ParseIP("192.0.2.10")
 	Println(ip.String())
 	// Output: 192.0.2.10
 }
 
+// ExampleParseCIDR parses a CIDR range through `ParseCIDR` for network health checks.
+// Network primitives are reached through core wrappers and Result-shaped calls.
 func ExampleParseCIDR() {
 	r := ParseCIDR("192.0.2.0/24")
 	parts := r.Value.([]any)
@@ -18,6 +22,8 @@ func ExampleParseCIDR() {
 	// 192.0.2.0/24
 }
 
+// ExampleNetDial dials a network address through `NetDial` for network health checks.
+// Network primitives are reached through core wrappers and Result-shaped calls.
 func ExampleNetDial() {
 	ln := NetListen("tcp", "127.0.0.1:0").Value.(Listener)
 	defer ln.Close()
@@ -30,6 +36,9 @@ func ExampleNetDial() {
 	// Output: true
 }
 
+// ExampleNetDialTimeout dials a network address with a timeout through `NetDialTimeout`
+// for network health checks. Network primitives are reached through core wrappers and
+// Result-shaped calls.
 func ExampleNetDialTimeout() {
 	ln := NetListen("tcp", "127.0.0.1:0").Value.(Listener)
 	defer ln.Close()
@@ -42,6 +51,8 @@ func ExampleNetDialTimeout() {
 	// Output: true
 }
 
+// ExampleNetListen listens on a network address through `NetListen` for network health
+// checks. Network primitives are reached through core wrappers and Result-shaped calls.
 func ExampleNetListen() {
 	r := NetListen("tcp", "127.0.0.1:0")
 	Println(r.OK)
@@ -51,6 +62,8 @@ func ExampleNetListen() {
 	// Output: true
 }
 
+// ExampleNetListenPacket listens for packets through `NetListenPacket` for network health
+// checks. Network primitives are reached through core wrappers and Result-shaped calls.
 func ExampleNetListenPacket() {
 	r := NetListenPacket("udp", "127.0.0.1:0")
 	Println(r.OK)
@@ -60,6 +73,8 @@ func ExampleNetListenPacket() {
 	// Output: true
 }
 
+// ExampleNetPipe creates an in-memory connection pair through `NetPipe` for network health
+// checks. Network primitives are reached through core wrappers and Result-shaped calls.
 func ExampleNetPipe() {
 	left, right := NetPipe()
 	defer right.Close()

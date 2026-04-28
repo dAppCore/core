@@ -10,6 +10,8 @@ type exampleRegisteredService struct {
 	name string
 }
 
+// ExampleService retrieves a service through `Service` for service registration. Services
+// register by name and can be recovered with typed helpers.
 func ExampleService() {
 	svc := Service{Name: "cache", Options: NewOptions(Option{Key: "size", Value: 128})}
 	Println(svc.Name)
@@ -19,6 +21,8 @@ func ExampleService() {
 	// 128
 }
 
+// ExampleServiceRegistry declares a service registry through `ServiceRegistry` for service
+// registration. Services register by name and can be recovered with typed helpers.
 func ExampleServiceRegistry() {
 	registry := &ServiceRegistry{Registry: NewRegistry[*Service]()}
 	registry.Set("cache", &Service{Name: "cache"})
@@ -26,6 +30,8 @@ func ExampleServiceRegistry() {
 	// Output: [cache]
 }
 
+// ExampleCore_Service retrieves a service through `Core.Service` for service registration.
+// Services register by name and can be recovered with typed helpers.
 func ExampleCore_Service() {
 	c := New()
 	c.Service("cache", Service{})
@@ -33,6 +39,8 @@ func ExampleCore_Service() {
 	// Output: true
 }
 
+// ExampleCore_RegisterService registers a service through `Core.RegisterService` for
+// service registration. Services register by name and can be recovered with typed helpers.
 func ExampleCore_RegisterService() {
 	c := New()
 	r := c.RegisterService("worker", &exampleRegisteredService{name: "worker"})
@@ -43,6 +51,8 @@ func ExampleCore_RegisterService() {
 	// worker
 }
 
+// ExampleServiceFor retrieves a typed service through `ServiceFor` for service
+// registration. Services register by name and can be recovered with typed helpers.
 func ExampleServiceFor() {
 	c := New(
 		WithService(func(c *Core) Result {
@@ -57,6 +67,8 @@ func ExampleServiceFor() {
 	// Output: true
 }
 
+// ExampleMustServiceFor retrieves a required typed service through `MustServiceFor` for
+// service registration. Services register by name and can be recovered with typed helpers.
 func ExampleMustServiceFor() {
 	c := New()
 	c.RegisterService("worker", &exampleRegisteredService{name: "worker"})
@@ -65,6 +77,8 @@ func ExampleMustServiceFor() {
 	// Output: worker
 }
 
+// ExampleCore_Services lists registered services through `Core.Services` for service
+// registration. Services register by name and can be recovered with typed helpers.
 func ExampleCore_Services() {
 	c := New()
 	c.Service("cache", Service{})
@@ -73,6 +87,8 @@ func ExampleCore_Services() {
 	// Output: [cli cache worker]
 }
 
+// ExampleWithService injects a service through `WithService` for service registration.
+// Services register by name and can be recovered with typed helpers.
 func ExampleWithService() {
 	started := false
 	c := New(
@@ -88,6 +104,8 @@ func ExampleWithService() {
 	// Output: true
 }
 
+// ExampleWithServiceLock injects service locking through `WithServiceLock` for service
+// registration. Services register by name and can be recovered with typed helpers.
 func ExampleWithServiceLock() {
 	c := New(
 		WithService(func(c *Core) Result {

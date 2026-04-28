@@ -6,12 +6,17 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleCore_Process_accessor reads the accessor method through `Core.Process` for
+// managed process execution. Process launches and lifecycle controls flow through
+// Core.Process.
 func ExampleCore_Process_accessor() {
 	c := New()
 	Println(c.Process() != nil)
 	// Output: true
 }
 
+// ExampleProcess_Run runs `Process.Run` with representative caller inputs for managed
+// process execution. Process launches and lifecycle controls flow through Core.Process.
 func ExampleProcess_Run() {
 	c := New()
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
@@ -23,6 +28,9 @@ func ExampleProcess_Run() {
 	// Output: go test ./...
 }
 
+// ExampleProcess_RunIn runs a process in a chosen working directory through
+// `Process.RunIn` for managed process execution. Process launches and lifecycle controls
+// flow through Core.Process.
 func ExampleProcess_RunIn() {
 	c := New()
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
@@ -34,6 +42,9 @@ func ExampleProcess_RunIn() {
 	// Output: /repo
 }
 
+// ExampleProcess_RunWithEnv runs a process with environment overrides through
+// `Process.RunWithEnv` for managed process execution. Process launches and lifecycle
+// controls flow through Core.Process.
 func ExampleProcess_RunWithEnv() {
 	c := New()
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
@@ -45,6 +56,8 @@ func ExampleProcess_RunWithEnv() {
 	// Output: GOWORK=off
 }
 
+// ExampleProcess_Start starts a process through `Process.Start` for managed process
+// execution. Process launches and lifecycle controls flow through Core.Process.
 func ExampleProcess_Start() {
 	c := New()
 	c.Action("process.start", func(_ context.Context, opts Options) Result {
@@ -56,6 +69,8 @@ func ExampleProcess_Start() {
 	// Output: worker
 }
 
+// ExampleProcess_Kill terminates a process through `Process.Kill` for managed process
+// execution. Process launches and lifecycle controls flow through Core.Process.
 func ExampleProcess_Kill() {
 	c := New()
 	c.Action("process.kill", func(_ context.Context, opts Options) Result {
@@ -67,6 +82,8 @@ func ExampleProcess_Kill() {
 	// Output: stopped:worker
 }
 
+// ExampleProcess_Exists checks whether process actions are registered before and after
+// installation. Process launches and lifecycle controls flow through Core.Process.
 func ExampleProcess_Exists() {
 	c := New()
 	Println(c.Process().Exists())

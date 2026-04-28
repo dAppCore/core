@@ -4,6 +4,9 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleMutex uses a mutual exclusion lock through `Mutex` for concurrent service
+// coordination. Concurrency helpers mirror the stdlib shapes while keeping ownership in
+// core.
 func ExampleMutex() {
 	var mu Mutex
 	mu.Lock()
@@ -15,6 +18,9 @@ func ExampleMutex() {
 	// unlocked
 }
 
+// ExampleMutex_TryLock attempts a non-blocking write lock through `Mutex.TryLock` for
+// concurrent service coordination. Concurrency helpers mirror the stdlib shapes while
+// keeping ownership in core.
 func ExampleMutex_TryLock() {
 	var mu Mutex
 	if mu.TryLock().OK {
@@ -24,6 +30,9 @@ func ExampleMutex_TryLock() {
 	// Output: acquired
 }
 
+// ExampleRWMutex uses a read-write lock through `RWMutex` for concurrent service
+// coordination. Concurrency helpers mirror the stdlib shapes while keeping ownership in
+// core.
 func ExampleRWMutex() {
 	var mu RWMutex
 	mu.RLock()
@@ -37,6 +46,9 @@ func ExampleRWMutex() {
 	// write-locked
 }
 
+// ExampleRWMutex_TryLock attempts a non-blocking write lock through `RWMutex.TryLock` for
+// concurrent service coordination. Concurrency helpers mirror the stdlib shapes while
+// keeping ownership in core.
 func ExampleRWMutex_TryLock() {
 	var mu RWMutex
 	if mu.TryLock().OK {
@@ -46,6 +58,9 @@ func ExampleRWMutex_TryLock() {
 	// Output: write
 }
 
+// ExampleRWMutex_TryRLock attempts a non-blocking read lock through `RWMutex.TryRLock` for
+// concurrent service coordination. Concurrency helpers mirror the stdlib shapes while
+// keeping ownership in core.
 func ExampleRWMutex_TryRLock() {
 	var mu RWMutex
 	if mu.TryRLock().OK {
@@ -55,6 +70,8 @@ func ExampleRWMutex_TryRLock() {
 	// Output: read
 }
 
+// ExampleOnce runs work once through `Once` for concurrent service coordination.
+// Concurrency helpers mirror the stdlib shapes while keeping ownership in core.
 func ExampleOnce() {
 	var o Once
 	o.Do(func() { Println("ran") })
@@ -63,6 +80,9 @@ func ExampleOnce() {
 	// ran
 }
 
+// ExampleOnce_Reset resets one-shot state through `Once.Reset` for concurrent service
+// coordination. Concurrency helpers mirror the stdlib shapes while keeping ownership in
+// core.
 func ExampleOnce_Reset() {
 	var o Once
 	o.Do(func() { Println("first") })
@@ -73,6 +93,9 @@ func ExampleOnce_Reset() {
 	// again
 }
 
+// ExampleWaitGroup waits for concurrent work through `WaitGroup` for concurrent service
+// coordination. Concurrency helpers mirror the stdlib shapes while keeping ownership in
+// core.
 func ExampleWaitGroup() {
 	var wg WaitGroup
 	wg.Add(1)

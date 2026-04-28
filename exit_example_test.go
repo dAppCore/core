@@ -4,8 +4,9 @@ import (
 	. "dappco.re/go"
 )
 
-// ExampleCore_Exit demonstrates the call shape. The osExit hook is overridden
-// in tests; in production this would terminate the process.
+// ExampleCore_Exit documents the normal Core exit call without terminating the example
+// process. Production exit paths are documented without terminating the example test
+// process.
 func ExampleCore_Exit() {
 	c := New()
 	_ = c // c.Exit(0) terminates the process in production
@@ -14,7 +15,9 @@ func ExampleCore_Exit() {
 	// ready to exit
 }
 
-// ExampleCore_ExitWith demonstrates a custom shutdown timeout.
+// ExampleCore_ExitWith configures exit code and shutdown timing without terminating the
+// example process. Production exit paths are documented without terminating the example
+// test process.
 func ExampleCore_ExitWith() {
 	c := New()
 	_ = c // c.ExitWith(core.ExitOptions{Code: 0})
@@ -24,7 +27,9 @@ func ExampleCore_ExitWith() {
 	// configured
 }
 
-// ExampleCore_ExitNow demonstrates the immediate-termination escape hatch.
+// ExampleCore_ExitNow documents immediate termination without running it during the
+// example process. Production exit paths are documented without terminating the example
+// test process.
 func ExampleCore_ExitNow() {
 	c := New()
 	_ = c // c.ExitNow(2) terminates without running ServiceShutdown
@@ -33,7 +38,8 @@ func ExampleCore_ExitNow() {
 	// emergency
 }
 
-// ExampleExit demonstrates the package-level form for callsites without a *Core.
+// ExampleExit documents the package-level exit helper for call sites without a Core value.
+// Production exit paths are documented without terminating the example test process.
 func ExampleExit() {
 	// core.Exit(1) terminates the process in production
 	Println("package-level")

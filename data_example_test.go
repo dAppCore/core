@@ -2,6 +2,8 @@ package core_test
 
 import . "dappco.re/go"
 
+// ExampleData_New mounts a prompts directory as named embedded Lethean data. Mounted data
+// can be read, listed, and extracted through Result-returning helpers.
 func ExampleData_New() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-data-example")
@@ -22,6 +24,8 @@ func ExampleData_New() {
 	// [agent]
 }
 
+// ExampleData_ReadFile reads a named file through `Data.ReadFile` for embedded Lethean
+// data. Mounted data can be read, listed, and extracted through Result-returning helpers.
 func ExampleData_ReadFile() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-data-example")
@@ -40,6 +44,8 @@ func ExampleData_ReadFile() {
 	// Output: hello
 }
 
+// ExampleData_ReadString reads text content through `Data.ReadString` for embedded Lethean
+// data. Mounted data can be read, listed, and extracted through Result-returning helpers.
 func ExampleData_ReadString() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-data-example")
@@ -58,6 +64,8 @@ func ExampleData_ReadString() {
 	// Output: hello
 }
 
+// ExampleData_List lists entries through `Data.List` for embedded Lethean data. Mounted
+// data can be read, listed, and extracted through Result-returning helpers.
 func ExampleData_List() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-data-example")
@@ -76,6 +84,8 @@ func ExampleData_List() {
 	// Output: true
 }
 
+// ExampleData_ListNames lists entry names through `Data.ListNames` for embedded Lethean
+// data. Mounted data can be read, listed, and extracted through Result-returning helpers.
 func ExampleData_ListNames() {
 	fs := (&Fs{}).New("/")
 	dir := fs.TempDir("core-data-example")
@@ -94,6 +104,8 @@ func ExampleData_ListNames() {
 	// Output: [hello]
 }
 
+// ExampleData_Extract extracts embedded files through `Data.Extract` for embedded Lethean
+// data. Mounted data can be read, listed, and extracted through Result-returning helpers.
 func ExampleData_Extract() {
 	fs := (&Fs{}).New("/")
 	source := fs.TempDir("core-data-source")
@@ -118,6 +130,8 @@ func ExampleData_Extract() {
 	// hello codex
 }
 
+// ExampleData_Mounts lists mounted data sources through `Data.Mounts` for embedded Lethean
+// data. Mounted data can be read, listed, and extracted through Result-returning helpers.
 func ExampleData_Mounts() {
 	c := New()
 	Println(c.Data().Mounts())

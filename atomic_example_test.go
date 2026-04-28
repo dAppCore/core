@@ -4,6 +4,9 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleAtomicBool updates a boolean atomically through `AtomicBool` for shared runtime
+// state. Concurrent state changes use explicit load, store, swap, and compare-and-swap
+// shapes.
 func ExampleAtomicBool() {
 	var ready AtomicBool
 	if !ready.Load() {
@@ -18,6 +21,9 @@ func ExampleAtomicBool() {
 	// ready
 }
 
+// ExampleAtomicBool_Swap swaps a value through `AtomicBool.Swap` and returns the previous
+// value for shared runtime state. Concurrent state changes use explicit load, store, swap,
+// and compare-and-swap shapes.
 func ExampleAtomicBool_Swap() {
 	var ready AtomicBool
 	ready.Store(true)
@@ -28,6 +34,9 @@ func ExampleAtomicBool_Swap() {
 	// false
 }
 
+// ExampleAtomicBool_CompareAndSwap updates `AtomicBool.CompareAndSwap` only when the
+// previous value matches for shared runtime state. Concurrent state changes use explicit
+// load, store, swap, and compare-and-swap shapes.
 func ExampleAtomicBool_CompareAndSwap() {
 	var ready AtomicBool
 	Println(ready.CompareAndSwap(false, true))
@@ -37,6 +46,9 @@ func ExampleAtomicBool_CompareAndSwap() {
 	// true
 }
 
+// ExampleAtomicInt32 updates a 32-bit integer atomically through `AtomicInt32` for shared
+// runtime state. Concurrent state changes use explicit load, store, swap, and
+// compare-and-swap shapes.
 func ExampleAtomicInt32() {
 	var counter AtomicInt32
 	counter.Store(10)
@@ -49,6 +61,9 @@ func ExampleAtomicInt32() {
 	// 1
 }
 
+// ExampleAtomicInt64 updates a 64-bit integer atomically through `AtomicInt64` for shared
+// runtime state. Concurrent state changes use explicit load, store, swap, and
+// compare-and-swap shapes.
 func ExampleAtomicInt64() {
 	var counter AtomicInt64
 	counter.Add(1)
@@ -59,6 +74,9 @@ func ExampleAtomicInt64() {
 	// 3
 }
 
+// ExampleAtomicInt64_Swap swaps a value through `AtomicInt64.Swap` and returns the
+// previous value for shared runtime state. Concurrent state changes use explicit load,
+// store, swap, and compare-and-swap shapes.
 func ExampleAtomicInt64_Swap() {
 	var counter AtomicInt64
 	counter.Store(7)
@@ -69,6 +87,9 @@ func ExampleAtomicInt64_Swap() {
 	// 9
 }
 
+// ExampleAtomicInt64_CompareAndSwap updates `AtomicInt64.CompareAndSwap` only when the
+// previous value matches for shared runtime state. Concurrent state changes use explicit
+// load, store, swap, and compare-and-swap shapes.
 func ExampleAtomicInt64_CompareAndSwap() {
 	var counter AtomicInt64
 	counter.Store(7)
@@ -79,6 +100,9 @@ func ExampleAtomicInt64_CompareAndSwap() {
 	// 9
 }
 
+// ExampleAtomicInt32_CompareAndSwap updates `AtomicInt32.CompareAndSwap` only when the
+// previous value matches for shared runtime state. Concurrent state changes use explicit
+// load, store, swap, and compare-and-swap shapes.
 func ExampleAtomicInt32_CompareAndSwap() {
 	var state AtomicInt32
 	if state.CompareAndSwap(0, 1) {
@@ -92,6 +116,9 @@ func ExampleAtomicInt32_CompareAndSwap() {
 	// already claimed
 }
 
+// ExampleAtomicUint32 updates an unsigned 32-bit integer atomically through `AtomicUint32`
+// for shared runtime state. Concurrent state changes use explicit load, store, swap, and
+// compare-and-swap shapes.
 func ExampleAtomicUint32() {
 	var counter AtomicUint32
 	counter.Store(10)
@@ -104,6 +131,9 @@ func ExampleAtomicUint32() {
 	// 1
 }
 
+// ExampleAtomicUint32_CompareAndSwap updates `AtomicUint32.CompareAndSwap` only when the
+// previous value matches for shared runtime state. Concurrent state changes use explicit
+// load, store, swap, and compare-and-swap shapes.
 func ExampleAtomicUint32_CompareAndSwap() {
 	var counter AtomicUint32
 	counter.Store(10)
@@ -114,6 +144,9 @@ func ExampleAtomicUint32_CompareAndSwap() {
 	// 11
 }
 
+// ExampleAtomicUint64 updates an unsigned 64-bit integer atomically through `AtomicUint64`
+// for shared runtime state. Concurrent state changes use explicit load, store, swap, and
+// compare-and-swap shapes.
 func ExampleAtomicUint64() {
 	var counter AtomicUint64
 	counter.Store(10)
@@ -126,6 +159,9 @@ func ExampleAtomicUint64() {
 	// 1
 }
 
+// ExampleAtomicUint64_CompareAndSwap updates `AtomicUint64.CompareAndSwap` only when the
+// previous value matches for shared runtime state. Concurrent state changes use explicit
+// load, store, swap, and compare-and-swap shapes.
 func ExampleAtomicUint64_CompareAndSwap() {
 	var counter AtomicUint64
 	counter.Store(10)
@@ -140,6 +176,9 @@ type config struct {
 	name string
 }
 
+// ExampleAtomicPointer updates a typed pointer atomically through `AtomicPointer` for
+// shared runtime state. Concurrent state changes use explicit load, store, swap, and
+// compare-and-swap shapes.
 func ExampleAtomicPointer() {
 	var current AtomicPointer[config]
 	current.Store(&config{name: "v1"})
@@ -152,6 +191,9 @@ func ExampleAtomicPointer() {
 	// v2
 }
 
+// ExampleAtomicPointer_Swap swaps a value through `AtomicPointer.Swap` and returns the
+// previous value for shared runtime state. Concurrent state changes use explicit load,
+// store, swap, and compare-and-swap shapes.
 func ExampleAtomicPointer_Swap() {
 	var current AtomicPointer[config]
 	first := &config{name: "v1"}
@@ -165,6 +207,9 @@ func ExampleAtomicPointer_Swap() {
 	// v2
 }
 
+// ExampleAtomicPointer_CompareAndSwap updates `AtomicPointer.CompareAndSwap` only when the
+// previous value matches for shared runtime state. Concurrent state changes use explicit
+// load, store, swap, and compare-and-swap shapes.
 func ExampleAtomicPointer_CompareAndSwap() {
 	var current AtomicPointer[config]
 	first := &config{name: "v1"}

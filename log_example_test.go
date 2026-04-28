@@ -2,6 +2,8 @@ package core_test
 
 import . "dappco.re/go"
 
+// ExampleLevel_String renders `Level.String` as a stable string for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleLevel_String() {
 	Println(LevelInfo.String())
 	Println(LevelQuiet.String())
@@ -10,6 +12,8 @@ func ExampleLevel_String() {
 	// quiet
 }
 
+// ExampleNewLog creates a logger through `NewLog` for operator logging. Loggers support
+// levels, redaction, and default routing for operator output.
 func ExampleNewLog() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelInfo, Output: buf})
@@ -19,6 +23,8 @@ func ExampleNewLog() {
 	// Output: true
 }
 
+// ExampleLog_SetLevel changes log level through `Log.SetLevel` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleLog_SetLevel() {
 	log := NewLog(LogOptions{Level: LevelWarn, Output: NewBuffer()})
 	log.SetLevel(LevelDebug)
@@ -26,12 +32,16 @@ func ExampleLog_SetLevel() {
 	// Output: debug
 }
 
+// ExampleLog_Level reads a logger level through `Log.Level` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleLog_Level() {
 	log := NewLog(LogOptions{Level: LevelError, Output: NewBuffer()})
 	Println(log.Level())
 	// Output: error
 }
 
+// ExampleLog_SetOutput redirects output through `Log.SetOutput` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleLog_SetOutput() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelInfo})
@@ -42,6 +52,9 @@ func ExampleLog_SetOutput() {
 	// Output: true
 }
 
+// ExampleLog_SetRedactKeys configures redaction keys through `Log.SetRedactKeys` for
+// operator logging. Loggers support levels, redaction, and default routing for operator
+// output.
 func ExampleLog_SetRedactKeys() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelInfo, Output: buf})
@@ -52,6 +65,8 @@ func ExampleLog_SetRedactKeys() {
 	// Output: true
 }
 
+// ExampleLog_Debug writes a debug event through `Log.Debug` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleLog_Debug() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelDebug, Output: buf})
@@ -61,6 +76,8 @@ func ExampleLog_Debug() {
 	// Output: true
 }
 
+// ExampleLog_Info writes an info event through `Log.Info` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleLog_Info() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelInfo, Output: buf})
@@ -70,6 +87,8 @@ func ExampleLog_Info() {
 	// Output: true
 }
 
+// ExampleLog_Warn writes a warning event through `Log.Warn` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleLog_Warn() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelWarn, Output: buf})
@@ -79,6 +98,8 @@ func ExampleLog_Warn() {
 	// Output: true
 }
 
+// ExampleLog_Error writes or renders an error through `Log.Error` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleLog_Error() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelError, Output: buf})
@@ -88,6 +109,8 @@ func ExampleLog_Error() {
 	// Output: true
 }
 
+// ExampleLog_Security writes a security event through `Log.Security` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleLog_Security() {
 	buf := NewBuffer()
 	log := NewLog(LogOptions{Level: LevelError, Output: buf})
@@ -97,16 +120,22 @@ func ExampleLog_Security() {
 	// Output: true
 }
 
+// ExampleUsername reads the current username through `Username` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleUsername() {
 	Println(Username() != "")
 	// Output: true
 }
 
+// ExampleDefault reads the default logger through `Default` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleDefault() {
 	Println(Default() != nil)
 	// Output: true
 }
 
+// ExampleSetDefault replaces the default logger through `SetDefault` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleSetDefault() {
 	old := Default()
 	defer SetDefault(old)
@@ -117,6 +146,8 @@ func ExampleSetDefault() {
 	// Output: true
 }
 
+// ExampleSetLevel changes log level through `SetLevel` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleSetLevel() {
 	old := Default()
 	defer SetDefault(old)
@@ -127,6 +158,8 @@ func ExampleSetLevel() {
 	// Output: debug
 }
 
+// ExampleSetRedactKeys configures redaction keys through `SetRedactKeys` for operator
+// logging. Loggers support levels, redaction, and default routing for operator output.
 func ExampleSetRedactKeys() {
 	old := Default()
 	defer SetDefault(old)
@@ -141,6 +174,8 @@ func ExampleSetRedactKeys() {
 	// Output: true
 }
 
+// ExampleDebug writes a debug event through `Debug` for operator logging. Loggers support
+// levels, redaction, and default routing for operator output.
 func ExampleDebug() {
 	old := Default()
 	defer SetDefault(old)
@@ -154,6 +189,8 @@ func ExampleDebug() {
 	// Output: true
 }
 
+// ExampleInfo writes an info event through `Info` for operator logging. Loggers support
+// levels, redaction, and default routing for operator output.
 func ExampleInfo() {
 	old := Default()
 	defer SetDefault(old)
@@ -167,6 +204,8 @@ func ExampleInfo() {
 	// Output: true
 }
 
+// ExampleWarn writes a warning event through `Warn` for operator logging. Loggers support
+// levels, redaction, and default routing for operator output.
 func ExampleWarn() {
 	old := Default()
 	defer SetDefault(old)
@@ -180,6 +219,8 @@ func ExampleWarn() {
 	// Output: true
 }
 
+// ExampleError writes or renders an error through `Error` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleError() {
 	old := Default()
 	defer SetDefault(old)
@@ -193,6 +234,8 @@ func ExampleError() {
 	// Output: true
 }
 
+// ExampleSecurity writes a security event through `Security` for operator logging. Loggers
+// support levels, redaction, and default routing for operator output.
 func ExampleSecurity() {
 	old := Default()
 	defer SetDefault(old)
@@ -206,12 +249,16 @@ func ExampleSecurity() {
 	// Output: true
 }
 
+// ExampleNewLogErr creates an error logging sink through `NewLogErr` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleNewLogErr() {
 	logErr := NewLogErr(NewLog(LogOptions{Output: NewBuffer()}))
 	Println(logErr != nil)
 	// Output: true
 }
 
+// ExampleLogErr_Log logs through `LogErr.Log` for operator logging. Loggers support
+// levels, redaction, and default routing for operator output.
 func ExampleLogErr_Log() {
 	logErr := NewLogErr(NewLog(LogOptions{Output: NewBuffer()}))
 	logErr.Log(nil)
@@ -219,17 +266,24 @@ func ExampleLogErr_Log() {
 	// Output: ok
 }
 
+// ExampleNewLogPanic creates a panic logging helper through `NewLogPanic` for operator
+// logging. Loggers support levels, redaction, and default routing for operator output.
 func ExampleNewLogPanic() {
 	panicLog := NewLogPanic(NewLog(LogOptions{Output: NewBuffer()}))
 	Println(panicLog != nil)
 	// Output: true
 }
 
+// ExampleLogPanic_Recover documents panic logging recovery when no panic is active.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleLogPanic_Recover() {
 	panicLog := NewLogPanic(NewLog(LogOptions{Output: NewBuffer()}))
 	defer panicLog.Recover()
 }
 
+// ExampleRotationLogOptions declares rotation settings through `RotationLogOptions` for
+// operator logging. Loggers support levels, redaction, and default routing for operator
+// output.
 func ExampleRotationLogOptions() {
 	opts := RotationLogOptions{Filename: "app.log", MaxSize: 10, MaxBackups: 3}
 	Println(opts.Filename)
@@ -239,6 +293,8 @@ func ExampleRotationLogOptions() {
 	// 10
 }
 
+// ExampleLogOptions declares logger settings through `LogOptions` for operator logging.
+// Loggers support levels, redaction, and default routing for operator output.
 func ExampleLogOptions() {
 	opts := LogOptions{Level: LevelInfo, Output: NewBuffer(), RedactKeys: []string{"token"}}
 	Println(opts.Level)
@@ -248,6 +304,8 @@ func ExampleLogOptions() {
 	// [token]
 }
 
+// ExampleRotationWriterFactory documents the log rotation extension point without creating
+// a writer. Loggers support levels, redaction, and default routing for operator output.
 func ExampleRotationWriterFactory() {
 	_ = RotationWriterFactory
 }

@@ -4,6 +4,8 @@ import (
 	. "dappco.re/go"
 )
 
+// ExampleConfig_Set sets a value through `Config.Set` for service configuration. Callers
+// write untyped settings and read back typed values or enabled features.
 func ExampleConfig_Set() {
 	c := New()
 	c.Config().Set("database.host", "localhost")
@@ -16,6 +18,9 @@ func ExampleConfig_Set() {
 	// 5432
 }
 
+// ExampleNewConfigVar_config initialises configuration values through `NewConfigVar` for
+// service configuration. Callers write untyped settings and read back typed values or
+// enabled features.
 func ExampleNewConfigVar_config() {
 	v := NewConfigVar("enabled")
 	Println(v.Get())
@@ -25,6 +30,8 @@ func ExampleNewConfigVar_config() {
 	// true
 }
 
+// ExampleConfigVar_Set sets a value through `ConfigVar.Set` for service configuration.
+// Callers write untyped settings and read back typed values or enabled features.
 func ExampleConfigVar_Set() {
 	var v ConfigVar[string]
 	v.Set("enabled")
@@ -35,6 +42,9 @@ func ExampleConfigVar_Set() {
 	// true
 }
 
+// ExampleConfigVar_Unset clears a value through `ConfigVar.Unset` for service
+// configuration. Callers write untyped settings and read back typed values or enabled
+// features.
 func ExampleConfigVar_Unset() {
 	v := NewConfigVar("enabled")
 	v.Unset()
@@ -45,12 +55,17 @@ func ExampleConfigVar_Unset() {
 	// false
 }
 
+// ExampleConfig_New creates an empty configuration with no enabled feature flags. Callers
+// write untyped settings and read back typed values or enabled features.
 func ExampleConfig_New() {
 	cfg := (&Config{}).New()
 	Println(cfg.EnabledFeatures())
 	// Output: []
 }
 
+// ExampleConfigOptions groups settings and feature flags through `ConfigOptions` for
+// service configuration. Callers write untyped settings and read back typed values or
+// enabled features.
 func ExampleConfigOptions() {
 	opts := ConfigOptions{
 		Settings: map[string]any{"host": "localhost"},
@@ -63,6 +78,8 @@ func ExampleConfigOptions() {
 	// true
 }
 
+// ExampleConfig_Get retrieves a value through `Config.Get` for service configuration.
+// Callers write untyped settings and read back typed values or enabled features.
 func ExampleConfig_Get() {
 	cfg := (&Config{}).New()
 	cfg.Set("host", "localhost")
@@ -73,6 +90,9 @@ func ExampleConfig_Get() {
 	// false
 }
 
+// ExampleConfig_String renders `Config.String` as a stable string for service
+// configuration. Callers write untyped settings and read back typed values or enabled
+// features.
 func ExampleConfig_String() {
 	cfg := (&Config{}).New()
 	cfg.Set("host", "localhost")
@@ -80,6 +100,8 @@ func ExampleConfig_String() {
 	// Output: localhost
 }
 
+// ExampleConfig_Int reads an integer through `Config.Int` for service configuration.
+// Callers write untyped settings and read back typed values or enabled features.
 func ExampleConfig_Int() {
 	cfg := (&Config{}).New()
 	cfg.Set("port", 8080)
@@ -87,6 +109,8 @@ func ExampleConfig_Int() {
 	// Output: 8080
 }
 
+// ExampleConfig_Bool reads a boolean through `Config.Bool` for service configuration.
+// Callers write untyped settings and read back typed values or enabled features.
 func ExampleConfig_Bool() {
 	cfg := (&Config{}).New()
 	cfg.Set("debug", true)
@@ -94,6 +118,9 @@ func ExampleConfig_Bool() {
 	// Output: true
 }
 
+// ExampleConfigGet reads a typed config value through `ConfigGet` for service
+// configuration. Callers write untyped settings and read back typed values or enabled
+// features.
 func ExampleConfigGet() {
 	cfg := (&Config{}).New()
 	cfg.Set("host", "localhost")
@@ -101,6 +128,8 @@ func ExampleConfigGet() {
 	// Output: localhost
 }
 
+// ExampleConfig_Enable turns on named feature flags for service configuration. Callers
+// write untyped settings and read back typed values or enabled features.
 func ExampleConfig_Enable() {
 	c := New()
 	c.Config().Enable("dark-mode")
@@ -115,6 +144,9 @@ func ExampleConfig_Enable() {
 	// [beta-features dark-mode]
 }
 
+// ExampleConfig_Disable turns off a previously enabled feature flag for service
+// configuration. Callers write untyped settings and read back typed values or enabled
+// features.
 func ExampleConfig_Disable() {
 	c := New()
 	c.Config().Enable("debug")
@@ -123,6 +155,9 @@ func ExampleConfig_Disable() {
 	// Output: false
 }
 
+// ExampleConfig_Enabled checks whether a feature is enabled through `Config.Enabled` for
+// service configuration. Callers write untyped settings and read back typed values or
+// enabled features.
 func ExampleConfig_Enabled() {
 	c := New()
 	c.Config().Enable("debug")
@@ -130,6 +165,9 @@ func ExampleConfig_Enabled() {
 	// Output: true
 }
 
+// ExampleConfig_EnabledFeatures lists enabled feature flags through
+// `Config.EnabledFeatures` for service configuration. Callers write untyped settings and
+// read back typed values or enabled features.
 func ExampleConfig_EnabledFeatures() {
 	c := New()
 	c.Config().Enable("beta")
@@ -140,6 +178,9 @@ func ExampleConfig_EnabledFeatures() {
 	// Output: [beta debug]
 }
 
+// ExampleConfigVar toggles a standalone config variable through `ConfigVar` for service
+// configuration. Callers write untyped settings and read back typed values or enabled
+// features.
 func ExampleConfigVar() {
 	v := NewConfigVar(42)
 	Println(v.Get(), v.IsSet())
