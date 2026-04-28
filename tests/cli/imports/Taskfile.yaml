@@ -1,0 +1,21 @@
+# AX-10 — CLI tests as artifact validation. SPOR drift guard.
+#
+# Every stdlib package used by core/go has exactly one production owner
+# file (see AGENTS.md SPOR ownership table). This Taskfile fails CI if
+# any non-owner production .go file imports a stdlib package — the
+# enforcement layer that keeps the discipline mechanical, not reviewer-
+# judgement.
+
+version: "3"
+
+tasks:
+  default:
+    desc: Verify SPOR ownership — every stdlib import has exactly one owner.
+    deps:
+      - check
+
+  check:
+    desc: Scan production .go files for stdlib imports and fail on any package with more than one owner.
+    dir: ../../..
+    cmds:
+      - bash tests/cli/imports/check.sh

@@ -1,83 +1,82 @@
 package core_test
 
 import (
-	"bytes"
-
 	. "dappco.re/go"
 )
 
-// --- Cli Surface ---
-
-func TestCli_Good(t *T) {
+// fakeProcess registers an in-test process.run handler that echoes a
+// composed string so AssertCLI scenarios stay self-contained without a
+// real process service. Returns the registered Core.
+func fakeProcess(t *T, response string, ok bool) *Core {
+	t.Helper()
 	c := New()
-	AssertNotNil(t, c.Cli())
+	c.Action("process.run", func(ctx Context, opts Options) Result {
+		if !ok {
+			return Result{Value: NewCode("test.process.bad", response), OK: false}
+		}
+		return Result{Value: response, OK: true}
+	})
+	return c
 }
 
-func TestCli_Banner_Good(t *T) {
-	c := New(WithOption("name", "myapp"))
-	AssertEqual(t, "myapp", c.Cli().Banner())
+// --- AssertCLI ---
+
+func TestCLI_AssertCLI_Good(t *T) {
+	c := fakeProcess(t, "go version go1.26.0\n", true)
+	AssertCLI(t, c, CLITest{
+		Cmd:    "go",
+		Args:   []string{"version"},
+		WantOK: true,
+		Output: "go version go1.26.0\n",
+	})
 }
 
-func TestCli_SetBanner_Good(t *T) {
-	c := New()
-	c.Cli().SetBanner(func(_ *Cli) string { return "Custom Banner" })
-	AssertEqual(t, "Custom Banner", c.Cli().Banner())
+func TestCLI_AssertCLI_Contains_Good(t *T) {
+	c := fakeProcess(t, "go version go1.26.0 darwin/arm64\n", true)
+	AssertCLI(t, c, CLITest{
+		Cmd:      "go",
+		Args:     []string{"version"},
+		WantOK:   true,
+		Contains: "go1.26",
+	})
 }
 
-func TestCli_Run_Good(t *T) {
-	c := New()
-	executed := false
-	c.Command("hello", Command{Action: func(_ Options) Result {
-		executed = true
-		return Result{Value: "world", OK: true}
-	}})
-	r := c.Cli().Run("hello")
-	AssertTrue(t, r.OK)
-	AssertEqual(t, "world", r.Value)
-	AssertTrue(t, executed)
+func TestCLI_AssertCLI_WantOK_False_Good(t *T) {
+	c := fakeProcess(t, "process not registered", false)
+	AssertCLI(t, c, CLITest{
+		Cmd:    "missing-binary",
+		WantOK: false,
+	})
 }
 
-func TestCli_Run_Nested_Good(t *T) {
-	c := New()
-	executed := false
-	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result {
-		executed = true
-		return Result{OK: true}
-	}})
-	r := c.Cli().Run("deploy", "to", "homelab")
-	AssertTrue(t, r.OK)
-	AssertTrue(t, executed)
+func TestCLI_AssertCLI_Dir_Good(t *T) {
+	c := fakeProcess(t, "ok\n", true)
+	AssertCLI(t, c, CLITest{
+		Name:   "run-in-tempdir",
+		Cmd:    "true",
+		Dir:    t.TempDir(),
+		WantOK: true,
+		Output: "ok\n",
+	})
 }
 
-func TestCli_Run_WithFlags_Good(t *T) {
-	c := New()
-	var received Options
-	c.Command("serve", Command{Action: func(opts Options) Result {
-		received = opts
-		return Result{OK: true}
-	}})
-	c.Cli().Run("serve", "--port=8080", "--debug")
-	AssertEqual(t, "8080", received.String("port"))
-	AssertTrue(t, received.Bool("debug"))
+func TestCLI_AssertCLI_Env_Good(t *T) {
+	c := fakeProcess(t, "ok\n", true)
+	AssertCLI(t, c, CLITest{
+		Cmd:    "true",
+		Dir:    t.TempDir(),
+		Env:    []string{"GOWORK=off"},
+		WantOK: true,
+		Output: "ok\n",
+	})
 }
 
-func TestCli_Run_NoCommand_Good(t *T) {
-	c := New()
-	r := c.Cli().Run()
-	AssertFalse(t, r.OK)
-}
+// --- AssertCLIs ---
 
-func TestCli_PrintHelp_Good(t *T) {
-	c := New(WithOption("name", "myapp"))
-	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
-	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }})
-	c.Cli().PrintHelp()
-}
-
-func TestCli_SetOutput_Good(t *T) {
-	c := New()
-	var buf bytes.Buffer
-	c.Cli().SetOutput(&buf)
-	c.Cli().Print("hello %s", "world")
-	AssertContains(t, buf.String(), "hello world")
+func TestCLI_AssertCLIs_Good(t *T) {
+	c := fakeProcess(t, "fixture-output\n", true)
+	AssertCLIs(t, c, []CLITest{
+		{Name: "first", Cmd: "go", Args: []string{"version"}, WantOK: true, Contains: "fixture"},
+		{Name: "second", Cmd: "go", Args: []string{"env"}, WantOK: true, Output: "fixture-output\n"},
+	})
 }

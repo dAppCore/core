@@ -1,0 +1,18 @@
+# AX-10 — CLI tests as artifact validation. The path tests/cli/assertcli
+# mirrors the AssertCLI surface; this Taskfile runs the AssertCLI test
+# suite directly against the binary under test (here, core/go's own
+# test binary exercising AssertCLI/AssertCLIs against a fake process
+# handler).
+version: "3"
+
+tasks:
+  default:
+    desc: Validate AssertCLI/AssertCLIs end-to-end against a registered process handler.
+    deps:
+      - test
+
+  test:
+    desc: Run the AssertCLI test scenarios.
+    dir: ../../..
+    cmds:
+      - GOWORK=off go test -count=1 -run "^TestCLI_" ./...
