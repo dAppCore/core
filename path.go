@@ -187,6 +187,24 @@ func PathAbs(p string) Result {
 	return Result{a, true}
 }
 
+// PathChangeExt returns p with its file extension replaced by newExt.
+// newExt may include a leading dot or omit it — both forms are accepted.
+// If p has no extension, newExt is appended.
+//
+//	core.PathChangeExt("data.json", ".yaml")  // "data.yaml"
+//	core.PathChangeExt("data.json", "yaml")   // "data.yaml"
+//	core.PathChangeExt("README", ".md")       // "README.md"
+func PathChangeExt(p, newExt string) string {
+	if newExt != "" && newExt[0] != '.' {
+		newExt = "." + newExt
+	}
+	ext := PathExt(p)
+	if ext == "" {
+		return p + newExt
+	}
+	return p[:len(p)-len(ext)] + newExt
+}
+
 // lastIndex returns the index of the last occurrence of substr in s, or -1.
 func lastIndex(s, substr string) int {
 	if substr == "" || s == "" {
