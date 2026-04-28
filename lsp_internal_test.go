@@ -144,6 +144,143 @@ var _ sync.Mutex
 	AssertEmpty(t, diags)
 }
 
+// --- lspSporDiagnostic ---
+
+func TestLsp_lspSporDiagnostic_Good(t *T) {
+	content := []byte(`package agent
+
+import "fmt"
+`)
+	diags := lspSporDiagnostic("file:///agent.go", content)
+	AssertLen(t, diags, 1)
+	AssertEqual(t, "spor", diags[0].Source)
+	AssertEqual(t, "spor.violation", diags[0].Code)
+	AssertContains(t, diags[0].Message, "format.go")
+}
+
+func TestLsp_lspSporDiagnostic_Bad(t *T) {
+	content := []byte(`package core
+
+import "fmt"
+`)
+	diags := lspSporDiagnostic("file:///format.go", content)
+	AssertEmpty(t, diags)
+}
+
+func TestLsp_lspSporDiagnostic_Ugly(t *T) {
+	content := []byte(`package core
+
+import (
+	cryptorand "crypto/rand"
+)
+`)
+	diags := lspSporDiagnostic("file:///agent_internal_test.go", content)
+	AssertEmpty(t, diags)
+}
+
+// --- lspNamingDiagnostic ---
+
+func TestLsp_lspNamingDiagnostic_Good(t *T) {
+	dir := t.TempDir()
+	tests := []byte(`package agent
+
+func TestAgent_SyncAgent_Good(t *T) {}
+func TestAgent_SyncAgent_Bad(t *T) {}
+`)
+	RequireTrue(t, WriteFile(PathJoin(dir, "agent_test.go"), tests, 0o644).OK)
+
+	content := []byte(`package agent
+
+func SyncAgent() {}
+`)
+	diags := lspNamingDiagnostic(Concat("file://", PathJoin(dir, "agent.go")), content)
+	AssertLen(t, diags, 1)
+	AssertEqual(t, "ax-7", diags[0].Source)
+	AssertEqual(t, LSPSeverityHint, diags[0].Severity)
+	AssertContains(t, diags[0].Message, "SyncAgent_Ugly")
+}
+
+func TestLsp_lspNamingDiagnostic_Bad(t *T) {
+	content := []byte(`package agent
+
+func SyncAgent() {}
+`)
+	diags := lspNamingDiagnostic("file:///agent_test.go", content)
+	AssertEmpty(t, diags)
+}
+
+func TestLsp_lspNamingDiagnostic_Ugly(t *T) {
+	dir := t.TempDir()
+	tests := []byte(`package agent
+
+func TestAgent_Runner_Start_Good(t *T) {}
+func TestAgent_Runner_Start_Bad(t *T) {}
+func TestAgent_Runner_Start_Ugly(t *T) {}
+`)
+	RequireTrue(t, WriteFile(PathJoin(dir, "agent_internal_test.go"), tests, 0o644).OK)
+
+	content := []byte(`package agent
+
+func (r *Runner[T]) Start() {}
+`)
+	diags := lspNamingDiagnostic(Concat("file://", PathJoin(dir, "agent.go")), content)
+	AssertEmpty(t, diags)
+}
+
+// --- lspNamingDiagnosticsFromSuffixes ---
+
+func TestLsp_lspNamingDiagnosticsFromSuffixes_Good(t *T) {
+	top := Regex(`^func ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	method := Regex(`^func \([^)]*?\*?([A-Za-z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	RequireTrue(t, top.OK)
+	RequireTrue(t, method.OK)
+
+	content := []byte(`package agent
+
+func SyncAgent() {}
+`)
+	suffixes := map[string]bool{
+		"Lsp_SyncAgent_Good": true,
+		"Lsp_SyncAgent_Bad":  true,
+	}
+	diags := lspNamingDiagnosticsFromSuffixes(content, top.Value.(*Regexp), method.Value.(*Regexp), suffixes)
+	AssertLen(t, diags, 1)
+	AssertContains(t, diags[0].Message, "SyncAgent_Ugly")
+}
+
+func TestLsp_lspNamingDiagnosticsFromSuffixes_Bad(t *T) {
+	top := Regex(`^func ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	method := Regex(`^func \([^)]*?\*?([A-Za-z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	RequireTrue(t, top.OK)
+	RequireTrue(t, method.OK)
+
+	content := []byte(`package agent
+
+var ready = true
+`)
+	diags := lspNamingDiagnosticsFromSuffixes(content, top.Value.(*Regexp), method.Value.(*Regexp), nil)
+	AssertEmpty(t, diags)
+}
+
+func TestLsp_lspNamingDiagnosticsFromSuffixes_Ugly(t *T) {
+	top := Regex(`^func ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	method := Regex(`^func \([^)]*?\*?([A-Za-z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	RequireTrue(t, top.OK)
+	RequireTrue(t, method.OK)
+
+	content := []byte(`package agent
+
+func (r *Runner[T]) Start() {}
+`)
+	suffixes := map[string]bool{
+		"Runner_Start_Good": true,
+		"Runner_Start_Bad":  true,
+		"Runner_Start_Ugly": true,
+	}
+	diags := lspNamingDiagnosticsFromSuffixes(content, top.Value.(*Regexp), method.Value.(*Regexp), suffixes)
+	AssertEmpty(t, diags)
+}
+
 // --- lspServer methods ---
 //
 // Construct an lspServer with bytes.Buffer-backed in/out so the
@@ -397,10 +534,9 @@ func TestLsp_lspServer_publishDiagnostics_Bad(t *T) {
 }
 
 func TestLsp_lspServer_publishDiagnostics_Ugly(t *T) {
-	// Non-test path: no test-imports diagnostic produced.
 	srv, _, out := newTestLSPServer()
 	srv.publishDiagnostics("file:///agent.go", []byte("package agent\n\nimport \"sync\"\n"))
-	AssertContains(t, out.String(), `"diagnostics":[]`)
+	AssertContains(t, out.String(), `"source":"spor"`)
 }
 
 func TestLsp_lspServer_respond_Good(t *T) {

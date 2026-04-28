@@ -49,7 +49,16 @@ func TestLsp_LSPRegisterDiagnostic_Ugly(t *T) {
 
 func TestLsp_LSPDiagnosticSources_Good(t *T) {
 	sources := LSPDiagnosticSources()
-	AssertContains(t, sources, "test-imports")
+	expected := []string{"ax-7", "result-shape", "spor", "test-imports"}
+	seen := []string{}
+	for _, source := range sources {
+		for _, name := range expected {
+			if source == name {
+				seen = append(seen, source)
+			}
+		}
+	}
+	AssertEqual(t, expected, seen)
 }
 
 func TestLsp_LSPDiagnosticSources_Bad(t *T) {
@@ -129,10 +138,11 @@ func TestLsp_LSPServe_Bad(t *T) {
 }
 
 func TestLsp_LSPServe_Ugly(t *T) {
-	// LSPServe is the documented entry; ensure registered sources include
-	// the default test-imports producer that LSPServe will invoke on
-	// every textDocument/didOpen.
-	AssertContains(t, LSPDiagnosticSources(), "test-imports")
+	sources := LSPDiagnosticSources()
+	AssertContains(t, sources, "ax-7")
+	AssertContains(t, sources, "result-shape")
+	AssertContains(t, sources, "spor")
+	AssertContains(t, sources, "test-imports")
 }
 
 // --- LSPDiagnostic + LSPRange + LSPPosition ---
@@ -163,12 +173,12 @@ func TestLsp_LSPDiagnostic_Ugly(t *T) {
 		Range:    LSPRange{Start: LSPPosition{Line: 12, Character: 0}, End: LSPPosition{Line: 12, Character: 32}},
 		Severity: LSPSeverityError,
 		Source:   "ax-7",
-		Code:     "ax-7.missing-bad",
+		Code:     "ax-7.missing-variant",
 		Message:  "missing TestSomething_Bad",
 	}
 	r := JSONMarshal(d)
 	RequireTrue(t, r.OK)
 	bytes := r.Value.([]byte)
-	AssertContains(t, string(bytes), "ax-7.missing-bad")
+	AssertContains(t, string(bytes), "ax-7.missing-variant")
 	AssertContains(t, string(bytes), "missing TestSomething_Bad")
 }

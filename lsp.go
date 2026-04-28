@@ -15,7 +15,7 @@
 // dispatch, document state. Diagnostic-producing logic lives in
 // pluggable DiagnosticSource functions registered via
 // LSPRegisterDiagnostic. The default registration includes
-// test-imports drift; add SPOR and AX-7 sources as the LSP matures.
+// test-imports, result-shape, SPOR, and AX-7 drift sources.
 //
 // # Wire protocol
 //
@@ -104,6 +104,11 @@ type LSPDiagnosticSource func(uri string, content []byte) []LSPDiagnostic
 
 var lspSources = map[string]LSPDiagnosticSource{}
 var lspSourcesMu RWMutex
+var lspNamingCache = map[string]struct {
+	Stamp    string
+	Suffixes map[string]bool
+}{}
+var lspNamingCacheMu Mutex
 
 // LSPRegisterDiagnostic adds a named diagnostic source. The source runs
 // on every textDocument/didOpen and didSave event. Replacing a source
@@ -399,8 +404,265 @@ func lspExtractDocumentChange(params any) (string, []byte) {
 // --- default diagnostic sources ---
 
 func init() {
-	LSPRegisterDiagnostic("test-imports", lspTestImportsDiagnostic)
+	LSPRegisterDiagnostic("ax-7", lspNamingDiagnostic)
 	LSPRegisterDiagnostic("result-shape", lspResultShapeDiagnostic)
+	LSPRegisterDiagnostic("spor", lspSporDiagnostic)
+	LSPRegisterDiagnostic("test-imports", lspTestImportsDiagnostic)
+}
+
+// lspSporDiagnostic flags production files that import a SPOR-protected
+// stdlib package outside that package's single owner file.
+func lspSporDiagnostic(uri string, content []byte) []LSPDiagnostic {
+	if !HasSuffix(uri, ".go") {
+		return nil
+	}
+	if HasSuffix(uri, "_test.go") || HasSuffix(uri, "_example_test.go") || HasSuffix(uri, "_fuzz_test.go") || HasSuffix(uri, "_internal_test.go") {
+		return nil
+	}
+
+	owners := map[string]string{
+		"bufio":             "scanner.go",
+		"bytes":             "io.go",
+		"cmp":               "math.go",
+		"compress/gzip":     "embed.go",
+		"context":           "context.go",
+		"crypto/hkdf":       "hash.go",
+		"crypto/hmac":       "hash.go",
+		"crypto/rand":       "random.go",
+		"crypto/sha256":     "hash.go",
+		"crypto/sha3":       "sha3.go",
+		"crypto/sha512":     "hash.go",
+		"database/sql":      "sql.go",
+		"embed":             "embed.go",
+		"encoding/base64":   "encode.go",
+		"encoding/binary":   "encode.go",
+		"encoding/hex":      "encode.go",
+		"encoding/json":     "json.go",
+		"errors":            "error.go",
+		"fmt":               "format.go",
+		"go/ast":            "embed.go",
+		"go/parser":         "embed.go",
+		"go/token":          "embed.go",
+		"hash":              "hash.go",
+		"html":              "string.go",
+		"html/template":     "template.go",
+		"io":                "io.go",
+		"io/fs":             "fs.go",
+		"iter":              "iter.go",
+		"maps":              "map.go",
+		"math":              "math.go",
+		"math/big":          "math.go",
+		"math/bits":         "sha3.go",
+		"math/rand/v2":      "random.go",
+		"mime/multipart":    "api.go",
+		"net":               "net.go",
+		"net/http":          "api.go",
+		"net/http/httptest": "api.go",
+		"net/url":           "api.go",
+		"os":                "os.go",
+		"os/exec":           "process.go",
+		"os/user":           "user.go",
+		"path/filepath":     "path.go",
+		"reflect":           "reflect.go",
+		"regexp":            "regexp.go",
+		"runtime":           "info.go",
+		"runtime/debug":     "info.go",
+		"slices":            "slice.go",
+		"sort":              "slice.go",
+		"strconv":           "int.go",
+		"strings":           "string.go",
+		"sync":              "sync.go",
+		"sync/atomic":       "atomic.go",
+		"testing":           "test.go",
+		"text/tabwriter":    "table.go",
+		"text/template":     "template.go",
+		"time":              "time.go",
+		"unicode":           "unicode.go",
+		"unicode/utf8":      "string.go",
+	}
+
+	fileName := PathBase(TrimPrefix(uri, "file://"))
+	var diags []LSPDiagnostic
+	lines := Split(string(content), "\n")
+	inImportBlock := false
+	for i, line := range lines {
+		trimmed := Trim(line)
+
+		checkImport := func(importPath string) {
+			owner, ok := owners[importPath]
+			if !ok || fileName == owner {
+				return
+			}
+			diags = append(diags, LSPDiagnostic{
+				Range: LSPRange{
+					Start: LSPPosition{Line: i, Character: 0},
+					End:   LSPPosition{Line: i, Character: len(line)},
+				},
+				Severity: LSPSeverityWarning,
+				Source:   "spor",
+				Code:     "spor.violation",
+				Message:  Sprintf("imports '%s' but %s is owned by %s; route through the core wrapper", importPath, importPath, owner),
+			})
+		}
+
+		if !inImportBlock {
+			if HasPrefix(trimmed, "import (") {
+				inImportBlock = true
+				continue
+			}
+			if HasPrefix(trimmed, "import ") {
+				if path, ok := lspExtractImportPath(trimmed); ok {
+					checkImport(path)
+				}
+			}
+			continue
+		}
+
+		if trimmed == ")" {
+			inImportBlock = false
+			continue
+		}
+		if trimmed == "" || HasPrefix(trimmed, "//") {
+			continue
+		}
+		if path, ok := lspExtractImportPath(trimmed); ok {
+			checkImport(path)
+		}
+	}
+	return diags
+}
+
+// lspNamingDiagnostic flags production symbols that do not have the
+// Test*_{Symbol}_{Good,Bad,Ugly} triplet in the same directory's tests.
+func lspNamingDiagnostic(uri string, content []byte) []LSPDiagnostic {
+	if !HasSuffix(uri, ".go") || HasSuffix(uri, "_test.go") {
+		return nil
+	}
+
+	topResult := Regex(`^func ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	methodResult := Regex(`^func \([^)]*?\*?([A-Za-z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]`)
+	testResult := Regex(`^func (Test[A-Za-z0-9_]+)\s*\(`)
+	if !topResult.OK || !methodResult.OK || !testResult.OK {
+		return nil
+	}
+	top := topResult.Value.(*Regexp)
+	method := methodResult.Value.(*Regexp)
+	test := testResult.Value.(*Regexp)
+
+	path := TrimPrefix(uri, "file://")
+	dir := PathDir(path)
+	read := ReadDir(DirFS(dir), ".")
+	testFiles := []string{}
+	stampParts := []string{}
+	if read.OK {
+		for _, entry := range read.Value.([]FsDirEntry) {
+			name := entry.Name()
+			if !HasSuffix(name, "_test.go") && !HasSuffix(name, "_internal_test.go") {
+				continue
+			}
+			testFiles = append(testFiles, name)
+			modTime := int64(0)
+			size := int64(0)
+			stat := Stat(PathJoin(dir, name))
+			if stat.OK {
+				info := stat.Value.(FsFileInfo)
+				modTime = info.ModTime().UnixNano()
+				size = info.Size()
+			}
+			stampParts = append(stampParts, Sprintf("%s:%d:%d", name, modTime, size))
+		}
+	}
+	SliceSort(testFiles)
+	SliceSort(stampParts)
+	stamp := Join("|", stampParts...)
+
+	lspNamingCacheMu.Lock()
+	cached, ok := lspNamingCache[dir]
+	if ok && cached.Stamp == stamp {
+		lspNamingCacheMu.Unlock()
+		return lspNamingDiagnosticsFromSuffixes(content, top, method, cached.Suffixes)
+	}
+	lspNamingCacheMu.Unlock()
+
+	suffixes := map[string]bool{}
+	for _, name := range testFiles {
+		file := ReadFile(PathJoin(dir, name))
+		if !file.OK {
+			continue
+		}
+		for _, line := range Split(string(file.Value.([]byte)), "\n") {
+			matches := test.FindStringSubmatch(line)
+			if len(matches) < 2 {
+				continue
+			}
+			testName := matches[1]
+			underscore := -1
+			for i := 0; i < len(testName); i++ {
+				if testName[i] == '_' {
+					underscore = i
+					break
+				}
+			}
+			if underscore >= 0 && underscore+1 < len(testName) {
+				suffixes[testName[underscore+1:]] = true
+			}
+		}
+	}
+
+	lspNamingCacheMu.Lock()
+	lspNamingCache[dir] = struct {
+		Stamp    string
+		Suffixes map[string]bool
+	}{Stamp: stamp, Suffixes: suffixes}
+	lspNamingCacheMu.Unlock()
+
+	return lspNamingDiagnosticsFromSuffixes(content, top, method, suffixes)
+}
+
+func lspNamingDiagnosticsFromSuffixes(content []byte, top, method *Regexp, suffixes map[string]bool) []LSPDiagnostic {
+	var diags []LSPDiagnostic
+	lines := Split(string(content), "\n")
+	variants := []string{"Good", "Bad", "Ugly"}
+
+	hasVariant := func(symbol, variant string) bool {
+		wanted := Concat(symbol, "_", variant)
+		target := Concat("_", wanted)
+		for suffix := range suffixes {
+			if suffix == wanted || HasSuffix(suffix, target) {
+				return true
+			}
+		}
+		return false
+	}
+
+	for i, line := range lines {
+		symbol := ""
+		if matches := top.FindStringSubmatch(line); len(matches) >= 2 {
+			symbol = matches[1]
+		}
+		if matches := method.FindStringSubmatch(line); len(matches) >= 3 {
+			symbol = Concat(matches[1], "_", matches[2])
+		}
+		if symbol == "" {
+			continue
+		}
+		for _, variant := range variants {
+			if hasVariant(symbol, variant) {
+				continue
+			}
+			diags = append(diags, LSPDiagnostic{
+				Range: LSPRange{
+					Start: LSPPosition{Line: i, Character: 0},
+					End:   LSPPosition{Line: i, Character: len(line)},
+				},
+				Severity: LSPSeverityHint,
+				Source:   "ax-7",
+				Code:     "ax-7.missing-variant",
+				Message:  Sprintf("missing Test*_%s_%s (Good|Bad|Ugly) — write it to satisfy the AX-7 triplet", symbol, variant),
+			})
+		}
+	}
+	return diags
 }
 
 // lspResultShapeDiagnostic flags the classic Go `(value, error)` and
