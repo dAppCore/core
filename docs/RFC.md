@@ -1,6 +1,6 @@
 # Core API Contract (RFC)
 
-This file is the canonical API catalog for `dappco.re/go/core`.
+This file is the canonical API catalog for `dappco.re/go`.
 
 - Exports follow the `core.Result` contract (`{Value any, OK bool}`) for outcomes.
 - Inputs are passed as `core.Options` collections of `core.Option` key-value pairs.

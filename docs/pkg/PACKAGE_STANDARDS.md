@@ -128,7 +128,7 @@ Test files import only the core package and use the `*T` alias for the test hand
 package mypkg_test
 
 import (
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestRepositorySync_Good(t *T) {

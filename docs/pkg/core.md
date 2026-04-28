@@ -3,7 +3,7 @@
 Import path:
 
 ```go
-import "dappco.re/go/core"
+import "dappco.re/go"
 ```
 
 This repository exposes one root package. The main areas are:
