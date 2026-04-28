@@ -101,3 +101,17 @@ func TestMath_IsNaN_Bad(t *T) {
 func TestMath_IsNaN_Ugly(t *T) {
 	AssertTrue(t, IsNaN(Pow(-1, 0.5)))
 }
+
+func TestMath_Compare_Good(t *T) {
+	AssertEqual(t, -1, Compare(1, 2))
+	AssertEqual(t, 1, Compare(2, 1))
+}
+
+func TestMath_Compare_Bad(t *T) {
+	AssertEqual(t, 0, Compare(7, 7))
+}
+
+func TestMath_Compare_Ugly(t *T) {
+	AssertEqual(t, -1, Compare("alpha", "beta"))
+	AssertEqual(t, 1, Compare("beta", "alpha"))
+}
