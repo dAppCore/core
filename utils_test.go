@@ -281,3 +281,130 @@ func TestUtils_Result_New_WithError_Bad(t *T) {
 	AssertFalse(t, r.OK)
 	AssertEqual(t, err, r.Value)
 }
+
+func TestUtils_Arg_Good(t *T) {
+	r := Arg(0, "agent", 42, true)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "agent", r.Value)
+}
+
+func TestUtils_Arg_Bad(t *T) {
+	r := Arg(4, "agent")
+	AssertFalse(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+func TestUtils_Arg_Ugly(t *T) {
+	AssertPanics(t, func() {
+		_ = Arg(-1, "agent")
+	})
+}
+
+func TestUtils_ArgBool_Bad(t *T) {
+	AssertFalse(t, ArgBool(0, "true"))
+}
+
+func TestUtils_ArgBool_Ugly(t *T) {
+	AssertPanics(t, func() {
+		_ = ArgBool(-1, true)
+	})
+}
+
+func TestUtils_ArgInt_Bad(t *T) {
+	AssertEqual(t, 0, ArgInt(0, "8080"))
+}
+
+func TestUtils_ArgInt_Ugly(t *T) {
+	AssertPanics(t, func() {
+		_ = ArgInt(-1, 8080)
+	})
+}
+
+func TestUtils_ArgString_Bad(t *T) {
+	AssertEqual(t, "", ArgString(0, 8080))
+}
+
+func TestUtils_ArgString_Ugly(t *T) {
+	AssertPanics(t, func() {
+		_ = ArgString(-1, "agent")
+	})
+}
+
+func TestUtils_FilterArgs_Bad(t *T) {
+	AssertNil(t, FilterArgs(nil))
+}
+
+func TestUtils_FilterArgs_Ugly(t *T) {
+	clean := FilterArgs([]string{"", "-test.v", "-test.run=Agent", "deploy"})
+	AssertEqual(t, []string{"deploy"}, clean)
+}
+
+func TestUtils_ID_Bad(t *T) {
+	AssertNotEqual(t, ID(), ID())
+}
+
+func TestUtils_ID_Ugly(t *T) {
+	seen := make(map[string]bool)
+	for i := 0; i < 64; i++ {
+		id := ID()
+		AssertFalse(t, seen[id])
+		seen[id] = true
+	}
+}
+
+func TestUtils_IsFlag_Ugly(t *T) {
+	AssertTrue(t, IsFlag("-"))
+}
+
+func TestUtils_JoinPath_Good(t *T) {
+	AssertEqual(t, "agent/dispatch/homelab", JoinPath("agent", "dispatch", "homelab"))
+}
+
+func TestUtils_JoinPath_Bad(t *T) {
+	AssertEqual(t, "", JoinPath())
+}
+
+func TestUtils_JoinPath_Ugly(t *T) {
+	AssertEqual(t, "agent//dispatch", JoinPath("agent", "", "dispatch"))
+}
+
+func TestUtils_ParseFlag_Good(t *T) {
+	key, value, ok := ParseFlag("--agent=codex")
+	AssertTrue(t, ok)
+	AssertEqual(t, "agent", key)
+	AssertEqual(t, "codex", value)
+}
+
+func TestUtils_ParseFlag_Bad(t *T) {
+	key, value, ok := ParseFlag("agent")
+	AssertFalse(t, ok)
+	AssertEqual(t, "", key)
+	AssertEqual(t, "", value)
+}
+
+func TestUtils_ParseFlag_Ugly(t *T) {
+	key, value, ok := ParseFlag("-")
+	AssertFalse(t, ok)
+	AssertEqual(t, "", key)
+	AssertEqual(t, "", value)
+}
+
+func TestUtils_SanitisePath_Bad(t *T) {
+	AssertEqual(t, "invalid", SanitisePath(""))
+}
+
+func TestUtils_SanitisePath_Ugly(t *T) {
+	AssertEqual(t, "passwd", SanitisePath("../../etc/passwd"))
+}
+
+func TestUtils_ValidateName_Bad(t *T) {
+	r := ValidateName("")
+	AssertFalse(t, r.OK)
+	AssertError(t, r.Value.(error), "invalid name")
+}
+
+func TestUtils_ValidateName_Ugly(t *T) {
+	r := ValidateName("agent/dispatch")
+	AssertFalse(t, r.OK)
+	AssertError(t, r.Value.(error), "path separator")
+}

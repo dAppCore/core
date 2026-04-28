@@ -1,8 +1,6 @@
 package core_test
 
 import (
-	"context"
-
 	. "dappco.re/go"
 )
 
@@ -83,12 +81,12 @@ type autoLifecycleService struct {
 	messages []Message
 }
 
-func (s *autoLifecycleService) OnStartup(_ context.Context) Result {
+func (s *autoLifecycleService) OnStartup(_ Context) Result {
 	s.started = true
 	return Result{OK: true}
 }
 
-func (s *autoLifecycleService) OnShutdown(_ context.Context) Result {
+func (s *autoLifecycleService) OnShutdown(_ Context) Result {
 	s.stopped = true
 	return Result{OK: true}
 }
@@ -136,9 +134,9 @@ func TestService_RegisterService_Ugly(t *T) {
 
 		r := c.RegisterService("auto", svc)
 		AssertTrue(t, r.OK)
-		AssertTrue(t, c.ServiceStartup(context.Background(), nil).OK)
+		AssertTrue(t, c.ServiceStartup(Background(), nil).OK)
 		AssertTrue(t, c.ACTION("ping").OK)
-		AssertTrue(t, c.ServiceShutdown(context.Background()).OK)
+		AssertTrue(t, c.ServiceShutdown(Background()).OK)
 		AssertTrue(t, svc.started)
 		AssertTrue(t, svc.stopped)
 		AssertContains(t, svc.messages, Message("ping"))
@@ -188,4 +186,97 @@ func TestService_MustServiceFor_Ugly(t *T) {
 	AssertPanics(t, func() {
 		_ = MustServiceFor[string](c, "missing")
 	})
+}
+
+func TestService_Core_RegisterService_Good(t *T) {
+	c := New()
+	r := c.RegisterService("agent", "dispatch")
+	AssertTrue(t, r.OK)
+
+	got, ok := ServiceFor[string](c, "agent")
+	AssertTrue(t, ok)
+	AssertEqual(t, "dispatch", got)
+}
+
+func TestService_Core_RegisterService_Bad(t *T) {
+	c := New()
+	r := c.RegisterService("", "dispatch")
+	AssertFalse(t, r.OK)
+	AssertEqual(t, "core.RegisterService", Operation(r.Value.(error)))
+}
+
+func TestService_Core_RegisterService_Ugly(t *T) {
+	c := New()
+	r := c.RegisterService("empty", nil)
+	AssertTrue(t, r.OK)
+
+	svc := c.Service("empty").Value.(*Service)
+	AssertEqual(t, "empty", svc.Name)
+	AssertNil(t, svc.Instance)
+}
+
+func TestService_Core_Service_Good(t *T) {
+	c := New()
+	r := c.Service("agent", Service{OnStart: func() Result { return Result{OK: true} }})
+	AssertTrue(t, r.OK)
+
+	got := c.Service("agent")
+	AssertTrue(t, got.OK)
+	AssertEqual(t, "agent", got.Value.(*Service).Name)
+}
+
+func TestService_Core_Service_Bad(t *T) {
+	r := New().Service("missing")
+	AssertFalse(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+func TestService_Core_Service_Ugly(t *T) {
+	c := New()
+	r := c.Service("agent", Service{Instance: "dispatch-runtime"})
+	AssertTrue(t, r.OK)
+
+	got := c.Service("agent")
+	AssertTrue(t, got.OK)
+	AssertEqual(t, "dispatch-runtime", got.Value)
+}
+
+func TestService_Core_Services_Good(t *T) {
+	c := New()
+	c.Service("agent", Service{})
+	c.Service("health", Service{})
+
+	names := c.Services()
+
+	AssertContains(t, names, "agent")
+	AssertContains(t, names, "health")
+}
+
+func TestService_Core_Services_Bad(t *T) {
+	c := &Core{}
+	AssertNil(t, c.Services())
+}
+
+func TestService_Core_Services_Ugly(t *T) {
+	names := New().Services()
+	AssertContains(t, names, "cli")
+}
+
+func TestService_ServiceFor_Good(t *T) {
+	c := New()
+	AssertTrue(t, c.RegisterService("agent", "dispatch").OK)
+
+	got, ok := ServiceFor[string](c, "agent")
+
+	AssertTrue(t, ok)
+	AssertEqual(t, "dispatch", got)
+}
+
+func TestService_MustServiceFor_Good(t *T) {
+	c := New()
+	AssertTrue(t, c.RegisterService("agent", "dispatch").OK)
+
+	got := MustServiceFor[string](c, "agent")
+
+	AssertEqual(t, "dispatch", got)
 }

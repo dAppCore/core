@@ -266,3 +266,276 @@ func TestError_ErrorLog_Error_Nil_Good(t *T) {
 	r := c.LogError(nil, "op", "msg")
 	AssertTrue(t, r.OK)
 }
+
+func TestError_AllOperations_Good(t *T) {
+	err := Wrap(E("agent.Token", "expired", nil), "agent.Dispatch", "failed")
+	var ops []string
+	for op := range AllOperations(err) {
+		ops = append(ops, op)
+	}
+	AssertEqual(t, []string{"agent.Dispatch", "agent.Token"}, ops)
+}
+
+func TestError_AllOperations_Bad(t *T) {
+	var ops []string
+	for op := range AllOperations(NewError("plain failure")) {
+		ops = append(ops, op)
+	}
+	AssertEmpty(t, ops)
+}
+
+func TestError_AllOperations_Ugly(t *T) {
+	var ops []string
+	for op := range AllOperations(nil) {
+		ops = append(ops, op)
+	}
+	AssertEmpty(t, ops)
+}
+
+func TestError_As_Bad(t *T) {
+	var structured *Err
+	AssertFalse(t, As(NewError("plain failure"), &structured))
+	AssertNil(t, structured)
+}
+
+func TestError_As_Ugly(t *T) {
+	var structured *Err
+	AssertFalse(t, As(nil, &structured))
+	AssertNil(t, structured)
+}
+
+func TestError_E_Bad(t *T) {
+	err := E("", "", nil)
+	AssertError(t, err)
+	AssertEqual(t, "", err.Error())
+}
+
+func TestError_E_Ugly(t *T) {
+	err := E("agent.Dispatch", "", AnError)
+	AssertContains(t, err.Error(), "agent.Dispatch")
+	AssertErrorIs(t, err, AnError)
+}
+
+func TestError_Err_Error_Good(t *T) {
+	err := &Err{Operation: "agent.Dispatch", Message: "failed", Cause: AnError, Code: "agent.failed"}
+	AssertContains(t, err.Error(), "agent.Dispatch")
+	AssertContains(t, err.Error(), "[agent.failed]")
+	AssertContains(t, err.Error(), AnError.Error())
+}
+
+func TestError_Err_Error_Bad(t *T) {
+	err := &Err{}
+	AssertEqual(t, "", err.Error())
+}
+
+func TestError_Err_Error_Ugly(t *T) {
+	err := &Err{Message: "session refused", Code: "session.refused"}
+	AssertEqual(t, "session refused [session.refused]", err.Error())
+}
+
+func TestError_Err_Unwrap_Good(t *T) {
+	err := &Err{Cause: AnError}
+	AssertEqual(t, AnError, err.Unwrap())
+}
+
+func TestError_Err_Unwrap_Bad(t *T) {
+	err := &Err{}
+	AssertNil(t, err.Unwrap())
+}
+
+func TestError_Err_Unwrap_Ugly(t *T) {
+	root := NewCode("agent.refused", "dispatch refused")
+	err := &Err{Cause: Wrap(root, "agent.Dispatch", "failed")}
+	AssertErrorIs(t, err.Unwrap(), root)
+}
+
+func TestError_ErrorCode_Good(t *T) {
+	err := NewCode("agent.refused", "dispatch refused")
+	AssertEqual(t, "agent.refused", ErrorCode(err))
+}
+
+func TestError_ErrorCode_Bad(t *T) {
+	AssertEqual(t, "", ErrorCode(NewError("plain failure")))
+}
+
+func TestError_ErrorCode_Ugly(t *T) {
+	AssertEqual(t, "", ErrorCode(nil))
+}
+
+func TestError_ErrorJoin_Bad(t *T) {
+	AssertNil(t, ErrorJoin(nil, nil))
+}
+
+func TestError_ErrorJoin_Ugly(t *T) {
+	joined := ErrorJoin(nil, AnError)
+	AssertErrorIs(t, joined, AnError)
+}
+
+func TestError_ErrorLog_Error_Good(t *T) {
+	r := New().Log().Error(AnError, "agent.Dispatch", "failed")
+	AssertFalse(t, r.OK)
+	AssertErrorIs(t, r.Value.(error), AnError)
+}
+
+func TestError_ErrorLog_Error_Bad(t *T) {
+	r := New().Log().Error(nil, "agent.Dispatch", "no failure")
+	AssertTrue(t, r.OK)
+}
+
+func TestError_ErrorLog_Error_Ugly(t *T) {
+	r := (&ErrorLog{}).Error(AnError, "agent.Dispatch", "failed")
+	AssertFalse(t, r.OK)
+	AssertErrorIs(t, r.Value.(error), AnError)
+}
+
+func TestError_ErrorLog_Must_Good(t *T) {
+	AssertNotPanics(t, func() {
+		New().Log().Must(nil, "agent.Dispatch", "ready")
+	})
+}
+
+func TestError_ErrorLog_Must_Bad(t *T) {
+	AssertPanicsWithError(t, "dispatch failed", func() {
+		New().Log().Must(AnError, "agent.Dispatch", "dispatch failed")
+	})
+}
+
+func TestError_ErrorLog_Warn_Bad(t *T) {
+	r := New().Log().Warn(nil, "agent.Dispatch", "no warning")
+	AssertTrue(t, r.OK)
+}
+
+func TestError_ErrorLog_Warn_Ugly(t *T) {
+	r := (&ErrorLog{}).Warn(AnError, "agent.Dispatch", "degraded")
+	AssertFalse(t, r.OK)
+	AssertErrorIs(t, r.Value.(error), AnError)
+}
+
+func TestError_ErrorMessage_Bad(t *T) {
+	AssertEqual(t, "plain failure", ErrorMessage(NewError("plain failure")))
+}
+
+func TestError_ErrorMessage_Ugly(t *T) {
+	AssertEqual(t, "", ErrorMessage(nil))
+}
+
+func TestError_ErrorPanic_Recover_Bad(t *T) {
+	AssertNotPanics(t, func() {
+		New().Error().Recover()
+	})
+}
+
+func TestError_ErrorPanic_Recover_Ugly(t *T) {
+	var h *ErrorPanic
+	AssertNotPanics(t, func() {
+		h.Recover()
+	})
+}
+
+func TestError_ErrorPanic_Reports_Bad(t *T) {
+	r := New().Error().Reports(1)
+	AssertFalse(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+func TestError_ErrorPanic_Reports_Ugly(t *T) {
+	r := New().Error().Reports(0)
+	AssertFalse(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+func TestError_ErrorPanic_SafeGo_Bad(t *T) {
+	done := make(chan bool, 1)
+	New().Error().SafeGo(func() {
+		defer func() { done <- true }()
+		panic("agent worker failed")
+	})
+	AssertTrue(t, <-done)
+}
+
+func TestError_ErrorPanic_SafeGo_Ugly(t *T) {
+	done := make(chan bool, 1)
+	New().Error().SafeGo(func() {
+		done <- true
+	})
+	AssertTrue(t, <-done)
+}
+
+func TestError_FormatStackTrace_Bad(t *T) {
+	AssertEqual(t, "", FormatStackTrace(NewError("plain failure")))
+}
+
+func TestError_FormatStackTrace_Ugly(t *T) {
+	AssertEqual(t, "", FormatStackTrace(nil))
+}
+
+func TestError_Is_Bad(t *T) {
+	AssertFalse(t, Is(NewError("left"), NewError("right")))
+}
+
+func TestError_Is_Ugly(t *T) {
+	AssertTrue(t, Is(nil, nil))
+}
+
+func TestError_NewCode_Bad(t *T) {
+	err := NewCode("", "dispatch refused")
+	AssertEqual(t, "dispatch refused", err.Error())
+	AssertEqual(t, "", ErrorCode(err))
+}
+
+func TestError_NewCode_Ugly(t *T) {
+	err := NewCode("", "")
+	AssertEqual(t, "", err.Error())
+}
+
+func TestError_NewError_Bad(t *T) {
+	err := NewError("")
+	AssertEqual(t, "", err.Error())
+}
+
+func TestError_NewError_Ugly(t *T) {
+	err := NewError("session\nrefused")
+	AssertContains(t, err.Error(), "session\nrefused")
+}
+
+func TestError_Operation_Ugly(t *T) {
+	AssertEqual(t, "", Operation(nil))
+}
+
+func TestError_Root_Bad(t *T) {
+	err := NewError("plain failure")
+	AssertEqual(t, err, Root(err))
+}
+
+func TestError_Root_Ugly(t *T) {
+	AssertNil(t, Root(nil))
+}
+
+func TestError_StackTrace_Bad(t *T) {
+	AssertEmpty(t, StackTrace(NewError("plain failure")))
+}
+
+func TestError_StackTrace_Ugly(t *T) {
+	AssertEmpty(t, StackTrace(nil))
+}
+
+func TestError_Wrap_Bad(t *T) {
+	AssertNil(t, Wrap(nil, "agent.Dispatch", "failed"))
+}
+
+func TestError_Wrap_Ugly(t *T) {
+	inner := NewCode("agent.refused", "dispatch refused")
+	err := Wrap(inner, "agent.Dispatch", "failed")
+	AssertEqual(t, "agent.refused", ErrorCode(err))
+}
+
+func TestError_WrapCode_Bad(t *T) {
+	AssertNil(t, WrapCode(nil, "", "agent.Dispatch", "failed"))
+}
+
+func TestError_WrapCode_Ugly(t *T) {
+	err := WrapCode(nil, "agent.refused", "agent.Dispatch", "failed")
+	AssertError(t, err)
+	AssertEqual(t, "agent.refused", ErrorCode(err))
+	AssertNil(t, Root(err).(*Err).Cause)
+}
