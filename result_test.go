@@ -103,3 +103,90 @@ func TestResult_Try_Ugly(t *T) {
 	AssertFalse(t, r.OK)
 	AssertError(t, r.Value.(error), "panic recovered")
 }
+
+// --- Ok ---
+
+func TestResult_Ok_Good(t *T) {
+	r := Ok(42)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, 42, r.Value)
+}
+
+func TestResult_Ok_Bad(t *T) {
+	// Ok with nil value — still OK=true; consumer can opt to treat nil as a sentinel.
+	r := Ok(nil)
+	AssertTrue(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+func TestResult_Ok_Ugly(t *T) {
+	// Wrapping an error in Ok still produces OK=true (caller's choice).
+	r := Ok(NewError("warning"))
+	AssertTrue(t, r.OK)
+	AssertNotNil(t, r.Value)
+}
+
+// --- Err ---
+
+func TestResult_Fail_Good(t *T) {
+	r := Fail(NewError("dispatch failed"))
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "dispatch failed")
+}
+
+func TestResult_Fail_Bad(t *T) {
+	// Err with nil — produces OK=false, Value nil.
+	r := Fail(nil)
+	AssertFalse(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+func TestResult_Fail_Ugly(t *T) {
+	// Err with a coded error — Code() pulls through.
+	r := Fail(NewCode("net.timeout", "homelab unreachable"))
+	AssertFalse(t, r.OK)
+	AssertEqual(t, "net.timeout", r.Code())
+}
+
+// --- ResultOf ---
+
+func TestResult_ResultOf_Good(t *T) {
+	r := ResultOf("payload", nil)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "payload", r.Value)
+}
+
+func TestResult_ResultOf_Bad(t *T) {
+	r := ResultOf("payload", NewError("network"))
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "network")
+}
+
+func TestResult_ResultOf_Ugly(t *T) {
+	// (nil, nil) is treated as success.
+	r := ResultOf(nil, nil)
+	AssertTrue(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+// --- MustCast ---
+
+func TestResult_MustCast_Good(t *T) {
+	r := Ok("agent.dispatch")
+	got := MustCast[string](r)
+	AssertEqual(t, "agent.dispatch", got)
+}
+
+func TestResult_MustCast_Bad(t *T) {
+	// Failed Result panics with the underlying error.
+	AssertPanics(t, func() {
+		_ = MustCast[string](Fail(NewError("boom")))
+	})
+}
+
+func TestResult_MustCast_Ugly(t *T) {
+	// Type mismatch panics with a descriptive error.
+	AssertPanicsWithError(t, "not", func() {
+		_ = MustCast[*int](Ok("string-not-pointer"))
+	})
+}

@@ -77,6 +77,38 @@ func (a *Action) Exists() bool {
 	return a != nil && a.Handler != nil
 }
 
+// Enable marks the action as runnable. Actions are enabled at
+// registration time; use this to re-enable an action that was
+// previously disabled. No-op when the action has no handler.
+//
+//	c.Action("process.run").Enable()
+func (a *Action) Enable() {
+	if a == nil || a.Handler == nil {
+		return
+	}
+	a.enabled = true
+}
+
+// Disable marks the action as soft-disabled. Run() returns
+// Result{OK: false} with Code "action.disabled" until Enable is
+// called. The handler stays registered so the capability is
+// queryable but cannot fire.
+//
+//	c.Action("dangerous.purge").Disable()  // re-enable later via .Enable()
+func (a *Action) Disable() {
+	if a == nil || a.Handler == nil {
+		return
+	}
+	a.enabled = false
+}
+
+// Enabled reports whether the action will run when invoked.
+//
+//	if c.Action("process.run").Enabled() { ... }
+func (a *Action) Enabled() bool {
+	return a != nil && a.Handler != nil && a.enabled
+}
+
 func (a *Action) safeName() string {
 	if a == nil {
 		return "<nil>"

@@ -9,6 +9,37 @@
 //	timeout := core.HTTPGet(url).Or(defaultResp)
 package core
 
+// Ok wraps v in a successful Result. The canonical "happy path"
+// constructor — replaces the awkward `Result{v, true}` literal.
+//
+//	return core.Ok(parsed)
+func Ok(v any) Result {
+	return Result{Value: v, OK: true}
+}
+
+// Fail wraps err in a failed Result. The canonical "sad path"
+// constructor — pair Result.Code() / Result.Error() to introspect.
+// (Named Fail rather than Err to avoid colliding with the *Err type
+// in error.go.)
+//
+//	if err := decode(b); err != nil { return core.Fail(err) }
+func Fail(err error) Result {
+	return Result{Value: err, OK: false}
+}
+
+// ResultOf adapts a stdlib (value, error) pair into a Result —
+// OK=false carrying err when err != nil, OK=true carrying v otherwise.
+// The replacement for Result{}.New(v, err).
+//
+//	r := core.ResultOf(os.ReadFile(path))
+//	if !r.OK { return r }
+func ResultOf(v any, err error) Result {
+	if err != nil {
+		return Result{Value: err, OK: false}
+	}
+	return Result{Value: v, OK: true}
+}
+
 // Error returns the error message when the Result represents a failure,
 // or "" when OK. Convenience for logging without unwrapping Value.
 //
@@ -93,6 +124,28 @@ func Cast[T any](r Result) (T, bool) {
 		return zero, false
 	}
 	return v, true
+}
+
+// MustCast extracts a typed value from a Result. Panics with the
+// underlying error when the Result is not OK or when Value isn't
+// assignable to T. Use for fast-fail paths — init, test setup,
+// must-have config — where the type-assertion is part of the contract.
+//
+//	cfg := core.MustCast[*Config](core.JSONUnmarshal(data, &Config{}))
+//	dir := core.MustCast[string](core.PathAbs("."))
+func MustCast[T any](r Result) T {
+	var zero T
+	if !r.OK {
+		if err, ok := r.Value.(error); ok {
+			panic(err)
+		}
+		panic(r.Value)
+	}
+	v, ok := r.Value.(T)
+	if !ok {
+		panic(E("MustCast", Sprintf("Value is %T, not %T", r.Value, zero), nil))
+	}
+	return v
 }
 
 // Try runs fn and converts its outcome into a Result. A nil error or

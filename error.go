@@ -143,13 +143,14 @@ func As(err error, target any) bool {
 	return errors.As(err, target)
 }
 
-// NewError creates a simple error with the given text.
-// Wrapper around errors.New for convenience.
+// NewError creates a simple core.*Err carrying the given text.
+// Returns *Err so introspection helpers (Operation/ErrorCode/
+// ErrorMessage) work uniformly across NewError, NewCode, and E.
 //
 //	err := core.NewError("config.host missing")
 //	core.Println(err.Error())
 func NewError(text string) error {
-	return errors.New(text)
+	return &Err{Message: text}
 }
 
 // ErrorJoin combines multiple errors into one.

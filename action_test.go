@@ -662,3 +662,77 @@ func TestAction_Core_Progress_Ugly(t *T) {
 		t.Fatal("timed out waiting for empty progress event")
 	}
 }
+
+// --- Action.Enable / Disable / Enabled ---
+
+func TestAction_Action_Enable_Good(t *T) {
+	c := New()
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result { return Result{OK: true} })
+	a := c.Action("agent.dispatch")
+
+	a.Disable()
+	AssertFalse(t, a.Enabled())
+
+	a.Enable()
+	AssertTrue(t, a.Enabled())
+}
+
+func TestAction_Action_Enable_Bad(t *T) {
+	// Enable on nil action is a no-op (no panic).
+	var a *Action
+	a.Enable()
+	AssertFalse(t, a.Enabled())
+}
+
+func TestAction_Action_Enable_Ugly(t *T) {
+	// Enable on action with no handler stays disabled.
+	a := &Action{Name: "nohandler"}
+	a.Enable()
+	AssertFalse(t, a.Enabled())
+}
+
+func TestAction_Action_Disable_Good(t *T) {
+	c := New()
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result { return Result{OK: true} })
+	a := c.Action("agent.dispatch")
+
+	a.Disable()
+	r := a.Run(Background(), NewOptions())
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "disabled")
+}
+
+func TestAction_Action_Disable_Bad(t *T) {
+	var a *Action
+	a.Disable()
+	AssertFalse(t, a.Enabled())
+}
+
+func TestAction_Action_Disable_Ugly(t *T) {
+	// Disable then Enable round-trips.
+	c := New()
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result { return Result{OK: true} })
+	a := c.Action("agent.dispatch")
+
+	a.Disable()
+	a.Enable()
+	r := a.Run(Background(), NewOptions())
+	AssertTrue(t, r.OK)
+}
+
+func TestAction_Action_Enabled_Good(t *T) {
+	c := New()
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result { return Result{OK: true} })
+	AssertTrue(t, c.Action("agent.dispatch").Enabled())
+}
+
+func TestAction_Action_Enabled_Bad(t *T) {
+	var a *Action
+	AssertFalse(t, a.Enabled())
+}
+
+func TestAction_Action_Enabled_Ugly(t *T) {
+	// Action with no handler is not enabled.
+	a := &Action{Name: "x"}
+	AssertFalse(t, a.Enabled())
+}

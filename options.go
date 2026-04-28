@@ -25,10 +25,15 @@ type Result struct {
 	OK    bool
 }
 
-// New adapts Go (value, error) pairs into a Result. The canonical
-// adapter from stdlib-shaped returns into the Core universal output.
+// New adapts Go (value, error) pairs into a Result.
 //
-//	r := core.Result{}.New(file, err)
+// Deprecated: prefer core.ResultOf(value, err) for the (T, error)
+// adapter or core.Ok(v) / core.Err(err) for direct construction.
+// New's variadic-reflective shape is awkward to read; the explicit
+// constructors document intent at the call site. Removed in v0.10.0.
+//
+//	r := core.Result{}.New(file, err)  // legacy
+//	r := core.ResultOf(file, err)      // preferred
 func (r Result) New(args ...any) Result {
 	if len(args) == 0 {
 		return r

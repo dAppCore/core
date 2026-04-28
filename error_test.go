@@ -292,9 +292,14 @@ func TestError_AllOperations_Ugly(t *T) {
 	AssertEmpty(t, ops)
 }
 
+type plainErr struct{ msg string }
+
+func (e *plainErr) Error() string { return e.msg }
+
 func TestError_As_Bad(t *T) {
+	// A non-*Err error never matches the *Err target.
 	var structured *Err
-	AssertFalse(t, As(NewError("plain failure"), &structured))
+	AssertFalse(t, As(&plainErr{msg: "plain failure"}, &structured))
 	AssertNil(t, structured)
 }
 
