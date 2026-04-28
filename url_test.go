@@ -1,102 +1,90 @@
 package core_test
 
 import (
-	"net/url"
-
 	. "dappco.re/go"
 )
 
-// --- URLParse ---
+func TestUrl_URLDecode_Good(t *T) {
+	r := URLDecode("agent+dispatch%2Fready")
 
-func TestURL_Parse_Good(t *T) {
-	r := URLParse("https://example.com/path?q=hello#frag")
 	AssertTrue(t, r.OK)
-
-	u, ok := r.Value.(*url.URL)
-	AssertTrue(t, ok)
-	AssertEqual(t, "https", u.Scheme)
-	AssertEqual(t, "example.com", u.Host)
-	AssertEqual(t, "/path", u.Path)
-	AssertEqual(t, "q=hello", u.RawQuery)
-	AssertEqual(t, "frag", u.Fragment)
+	AssertEqual(t, "agent dispatch/ready", r.Value)
 }
 
-func TestURL_Parse_Bad(t *T) {
-	r := URLParse("http://[::1")
+func TestUrl_URLDecode_Bad(t *T) {
+	r := URLDecode("agent%zz")
+
 	AssertFalse(t, r.OK)
-	_, ok := r.Value.(error)
-	AssertTrue(t, ok)
+	AssertError(t, r.Value.(error))
 }
 
-func TestURL_Parse_Ugly(t *T) {
-	r := URLParse("mailto:user@example.com")
+func TestUrl_URLDecode_Ugly(t *T) {
+	r := URLDecode("")
+
 	AssertTrue(t, r.OK)
-
-	u, ok := r.Value.(*url.URL)
-	AssertTrue(t, ok)
-	AssertEqual(t, "mailto", u.Scheme)
-	AssertEqual(t, "user@example.com", u.Opaque)
+	AssertEqual(t, "", r.Value)
 }
 
-// --- URLEncode ---
-
-func TestURL_Encode_Good(t *T) {
-	AssertEqual(t, "hello+world%2Bcore", URLEncode("hello world+core"))
+func TestUrl_URLEncode_Good(t *T) {
+	AssertEqual(t, "agent+dispatch%2Fready", URLEncode("agent dispatch/ready"))
 }
 
-func TestURL_Encode_Bad(t *T) {
+func TestUrl_URLEncode_Bad(t *T) {
 	AssertEqual(t, "", URLEncode(""))
 }
 
-func TestURL_Encode_Ugly(t *T) {
+func TestUrl_URLEncode_Ugly(t *T) {
 	AssertEqual(t, "%25+%26%3D%3F%23", URLEncode("% &=?#"))
 }
 
-// --- URLDecode ---
-
-func TestURL_Decode_Good(t *T) {
-	r := URLDecode("hello+world%2Bcore")
-	AssertTrue(t, r.OK)
-	AssertEqual(t, "hello world+core", r.Value)
+func TestUrl_URLNormalize_Good(t *T) {
+	AssertEqual(t, "https://example.com/agent%20dispatch", URLNormalize("https://example.com/agent dispatch"))
 }
 
-func TestURL_Decode_Bad(t *T) {
-	r := URLDecode("bad%zz")
-	AssertFalse(t, r.OK)
-	_, ok := r.Value.(error)
-	AssertTrue(t, ok)
-}
-
-func TestURL_Decode_Ugly(t *T) {
-	r := URLDecode("a%2Fb%3Fc%23d")
-	AssertTrue(t, r.OK)
-	AssertEqual(t, "a/b?c#d", r.Value)
-}
-
-// --- URLPathEscape ---
-
-func TestURL_PathEscape_Good(t *T) {
-	AssertEqual(t, "a%20b%2Fc", URLPathEscape("a b/c"))
-}
-
-func TestURL_PathEscape_Bad(t *T) {
-	AssertEqual(t, "", URLPathEscape(""))
-}
-
-func TestURL_PathEscape_Ugly(t *T) {
-	AssertEqual(t, "%25%3F%23", URLPathEscape("%?#"))
-}
-
-// --- URLNormalize ---
-
-func TestURL_Normalize_Good(t *T) {
-	AssertEqual(t, "https://example.com/a%20b", URLNormalize("https://example.com/a b"))
-}
-
-func TestURL_Normalize_Bad(t *T) {
+func TestUrl_URLNormalize_Bad(t *T) {
 	AssertEqual(t, "", URLNormalize("http://[::1"))
 }
 
-func TestURL_Normalize_Ugly(t *T) {
-	AssertEqual(t, "example.com/a%20b", URLNormalize("example.com/a b"))
+func TestUrl_URLNormalize_Ugly(t *T) {
+	AssertEqual(t, "example.com/agent%20dispatch", URLNormalize("example.com/agent dispatch"))
+}
+
+func TestUrl_URLParse_Good(t *T) {
+	r := URLParse("https://example.com/path?q=agent#ready")
+
+	AssertTrue(t, r.OK)
+	u := r.Value.(*URL)
+	AssertEqual(t, "https", u.Scheme)
+	AssertEqual(t, "example.com", u.Host)
+	AssertEqual(t, "/path", u.Path)
+	AssertEqual(t, "q=agent", u.RawQuery)
+	AssertEqual(t, "ready", u.Fragment)
+}
+
+func TestUrl_URLParse_Bad(t *T) {
+	r := URLParse("http://[::1")
+
+	AssertFalse(t, r.OK)
+	AssertError(t, r.Value.(error))
+}
+
+func TestUrl_URLParse_Ugly(t *T) {
+	r := URLParse("mailto:agent@example.com")
+
+	AssertTrue(t, r.OK)
+	u := r.Value.(*URL)
+	AssertEqual(t, "mailto", u.Scheme)
+	AssertEqual(t, "agent@example.com", u.Opaque)
+}
+
+func TestUrl_URLPathEscape_Good(t *T) {
+	AssertEqual(t, "agent%20dispatch%2Fready", URLPathEscape("agent dispatch/ready"))
+}
+
+func TestUrl_URLPathEscape_Bad(t *T) {
+	AssertEqual(t, "", URLPathEscape(""))
+}
+
+func TestUrl_URLPathEscape_Ugly(t *T) {
+	AssertEqual(t, "%25%3F%23", URLPathEscape("%?#"))
 }

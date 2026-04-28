@@ -62,3 +62,53 @@ func TestMap_MapClone_Ugly(t *T) {
 	AssertEqual(t, 1, original["a"])
 	AssertEqual(t, 2, clone["a"])
 }
+
+func TestMap_MapFilter_Good(t *T) {
+	filtered := MapFilter(map[string]bool{"agent": true, "archive": false}, func(_ string, enabled bool) bool {
+		return enabled
+	})
+
+	AssertEqual(t, map[string]bool{"agent": true}, filtered)
+}
+
+func TestMap_MapFilter_Bad(t *T) {
+	filtered := MapFilter(map[string]bool{"agent": false}, func(_ string, enabled bool) bool {
+		return enabled
+	})
+
+	AssertEmpty(t, filtered)
+}
+
+func TestMap_MapFilter_Ugly(t *T) {
+	AssertNil(t, MapFilter[string, bool](nil, func(string, bool) bool { return true }))
+}
+
+func TestMap_MapHasKey_Good(t *T) {
+	AssertTrue(t, MapHasKey(map[string]int{"agent": 1}, "agent"))
+}
+
+func TestMap_MapHasKey_Bad(t *T) {
+	AssertFalse(t, MapHasKey(map[string]int{"agent": 1}, "missing"))
+}
+
+func TestMap_MapHasKey_Ugly(t *T) {
+	AssertFalse(t, MapHasKey(map[string]int(nil), "agent"))
+}
+
+func TestMap_MapMerge_Good(t *T) {
+	merged := MapMerge(map[string]string{"agent": "codex"}, map[string]string{"region": "homelab"})
+
+	AssertEqual(t, map[string]string{"agent": "codex", "region": "homelab"}, merged)
+}
+
+func TestMap_MapMerge_Bad(t *T) {
+	merged := MapMerge(map[string]string{"agent": "codex"}, map[string]string{"agent": "hades"})
+
+	AssertEqual(t, map[string]string{"agent": "hades"}, merged)
+}
+
+func TestMap_MapMerge_Ugly(t *T) {
+	merged := MapMerge[string, string](nil, nil)
+
+	AssertEmpty(t, merged)
+}

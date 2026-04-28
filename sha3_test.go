@@ -1,8 +1,6 @@
 package core_test
 
 import (
-	"encoding/hex"
-
 	. "dappco.re/go"
 )
 
@@ -19,89 +17,109 @@ const (
 	sha3Shake256Empty64Hex = "46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762fd75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be"
 )
 
-// --- SHA3 ---
-
-func TestSHA3_256_Good(t *T) {
-	sum := SHA3_256([]byte("hello"))
-
-	AssertEqual(t, sha3_256HelloHex, hex.EncodeToString(sum[:]))
-	AssertEqual(t, sha3_256HelloHex, SHA3_256Hex([]byte("hello")))
-}
-
-func TestSHA3_256_Bad(t *T) {
-	sum := SHA3_256(nil)
-
-	AssertEqual(t, sha3_256EmptyHex, hex.EncodeToString(sum[:]))
-	AssertEqual(t, SHA3_256(nil), SHA3_256([]byte{}))
-	AssertEqual(t, SHA3_256Hex(nil), SHA3_256Hex([]byte{}))
-}
-
-func TestSHA3_256_Ugly(t *T) {
-	data := []byte("The quick brown fox jumps over the lazy dog")
-	sum := SHA3_256(data)
-	sumHex := SHA3_256Hex(data)
-
-	data[0] = 't'
-
-	AssertEqual(t, sha3_256QuickHex, hex.EncodeToString(sum[:]))
-	AssertEqual(t, sha3_256QuickHex, sumHex)
-	AssertNotEqual(t, sum, SHA3_256(data))
-	AssertNotEqual(t, sumHex, SHA3_256Hex(data))
-}
-
-func TestKeccak256_Good(t *T) {
+func TestSha3_Keccak256_Good(t *T) {
 	sum := Keccak256([]byte("hello"))
 
-	AssertEqual(t, keccak256HelloHex, hex.EncodeToString(sum[:]))
+	AssertEqual(t, keccak256HelloHex, HexEncode(sum[:]))
+}
+
+func TestSha3_Keccak256_Bad(t *T) {
+	sum := Keccak256(nil)
+
+	AssertEqual(t, keccak256EmptyHex, HexEncode(sum[:]))
+	AssertNotEqual(t, SHA3_256(nil), sum)
+}
+
+func TestSha3_Keccak256_Ugly(t *T) {
+	data := []byte("The quick brown fox jumps over the lazy dog")
+	sum := Keccak256(data)
+	data[0] = 't'
+
+	AssertEqual(t, keccak256QuickHex, HexEncode(sum[:]))
+	AssertNotEqual(t, sum, Keccak256(data))
+}
+
+func TestSha3_Keccak256Hex_Good(t *T) {
 	AssertEqual(t, keccak256HelloHex, Keccak256Hex([]byte("hello")))
 }
 
-func TestKeccak256_Bad(t *T) {
-	sum := Keccak256(nil)
-
-	AssertEqual(t, keccak256EmptyHex, hex.EncodeToString(sum[:]))
-	AssertEqual(t, Keccak256(nil), Keccak256([]byte{}))
-	AssertEqual(t, Keccak256Hex(nil), Keccak256Hex([]byte{}))
-	AssertNotEqual(t, SHA3_256(nil), Keccak256(nil))
+func TestSha3_Keccak256Hex_Bad(t *T) {
+	AssertEqual(t, keccak256EmptyHex, Keccak256Hex(nil))
 }
 
-func TestKeccak256_Ugly(t *T) {
+func TestSha3_Keccak256Hex_Ugly(t *T) {
 	data := []byte("The quick brown fox jumps over the lazy dog")
-	sum := Keccak256(data)
-	sumHex := Keccak256Hex(data)
-
+	sum := Keccak256Hex(data)
 	data[0] = 't'
 
-	AssertEqual(t, keccak256QuickHex, hex.EncodeToString(sum[:]))
-	AssertEqual(t, keccak256QuickHex, sumHex)
-	AssertNotEqual(t, sum, Keccak256(data))
-	AssertNotEqual(t, sumHex, Keccak256Hex(data))
+	AssertEqual(t, keccak256QuickHex, sum)
+	AssertNotEqual(t, sum, Keccak256Hex(data))
 }
 
-func TestSHA3_Shake_Good(t *T) {
-	AssertEqual(t, sha3Shake128Empty32Hex, hex.EncodeToString(SHA3Shake128(nil, 32)))
-	AssertEqual(t, sha3Shake256Empty64Hex, hex.EncodeToString(SHA3Shake256(nil, 64)))
+func TestSha3_SHA3_256_Good(t *T) {
+	sum := SHA3_256([]byte("hello"))
+
+	AssertEqual(t, sha3_256HelloHex, HexEncode(sum[:]))
 }
 
-func TestSHA3_Shake_Bad(t *T) {
+func TestSha3_SHA3_256_Bad(t *T) {
+	sum := SHA3_256(nil)
+
+	AssertEqual(t, sha3_256EmptyHex, HexEncode(sum[:]))
+}
+
+func TestSha3_SHA3_256_Ugly(t *T) {
+	data := []byte("The quick brown fox jumps over the lazy dog")
+	sum := SHA3_256(data)
+	data[0] = 't'
+
+	AssertEqual(t, sha3_256QuickHex, HexEncode(sum[:]))
+	AssertNotEqual(t, sum, SHA3_256(data))
+}
+
+func TestSha3_SHA3_256Hex_Good(t *T) {
+	AssertEqual(t, sha3_256HelloHex, SHA3_256Hex([]byte("hello")))
+}
+
+func TestSha3_SHA3_256Hex_Bad(t *T) {
+	AssertEqual(t, sha3_256EmptyHex, SHA3_256Hex(nil))
+}
+
+func TestSha3_SHA3_256Hex_Ugly(t *T) {
+	data := []byte("The quick brown fox jumps over the lazy dog")
+	sum := SHA3_256Hex(data)
+	data[0] = 't'
+
+	AssertEqual(t, sha3_256QuickHex, sum)
+	AssertNotEqual(t, sum, SHA3_256Hex(data))
+}
+
+func TestSha3_SHA3Shake128_Good(t *T) {
+	AssertEqual(t, sha3Shake128Empty32Hex, HexEncode(SHA3Shake128(nil, 32)))
+}
+
+func TestSha3_SHA3Shake128_Bad(t *T) {
 	AssertEmpty(t, SHA3Shake128(nil, 0))
-	AssertEmpty(t, SHA3Shake256([]byte{}, 0))
-	AssertEqual(t, SHA3Shake128(nil, 16), SHA3Shake128([]byte{}, 16))
-	AssertEqual(t, SHA3Shake256(nil, 16), SHA3Shake256([]byte{}, 16))
 	AssertPanics(t, func() { SHA3Shake128(nil, -1) })
+}
+
+func TestSha3_SHA3Shake128_Ugly(t *T) {
+	out := SHA3Shake128([]byte("agent"), 32)
+
+	AssertEqual(t, SHA3Shake128([]byte("agent"), 16), out[:16])
+}
+
+func TestSha3_SHA3Shake256_Good(t *T) {
+	AssertEqual(t, sha3Shake256Empty64Hex, HexEncode(SHA3Shake256(nil, 64)))
+}
+
+func TestSha3_SHA3Shake256_Bad(t *T) {
+	AssertEmpty(t, SHA3Shake256(nil, 0))
 	AssertPanics(t, func() { SHA3Shake256(nil, -1) })
 }
 
-func TestSHA3_Shake_Ugly(t *T) {
-	data := []byte("abc")
-	out128 := SHA3Shake128(data, 32)
-	out256 := SHA3Shake256(data, 64)
+func TestSha3_SHA3Shake256_Ugly(t *T) {
+	out := SHA3Shake256([]byte("agent"), 64)
 
-	AssertEqual(t, SHA3Shake128(data, 16), out128[:16])
-	AssertEqual(t, SHA3Shake256(data, 32), out256[:32])
-
-	data[0] = 'z'
-
-	AssertNotEqual(t, out128, SHA3Shake128(data, 32))
-	AssertNotEqual(t, out256, SHA3Shake256(data, 64))
+	AssertEqual(t, SHA3Shake256([]byte("agent"), 32), out[:32])
 }

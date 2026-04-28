@@ -87,3 +87,17 @@ func TestMath_Round_Bad(t *T) {
 func TestMath_Round_Ugly(t *T) {
 	AssertEqual(t, 3.0, Round(3.49))
 }
+
+func TestMath_IsNaN_Good(t *T) {
+	zero := 0.0
+
+	AssertTrue(t, IsNaN(zero/zero))
+}
+
+func TestMath_IsNaN_Bad(t *T) {
+	AssertFalse(t, IsNaN(42))
+}
+
+func TestMath_IsNaN_Ugly(t *T) {
+	AssertTrue(t, IsNaN(Pow(-1, 0.5)))
+}

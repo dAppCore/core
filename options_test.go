@@ -152,3 +152,188 @@ func TestOptions_WithOption_Good(t *T) {
 	AssertEqual(t, "myapp", c.App().Name)
 	AssertEqual(t, 8080, c.Options().Int("port"))
 }
+
+func TestOptions_NewOptions_Bad(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"}, Option{Key: "agent", Value: "hades"})
+
+	AssertEqual(t, 2, opts.Len())
+	AssertEqual(t, "codex", opts.String("agent"))
+}
+
+func TestOptions_NewOptions_Ugly(t *T) {
+	items := []Option{{Key: "agent", Value: "codex"}}
+	opts := NewOptions(items...)
+	items[0].Value = "hades"
+
+	AssertEqual(t, "codex", opts.String("agent"))
+}
+
+func TestOptions_Options_Bool_Good(t *T) {
+	opts := NewOptions(Option{Key: "enabled", Value: true})
+
+	AssertTrue(t, opts.Bool("enabled"))
+}
+
+func TestOptions_Options_Bool_Bad(t *T) {
+	opts := NewOptions(Option{Key: "enabled", Value: "true"})
+
+	AssertFalse(t, opts.Bool("enabled"))
+}
+
+func TestOptions_Options_Bool_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "", Value: true})
+
+	AssertTrue(t, opts.Bool(""))
+}
+
+func TestOptions_Options_Get_Good(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"})
+	r := opts.Get("agent")
+
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "codex", r.Value)
+}
+
+func TestOptions_Options_Get_Bad(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"})
+	r := opts.Get("missing")
+
+	AssertFalse(t, r.OK)
+	AssertNil(t, r.Value)
+}
+
+func TestOptions_Options_Get_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "", Value: "empty-key"})
+	r := opts.Get("")
+
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "empty-key", r.Value)
+}
+
+func TestOptions_Options_Has_Good(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"})
+
+	AssertTrue(t, opts.Has("agent"))
+}
+
+func TestOptions_Options_Has_Bad(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"})
+
+	AssertFalse(t, opts.Has("missing"))
+}
+
+func TestOptions_Options_Has_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "", Value: "empty-key"})
+
+	AssertTrue(t, opts.Has(""))
+}
+
+func TestOptions_Options_Int_Good(t *T) {
+	opts := NewOptions(Option{Key: "port", Value: 8080})
+
+	AssertEqual(t, 8080, opts.Int("port"))
+}
+
+func TestOptions_Options_Int_Bad(t *T) {
+	opts := NewOptions(Option{Key: "port", Value: "8080"})
+
+	AssertEqual(t, 0, opts.Int("port"))
+}
+
+func TestOptions_Options_Int_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "", Value: -1})
+
+	AssertEqual(t, -1, opts.Int(""))
+}
+
+func TestOptions_Options_Items_Good(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"}, Option{Key: "region", Value: "homelab"})
+
+	AssertEqual(t, []Option{{Key: "agent", Value: "codex"}, {Key: "region", Value: "homelab"}}, opts.Items())
+}
+
+func TestOptions_Options_Items_Bad(t *T) {
+	opts := NewOptions()
+
+	AssertEmpty(t, opts.Items())
+}
+
+func TestOptions_Options_Items_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"})
+	items := opts.Items()
+	items[0].Value = "hades"
+
+	AssertEqual(t, "codex", opts.String("agent"))
+}
+
+func TestOptions_Options_Len_Good(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"}, Option{Key: "debug", Value: true})
+
+	AssertEqual(t, 2, opts.Len())
+}
+
+func TestOptions_Options_Len_Bad(t *T) {
+	opts := NewOptions()
+
+	AssertEqual(t, 0, opts.Len())
+}
+
+func TestOptions_Options_Len_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"})
+	opts.Set("agent", "hades")
+
+	AssertEqual(t, 1, opts.Len())
+}
+
+func TestOptions_Options_Set_Good(t *T) {
+	opts := NewOptions()
+	opts.Set("agent", "codex")
+
+	AssertEqual(t, "codex", opts.String("agent"))
+}
+
+func TestOptions_Options_Set_Bad(t *T) {
+	var opts *Options
+
+	AssertPanics(t, func() { opts.Set("agent", "codex") })
+}
+
+func TestOptions_Options_Set_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "", Value: "before"})
+	opts.Set("", "after")
+
+	AssertEqual(t, 1, opts.Len())
+	AssertEqual(t, "after", opts.String(""))
+}
+
+func TestOptions_Options_String_Good(t *T) {
+	opts := NewOptions(Option{Key: "agent", Value: "codex"})
+
+	AssertEqual(t, "codex", opts.String("agent"))
+}
+
+func TestOptions_Options_String_Bad(t *T) {
+	opts := NewOptions(Option{Key: "port", Value: 8080})
+
+	AssertEqual(t, "", opts.String("port"))
+}
+
+func TestOptions_Options_String_Ugly(t *T) {
+	opts := NewOptions(Option{Key: "", Value: "empty-key"})
+
+	AssertEqual(t, "empty-key", opts.String(""))
+}
+
+func TestOptions_Result_New_Bad(t *T) {
+	r := Result{}.New(AnError)
+
+	AssertFalse(t, r.OK)
+	AssertEqual(t, AnError, r.Value)
+}
+
+func TestOptions_Result_New_Ugly(t *T) {
+	r := Result{Value: "existing", OK: true}.New()
+
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "existing", r.Value)
+}

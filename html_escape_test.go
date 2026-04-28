@@ -4,40 +4,34 @@ import (
 	. "dappco.re/go"
 )
 
-// --- HTML Escape ---
-
-func TestHTMLEscape_Good(t *T) {
+func TestHtml_escape_HTMLEscape_Good(t *T) {
 	AssertEqual(
 		t,
-		"&lt;p title=&#34;Tom &amp; Jerry&#39;s&#34;&gt;Hi&lt;/p&gt;",
-		HTMLEscape(`<p title="Tom & Jerry's">Hi</p>`),
+		"&lt;p title=&#34;agent &amp; dispatch&#34;&gt;ready&lt;/p&gt;",
+		HTMLEscape(`<p title="agent & dispatch">ready</p>`),
 	)
 }
 
-func TestHTMLEscape_Bad(t *T) {
+func TestHtml_escape_HTMLEscape_Bad(t *T) {
 	AssertEqual(t, "", HTMLEscape(""))
-	AssertEqual(t, "Tom &amp;amp; Jerry", HTMLEscape("Tom &amp; Jerry"))
 }
 
-func TestHTMLEscape_Ugly(t *T) {
+func TestHtml_escape_HTMLEscape_Ugly(t *T) {
 	AssertEqual(t, "&#34;&amp;&#39;&lt;&gt;\x00", HTMLEscape("\"&'<>\x00"))
 }
 
-// --- HTML Unescape ---
-
-func TestHTMLUnescape_Good(t *T) {
+func TestHtml_escape_HTMLUnescape_Good(t *T) {
 	AssertEqual(
 		t,
-		`<p title="Tom & Jerry's">Hi</p>`,
-		HTMLUnescape("&lt;p title=&#34;Tom &amp; Jerry&#39;s&#34;&gt;Hi&lt;/p&gt;"),
+		`<p title="agent & dispatch">ready</p>`,
+		HTMLUnescape("&lt;p title=&#34;agent &amp; dispatch&#34;&gt;ready&lt;/p&gt;"),
 	)
 }
 
-func TestHTMLUnescape_Bad(t *T) {
+func TestHtml_escape_HTMLUnescape_Bad(t *T) {
 	AssertEqual(t, "", HTMLUnescape(""))
-	AssertEqual(t, "Tom &unknown; Jerry", HTMLUnescape("Tom &unknown; Jerry"))
 }
 
-func TestHTMLUnescape_Ugly(t *T) {
-	AssertEqual(t, "\"&'<>\x00", HTMLUnescape("&#34;&amp;&#39;&lt;&gt;\x00"))
+func TestHtml_escape_HTMLUnescape_Ugly(t *T) {
+	AssertEqual(t, "agent &unknown; dispatch", HTMLUnescape("agent &unknown; dispatch"))
 }

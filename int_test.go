@@ -55,6 +55,21 @@ func TestInt_FormatInt_Ugly(t *T) {
 	AssertEqual(t, "0", FormatInt(0, 2))
 }
 
+// --- FormatUint ---
+
+func TestInt_FormatUint_Good(t *T) {
+	AssertEqual(t, "ff", FormatUint(255, 16))
+}
+
+func TestInt_FormatUint_Bad(t *T) {
+	AssertEqual(t, "10", FormatUint(10, 10))
+}
+
+func TestInt_FormatUint_Ugly(t *T) {
+	AssertEqual(t, "z", FormatUint(35, 36))
+	AssertEqual(t, "0", FormatUint(0, 2))
+}
+
 // --- ParseInt ---
 
 func TestInt_ParseInt_Good(t *T) {
