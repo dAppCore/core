@@ -13,13 +13,15 @@ from collections import defaultdict
 
 # ---------- regex parsers ----------
 
-# Top-level public func: "func PublicName" optionally followed by [TypeParams](
-_TOP_LEVEL = re.compile(r"^func ([A-Z][A-Za-z0-9_]*)\s*[\[(]")
+# Top-level func: "func Name" (public OR private) optionally followed by [TypeParams](
+# Private (lowercase-starting) symbols ARE in scope — the triplet exposes branch
+# gaps in helpers, not just the public surface.
+_TOP_LEVEL = re.compile(r"^func ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]")
 
 # Method: "func (recv [*]Type[generic]?) Method(" — captures Type and Method.
-# Type is the first uppercase identifier after the optional "*".
+# Both Type and Method may be public OR private.
 _METHOD = re.compile(
-    r"^func \([^)]*?\*?([A-Z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Z][A-Za-z0-9_]*)\s*[\[(]"
+    r"^func \([^)]*?\*?([A-Za-z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]"
 )
 
 
@@ -100,12 +102,12 @@ def main():
         for line in missing_lines:
             print(line)
         print()
-        print(f"{len(missing_lines)} of {total} public symbols missing one or more Test*_{{Good,Bad,Ugly}} variants.")
-        print("AX-7: every public symbol gets the triplet; gaps mean the surface is too narrow")
-        print("or the edges aren't understood. Fill in the missing variants.")
+        print(f"{len(missing_lines)} of {total} symbols missing one or more Test*_{{Good,Bad,Ugly}} variants.")
+        print("AX-7: every symbol (public AND private) gets the triplet; gaps mean the surface")
+        print("is too narrow or the edges aren't understood. Fill in the missing variants.")
         sys.exit(1)
 
-    print(f"AX-7 clean: all {total} public symbols have Test*_{{Good,Bad,Ugly}} triplets.")
+    print(f"AX-7 clean: all {total} symbols have Test*_{{Good,Bad,Ugly}} triplets.")
 
 
 if __name__ == "__main__":
