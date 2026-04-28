@@ -7,7 +7,6 @@
 package core
 
 import (
-	"sync"
 )
 
 // Translator defines the interface for translation services.
@@ -52,7 +51,7 @@ type LocaleProvider interface {
 //	r := c.I18n().Translate("cmd.deploy.description")
 //	if r.OK { core.Println(r.Value.(string)) }
 type I18n struct {
-	mu         sync.RWMutex
+	mu         RWMutex
 	locales    []*Embed // collected from LocaleProvider services
 	locale     string
 	translator Translator // registered implementation (nil until set)

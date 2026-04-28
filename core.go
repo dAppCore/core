@@ -5,7 +5,6 @@
 
 package core
 
-import "sync"
 
 // --- Core Struct ---
 
@@ -38,7 +37,7 @@ type Core struct {
 	context       Context
 	cancel        CancelFunc
 	taskIDCounter AtomicUint64
-	waitGroup     sync.WaitGroup
+	waitGroup     WaitGroup
 	shutdown      AtomicBool
 }
 

@@ -4,24 +4,17 @@
 
 package core
 
-import (
-	"sync"
-)
-
 // Lock is the DTO for a named mutex.
 //
-// Mutex is the backing sync.RWMutex.
-//
-// Deprecated: direct field access forces consumers to import "sync".
-// Use the Lock/Unlock/RLock/RUnlock/TryLock methods instead. Removed in v0.9.0.
+// Mutex is the backing core.RWMutex.
 //
 //	c := core.New()
 //	lock := c.Lock("service-registry")
 //	lock.Lock(); defer lock.Unlock()
 type Lock struct {
 	Name  string
-	Mutex *sync.RWMutex
-	locks *Registry[*sync.RWMutex] // per-Core named mutexes
+	Mutex *RWMutex
+	locks *Registry[*RWMutex] // per-Core named mutexes
 }
 
 // Lock returns a named Lock, creating the mutex if needed.
@@ -32,9 +25,9 @@ type Lock struct {
 func (c *Core) Lock(name string) *Lock {
 	r := c.lock.locks.Get(name)
 	if r.OK {
-		return &Lock{Name: name, Mutex: r.Value.(*sync.RWMutex)}
+		return &Lock{Name: name, Mutex: r.Value.(*RWMutex)}
 	}
-	m := &sync.RWMutex{}
+	m := &RWMutex{}
 	c.lock.locks.Set(name, m)
 	return &Lock{Name: name, Mutex: m}
 }
@@ -69,10 +62,7 @@ func (l *Lock) RUnlock() { l.Mutex.RUnlock() }
 //	    // ...
 //	}
 func (l *Lock) TryLock() Result {
-	if l.Mutex.TryLock() {
-		return Result{OK: true}
-	}
-	return Result{OK: false}
+	return l.Mutex.TryLock()
 }
 
 // LockEnable marks that the service lock should be applied after initialisation.

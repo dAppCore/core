@@ -24,7 +24,6 @@ package core
 
 import (
 	"path/filepath"
-	"sync"
 )
 
 // registryMode controls write behaviour.
@@ -46,7 +45,7 @@ type Registry[T any] struct {
 	items    map[string]T
 	disabled map[string]bool
 	order    []string // insertion order
-	mu       sync.RWMutex
+	mu       RWMutex
 	mode     registryMode
 }
 

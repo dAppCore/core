@@ -31,7 +31,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"sync"
 	"text/template"
 )
 
@@ -48,7 +47,7 @@ type AssetGroup struct {
 
 var (
 	assetGroups   = make(map[string]*AssetGroup)
-	assetGroupsMu sync.RWMutex
+	assetGroupsMu RWMutex
 )
 
 // AddAsset registers a packed asset at runtime (called from generated init()).

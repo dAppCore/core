@@ -8,7 +8,6 @@ package core
 import (
 	goio "io"
 	"os"
-	"sync"
 )
 
 // Level defines logging verbosity.
@@ -71,7 +70,7 @@ func (l Level) String() string {
 //	log := core.NewLog(core.LogOptions{Level: core.LevelInfo, Output: core.Stdout()})
 //	log.Info("agent started", "service", "homelab")
 type Log struct {
-	mu     sync.RWMutex
+	mu     RWMutex
 	level  Level
 	output goio.Writer
 

@@ -6,16 +6,15 @@
 
 package core
 
-import "sync"
 
 // Ipc holds IPC dispatch data and the named action registry.
 //
 //	ipc := (&core.Ipc{}).New()
 type Ipc struct {
-	ipcMu       sync.RWMutex
+	ipcMu       RWMutex
 	ipcHandlers []func(*Core, Message) Result
 
-	queryMu       sync.RWMutex
+	queryMu       RWMutex
 	queryHandlers []QueryHandler
 
 	actions *Registry[*Action] // named action registry

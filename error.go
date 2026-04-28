@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"sync"
 )
 
 // ErrorSink is the shared interface for error reporting.
@@ -455,7 +454,7 @@ func (h *ErrorPanic) Reports(n int) Result {
 	return Result{reports[len(reports)-n:], true}
 }
 
-var crashMu sync.Mutex
+var crashMu Mutex
 
 func (h *ErrorPanic) appendReport(report CrashReport) {
 	crashMu.Lock()

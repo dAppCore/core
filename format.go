@@ -9,10 +9,7 @@
 //	msg := core.Sprintf("%s connected on %d", host, port)
 package core
 
-import (
-	"fmt"
-	"io"
-)
+import "fmt"
 
 // Sprint converts variadic values to their default string
 // representation. Identical to fmt.Sprint.
@@ -53,7 +50,7 @@ func Println(args ...any) {
 //
 //	core.Print(nil, "hello %s", "world")    // → stdout
 //	core.Print(buf, "port: %d", 8080)       // → buf
-func Print(w io.Writer, format string, args ...any) {
+func Print(w Writer, format string, args ...any) {
 	if w == nil {
 		w = Stdout()
 	}

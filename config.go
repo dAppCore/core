@@ -5,7 +5,6 @@
 package core
 
 import (
-	"sync"
 )
 
 // ConfigVar is a variable that can be set, unset, and queried for its state.
@@ -77,7 +76,7 @@ func (o *ConfigOptions) init() {
 //	core.Println(cfg.String("config.host"))
 type Config struct {
 	*ConfigOptions
-	mu sync.RWMutex
+	mu RWMutex
 }
 
 // New initialises a Config with empty settings and features.
