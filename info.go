@@ -35,8 +35,51 @@ package core
 import (
 	"os"
 	"runtime"
+	"runtime/debug"
 	"time"
 )
+
+// OS returns the operating system name (darwin, linux, windows, etc.)
+// the binary is running on.
+//
+//	if core.OS() == "darwin" { core.Println("on a Mac") }
+func OS() string {
+	return runtime.GOOS
+}
+
+// Arch returns the CPU architecture (amd64, arm64, etc.) the binary
+// was compiled for.
+//
+//	if core.Arch() == "arm64" { core.Println("Apple Silicon or arm64 Linux") }
+func Arch() string {
+	return runtime.GOARCH
+}
+
+// GoVersion returns the Go runtime version string (e.g. "go1.26.0")
+// the binary was compiled with.
+//
+//	core.Println(core.GoVersion())  // "go1.26.0"
+func GoVersion() string {
+	return runtime.Version()
+}
+
+// NumCPU returns the number of logical CPUs available to the running
+// process.
+//
+//	workers := core.NumCPU()
+//	core.Println(workers)
+func NumCPU() int {
+	return runtime.NumCPU()
+}
+
+// StackBuf returns the Go runtime stack trace of the current goroutine
+// as a byte slice. Used for crash reports and panic recovery.
+//
+//	report := core.StackBuf()
+//	core.Println(string(report))
+func StackBuf() []byte {
+	return debug.Stack()
+}
 
 // SysInfo holds read-only system information, populated once at init.
 //
