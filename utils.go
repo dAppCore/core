@@ -8,9 +8,6 @@ package core
 import (
 	crand "crypto/rand"
 	"encoding/hex"
-	"fmt"
-	"io"
-	"os"
 	"strconv"
 	"sync/atomic"
 )
@@ -64,26 +61,6 @@ func SanitisePath(path string) string {
 		return "invalid"
 	}
 	return safe
-}
-
-// --- I/O ---
-
-// Println prints values to stdout with a newline. Replaces fmt.Println.
-//
-//	core.Println("hello", 42, true)
-func Println(args ...any) {
-	fmt.Println(args...)
-}
-
-// Print writes a formatted line to a writer, defaulting to os.Stdout.
-//
-//	core.Print(nil, "hello %s", "world")     // → stdout
-//	core.Print(w, "port: %d", 8080)          // → w
-func Print(w io.Writer, format string, args ...any) {
-	if w == nil {
-		w = os.Stdout
-	}
-	fmt.Fprintf(w, format+"\n", args...)
 }
 
 // JoinPath joins string segments into a path with "/" separator.
