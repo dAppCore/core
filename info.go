@@ -39,6 +39,9 @@ import (
 )
 
 // SysInfo holds read-only system information, populated once at init.
+//
+//	home := core.Env("DIR_HOME")
+//	core.Println(home)
 type SysInfo struct {
 	values map[string]string
 }

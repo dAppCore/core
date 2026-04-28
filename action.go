@@ -228,6 +228,10 @@ func (c *Core) Task(name string, def ...Task) *Task {
 }
 
 // Tasks returns all registered task names.
+//
+//	c := core.New()
+//	names := c.Tasks()
+//	core.Println(core.Join(", ", names...))
 func (c *Core) Tasks() []string {
 	return c.ipc.tasks.Names()
 }

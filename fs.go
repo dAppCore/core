@@ -12,6 +12,10 @@ import (
 )
 
 // Fs is a sandboxed local filesystem backend.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.EnsureDir("logs")
+//	if !r.OK { return r }
 type Fs struct {
 	root string
 }
@@ -134,6 +138,10 @@ func (m *Fs) validatePath(p string) Result {
 }
 
 // Read returns file contents as string.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.Read("config/agent.json")
+//	if r.OK { core.Println(r.Value.(string)) }
 func (m *Fs) Read(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -149,12 +157,20 @@ func (m *Fs) Read(p string) Result {
 // Write saves content to file, creating parent directories as needed.
 // Files are created with mode 0644. For sensitive files (keys, secrets),
 // use WriteMode with 0600.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.Write("config/agent.json", `{"host":"homelab.lthn.sh"}`)
+//	if !r.OK { return r }
 func (m *Fs) Write(p, content string) Result {
 	return m.WriteMode(p, content, 0644)
 }
 
 // WriteMode saves content to file with explicit permissions.
 // Use 0600 for sensitive files (encryption output, private keys, auth hashes).
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.WriteMode("secrets/token", "lethean-token", 0o600)
+//	if !r.OK { return r }
 func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -217,6 +233,10 @@ func (m *Fs) WriteAtomic(p, content string) Result {
 }
 
 // EnsureDir creates directory if it doesn't exist.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.EnsureDir("logs/agent")
+//	if !r.OK { return r }
 func (m *Fs) EnsureDir(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -229,6 +249,9 @@ func (m *Fs) EnsureDir(p string) Result {
 }
 
 // IsDir returns true if path is a directory.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	if fsys.IsDir("logs") { core.Println("logs ready") }
 func (m *Fs) IsDir(p string) bool {
 	if p == "" {
 		return false
@@ -242,6 +265,9 @@ func (m *Fs) IsDir(p string) bool {
 }
 
 // IsFile returns true if path is a regular file.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	if fsys.IsFile("config/agent.json") { core.Println("config ready") }
 func (m *Fs) IsFile(p string) bool {
 	if p == "" {
 		return false
@@ -255,6 +281,9 @@ func (m *Fs) IsFile(p string) bool {
 }
 
 // Exists returns true if path exists.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	if fsys.Exists("config/agent.json") { core.Println("config present") }
 func (m *Fs) Exists(p string) bool {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -265,6 +294,10 @@ func (m *Fs) Exists(p string) bool {
 }
 
 // List returns directory entries.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.List("config")
+//	if !r.OK { return r }
 func (m *Fs) List(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -274,6 +307,10 @@ func (m *Fs) List(p string) Result {
 }
 
 // Stat returns file info.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.Stat("config/agent.json")
+//	if !r.OK { return r }
 func (m *Fs) Stat(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -283,6 +320,11 @@ func (m *Fs) Stat(p string) Result {
 }
 
 // Open opens the named file for reading.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.ReadStream("config/agent.json")
+//	if !r.OK { return r }
+//	defer r.Value.(core.ReadCloser).Close()
 func (m *Fs) Open(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -292,6 +334,11 @@ func (m *Fs) Open(p string) Result {
 }
 
 // Create creates or truncates the named file.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.WriteStream("logs/agent.log")
+//	if !r.OK { return r }
+//	defer r.Value.(core.WriteCloser).Close()
 func (m *Fs) Create(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -305,6 +352,11 @@ func (m *Fs) Create(p string) Result {
 }
 
 // Append opens the named file for appending, creating it if it doesn't exist.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.Append("logs/agent.log")
+//	if !r.OK { return r }
+//	defer r.Value.(core.WriteCloser).Close()
 func (m *Fs) Append(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -318,11 +370,21 @@ func (m *Fs) Append(p string) Result {
 }
 
 // ReadStream returns a reader for the file content.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.ReadStream("config/agent.json")
+//	if !r.OK { return r }
+//	defer r.Value.(core.ReadCloser).Close()
 func (m *Fs) ReadStream(path string) Result {
 	return m.Open(path)
 }
 
 // WriteStream returns a writer for the file content.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.WriteStream("logs/agent.log")
+//	if !r.OK { return r }
+//	defer r.Value.(core.WriteCloser).Close()
 func (m *Fs) WriteStream(path string) Result {
 	return m.Create(path)
 }
@@ -376,6 +438,10 @@ func CloseStream(v any) {
 }
 
 // Delete removes a file or empty directory.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.Delete("logs/old-agent.log")
+//	if !r.OK { return r }
 func (m *Fs) Delete(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -392,6 +458,10 @@ func (m *Fs) Delete(p string) Result {
 }
 
 // DeleteAll removes a file or directory recursively.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.DeleteAll("tmp/session-42")
+//	if !r.OK { return r }
 func (m *Fs) DeleteAll(p string) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
@@ -408,6 +478,10 @@ func (m *Fs) DeleteAll(p string) Result {
 }
 
 // Rename moves a file or directory.
+//
+//	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
+//	r := fsys.Rename("config/agent.tmp", "config/agent.json")
+//	if !r.OK { return r }
 func (m *Fs) Rename(oldPath, newPath string) Result {
 	oldVp := m.validatePath(oldPath)
 	if !oldVp.OK {
@@ -425,6 +499,9 @@ func (m *Fs) Rename(oldPath, newPath string) Result {
 
 // FsEntry is a directory entry yielded by WalkSeq and WalkSeqSkip.
 // Path is relative to the walk root.
+//
+//	entry := core.FsEntry{Path: "config/agent.json", Name: "agent.json", IsDir: false, Mode: 0o644}
+//	core.Println(entry.Path)
 type FsEntry struct {
 	Path  string // relative to walk root, OS-native separator
 	Name  string // basename

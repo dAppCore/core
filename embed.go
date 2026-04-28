@@ -40,6 +40,10 @@ import (
 // --- Runtime: Asset Registry ---
 
 // AssetGroup holds a named collection of packed assets.
+//
+//	core.AddAsset("agent", "persona/developer.md", "H4sIAAAAAAAA/8pIzcnJBwCGphA2BQAAAA==")
+//	r := core.GetAsset("agent", "persona/developer.md")
+//	_ = r
 type AssetGroup struct {
 	assets map[string]string // name → compressed data
 }
@@ -50,6 +54,8 @@ var (
 )
 
 // AddAsset registers a packed asset at runtime (called from generated init()).
+//
+//	core.AddAsset("agent", "persona/developer.md", "H4sIAAAAAAAA/8pIzcnJBwCGphA2BQAAAA==")
 func AddAsset(group, name, data string) {
 	assetGroupsMu.Lock()
 	defer assetGroupsMu.Unlock()
@@ -100,6 +106,9 @@ func GetAssetBytes(group, name string) Result {
 // --- Build-time: AST Scanner ---
 
 // AssetRef is a reference to an asset found in source code.
+//
+//	ref := core.AssetRef{Name: "developer.md", Group: "persona", Path: "persona/developer.md"}
+//	core.Println(ref.Path)
 type AssetRef struct {
 	Name     string
 	Path     string
@@ -108,6 +117,9 @@ type AssetRef struct {
 }
 
 // ScannedPackage holds all asset references from a set of source files.
+//
+//	pkg := core.ScannedPackage{PackageName: "agent", BaseDirectory: "./agent"}
+//	pkg.Assets = append(pkg.Assets, core.AssetRef{Name: "developer.md", Group: "persona"})
 type ScannedPackage struct {
 	PackageName   string
 	BaseDirectory string
@@ -117,6 +129,13 @@ type ScannedPackage struct {
 
 // ScanAssets parses Go source files and finds asset references.
 // Looks for calls to: core.GetAsset("group", "name"), core.AddAsset, etc.
+//
+//	r := core.ScanAssets([]string{"cmd/agent/main.go"})
+//	if !r.OK {
+//	    return r
+//	}
+//	pkgs := r.Value.([]core.ScannedPackage)
+//	_ = pkgs
 func ScanAssets(filenames []string) Result {
 	packageMap := make(map[string]*ScannedPackage)
 	var scanErr error
@@ -213,6 +232,12 @@ func ScanAssets(filenames []string) Result {
 }
 
 // GeneratePack creates Go source code that embeds the scanned assets.
+//
+//	pkg := core.ScannedPackage{PackageName: "agent", BaseDirectory: "./agent"}
+//	r := core.GeneratePack(pkg)
+//	if !r.OK { return r }
+//	source := r.Value.(string)
+//	core.Println(source)
 func GeneratePack(pkg ScannedPackage) Result {
 	b := NewBuilder()
 
@@ -335,6 +360,11 @@ func getAllFiles(dir string) ([]string, error) {
 
 // Embed wraps an fs.FS with a basedir for scoped access.
 // All paths are relative to basedir.
+//
+//	r := core.Mount(core.DirFS("testdata"), "prompts")
+//	if !r.OK { return r }
+//	emb := r.Value.(*core.Embed)
+//	core.Println(emb.BaseDirectory())
 type Embed struct {
 	basedir string
 	fsys    fs.FS
@@ -390,6 +420,12 @@ func (s *Embed) Open(name string) Result {
 }
 
 // ReadDir reads the named directory.
+//
+//	r := core.Mount(core.DirFS("testdata"), "prompts")
+//	if !r.OK { return r }
+//	emb := r.Value.(*core.Embed)
+//	entries := emb.ReadDir(".")
+//	if !entries.OK { return entries }
 func (s *Embed) ReadDir(name string) Result {
 	r := s.path(name)
 	if !r.OK {
@@ -443,12 +479,25 @@ func (s *Embed) Sub(subDir string) Result {
 }
 
 // FS returns the underlying fs.FS.
+//
+//	r := core.Mount(core.DirFS("testdata"), "prompts")
+//	if !r.OK { return r }
+//	emb := r.Value.(*core.Embed)
+//	fsys := emb.FS()
+//	_ = fsys
 func (s *Embed) FS() fs.FS {
 	return s.fsys
 }
 
 // EmbedFS returns the underlying embed.FS if mounted from one.
 // Returns zero embed.FS if mounted from a non-embed source.
+//
+//	var assets embed.FS
+//	r := core.MountEmbed(assets, "locales")
+//	if r.OK {
+//	    emb := r.Value.(*core.Embed)
+//	    _ = emb.EmbedFS()
+//	}
 func (s *Embed) EmbedFS() embed.FS {
 	if s.embedFS != nil {
 		return *s.embedFS
@@ -457,6 +506,12 @@ func (s *Embed) EmbedFS() embed.FS {
 }
 
 // BaseDirectory returns the base directory this Embed is anchored at.
+//
+//	r := core.Mount(core.DirFS("testdata"), "prompts")
+//	if !r.OK { return r }
+//	emb := r.Value.(*core.Embed)
+//	base := emb.BaseDirectory()
+//	core.Println(base)
 func (s *Embed) BaseDirectory() string {
 	return s.basedir
 }
@@ -464,6 +519,12 @@ func (s *Embed) BaseDirectory() string {
 // --- Template Extraction ---
 
 // ExtractOptions configures template extraction.
+//
+//	opts := core.ExtractOptions{
+//	    TemplateFilters: []string{".tmpl"},
+//	    RenameFiles: map[string]string{"README.tmpl": "README.md"},
+//	}
+//	_ = opts
 type ExtractOptions struct {
 	// TemplateFilters identifies template files by substring match.
 	// Default: [".tmpl"]
@@ -487,6 +548,11 @@ type ExtractOptions struct {
 // {{.Name}}/main.go → myproject/main.go
 //
 // Data can be any struct or map[string]string for template substitution.
+//
+//	fsys := core.DirFS("templates/agent")
+//	data := map[string]string{"Name": "homelab"}
+//	r := core.Extract(fsys, "/tmp/agent-workspace", data)
+//	if !r.OK { return r }
 func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Result {
 	opt := ExtractOptions{
 		TemplateFilters: []string{".tmpl"},

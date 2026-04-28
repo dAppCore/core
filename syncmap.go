@@ -23,6 +23,12 @@ package core
 import "sync"
 
 // SyncMap is a concurrent map. Same semantics and memory model as sync.Map.
+//
+//	var cache core.SyncMap
+//	cache.Store("config.host", "homelab.lthn.sh")
+//	if value, ok := cache.Load("config.host"); ok {
+//	    core.Println(value)
+//	}
 type SyncMap struct{ inner sync.Map }
 
 // Load returns the value stored for key, or nil and ok=false if not present.

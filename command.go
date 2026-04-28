@@ -38,6 +38,14 @@ type CommandAction func(Options) Result
 //     Action:  handler,
 //     Managed: "process.daemon",  // go-process provides start/stop/restart
 //     })
+//
+// Usage:
+//
+//	cmd := core.Command{Action: func(opts core.Options) core.Result {
+//	    return core.Result{Value: core.Sprintf("deploy %s", opts.String("target")), OK: true}
+//	}}
+//	r := cmd.Run(core.NewOptions(core.Option{Key: "target", Value: "homelab"}))
+//	if !r.OK { return r }
 type Command struct {
 	Name        string
 	Description string        // i18n key — derived from path if empty
@@ -84,6 +92,9 @@ func (cmd *Command) IsManaged() bool {
 
 // CommandRegistry holds the command tree. Embeds Registry[*Command]
 // for thread-safe named storage with insertion order.
+//
+//	registry := &core.CommandRegistry{Registry: core.NewRegistry[*core.Command]()}
+//	registry.Set("deploy/to/homelab", &core.Command{Name: "homelab"})
 type CommandRegistry struct {
 	*Registry[*Command]
 }

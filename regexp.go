@@ -21,6 +21,11 @@ import "regexp"
 // Regexp is a compiled regular expression. Construct with Regex(pattern).
 // Named Regexp (matching stdlib) so the package-level constructor can be
 // the bare verb Regex.
+//
+//	r := core.Regex(`agent-[0-9]+`)
+//	if !r.OK { return r }
+//	rx := r.Value.(*core.Regexp)
+//	core.Println(rx.String())
 type Regexp struct {
 	inner *regexp.Regexp
 }
@@ -86,6 +91,11 @@ func (r *Regexp) Split(s string, n int) []string {
 }
 
 // String returns the source pattern.
+//
+//	r := core.Regex(`agent-[0-9]+`)
+//	if !r.OK { return r }
+//	pattern := r.Value.(*core.Regexp).String()
+//	core.Println(pattern)
 func (r *Regexp) String() string {
 	return r.inner.String()
 }

@@ -40,9 +40,17 @@ import "sync"
 type Mutex struct{ inner sync.Mutex }
 
 // Lock acquires the mutex.
+//
+//	var mu core.Mutex
+//	mu.Lock()
+//	defer mu.Unlock()
 func (m *Mutex) Lock() { m.inner.Lock() }
 
 // Unlock releases the mutex.
+//
+//	var mu core.Mutex
+//	mu.Lock()
+//	mu.Unlock()
 func (m *Mutex) Unlock() { m.inner.Unlock() }
 
 // TryLock attempts to acquire the mutex without blocking.
@@ -78,15 +86,31 @@ func (m *Mutex) TryLock() Result {
 type RWMutex struct{ inner sync.RWMutex }
 
 // Lock acquires the mutex for write (exclusive).
+//
+//	var mu core.RWMutex
+//	mu.Lock()
+//	defer mu.Unlock()
 func (m *RWMutex) Lock() { m.inner.Lock() }
 
 // Unlock releases the mutex from write.
+//
+//	var mu core.RWMutex
+//	mu.Lock()
+//	mu.Unlock()
 func (m *RWMutex) Unlock() { m.inner.Unlock() }
 
 // RLock acquires the mutex for read (shared).
+//
+//	var mu core.RWMutex
+//	mu.RLock()
+//	defer mu.RUnlock()
 func (m *RWMutex) RLock() { m.inner.RLock() }
 
 // RUnlock releases the mutex from read.
+//
+//	var mu core.RWMutex
+//	mu.RLock()
+//	mu.RUnlock()
 func (m *RWMutex) RUnlock() { m.inner.RUnlock() }
 
 // TryLock attempts to acquire the write mutex without blocking.
@@ -123,6 +147,9 @@ type Once struct{ inner sync.Once }
 
 // Do calls the function fn if and only if Do is being called for the first
 // time for this instance of Once.
+//
+//	var once core.Once
+//	once.Do(func() { core.Println("agent init") })
 func (o *Once) Do(fn func()) { o.inner.Do(fn) }
 
 // Reset clears the once so Do can fire again. Use for re-initialisation
@@ -150,10 +177,25 @@ func (o *Once) Reset() { o.inner = sync.Once{} }
 type WaitGroup struct{ inner sync.WaitGroup }
 
 // Add adds delta, which may be negative, to the WaitGroup counter.
+//
+//	var wg core.WaitGroup
+//	wg.Add(1)
+//	go func() { defer wg.Done(); core.Println("agent done") }()
+//	wg.Wait()
 func (w *WaitGroup) Add(delta int) { w.inner.Add(delta) }
 
 // Done decrements the WaitGroup counter by one.
+//
+//	var wg core.WaitGroup
+//	wg.Add(1)
+//	go func() { defer wg.Done(); core.Println("agent done") }()
+//	wg.Wait()
 func (w *WaitGroup) Done() { w.inner.Done() }
 
 // Wait blocks until the WaitGroup counter is zero.
+//
+//	var wg core.WaitGroup
+//	wg.Add(1)
+//	go func() { defer wg.Done(); core.Println("agent done") }()
+//	wg.Wait()
 func (w *WaitGroup) Wait() { w.inner.Wait() }

@@ -222,6 +222,11 @@ func (r *Registry[T]) Enable(name string) Result {
 }
 
 // Disabled returns true if the item is soft-disabled.
+//
+//	r := core.NewRegistry[string]()
+//	r.Set("agent", "codex")
+//	r.Disable("agent")
+//	if r.Disabled("agent") { core.Println("disabled") }
 func (r *Registry[T]) Disabled(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -238,6 +243,10 @@ func (r *Registry[T]) Lock() {
 }
 
 // Locked returns true if the registry is fully frozen.
+//
+//	r := core.NewRegistry[string]()
+//	r.Lock()
+//	if r.Locked() { core.Println("locked") }
 func (r *Registry[T]) Locked() bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -255,6 +264,11 @@ func (r *Registry[T]) Seal() {
 }
 
 // Sealed returns true if the registry is sealed (no new keys).
+//
+//	r := core.NewRegistry[string]()
+//	r.Set("agent", "codex")
+//	r.Seal()
+//	if r.Sealed() { core.Println("sealed") }
 func (r *Registry[T]) Sealed() bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

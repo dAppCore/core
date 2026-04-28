@@ -105,6 +105,12 @@ func (c *Core) RegisterAction(handler func(*Core, Message) Result) {
 }
 
 // RegisterActions registers multiple broadcast handlers.
+//
+//	c := core.New()
+//	c.RegisterActions(
+//	    func(c *core.Core, msg core.Message) core.Result { return core.Result{OK: true} },
+//	    func(c *core.Core, msg core.Message) core.Result { return core.Result{OK: true} },
+//	)
 func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
 	c.ipc.ipcMu.Lock()
 	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)

@@ -61,10 +61,20 @@ func (e Entitlement) UsagePercent() float64 {
 
 // EntitlementChecker answers "can [subject] do [action] with [quantity]?"
 // Subject comes from context (workspace, entity, user — consumer's concern).
+//
+//	checker := func(action string, quantity int, ctx context.Context) core.Entitlement {
+//	    return core.Entitlement{Allowed: action == "process.run", Limit: 10, Used: quantity}
+//	}
+//	core.New().SetEntitlementChecker(core.EntitlementChecker(checker))
 type EntitlementChecker func(action string, quantity int, ctx context.Context) Entitlement
 
 // UsageRecorder records consumption after a gated action succeeds.
 // Consumer packages provide the implementation (database, cache, etc).
+//
+//	recorder := func(action string, quantity int, ctx context.Context) {
+//	    core.Info("usage recorded", "action", action, "quantity", quantity)
+//	}
+//	core.New().SetUsageRecorder(core.UsageRecorder(recorder))
 type UsageRecorder func(action string, quantity int, ctx context.Context)
 
 // defaultChecker — trusted conclave, everything permitted.
@@ -125,6 +135,11 @@ func (c *Core) RecordUsage(action string, quantity ...int) {
 
 // SetUsageRecorder registers a usage tracking function.
 // Called by go-entitlements during OnStartup.
+//
+//	c := core.New()
+//	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+//	    core.Info("usage recorded", "action", action, "quantity", quantity)
+//	})
 func (c *Core) SetUsageRecorder(recorder UsageRecorder) {
 	c.usageRecorder = recorder
 }

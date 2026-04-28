@@ -23,9 +23,17 @@ import (
 )
 
 // Template is a parsed text template, ready to execute against data.
+//
+//	tmpl := core.NewTemplate("status")
+//	r, err := tmpl.Parse("agent {{.Name}} ready")
+//	if err == nil { _ = r }
 type Template = template.Template
 
 // FuncMap is a map of named functions exposed to templates.
+//
+//	funcs := core.FuncMap{"upper": core.Upper}
+//	tmpl := core.NewTemplate("status").Funcs(funcs)
+//	_, _ = tmpl.Parse("{{upper .Name}}")
 type FuncMap = template.FuncMap
 
 // NewTemplate creates an empty named template.

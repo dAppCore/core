@@ -25,6 +25,9 @@
 package core
 
 // DriveHandle holds a named transport resource.
+//
+//	handle := &core.DriveHandle{Name: "homelab", Transport: "ssh://agent@10.69.69.165"}
+//	core.Println(handle.Transport)
 type DriveHandle struct {
 	Name      string
 	Transport string
@@ -32,6 +35,12 @@ type DriveHandle struct {
 }
 
 // Drive manages named transport handles. Embeds Registry[*DriveHandle].
+//
+//	c := core.New()
+//	c.Drive().New(core.NewOptions(
+//	    core.Option{Key: "name", Value: "homelab"},
+//	    core.Option{Key: "transport", Value: "ssh://agent@10.69.69.165"},
+//	))
 type Drive struct {
 	*Registry[*DriveHandle]
 }

@@ -11,12 +11,26 @@ import (
 )
 
 // Message is the type for IPC broadcasts (fire-and-forget).
+//
+//	c := core.New()
+//	var msg core.Message = core.ActionTaskStarted{TaskIdentifier: "task-42", Action: "agent.run"}
+//	c.ACTION(msg)
 type Message any
 
 // Query is the type for read-only IPC requests.
+//
+//	c := core.New()
+//	var query core.Query = core.NewOptions(core.Option{Key: "name", Value: "agent"})
+//	_ = c.Query(query)
 type Query any
 
 // QueryHandler handles Query requests. Returns Result{Value, OK}.
+//
+//	handler := func(c *core.Core, q core.Query) core.Result {
+//	    opts := q.(core.Options)
+//	    return core.Result{Value: opts.String("name"), OK: true}
+//	}
+//	core.New().RegisterQuery(core.QueryHandler(handler))
 type QueryHandler func(*Core, Query) Result
 
 // Startable is implemented by services that need startup initialisation.
@@ -39,15 +53,40 @@ type Stoppable interface {
 
 // --- Action Messages ---
 
+// ActionServiceStartup is broadcast when a Core service finishes startup.
+//
+//	c := core.New()
+//	c.Action("service.startup", func(ctx context.Context, opts core.Options) core.Result {
+//	    name := opts.String("name")
+//	    core.Println(core.Sprintf("service %s started", name))
+//	    return core.Result{OK: true}
+//	})
 type ActionServiceStartup struct{}
+
+// ActionServiceShutdown is broadcast when Core begins service shutdown.
+//
+//	c := core.New()
+//	c.Action("service.shutdown", func(ctx context.Context, opts core.Options) core.Result {
+//	    name := opts.String("name")
+//	    core.Println(core.Sprintf("service %s stopped", name))
+//	    return core.Result{OK: true}
+//	})
 type ActionServiceShutdown struct{}
 
+// ActionTaskStarted is broadcast when an asynchronous task begins.
+//
+//	event := core.ActionTaskStarted{TaskIdentifier: "task-42", Action: "agent.run"}
+//	core.New().ACTION(event)
 type ActionTaskStarted struct {
 	TaskIdentifier string
 	Action         string
 	Options        Options
 }
 
+// ActionTaskProgress is broadcast when an asynchronous task reports progress.
+//
+//	event := core.ActionTaskProgress{TaskIdentifier: "task-42", Action: "agent.run", Progress: 0.75, Message: "indexing repo"}
+//	core.New().ACTION(event)
 type ActionTaskProgress struct {
 	TaskIdentifier string
 	Action         string
@@ -55,6 +94,10 @@ type ActionTaskProgress struct {
 	Message        string
 }
 
+// ActionTaskCompleted is broadcast when an asynchronous task finishes.
+//
+//	event := core.ActionTaskCompleted{TaskIdentifier: "task-42", Action: "agent.run", Result: core.Result{Value: "done", OK: true}}
+//	core.New().ACTION(event)
 type ActionTaskCompleted struct {
 	TaskIdentifier string
 	Action         string

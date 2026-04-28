@@ -13,9 +13,17 @@ import (
 )
 
 // CliOptions holds configuration for the Cli service.
+//
+//	c := core.New()
+//	runtime := core.NewServiceRuntime(c, core.CliOptions{})
+//	_ = runtime.Options()
 type CliOptions struct{}
 
 // Cli is the CLI surface for the Core command tree.
+//
+//	c := core.New(core.WithOption("name", "homelab"))
+//	cli := c.Cli()
+//	cli.Print("%s ready", c.App().Name)
 type Cli struct {
 	*ServiceRuntime[CliOptions]
 	output io.Writer
@@ -154,6 +162,10 @@ func (cl *Cli) SetBanner(fn func(*Cli) string) {
 }
 
 // Banner returns the banner string.
+//
+//	c := core.New(core.WithOption("name", "homelab"))
+//	banner := c.Cli().Banner()
+//	core.Println(banner)
 func (cl *Cli) Banner() string {
 	if cl.banner != nil {
 		return cl.banner(cl)

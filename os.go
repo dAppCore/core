@@ -23,10 +23,16 @@ package core
 import "os"
 
 // FileMode is an alias for os.FileMode — file mode bits and permissions.
+//
+//	mode := core.FileMode(0o600)
+//	core.Println(mode.Perm())
 type FileMode = os.FileMode
 
 // File mode bits exposed at core scope. These are the same values as
 // os.ModeDir etc., re-exported so consumers don't need to import os.
+//
+//	mode := core.ModeDir | core.ModePerm
+//	if mode&core.ModeDir != 0 { core.Println("directory") }
 const (
 	ModeDir        = os.ModeDir
 	ModeAppend     = os.ModeAppend

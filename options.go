@@ -185,11 +185,19 @@ func (o Options) Bool(key string) bool {
 }
 
 // Len returns the number of options.
+//
+//	opts := core.NewOptions(core.Option{Key: "agent", Value: "codex"})
+//	count := opts.Len()
+//	core.Println(count)
 func (o Options) Len() int {
 	return len(o.items)
 }
 
 // Items returns a copy of the underlying option slice.
+//
+//	opts := core.NewOptions(core.Option{Key: "agent", Value: "codex"})
+//	items := opts.Items()
+//	core.Println(items[0].Key)
 func (o Options) Items() []Option {
 	cp := make([]Option, len(o.items))
 	copy(cp, o.items)

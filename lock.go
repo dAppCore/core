@@ -14,6 +14,10 @@ import (
 //
 // Deprecated: direct field access forces consumers to import "sync".
 // Use the Lock/Unlock/RLock/RUnlock/TryLock methods instead. Removed in v0.9.0.
+//
+//	c := core.New()
+//	lock := c.Lock("service-registry")
+//	lock.Lock(); defer lock.Unlock()
 type Lock struct {
 	Name  string
 	Mutex *sync.RWMutex
@@ -72,11 +76,18 @@ func (l *Lock) TryLock() Result {
 }
 
 // LockEnable marks that the service lock should be applied after initialisation.
+//
+//	c := core.New()
+//	c.LockEnable()
+//	c.LockApply()
 func (c *Core) LockEnable(name ...string) {
 	c.services.lockEnabled = true
 }
 
 // LockApply activates the service lock if it was enabled.
+//
+//	c := core.New(core.WithServiceLock())
+//	c.LockApply()
 func (c *Core) LockApply(name ...string) {
 	if c.services.lockEnabled {
 		c.services.Lock()
@@ -84,6 +95,10 @@ func (c *Core) LockApply(name ...string) {
 }
 
 // Startables returns services that have an OnStart function, in registration order.
+//
+//	c := core.New()
+//	r := c.Startables()
+//	if r.OK { services := r.Value.([]*core.Service); _ = services }
 func (c *Core) Startables() Result {
 	if c.services == nil {
 		return Result{}
@@ -98,6 +113,10 @@ func (c *Core) Startables() Result {
 }
 
 // Stoppables returns services that have an OnStop function, in registration order.
+//
+//	c := core.New()
+//	r := c.Stoppables()
+//	if r.OK { services := r.Value.([]*core.Service); _ = services }
 func (c *Core) Stoppables() Result {
 	if c.services == nil {
 		return Result{}

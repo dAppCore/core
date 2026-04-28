@@ -16,23 +16,43 @@ import (
 )
 
 // Level defines logging verbosity.
+//
+//	level := core.LevelInfo
+//	core.SetLevel(level)
 type Level int
 
 // Logging level constants ordered by increasing verbosity.
 const (
 	// LevelQuiet suppresses all log output.
+	//
+	//	core.SetLevel(core.LevelQuiet)
 	LevelQuiet Level = iota
 	// LevelError shows only error messages.
+	//
+	//	core.SetLevel(core.LevelError)
+	//	core.Error("agent failed", "service", "homelab")
 	LevelError
 	// LevelWarn shows warnings and errors.
+	//
+	//	core.SetLevel(core.LevelWarn)
+	//	core.Warn("agent degraded", "service", "homelab")
 	LevelWarn
 	// LevelInfo shows informational messages, warnings, and errors.
+	//
+	//	core.SetLevel(core.LevelInfo)
+	//	core.Info("agent started", "service", "homelab")
 	LevelInfo
 	// LevelDebug shows all messages including debug details.
+	//
+	//	core.SetLevel(core.LevelDebug)
+	//	core.Debug("agent trace", "task", "task-42")
 	LevelDebug
 )
 
 // String returns the level name.
+//
+//	name := core.LevelInfo.String()
+//	core.Println(name)
 func (l Level) String() string {
 	switch l {
 	case LevelQuiet:
@@ -51,6 +71,9 @@ func (l Level) String() string {
 }
 
 // Log provides structured logging.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelInfo, Output: core.Stdout()})
+//	log.Info("agent started", "service", "homelab")
 type Log struct {
 	mu     sync.RWMutex
 	level  Level
@@ -69,6 +92,9 @@ type Log struct {
 }
 
 // RotationLogOptions defines the log rotation and retention policy.
+//
+//	opts := core.RotationLogOptions{Filename: "/var/log/core/agent.log", MaxSize: 100, MaxBackups: 5, Compress: true}
+//	_ = opts
 type RotationLogOptions struct {
 	// Filename is the log file path. If empty, rotation is disabled.
 	Filename string
@@ -92,6 +118,10 @@ type RotationLogOptions struct {
 }
 
 // LogOptions configures a Log.
+//
+//	opts := core.LogOptions{Level: core.LevelInfo, Output: core.Stdout(), RedactKeys: []string{"token"}}
+//	log := core.NewLog(opts)
+//	log.Info("agent started")
 type LogOptions struct {
 	Level Level
 	// Output is the destination for log messages. If Rotation is provided,
@@ -105,9 +135,16 @@ type LogOptions struct {
 
 // RotationWriterFactory creates a rotating writer from options.
 // Set this to enable log rotation (provided by core/go-io integration).
+//
+//	core.RotationWriterFactory = func(opts core.RotationLogOptions) core.WriteCloser {
+//	    return nil
+//	}
 var RotationWriterFactory func(RotationLogOptions) goio.WriteCloser
 
 // New creates a new Log with the given options.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelDebug, Output: core.Stdout()})
+//	log.Debug("agent trace", "task", "task-42")
 func NewLog(opts LogOptions) *Log {
 	output := opts.Output
 	if opts.Rotation != nil && opts.Rotation.Filename != "" && RotationWriterFactory != nil {
@@ -133,6 +170,9 @@ func NewLog(opts LogOptions) *Log {
 func identity(s string) string { return s }
 
 // SetLevel changes the log level.
+//
+//	log := core.NewLog(core.LogOptions{Output: core.Stdout()})
+//	log.SetLevel(core.LevelDebug)
 func (l *Log) SetLevel(level Level) {
 	l.mu.Lock()
 	l.level = level
@@ -140,6 +180,10 @@ func (l *Log) SetLevel(level Level) {
 }
 
 // Level returns the current log level.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelInfo})
+//	level := log.Level()
+//	core.Println(level.String())
 func (l *Log) Level() Level {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -147,6 +191,9 @@ func (l *Log) Level() Level {
 }
 
 // SetOutput changes the output writer.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelInfo})
+//	log.SetOutput(core.Stdout())
 func (l *Log) SetOutput(w goio.Writer) {
 	l.mu.Lock()
 	l.output = w
@@ -154,6 +201,9 @@ func (l *Log) SetOutput(w goio.Writer) {
 }
 
 // SetRedactKeys sets the keys to be redacted.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelInfo})
+//	log.SetRedactKeys("token", "authorization")
 func (l *Log) SetRedactKeys(keys ...string) {
 	l.mu.Lock()
 	l.redactKeys = slices.Clone(keys)
@@ -246,6 +296,9 @@ func (l *Log) log(level Level, prefix, msg string, keyvals ...any) {
 }
 
 // Debug logs a debug message with optional key-value pairs.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelDebug, Output: core.Stdout()})
+//	log.Debug("agent trace", "task", "task-42")
 func (l *Log) Debug(msg string, keyvals ...any) {
 	if l.shouldLog(LevelDebug) {
 		l.log(LevelDebug, l.StyleDebug("[DBG]"), msg, keyvals...)
@@ -253,6 +306,9 @@ func (l *Log) Debug(msg string, keyvals ...any) {
 }
 
 // Info logs an info message with optional key-value pairs.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelInfo, Output: core.Stdout()})
+//	log.Info("agent started", "service", "homelab")
 func (l *Log) Info(msg string, keyvals ...any) {
 	if l.shouldLog(LevelInfo) {
 		l.log(LevelInfo, l.StyleInfo("[INF]"), msg, keyvals...)
@@ -260,6 +316,9 @@ func (l *Log) Info(msg string, keyvals ...any) {
 }
 
 // Warn logs a warning message with optional key-value pairs.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelWarn, Output: core.Stdout()})
+//	log.Warn("agent degraded", "service", "homelab")
 func (l *Log) Warn(msg string, keyvals ...any) {
 	if l.shouldLog(LevelWarn) {
 		l.log(LevelWarn, l.StyleWarn("[WRN]"), msg, keyvals...)
@@ -267,6 +326,9 @@ func (l *Log) Warn(msg string, keyvals ...any) {
 }
 
 // Error logs an error message with optional key-value pairs.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelError, Output: core.Stdout()})
+//	log.Error("agent failed", "service", "homelab")
 func (l *Log) Error(msg string, keyvals ...any) {
 	if l.shouldLog(LevelError) {
 		l.log(LevelError, l.StyleError("[ERR]"), msg, keyvals...)
@@ -276,6 +338,9 @@ func (l *Log) Error(msg string, keyvals ...any) {
 // Security logs a security event with optional key-value pairs.
 // It uses LevelError to ensure security events are visible even in restrictive
 // log configurations.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelError, Output: core.Stdout()})
+//	log.Security("entitlement.denied", "action", "process.run")
 func (l *Log) Security(msg string, keyvals ...any) {
 	if l.shouldLog(LevelError) {
 		l.log(LevelError, l.StyleSecurity("[SEC]"), msg, keyvals...)
@@ -284,6 +349,9 @@ func (l *Log) Security(msg string, keyvals ...any) {
 
 // Username returns the current system username.
 // It uses os/user for reliability and falls back to environment variables.
+//
+//	user := core.Username()
+//	core.Println(user)
 func Username() string {
 	if u, err := user.Current(); err == nil {
 		return u.Username
@@ -305,46 +373,67 @@ func init() {
 }
 
 // Default returns the default logger.
+//
+//	log := core.Default()
+//	log.Info("agent started")
 func Default() *Log {
 	return defaultLogPtr.Load()
 }
 
 // SetDefault sets the default logger.
+//
+//	log := core.NewLog(core.LogOptions{Level: core.LevelInfo, Output: core.Stdout()})
+//	core.SetDefault(log)
 func SetDefault(l *Log) {
 	defaultLogPtr.Store(l)
 }
 
 // SetLevel sets the default logger's level.
+//
+//	core.SetLevel(core.LevelWarn)
 func SetLevel(level Level) {
 	Default().SetLevel(level)
 }
 
 // SetRedactKeys sets the default logger's redaction keys.
+//
+//	core.SetRedactKeys("token", "authorization")
 func SetRedactKeys(keys ...string) {
 	Default().SetRedactKeys(keys...)
 }
 
 // Debug logs to the default logger.
+//
+//	core.SetLevel(core.LevelDebug)
+//	core.Debug("agent trace", "task", "task-42")
 func Debug(msg string, keyvals ...any) {
 	Default().Debug(msg, keyvals...)
 }
 
 // Info logs to the default logger.
+//
+//	core.Info("agent started", "service", "homelab")
 func Info(msg string, keyvals ...any) {
 	Default().Info(msg, keyvals...)
 }
 
 // Warn logs to the default logger.
+//
+//	core.Warn("agent degraded", "service", "homelab")
 func Warn(msg string, keyvals ...any) {
 	Default().Warn(msg, keyvals...)
 }
 
 // Error logs to the default logger.
+//
+//	core.Error("agent failed", "service", "homelab")
 func Error(msg string, keyvals ...any) {
 	Default().Error(msg, keyvals...)
 }
 
 // Security logs to the default logger.
+//
+//	core.Security("entitlement.denied", "action", "process.run")
 func Security(msg string, keyvals ...any) {
 	Default().Security(msg, keyvals...)
 }
@@ -353,16 +442,25 @@ func Security(msg string, keyvals ...any) {
 
 // LogErr logs structured information extracted from errors.
 // Primary action: log. Secondary: extract error context.
+//
+//	logger := core.NewLogErr(core.Default())
+//	logger.Log(core.E("agent.Run", "failed", nil))
 type LogErr struct {
 	log *Log
 }
 
 // NewLogErr creates a LogErr bound to the given logger.
+//
+//	logger := core.NewLogErr(core.Default())
+//	logger.Log(core.E("agent.Run", "failed", nil))
 func NewLogErr(log *Log) *LogErr {
 	return &LogErr{log: log}
 }
 
 // Log extracts context from an Err and logs it at Error level.
+//
+//	logger := core.NewLogErr(core.Default())
+//	logger.Log(core.E("agent.Run", "failed", nil))
 func (le *LogErr) Log(err error) {
 	if err == nil {
 		return
@@ -374,17 +472,26 @@ func (le *LogErr) Log(err error) {
 
 // LogPanic logs panic context without crash file management.
 // Primary action: log. Secondary: recover panics.
+//
+//	guard := core.NewLogPanic(core.Default())
+//	defer guard.Recover()
 type LogPanic struct {
 	log *Log
 }
 
 // NewLogPanic creates a LogPanic bound to the given logger.
+//
+//	guard := core.NewLogPanic(core.Default())
+//	defer guard.Recover()
 func NewLogPanic(log *Log) *LogPanic {
 	return &LogPanic{log: log}
 }
 
 // Recover captures a panic and logs it. Does not write crash files.
 // Use as: defer core.NewLogPanic(logger).Recover()
+//
+//	guard := core.NewLogPanic(core.Default())
+//	defer guard.Recover()
 func (lp *LogPanic) Recover() {
 	r := recover()
 	if r == nil {

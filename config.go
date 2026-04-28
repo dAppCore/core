@@ -9,6 +9,9 @@ import (
 )
 
 // ConfigVar is a variable that can be set, unset, and queried for its state.
+//
+//	host := core.NewConfigVar("homelab.lthn.sh")
+//	if host.IsSet() { core.Println(host.Get()) }
 type ConfigVar[T any] struct {
 	val T
 	set bool
@@ -47,6 +50,12 @@ func NewConfigVar[T any](val T) ConfigVar[T] {
 }
 
 // ConfigOptions holds configuration data.
+//
+//	opts := core.ConfigOptions{
+//	    Settings: map[string]any{"config.host": "homelab.lthn.sh"},
+//	    Features: map[string]bool{"agentic": true},
+//	}
+//	_ = opts
 type ConfigOptions struct {
 	Settings map[string]any
 	Features map[string]bool
@@ -62,6 +71,10 @@ func (o *ConfigOptions) init() {
 }
 
 // Config holds configuration settings and feature flags.
+//
+//	cfg := (&core.Config{}).New()
+//	cfg.Set("config.host", "homelab.lthn.sh")
+//	core.Println(cfg.String("config.host"))
 type Config struct {
 	*ConfigOptions
 	mu sync.RWMutex
@@ -77,6 +90,9 @@ func (e *Config) New() *Config {
 }
 
 // Set stores a configuration value by key.
+//
+//	cfg := (&core.Config{}).New()
+//	cfg.Set("config.host", "homelab.lthn.sh")
 func (e *Config) Set(key string, val any) {
 	e.mu.Lock()
 	if e.ConfigOptions == nil {
@@ -88,6 +104,11 @@ func (e *Config) Set(key string, val any) {
 }
 
 // Get retrieves a configuration value by key.
+//
+//	cfg := (&core.Config{}).New()
+//	cfg.Set("config.host", "homelab.lthn.sh")
+//	r := cfg.Get("config.host")
+//	if r.OK { core.Println(r.Value.(string)) }
 func (e *Config) Get(key string) Result {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -117,6 +138,11 @@ func (e *Config) Int(key string) int { return ConfigGet[int](e, key) }
 func (e *Config) Bool(key string) bool { return ConfigGet[bool](e, key) }
 
 // ConfigGet retrieves a typed configuration value.
+//
+//	cfg := (&core.Config{}).New()
+//	cfg.Set("config.host", "homelab.lthn.sh")
+//	host := core.ConfigGet[string](cfg, "config.host")
+//	core.Println(host)
 func ConfigGet[T any](e *Config, key string) T {
 	r := e.Get(key)
 	if !r.OK {

@@ -29,6 +29,12 @@ import "context"
 
 // Process is the Core primitive for process management.
 // Zero dependencies — delegates to named Actions.
+//
+//	c := core.New()
+//	proc := c.Process()
+//	if proc.Exists() {
+//	    _ = proc.Run(context.Background(), "git", "status", "--short")
+//	}
 type Process struct {
 	core *Core
 }

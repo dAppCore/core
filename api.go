@@ -47,9 +47,18 @@ type Stream interface {
 
 // StreamFactory creates a Stream from a DriveHandle's transport config.
 // Registered per-protocol by consumer packages.
+//
+//	factory := func(handle *core.DriveHandle) (core.Stream, error) {
+//	    return nil, core.NewError(core.Concat("protocol unavailable: ", handle.Transport))
+//	}
+//	core.New().API().RegisterProtocol("mcp", factory)
 type StreamFactory func(handle *DriveHandle) (Stream, error)
 
 // API manages remote streams and protocol handlers.
+//
+//	c := core.New()
+//	api := c.API()
+//	_ = api.Protocols()
 type API struct {
 	core      *Core
 	protocols *Registry[StreamFactory]
@@ -129,6 +138,10 @@ func (a *API) Call(endpoint string, action string, opts Options) Result {
 }
 
 // Protocols returns all registered protocol scheme names.
+//
+//	c := core.New()
+//	schemes := c.API().Protocols()
+//	core.Println(core.Join(", ", schemes...))
 func (a *API) Protocols() []string {
 	return a.protocols.Names()
 }
@@ -174,36 +187,87 @@ func (c *Core) RemoteAction(name string, ctx context.Context, opts Options) Resu
 // ---------------------------------------------------------------------
 
 // Request is the canonical HTTP request, exported as core.Request.
+//
+//	r := core.NewHTTPRequest("GET", "https://api.lethean.example/health", nil)
+//	if !r.OK {
+//	    return r
+//	}
+//	req := r.Value.(*core.Request)
+//	req.Header.Set("User-Agent", "dappcore-agent/1.0")
 type Request = http.Request
 
 // Response is the canonical HTTP response.
+//
+//	r := core.HTTPGet("https://api.lethean.example/health")
+//	if !r.OK {
+//	    return r
+//	}
+//	resp := r.Value.(*core.Response)
+//	defer resp.Body.Close()
 type Response = http.Response
 
 // ResponseWriter is the canonical HTTP response-writer interface used
 // by handlers.
+//
+//	handler := core.HandlerFunc(func(w core.ResponseWriter, r *core.Request) {
+//	    core.WriteString(w, "ok\n")
+//	})
+//	_ = handler
 type ResponseWriter = http.ResponseWriter
 
 // Handler is the canonical HTTP handler interface.
+//
+//	var handler core.Handler = core.HandlerFunc(func(w core.ResponseWriter, r *core.Request) {
+//	    core.WriteString(w, "ready\n")
+//	})
+//	_ = handler
 type Handler = http.Handler
 
 // HandlerFunc is the canonical HTTP handler-as-function adapter.
+//
+//	handler := core.HandlerFunc(func(w core.ResponseWriter, r *core.Request) {
+//	    core.WriteString(w, "accepted\n")
+//	})
+//	core.NewHTTPTestServer(handler).Close()
 type HandlerFunc = http.HandlerFunc
 
 // ServeMux is the canonical HTTP request multiplexer.
+//
+//	mux := &core.ServeMux{}
+//	mux.Handle("/health", core.HandlerFunc(func(w core.ResponseWriter, r *core.Request) {
+//	    core.WriteString(w, "ok\n")
+//	}))
 type ServeMux = http.ServeMux
 
 // HTTPServer is an HTTP server. Named HTTPServer (not Server) because
 // core may grow other server types; this keeps the namespace clean.
+//
+//	srv := &core.HTTPServer{Addr: ":8080", Handler: &core.ServeMux{}}
+//	go srv.ListenAndServe()
+//	defer srv.Close()
 type HTTPServer = http.Server
 
 // HTTPClient is an HTTP client. Named HTTPClient for symmetry with
 // HTTPServer.
+//
+//	client := &core.HTTPClient{}
+//	resp, err := client.Get("https://api.lethean.example/health")
+//	if err == nil {
+//	    defer resp.Body.Close()
+//	}
 type HTTPClient = http.Client
 
 // Header is the canonical HTTP header map.
+//
+//	headers := core.Header{}
+//	headers.Set("Authorization", "Bearer lethean-token")
+//	headers.Set("X-Agent", "codex")
 type Header = http.Header
 
 // Cookie is the canonical HTTP cookie value type.
+//
+//	cookie := &core.Cookie{Name: "session", Value: "agent-session", Path: "/"}
+//	_ = cookie.String()
 type Cookie = http.Cookie
 
 // HTTPGet performs an HTTP GET. Returns Result wrapping *Response on
@@ -257,6 +321,15 @@ func NewHTTPRequest(method, target string, body Reader) Result {
 }
 
 // NewHTTPRequestContext is NewHTTPRequest with a context.Context attached.
+//
+//	ctx := context.Background()
+//	body := core.NewBufferString(`{"agent":"codex"}`)
+//	r := core.NewHTTPRequestContext(ctx, "POST", "https://api.lethean.example/v1/tasks", body)
+//	if !r.OK {
+//	    return r
+//	}
+//	req := r.Value.(*core.Request)
+//	req.Header.Set("Content-Type", "application/json")
 func NewHTTPRequestContext(ctx context.Context, method, target string, body Reader) Result {
 	req, err := http.NewRequestWithContext(ctx, method, target, body)
 	if err != nil {
@@ -267,6 +340,9 @@ func NewHTTPRequestContext(ctx context.Context, method, target string, body Read
 
 // HTTPStatusText returns the canonical text for an HTTP status code,
 // e.g. 200 → "OK".
+//
+//	status := core.HTTPStatusText(202)
+//	core.Println(status)
 func HTTPStatusText(code int) string {
 	return http.StatusText(code)
 }
@@ -278,18 +354,42 @@ func HTTPStatusText(code int) string {
 // ---------------------------------------------------------------------
 
 // MultipartReader streams a multipart body.
+//
+//	body := core.NewBufferString("--agent-boundary\r\n\r\n--agent-boundary--\r\n")
+//	reader := core.NewMultipartReader(body, "agent-boundary")
+//	if part, err := reader.NextPart(); err == nil {
+//	    defer part.Close()
+//	}
 type MultipartReader = multipart.Reader
 
 // MultipartWriter assembles a multipart body.
+//
+//	buf := core.NewBuffer()
+//	writer := core.NewMultipartWriter(buf)
+//	field, _ := writer.CreateFormField("agent")
+//	core.WriteString(field, "codex")
+//	writer.Close()
 type MultipartWriter = multipart.Writer
 
 // MultipartForm is a parsed multipart/form-data form.
+//
+//	form := &core.MultipartForm{Value: map[string][]string{"agent": {"codex"}}}
+//	agents := form.Value["agent"]
+//	core.Println(core.Join(", ", agents...))
 type MultipartForm = multipart.Form
 
 // MultipartFile is an open file from a multipart upload.
+//
+//	var file core.MultipartFile
+//	if file != nil {
+//	    defer file.Close()
+//	}
 type MultipartFile = multipart.File
 
 // MultipartFileHeader is the header of a multipart upload file.
+//
+//	header := &core.MultipartFileHeader{Filename: "agent-report.json"}
+//	core.Println(header.Filename)
 type MultipartFileHeader = multipart.FileHeader
 
 // NewMultipartReader returns a multipart reader for the given body and
@@ -319,10 +419,21 @@ func NewMultipartWriter(w Writer) *MultipartWriter {
 
 // HTTPTestServer is a test HTTP server, useful for exercising clients
 // against a real listener without external dependencies.
+//
+//	server := core.NewHTTPTestServer(core.HandlerFunc(func(w core.ResponseWriter, r *core.Request) {
+//	    core.WriteString(w, "ok\n")
+//	}))
+//	defer server.Close()
+//	_ = core.HTTPGet(server.URL)
 type HTTPTestServer = httptest.Server
 
 // HTTPTestRecorder is an http.ResponseWriter that records the response
 // for handler tests.
+//
+//	rec := core.NewHTTPTestRecorder()
+//	req := core.NewHTTPTestRequest("GET", "/health", nil)
+//	handler := core.HandlerFunc(func(w core.ResponseWriter, r *core.Request) { core.WriteString(w, "ok") })
+//	handler.ServeHTTP(rec, req)
 type HTTPTestRecorder = httptest.ResponseRecorder
 
 // NewHTTPTestServer starts a new test server with the given handler.
@@ -336,6 +447,11 @@ func NewHTTPTestServer(handler Handler) *HTTPTestServer {
 }
 
 // NewHTTPTestTLSServer starts a new test server using TLS.
+//
+//	server := core.NewHTTPTestTLSServer(core.HandlerFunc(func(w core.ResponseWriter, r *core.Request) {
+//	    core.WriteString(w, "secure\n")
+//	}))
+//	defer server.Close()
 func NewHTTPTestTLSServer(handler Handler) *HTTPTestServer {
 	return httptest.NewTLSServer(handler)
 }

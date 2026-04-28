@@ -28,6 +28,10 @@ import (
 
 // Data manages mounted embedded filesystems from core packages.
 // Embeds Registry[*Embed] for thread-safe named storage.
+//
+//	c := core.New()
+//	r := c.Data().ReadString("agent/persona/developer.md")
+//	if r.OK { core.Println(r.Value.(string)) }
 type Data struct {
 	*Registry[*Embed]
 }

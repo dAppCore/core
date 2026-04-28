@@ -14,6 +14,10 @@ import (
 // --- Core Struct ---
 
 // Core is the central application object that manages services, assets, and communication.
+//
+//	c := core.New(core.WithOption("name", "homelab"))
+//	ctx := c.Context()
+//	_ = ctx
 type Core struct {
 	options *Options    // c.Options()        — Input configuration used to create this Core
 	app     *App        // c.App()            — Application identity + optional GUI runtime
@@ -189,16 +193,29 @@ func (c *Core) QUERYALL(q Query) Result { return c.QueryAll(q) }
 // --- Error+Log ---
 
 // LogError logs an error and returns the Result from ErrorLog.
+//
+//	c := core.New()
+//	err := core.NewError("homelab unreachable")
+//	r := c.LogError(err, "agent.Ping", "health check failed")
+//	if !r.OK { return r }
 func (c *Core) LogError(err error, op, msg string) Result {
 	return c.log.Error(err, op, msg)
 }
 
 // LogWarn logs a warning and returns the Result from ErrorLog.
+//
+//	c := core.New()
+//	err := core.NewError("config.host missing")
+//	r := c.LogWarn(err, "config.Load", "using default host")
+//	if !r.OK { return r }
 func (c *Core) LogWarn(err error, op, msg string) Result {
 	return c.log.Warn(err, op, msg)
 }
 
 // Must logs and panics if err is not nil.
+//
+//	c := core.New()
+//	c.Must(nil, "agent.Start", "startup failed")
 func (c *Core) Must(err error, op, msg string) {
 	c.log.Must(err, op, msg)
 }
