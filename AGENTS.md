@@ -76,22 +76,60 @@ Production `.go` files in `core/go` and consumer packages should not import thes
 | `net/http/httptest` | `core.NewHTTPTestServer`, `core.NewHTTPTestRecorder`, `core.NewHTTPTestRequest` |
 | `database/sql` | `core.DB`, `core.Tx`, `core.Rows`, `core.SQLOpen`, `core.ErrNoRows` |
 
-### Genuine exemptions (intrinsic, keep as-is with a `// Note:` comment)
+### SPOR — Single Point Of Responsibility
 
-| Stdlib | Why |
-|---|---|
-| `testing` | Go's test runner — `core.T`/`core.TB`/`core.B`/`core.F` are aliases for the runner types |
-| `reflect` | Canonical Go type introspection; wrapping it adds no value |
-| `context` | Canonical Go propagation; `core.API`/`core.Action` accept `context.Context` directly |
-| `os/exec` *inside `go-process`* | go-process IS the implementation of `c.Process()` — it cannot depend on itself |
+**Every stdlib package has exactly one production owner file.** No exemptions. Exemptions in the reference implementation become permission-to-replicate exemptions downstream; downstream agents copy the pattern without judgement. The wrapper IS the rule.
 
-When introducing an exemption, document the reason inline:
+Ownership table:
 
-```go
-import (
-    "context"  // Note: AX-6 — canonical Go propagation; core does not wrap context.Context
-)
-```
+| Stdlib | Sole owner | What you call instead |
+|---|---|---|
+| `bufio` | scanner.go | `core.NewLineScanner`, `core.NewLineScannerWithSize` |
+| `bytes` | bytes.go | `core.NewBuffer`, `core.NewBufferString` |
+| `cmp` | cmp.go | `core.Compare`, `core.Min`, `core.Max` |
+| `compress/gzip` | embed.go | (internal embed implementation) |
+| `context` | context.go | `core.Context`, `core.Background`, `core.WithTimeout`, etc. |
+| `crypto/hkdf`, `crypto/hmac` | hash.go | `core.HKDF`, `core.HMAC` (return Result) |
+| `crypto/rand` | random.go | `core.RandomBytes`, `core.RandomString`, `core.RandomInt` (return Result) |
+| `crypto/sha256`, `crypto/sha512` | hash.go | `core.SHA256`, `core.SHA256Hex`, `core.SHA256String` |
+| `crypto/sha3` | sha3.go | `core.Keccak256`, `core.SHA3_256` |
+| `database/sql` | sql.go | `core.DB`, `core.Tx`, `core.SQLOpen`, `core.ErrNoRows` |
+| `embed` | embed.go | `core.Mount`, `core.AddAsset`, `core.GetAsset` |
+| `encoding/base64`, `encoding/binary`, `encoding/hex` | encode.go | `core.Base64*`, `core.HexEncode`, `core.HexDecode` |
+| `encoding/json` | json.go | `core.JSONMarshal`, `core.JSONUnmarshal` |
+| `errors` | error.go | `core.E`, `core.Wrap`, `core.WrapCode`, `core.NewError`, `core.NewCode`, `core.Is`, `core.As`, `core.ErrorJoin` |
+| `fmt` | format.go | `core.Sprintf`, `core.Sprint`, `core.Println`, `core.Print`, `core.Errorf` |
+| `go/ast`, `go/parser`, `go/token` | embed.go | (internal embed parsing) |
+| `hash` | hash.go | (internal hash factory) |
+| `html` | html_escape.go | `core.HTMLEscape`, `core.HTMLUnescape` |
+| `html/template`, `text/template` | template.go | `core.NewTemplate`, `core.ParseTemplate` |
+| `io` | io.go | `core.Reader`, `core.Writer`, `core.Copy`, `core.EOF` |
+| `io/fs` | fs.go | `core.FS`, `core.WalkDir`, `c.Fs()` |
+| `iter` | iter.go | `core.Seq[T]`, `core.Seq2[K,V]`, `core.Pull`, `core.Pull2` |
+| `math`, `math/big` | math.go | `core.Abs`, `core.Min`, `core.Max` |
+| `math/bits` | sha3.go | (internal hash math) |
+| `mime/multipart` | api.go | `core.MultipartReader`, `core.NewMultipartWriter` |
+| `net` | net.go | `core.Conn`, `core.Listener`, `core.IP`, `core.NetDial`, `core.NetListen` |
+| `net/http`, `net/http/httptest`, `net/url` | api.go | `core.Request`, `core.Handler`, `core.HTTPGet`, `core.URLParse` |
+| `os` | os.go | `core.Open`, `core.Stat`, `core.Stdin`, `core.Stdout`, `core.Stderr`, `core.Exit`, `core.Environ`, `core.Hostname` |
+| `os/exec` | process.go | `c.Process()` |
+| `os/user` | user.go | `core.UserCurrent`, `core.UserLookup`, `core.UserGroupLookup` |
+| `path/filepath` | path.go | `core.Path`, `core.PathBase`, `core.PathDir`, `core.CleanPath` |
+| `reflect` | reflect.go | `core.TypeOf`, `core.ValueOf`, `core.DeepEqual`, `core.KindX` |
+| `regexp` | regexp.go | `core.Regex`, `core.Regexp` |
+| `runtime`, `runtime/debug` | info.go | `core.OS`, `core.Arch`, `core.GoVersion`, `core.NumCPU`, `core.StackBuf` |
+| `slices`, `sort` | slice.go | `core.SliceContains`, `core.SliceSort`, `core.SliceFilter`, `core.SliceMap` |
+| `maps` | map.go | `core.MapKeys`, `core.MapValues`, `core.MapClone` |
+| `strconv` | int.go | `core.Atoi`, `core.Itoa`, `core.FormatInt` |
+| `strings` | string.go | `core.Concat`, `core.Join`, `core.Split`, `core.Lower`, `core.Upper`, `core.Contains` |
+| `sync` | sync.go | `core.Mutex`, `core.RWMutex`, `core.Once`, `core.WaitGroup`, `core.SyncMap` |
+| `sync/atomic` | atomic.go | `core.AtomicBool`, `core.AtomicInt32`, `core.AtomicInt64`, `core.AtomicUint32`, `core.AtomicUint64`, `core.AtomicPointer[T]` |
+| `testing` | test.go | `core.T`, `core.TB`, `core.B`, `core.F`, `AssertX`, `RequireX` |
+| `text/tabwriter` | table.go | `core.NewTable` |
+| `time` | time.go | `core.Now`, `core.Sleep`, `core.Since`, `core.Duration`, `core.Time`, `core.Second`, `core.Minute` |
+| `unicode/utf8` | string.go | `core.IsDigit`, `core.IsLetter`, `core.IsLower`, `core.IsSpace` |
+
+**If you need a stdlib helper that isn't exposed:** add it to the owner file. Never re-import the stdlib in a non-owner file. The CI check at `tests/cli/imports/` fails on SPOR drift.
 
 ## Test files
 
