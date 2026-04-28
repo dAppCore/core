@@ -84,50 +84,50 @@ Ownership table:
 
 | Stdlib | Sole owner | What you call instead |
 |---|---|---|
-| `bufio` | scanner.go | `core.NewLineScanner`, `core.NewLineScannerWithSize` |
-| `bytes` | bytes.go | `core.NewBuffer`, `core.NewBufferString` |
-| `cmp` | cmp.go | `core.Compare`, `core.Min`, `core.Max` |
-| `compress/gzip` | embed.go | (internal embed implementation) |
-| `context` | context.go | `core.Context`, `core.Background`, `core.WithTimeout`, etc. |
+| `bufio` | scanner.go | `core.NewLineScanner`, `core.NewLineScannerWithSize`, `core.NewBufReader`, `core.BufReader` |
+| `bytes` | io.go | `core.NewBuffer`, `core.NewBufferString` |
+| `cmp` | math.go | `core.Compare`, `core.Ordered` (constraint) |
+| `compress/gzip` | embed.go | (internal embed compression) |
+| `context` | context.go | `core.Context`, `core.Background`, `core.WithTimeout`, `core.WithCancel`, `core.WithDeadline`, `core.WithValue`, `core.TODO` |
 | `crypto/hkdf`, `crypto/hmac` | hash.go | `core.HKDF`, `core.HMAC` (return Result) |
 | `crypto/rand` | random.go | `core.RandomBytes`, `core.RandomString`, `core.RandomInt` (return Result) |
 | `crypto/sha256`, `crypto/sha512` | hash.go | `core.SHA256`, `core.SHA256Hex`, `core.SHA256String` |
 | `crypto/sha3` | sha3.go | `core.Keccak256`, `core.SHA3_256` |
 | `database/sql` | sql.go | `core.DB`, `core.Tx`, `core.SQLOpen`, `core.ErrNoRows` |
-| `embed` | embed.go | `core.Mount`, `core.AddAsset`, `core.GetAsset` |
-| `encoding/base64`, `encoding/binary`, `encoding/hex` | encode.go | `core.Base64*`, `core.HexEncode`, `core.HexDecode` |
-| `encoding/json` | json.go | `core.JSONMarshal`, `core.JSONUnmarshal` |
-| `errors` | error.go | `core.E`, `core.Wrap`, `core.WrapCode`, `core.NewError`, `core.NewCode`, `core.Is`, `core.As`, `core.ErrorJoin` |
-| `fmt` | format.go | `core.Sprintf`, `core.Sprint`, `core.Println`, `core.Print`, `core.Errorf` |
+| `embed` | embed.go | `core.Mount`, `core.AddAsset`, `core.GetAsset`, `core.EmbedFS` (alias) |
+| `encoding/base64`, `encoding/binary`, `encoding/hex` | encode.go | `core.Base64Encode/Decode`, `core.HexEncode/Decode` |
+| `encoding/json` | json.go | `core.JSONMarshal`, `core.JSONUnmarshal`, `core.JSONMarshalString`, `core.JSONUnmarshalString` |
+| `errors` | error.go | `core.E`, `core.Wrap`, `core.WrapCode`, `core.NewError`, `core.NewCode`, `core.Is`, `core.As`, `core.ErrorJoin`, `core.Root` |
+| `fmt` | format.go | `core.Sprintf`, `core.Sprint`, `core.Sprintln`, `core.Println`, `core.Print`, `core.Errorf` |
 | `go/ast`, `go/parser`, `go/token` | embed.go | (internal embed parsing) |
 | `hash` | hash.go | (internal hash factory) |
-| `html` | html_escape.go | `core.HTMLEscape`, `core.HTMLUnescape` |
-| `html/template`, `text/template` | template.go | `core.NewTemplate`, `core.ParseTemplate` |
-| `io` | io.go | `core.Reader`, `core.Writer`, `core.Copy`, `core.EOF` |
-| `io/fs` | fs.go | `core.FS`, `core.WalkDir`, `c.Fs()` |
+| `html` | string.go | `core.HTMLEscape`, `core.HTMLUnescape` |
+| `html/template`, `text/template` | template.go | `core.NewTemplate`, `core.ParseTemplate`, `core.ExecuteTemplate`, `core.FuncMap` |
+| `io` | io.go | `core.Reader`, `core.Writer`, `core.Closer`, `core.ReadCloser`, `core.WriteCloser`, `core.Copy`, `core.CopyN`, `core.WriteString`, `core.EOF`, `core.NewBuffer`, `core.NewBufferString` |
+| `io/fs` | fs.go | `core.FS`, `core.FsFile`, `core.FsFileInfo`, `core.FsDirEntry`, `core.WalkDir`, `core.WalkDirFunc`, `c.Fs()` |
 | `iter` | iter.go | `core.Seq[T]`, `core.Seq2[K,V]`, `core.Pull`, `core.Pull2` |
-| `math`, `math/big` | math.go | `core.Abs`, `core.Min`, `core.Max` |
+| `math`, `math/big`, `cmp` | math.go | `core.Abs`, `core.Min`, `core.Max`, `core.Pow`, `core.Floor`, `core.Ceil`, `core.Round`, `core.IsNaN`, `core.Compare`, `core.Ordered` |
 | `math/bits` | sha3.go | (internal hash math) |
+| `math/rand/v2` | random.go | `core.RandIntn`, `core.RandPick` |
 | `mime/multipart` | api.go | `core.MultipartReader`, `core.NewMultipartWriter` |
-| `net` | net.go | `core.Conn`, `core.Listener`, `core.IP`, `core.NetDial`, `core.NetListen` |
-| `net/http`, `net/http/httptest`, `net/url` | api.go | `core.Request`, `core.Handler`, `core.HTTPGet`, `core.URLParse` |
-| `os` | os.go | `core.Open`, `core.Stat`, `core.Stdin`, `core.Stdout`, `core.Stderr`, `core.Exit`, `core.Environ`, `core.Hostname` |
-| `os/exec` | process.go | `c.Process()` |
-| `os/user` | user.go | `core.UserCurrent`, `core.UserLookup`, `core.UserGroupLookup` |
-| `path/filepath` | path.go | `core.Path`, `core.PathBase`, `core.PathDir`, `core.CleanPath` |
-| `reflect` | reflect.go | `core.TypeOf`, `core.ValueOf`, `core.DeepEqual`, `core.KindX` |
-| `regexp` | regexp.go | `core.Regex`, `core.Regexp` |
-| `runtime`, `runtime/debug` | info.go | `core.OS`, `core.Arch`, `core.GoVersion`, `core.NumCPU`, `core.StackBuf` |
-| `slices`, `sort` | slice.go | `core.SliceContains`, `core.SliceSort`, `core.SliceFilter`, `core.SliceMap` |
-| `maps` | map.go | `core.MapKeys`, `core.MapValues`, `core.MapClone` |
-| `strconv` | int.go | `core.Atoi`, `core.Itoa`, `core.FormatInt` |
-| `strings` | string.go | `core.Concat`, `core.Join`, `core.Split`, `core.Lower`, `core.Upper`, `core.Contains` |
+| `net` | net.go | `core.Conn`, `core.Listener`, `core.IP`, `core.NetDial`, `core.NetListen`, `core.NetPipe` |
+| `net/http`, `net/http/httptest`, `net/url` | api.go | `core.Request`, `core.Response`, `core.Handler`, `core.HTTPClient`, `core.HTTPGet`, `core.HTTPPost`, `core.NewHTTPRequest`, `core.URLParse`, `core.URLEncode`, `core.NewHTTPTestServer` (Result) |
+| `os` | os.go | `core.Open`, `core.Stat`, `core.ReadFile`, `core.WriteFile`, `core.MkdirAll`, `core.Stdin`, `core.Stdout`, `core.Stderr`, `core.Exit`, `core.Args`, `core.Hostname`, `core.Getpid`, `core.Setenv` (Result), `core.Unsetenv` (Result), `core.Getenv`, `core.LookupEnv`, `core.Environ`, `core.UserHomeDir`, `core.FileMode`, `core.OSFile` |
+| `os/exec` | process.go | `c.Process()`, `core.Cmd`, `core.ExecCmd` |
+| `os/user` | user.go | `core.User`, `core.Group`, `core.UserCurrent`, `core.UserLookup`, `core.UserLookupID`, `core.UserGroupLookup` |
+| `path/filepath` | path.go | `core.Path`, `core.PathBase`, `core.PathDir`, `core.PathExt`, `core.PathIsAbs`, `core.CleanPath`, `core.PathRel`, `core.PathAbs`, `core.PathChangeExt`, `core.PathGlob`, `core.PathWalk`, `core.PathWalkDir`, `core.PathMatch` |
+| `reflect` | reflect.go | `core.TypeOf`, `core.ValueOf`, `core.DeepEqual`, `core.Zero`, `core.Type`, `core.Value`, `core.Kind`, `core.KindBool`, `core.KindInt`, `core.KindString`, etc. |
+| `regexp` | regexp.go | `core.Regex` (Result), `core.Regexp` |
+| `runtime`, `runtime/debug` | info.go | `core.OS`, `core.Arch`, `core.GoVersion`, `core.NumCPU`, `core.StackBuf`, `core.Env`, `core.EnvKeys` |
+| `slices`, `sort` | slice.go | `core.SliceContains`, `core.SliceIndex`, `core.SliceSort`, `core.SliceUniq`, `core.SliceReverse`, `core.SliceFilter`, `core.SliceMap`, `core.SliceReduce`, `core.SliceFlatMap`, `core.SliceTake`, `core.SliceDrop`, `core.SliceAny`, `core.SliceAll`, `core.SliceClone`, `core.SliceSorted` |
+| `maps` | map.go | `core.MapKeys`, `core.MapValues`, `core.MapClone`, `core.MapFilter`, `core.MapMerge`, `core.MapHasKey` |
+| `strconv` | int.go | `core.Atoi`, `core.Itoa`, `core.FormatInt`, `core.FormatUint`, `core.ParseInt` |
+| `strings`, `unicode/utf8`, `html` | string.go | `core.Concat`, `core.Join`, `core.Split`, `core.SplitN`, `core.Lower`, `core.Upper`, `core.Contains`, `core.HasPrefix`, `core.HasSuffix`, `core.TrimPrefix`, `core.TrimSuffix`, `core.Trim`, `core.Replace`, `core.NewBuilder`, `core.NewReader`, `core.RuneCount`, `core.HTMLEscape`, `core.HTMLUnescape` |
 | `sync` | sync.go | `core.Mutex`, `core.RWMutex`, `core.Once`, `core.WaitGroup`, `core.SyncMap` |
 | `sync/atomic` | atomic.go | `core.AtomicBool`, `core.AtomicInt32`, `core.AtomicInt64`, `core.AtomicUint32`, `core.AtomicUint64`, `core.AtomicPointer[T]` |
-| `testing` | test.go | `core.T`, `core.TB`, `core.B`, `core.F`, `AssertX`, `RequireX` |
-| `text/tabwriter` | table.go | `core.NewTable` |
-| `time` | time.go | `core.Now`, `core.Sleep`, `core.Since`, `core.Duration`, `core.Time`, `core.Second`, `core.Minute` |
-| `unicode/utf8` | string.go | `core.IsDigit`, `core.IsLetter`, `core.IsLower`, `core.IsSpace` |
+| `testing` | test.go | `core.T`, `core.TB`, `core.B`, `core.F` (test.go has the runner aliases; assert.go has the AssertX/RequireX family + AssertVerbose; cli_assert.go has CLITest/AssertCLI) |
+| `text/tabwriter` | table.go | `core.NewTable`, `core.Table` |
+| `time` | time.go | `core.Now`, `core.Sleep`, `core.Since`, `core.Until`, `core.Duration`, `core.Time`, `core.Nanosecond`, `core.Microsecond`, `core.Millisecond`, `core.Second`, `core.Minute`, `core.Hour`, `core.ParseDuration`, `core.TimeFormat`, `core.TimeParse`, `core.TimeRFC3339` |
 
 **If you need a stdlib helper that isn't exposed:** add it to the owner file. Never re-import the stdlib in a non-owner file. The CI check at `tests/cli/imports/` fails on SPOR drift.
 
