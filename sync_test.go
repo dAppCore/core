@@ -507,7 +507,7 @@ func TestSync_Once_Reset_Bad(t *T) {
 	var once Once
 
 	once.Reset()
-	once.Do(func() {})
+	once.Do(func() { /* no-op action marks Once as used after reset */ })
 
 	AssertTrue(t, true)
 }

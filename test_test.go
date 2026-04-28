@@ -284,7 +284,7 @@ func TestTest_AssertNotNil_Ugly(t *T) {
 }
 
 func TestTest_AssertNotPanics_Good(t *T) {
-	AssertNotPanics(t, func() {})
+	AssertNotPanics(t, func() { /* no-op closure verifies non-panicking behaviour */ })
 }
 
 func TestTest_AssertNotPanics_Bad(t *T) {

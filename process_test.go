@@ -20,8 +20,10 @@ func TestProcess_Core_Process_Bad(t *T) {
 
 func TestProcess_Core_Process_Ugly(t *T) {
 	c := New()
+	p1 := c.Process()
+	p2 := c.Process()
 
-	AssertFalse(t, c.Process() == c.Process())
+	AssertFalse(t, p1 == p2)
 }
 
 func TestProcess_Process_Exists_Good(t *T) {

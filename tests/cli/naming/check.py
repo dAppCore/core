@@ -18,11 +18,23 @@ from collections import defaultdict
 # gaps in helpers, not just the public surface.
 _TOP_LEVEL = re.compile(r"^func ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]")
 
-# Method: "func (recv [*]Type[generic]?) Method(" — captures Type and Method.
+# Method: "func (recv [*]Type[generic]?) Method(" — captures receiver text and Method.
 # Both Type and Method may be public OR private.
 _METHOD = re.compile(
-    r"^func \([^)]*?\*?([A-Za-z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]"
+    r"^func \(([^)]*)\) ([A-Za-z][A-Za-z0-9_]*)\s*[\[(]"
 )
+
+
+def receiver_type_name(receiver):
+    """Return the method receiver type name from receiver text."""
+    parts = receiver.split()
+    if not parts:
+        return ""
+    typ = parts[-1].lstrip("*")
+    generic = typ.find("[")
+    if generic >= 0:
+        typ = typ[:generic]
+    return typ
 
 
 def collect_symbols():
@@ -43,7 +55,9 @@ def collect_symbols():
                         continue
                     m = _METHOD.match(line)
                     if m:
-                        symbols.add((f"{m.group(1)}_{m.group(2)}", label))
+                        receiver = receiver_type_name(m.group(1))
+                        if receiver:
+                            symbols.add((f"{receiver}_{m.group(2)}", label))
         except OSError:
             pass
     return sorted(symbols)

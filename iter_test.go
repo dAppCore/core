@@ -23,7 +23,7 @@ func TestIter_Pull_Good(t *T) {
 }
 
 func TestIter_Pull_Bad(t *T) {
-	seq := func(yield func(string) bool) {}
+	seq := func(yield func(string) bool) { /* empty sequence yields nothing */ }
 	next, stop := Pull(seq)
 	defer stop()
 
@@ -72,7 +72,7 @@ func TestIter_Pull2_Good(t *T) {
 }
 
 func TestIter_Pull2_Bad(t *T) {
-	seq := func(yield func(string, int) bool) {}
+	seq := func(yield func(string, int) bool) { /* empty sequence yields nothing */ }
 	next, stop := Pull2(seq)
 	defer stop()
 

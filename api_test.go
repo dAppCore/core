@@ -527,7 +527,7 @@ func TestApi_NewHTTPTestServer_Bad(t *T) {
 }
 
 func TestApi_NewHTTPTestServer_Ugly(t *T) {
-	srv := NewHTTPTestServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	srv := NewHTTPTestServer(HandlerFunc(func(w ResponseWriter, r *Request) { /* no-op handler exercises empty response lifecycle */ }))
 	srv.Close()
 	AssertNotEmpty(t, srv.URL)
 }
@@ -556,7 +556,7 @@ func TestApi_NewHTTPTestTLSServer_Bad(t *T) {
 }
 
 func TestApi_NewHTTPTestTLSServer_Ugly(t *T) {
-	srv := NewHTTPTestTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	srv := NewHTTPTestTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) { /* no-op handler exercises empty response lifecycle */ }))
 	srv.Close()
 	AssertNotEmpty(t, srv.URL)
 }

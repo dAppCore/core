@@ -59,6 +59,13 @@ func Abs[T signedOrFloat](x T) T {
 	return x
 }
 
+// NaN returns an IEEE 754 not-a-number value.
+//
+//	if core.IsNaN(x) { x = 0 }
+func NaN() float64 {
+	return math.NaN()
+}
+
 // IsNaN reports whether x is a floating-point NaN.
 //
 //	if core.IsNaN(value) { return core.E("math", "not a number", nil) }

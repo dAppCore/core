@@ -247,7 +247,7 @@ func ExampleErrorPanic_Recover() {
 // errors.
 func ExampleErrorPanic_SafeGo() {
 	h := &ErrorPanic{}
-	h.SafeGo(func() {})
+	h.SafeGo(func() { /* no-op goroutine body demonstrates safe launch */ })
 }
 
 // ExampleErrorPanic_Reports lists captured reports through `ErrorPanic.Reports` for

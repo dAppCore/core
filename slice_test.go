@@ -242,7 +242,7 @@ func TestSlice_SliceSorted_Good(t *T) {
 }
 
 func TestSlice_SliceSorted_Bad(t *T) {
-	seq := func(yield func(int) bool) {}
+	seq := func(yield func(int) bool) { /* empty sequence yields nothing */ }
 
 	AssertEmpty(t, SliceSorted(seq))
 }

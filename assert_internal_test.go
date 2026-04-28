@@ -98,7 +98,7 @@ type stubT struct {
 	fatal bool
 }
 
-func (s *stubT) Helper() {}
+func (s *stubT) Helper() { /* no-op helper for testing.TB compatibility */ }
 func (s *stubT) Error(args ...any) {
 	s.msgs = append(s.msgs, Sprint(args...))
 }

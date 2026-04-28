@@ -164,7 +164,7 @@ func ExampleAssertPanics() {
 // AI-readable.
 func ExampleAssertNotPanics() {
 	var t *T
-	AssertNotPanics(t, func() {})
+	AssertNotPanics(t, func() { /* no-op closure demonstrates non-panicking call */ })
 }
 
 // ExampleAssertPanicsWithError asserts panic error text through `AssertPanicsWithError`
