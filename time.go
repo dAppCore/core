@@ -53,3 +53,47 @@ func ParseDuration(s string) Result {
 	}
 	return Result{d, true}
 }
+
+// Common time format constants. Layouts compatible with time.Format.
+//
+//	stamp := core.TimeFormat(core.Now(), core.TimeRFC3339)
+const (
+	TimeRFC3339     = time.RFC3339
+	TimeRFC3339Nano = time.RFC3339Nano
+	TimeRFC1123     = time.RFC1123
+	TimeRFC822      = time.RFC822
+	TimeKitchen     = time.Kitchen  // "3:04PM"
+	TimeStamp       = time.Stamp    // "Jan _2 15:04:05"
+	TimeDateTime    = time.DateTime // "2006-01-02 15:04:05"
+	TimeDateOnly    = time.DateOnly // "2006-01-02"
+	TimeTimeOnly    = time.TimeOnly // "15:04:05"
+)
+
+// TimeFormat formats t as a string using the given layout. Layout
+// constants are exported as TimeRFC3339, TimeDateTime, etc.
+//
+//	s := core.TimeFormat(core.Now(), core.TimeRFC3339)
+func TimeFormat(t time.Time, layout string) string {
+	return t.Format(layout)
+}
+
+// TimeParse parses value into a time.Time using the given layout.
+// Returns Result wrapping time.Time on success or the parse error.
+//
+//	r := core.TimeParse(core.TimeRFC3339, "2026-04-28T07:00:00Z")
+//	if r.OK { ts := r.Value.(time.Time) }
+func TimeParse(layout, value string) Result {
+	t, err := time.Parse(layout, value)
+	if err != nil {
+		return Result{err, false}
+	}
+	return Result{t, true}
+}
+
+// UnixTime returns the time corresponding to the given Unix timestamp
+// (seconds since 1970-01-01 UTC).
+//
+//	ts := core.UnixTime(1714291200)
+func UnixTime(sec int64) time.Time {
+	return time.Unix(sec, 0)
+}
