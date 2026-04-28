@@ -26,6 +26,28 @@ func (r Result) Error() string {
 	return "unknown error"
 }
 
+// Code returns the stable error code from the Result's failure, or ""
+// when OK or when the failure isn't a *core.Err with a Code populated.
+// Codes form a flat keyspace agents grep on (e.g. "fs.notfound",
+// "json.invalid", "http.timeout", "crypto.algo.unsupported"). See the
+// Stable codespace section in AGENTS.md for the canonical list.
+//
+//	r := c.Fs().Read("/missing")
+//	if r.Code() == "fs.notfound" { core.Println("first run") }
+//	switch r.Code() {
+//	case "http.timeout": retry()
+//	case "http.refused": fallback()
+//	}
+func (r Result) Code() string {
+	if r.OK {
+		return ""
+	}
+	if e, ok := r.Value.(*Err); ok {
+		return e.Code
+	}
+	return ""
+}
+
 // Must returns Value when OK; panics with the underlying error when
 // not. Use for fast-fail paths — init, test setup, must-have config.
 // Production request paths should check r.OK and return r.

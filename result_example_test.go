@@ -22,6 +22,12 @@ func ExampleResult_Error() {
 	// Output: bad config
 }
 
+func ExampleResult_Code() {
+	r := Result{Value: NewCode("fs.notfound", "missing file"), OK: false}
+	Println(r.Code())
+	// Output: fs.notfound
+}
+
 func ExampleCast() {
 	r := Result{Value: "hello", OK: true}
 	s, ok := Cast[string](r)
