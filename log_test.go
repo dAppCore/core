@@ -1,19 +1,17 @@
 package core_test
 
 import (
-	"testing"
-
 	. "dappco.re/go/core"
 )
 
 // --- Log ---
 
-func TestLog_New_Good(t *testing.T) {
+func TestLog_New_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	AssertNotNil(t, l)
 }
 
-func TestLog_AllLevels_Good(t *testing.T) {
+func TestLog_AllLevels_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelDebug})
 	l.Debug("debug")
 	l.Info("info")
@@ -22,7 +20,7 @@ func TestLog_AllLevels_Good(t *testing.T) {
 	l.Security("security event")
 }
 
-func TestLog_LevelFiltering_Good(t *testing.T) {
+func TestLog_LevelFiltering_Good(t *T) {
 	// At Error level, Debug/Info/Warn should be suppressed (no panic)
 	l := NewLog(LogOptions{Level: LevelError})
 	l.Debug("suppressed")
@@ -31,32 +29,32 @@ func TestLog_LevelFiltering_Good(t *testing.T) {
 	l.Error("visible")
 }
 
-func TestLog_SetLevel_Good(t *testing.T) {
+func TestLog_SetLevel_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetLevel(LevelDebug)
 	AssertEqual(t, LevelDebug, l.Level())
 }
 
-func TestLog_SetRedactKeys_Good(t *testing.T) {
+func TestLog_SetRedactKeys_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetRedactKeys("password", "token")
 	// Redacted keys should mask values in output
 	l.Info("login", "password", "secret123", "user", "admin")
 }
 
-func TestLog_LevelString_Good(t *testing.T) {
+func TestLog_LevelString_Good(t *T) {
 	AssertEqual(t, "debug", LevelDebug.String())
 	AssertEqual(t, "info", LevelInfo.String())
 	AssertEqual(t, "warn", LevelWarn.String())
 	AssertEqual(t, "error", LevelError.String())
 }
 
-func TestLog_CoreLog_Good(t *testing.T) {
+func TestLog_CoreLog_Good(t *T) {
 	c := New()
 	AssertNotNil(t, c.Log())
 }
 
-func TestLog_ErrorSink_Good(t *testing.T) {
+func TestLog_ErrorSink_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	var sink ErrorSink = l
 	sink.Error("test")
@@ -65,12 +63,12 @@ func TestLog_ErrorSink_Good(t *testing.T) {
 
 // --- Default Logger ---
 
-func TestLog_Default_Good(t *testing.T) {
+func TestLog_Default_Good(t *T) {
 	d := Default()
 	AssertNotNil(t, d)
 }
 
-func TestLog_SetDefault_Good(t *testing.T) {
+func TestLog_SetDefault_Good(t *T) {
 	original := Default()
 	defer SetDefault(original)
 
@@ -79,7 +77,7 @@ func TestLog_SetDefault_Good(t *testing.T) {
 	AssertEqual(t, custom, Default())
 }
 
-func TestLog_PackageLevelFunctions_Good(t *testing.T) {
+func TestLog_PackageLevelFunctions_Good(t *T) {
 	// Package-level log functions use the default logger
 	Debug("debug msg")
 	Info("info msg")
@@ -88,7 +86,7 @@ func TestLog_PackageLevelFunctions_Good(t *testing.T) {
 	Security("security msg")
 }
 
-func TestLog_PackageSetLevel_Good(t *testing.T) {
+func TestLog_PackageSetLevel_Good(t *T) {
 	original := Default()
 	defer SetDefault(original)
 
@@ -96,14 +94,14 @@ func TestLog_PackageSetLevel_Good(t *testing.T) {
 	SetRedactKeys("secret")
 }
 
-func TestLog_Username_Good(t *testing.T) {
+func TestLog_Username_Good(t *T) {
 	u := Username()
 	AssertNotEmpty(t, u)
 }
 
 // --- LogErr ---
 
-func TestLog_LogErr_Good(t *testing.T) {
+func TestLog_LogErr_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	le := NewLogErr(l)
 	AssertNotNil(t, le)
@@ -112,7 +110,7 @@ func TestLog_LogErr_Good(t *testing.T) {
 	le.Log(err)
 }
 
-func TestLog_LogErr_Nil_Good(t *testing.T) {
+func TestLog_LogErr_Nil_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	le := NewLogErr(l)
 	le.Log(nil) // should not panic
@@ -120,13 +118,13 @@ func TestLog_LogErr_Nil_Good(t *testing.T) {
 
 // --- LogPanic ---
 
-func TestLog_LogPanic_Good(t *testing.T) {
+func TestLog_LogPanic_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPanic(l)
 	AssertNotNil(t, lp)
 }
 
-func TestLog_LogPanic_Recover_Good(t *testing.T) {
+func TestLog_LogPanic_Recover_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPanic(l)
 	AssertNotPanics(t, func() {
@@ -137,7 +135,7 @@ func TestLog_LogPanic_Recover_Good(t *testing.T) {
 
 // --- SetOutput ---
 
-func TestLog_SetOutput_Good(t *testing.T) {
+func TestLog_SetOutput_Good(t *T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetOutput(NewBuilder())
 	l.Info("redirected")
@@ -145,7 +143,7 @@ func TestLog_SetOutput_Good(t *testing.T) {
 
 // --- Log suppression by level ---
 
-func TestLog_Quiet_Suppresses_Ugly(t *testing.T) {
+func TestLog_Quiet_Suppresses_Ugly(t *T) {
 	l := NewLog(LogOptions{Level: LevelQuiet})
 	// These should not panic even though nothing is logged
 	l.Debug("suppressed")
@@ -154,7 +152,7 @@ func TestLog_Quiet_Suppresses_Ugly(t *testing.T) {
 	l.Error("suppressed")
 }
 
-func TestLog_ErrorLevel_Suppresses_Ugly(t *testing.T) {
+func TestLog_ErrorLevel_Suppresses_Ugly(t *T) {
 	l := NewLog(LogOptions{Level: LevelError})
 	l.Debug("suppressed") // below threshold
 	l.Info("suppressed")  // below threshold

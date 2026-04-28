@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"embed"
-	"testing"
 
 	. "dappco.re/go/core"
 )
@@ -12,7 +11,7 @@ var testFS embed.FS
 
 // --- Data (Embedded Content Mounts) ---
 
-func mountTestData(t *testing.T, c *Core, name string) {
+func mountTestData(t *T, c *Core, name string) {
 	t.Helper()
 
 	r := c.Data().New(NewOptions(
@@ -23,7 +22,7 @@ func mountTestData(t *testing.T, c *Core, name string) {
 	AssertTrue(t, r.OK)
 }
 
-func TestData_New_Good(t *testing.T) {
+func TestData_New_Good(t *T) {
 	c := New()
 	r := c.Data().New(NewOptions(
 		Option{Key: "name", Value: "test"},
@@ -34,7 +33,7 @@ func TestData_New_Good(t *testing.T) {
 	AssertNotNil(t, r.Value)
 }
 
-func TestData_New_Bad(t *testing.T) {
+func TestData_New_Bad(t *T) {
 	c := New()
 
 	r := c.Data().New(NewOptions(Option{Key: "source", Value: testFS}))
@@ -47,7 +46,7 @@ func TestData_New_Bad(t *testing.T) {
 	AssertFalse(t, r.OK)
 }
 
-func TestData_ReadString_Good(t *testing.T) {
+func TestData_ReadString_Good(t *T) {
 	c := New()
 	mountTestData(t, c, "app")
 	r := c.Data().ReadString("app/test.txt")
@@ -55,13 +54,13 @@ func TestData_ReadString_Good(t *testing.T) {
 	AssertEqual(t, "hello from testdata\n", r.Value.(string))
 }
 
-func TestData_ReadString_Bad(t *testing.T) {
+func TestData_ReadString_Bad(t *T) {
 	c := New()
 	r := c.Data().ReadString("nonexistent/file.txt")
 	AssertFalse(t, r.OK)
 }
 
-func TestData_ReadFile_Good(t *testing.T) {
+func TestData_ReadFile_Good(t *T) {
 	c := New()
 	mountTestData(t, c, "app")
 	r := c.Data().ReadFile("app/test.txt")
@@ -69,7 +68,7 @@ func TestData_ReadFile_Good(t *testing.T) {
 	AssertEqual(t, "hello from testdata\n", string(r.Value.([]byte)))
 }
 
-func TestData_Get_Good(t *testing.T) {
+func TestData_Get_Good(t *T) {
 	c := New()
 	mountTestData(t, c, "brain")
 	gr := c.Data().Get("brain")
@@ -83,13 +82,13 @@ func TestData_Get_Good(t *testing.T) {
 	AssertEqual(t, "hello from testdata\n", cr.Value)
 }
 
-func TestData_Get_Bad(t *testing.T) {
+func TestData_Get_Bad(t *T) {
 	c := New()
 	r := c.Data().Get("nonexistent")
 	AssertFalse(t, r.OK)
 }
 
-func TestData_Mounts_Good(t *testing.T) {
+func TestData_Mounts_Good(t *T) {
 	c := New()
 	mountTestData(t, c, "a")
 	mountTestData(t, c, "b")
@@ -97,20 +96,20 @@ func TestData_Mounts_Good(t *testing.T) {
 	AssertLen(t, mounts, 2)
 }
 
-func TestData_List_Good(t *testing.T) {
+func TestData_List_Good(t *T) {
 	c := New()
 	mountTestData(t, c, "app")
 	r := c.Data().List("app/.")
 	AssertTrue(t, r.OK)
 }
 
-func TestData_List_Bad(t *testing.T) {
+func TestData_List_Bad(t *T) {
 	c := New()
 	r := c.Data().List("nonexistent/path")
 	AssertFalse(t, r.OK)
 }
 
-func TestData_ListNames_Good(t *testing.T) {
+func TestData_ListNames_Good(t *T) {
 	c := New()
 	mountTestData(t, c, "app")
 	r := c.Data().ListNames("app/.")
@@ -118,14 +117,14 @@ func TestData_ListNames_Good(t *testing.T) {
 	AssertContains(t, r.Value.([]string), "test")
 }
 
-func TestData_Extract_Good(t *testing.T) {
+func TestData_Extract_Good(t *T) {
 	c := New()
 	mountTestData(t, c, "app")
 	r := c.Data().Extract("app/.", t.TempDir(), nil)
 	AssertTrue(t, r.OK)
 }
 
-func TestData_Extract_Bad(t *testing.T) {
+func TestData_Extract_Bad(t *T) {
 	c := New()
 	r := c.Data().Extract("nonexistent/path", t.TempDir(), nil)
 	AssertFalse(t, r.OK)

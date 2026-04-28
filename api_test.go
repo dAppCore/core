@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"context"
-	"testing"
 
 	. "dappco.re/go/core"
 )
@@ -37,14 +36,14 @@ func mockFactory(response string) StreamFactory {
 
 // --- API ---
 
-func TestApi_API_Good_Accessor(t *testing.T) {
+func TestApi_API_Good_Accessor(t *T) {
 	c := New()
 	AssertNotNil(t, c.API())
 }
 
 // --- RegisterProtocol ---
 
-func TestApi_RegisterProtocol_Good(t *testing.T) {
+func TestApi_RegisterProtocol_Good(t *T) {
 	c := New()
 	c.API().RegisterProtocol("http", mockFactory("ok"))
 	AssertContains(t, c.API().Protocols(), "http")
@@ -52,7 +51,7 @@ func TestApi_RegisterProtocol_Good(t *testing.T) {
 
 // --- Stream ---
 
-func TestApi_Stream_Good(t *testing.T) {
+func TestApi_Stream_Good(t *T) {
 	c := New()
 	c.API().RegisterProtocol("http", mockFactory("pong"))
 	c.Drive().New(NewOptions(
@@ -71,13 +70,13 @@ func TestApi_Stream_Good(t *testing.T) {
 	stream.Close()
 }
 
-func TestApi_Stream_Bad_EndpointNotFound(t *testing.T) {
+func TestApi_Stream_Bad_EndpointNotFound(t *T) {
 	c := New()
 	r := c.API().Stream("nonexistent")
 	AssertFalse(t, r.OK)
 }
 
-func TestApi_Stream_Bad_NoProtocolHandler(t *testing.T) {
+func TestApi_Stream_Bad_NoProtocolHandler(t *T) {
 	c := New()
 	c.Drive().New(NewOptions(
 		Option{Key: "name", Value: "unknown"},
@@ -90,7 +89,7 @@ func TestApi_Stream_Bad_NoProtocolHandler(t *testing.T) {
 
 // --- Call ---
 
-func TestApi_Call_Good(t *testing.T) {
+func TestApi_Call_Good(t *T) {
 	c := New()
 	c.API().RegisterProtocol("http", mockFactory(`{"status":"ok"}`))
 	c.Drive().New(NewOptions(
@@ -103,7 +102,7 @@ func TestApi_Call_Good(t *testing.T) {
 	AssertContains(t, r.Value.(string), "ok")
 }
 
-func TestApi_Call_Bad_EndpointNotFound(t *testing.T) {
+func TestApi_Call_Bad_EndpointNotFound(t *T) {
 	c := New()
 	r := c.API().Call("missing", "action", NewOptions())
 	AssertFalse(t, r.OK)
@@ -111,7 +110,7 @@ func TestApi_Call_Bad_EndpointNotFound(t *testing.T) {
 
 // --- RemoteAction ---
 
-func TestApi_RemoteAction_Good_Local(t *testing.T) {
+func TestApi_RemoteAction_Good_Local(t *T) {
 	c := New()
 	c.Action("local.action", func(_ context.Context, _ Options) Result {
 		return Result{Value: "local", OK: true}
@@ -122,7 +121,7 @@ func TestApi_RemoteAction_Good_Local(t *testing.T) {
 	AssertEqual(t, "local", r.Value)
 }
 
-func TestApi_RemoteAction_Good_Remote(t *testing.T) {
+func TestApi_RemoteAction_Good_Remote(t *T) {
 	c := New()
 	c.API().RegisterProtocol("http", mockFactory(`{"value":"remote"}`))
 	c.Drive().New(NewOptions(
@@ -135,7 +134,7 @@ func TestApi_RemoteAction_Good_Remote(t *testing.T) {
 	AssertContains(t, r.Value.(string), "remote")
 }
 
-func TestApi_RemoteAction_Ugly_NoColon(t *testing.T) {
+func TestApi_RemoteAction_Ugly_NoColon(t *T) {
 	c := New()
 	// No colon — falls through to local action (which doesn't exist)
 	r := c.RemoteAction("nonexistent", context.Background(), NewOptions())
@@ -144,7 +143,7 @@ func TestApi_RemoteAction_Ugly_NoColon(t *testing.T) {
 
 // --- extractScheme ---
 
-func TestApi_Ugly_SchemeExtraction(t *testing.T) {
+func TestApi_Ugly_SchemeExtraction(t *T) {
 	c := New()
 	// Verify scheme parsing works by registering different protocols
 	c.API().RegisterProtocol("http", mockFactory("http"))

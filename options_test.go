@@ -1,14 +1,12 @@
 package core_test
 
 import (
-	"testing"
-
 	. "dappco.re/go/core"
 )
 
 // --- NewOptions ---
 
-func TestOptions_NewOptions_Good(t *testing.T) {
+func TestOptions_NewOptions_Good(t *T) {
 	opts := NewOptions(
 		Option{Key: "name", Value: "brain"},
 		Option{Key: "port", Value: 8080},
@@ -16,7 +14,7 @@ func TestOptions_NewOptions_Good(t *testing.T) {
 	AssertEqual(t, 2, opts.Len())
 }
 
-func TestOptions_NewOptions_Empty_Good(t *testing.T) {
+func TestOptions_NewOptions_Empty_Good(t *T) {
 	opts := NewOptions()
 	AssertEqual(t, 0, opts.Len())
 	AssertFalse(t, opts.Has("anything"))
@@ -24,13 +22,13 @@ func TestOptions_NewOptions_Empty_Good(t *testing.T) {
 
 // --- Options.Set ---
 
-func TestOptions_Set_Good(t *testing.T) {
+func TestOptions_Set_Good(t *T) {
 	opts := NewOptions()
 	opts.Set("name", "brain")
 	AssertEqual(t, "brain", opts.String("name"))
 }
 
-func TestOptions_Set_Update_Good(t *testing.T) {
+func TestOptions_Set_Update_Good(t *T) {
 	opts := NewOptions(Option{Key: "name", Value: "old"})
 	opts.Set("name", "new")
 	AssertEqual(t, "new", opts.String("name"))
@@ -39,7 +37,7 @@ func TestOptions_Set_Update_Good(t *testing.T) {
 
 // --- Options.Get ---
 
-func TestOptions_Get_Good(t *testing.T) {
+func TestOptions_Get_Good(t *T) {
 	opts := NewOptions(
 		Option{Key: "name", Value: "brain"},
 		Option{Key: "port", Value: 8080},
@@ -49,7 +47,7 @@ func TestOptions_Get_Good(t *testing.T) {
 	AssertEqual(t, "brain", r.Value)
 }
 
-func TestOptions_Get_Bad(t *testing.T) {
+func TestOptions_Get_Bad(t *T) {
 	opts := NewOptions(Option{Key: "name", Value: "brain"})
 	r := opts.Get("missing")
 	AssertFalse(t, r.OK)
@@ -58,7 +56,7 @@ func TestOptions_Get_Bad(t *testing.T) {
 
 // --- Options.Has ---
 
-func TestOptions_Has_Good(t *testing.T) {
+func TestOptions_Has_Good(t *T) {
 	opts := NewOptions(Option{Key: "debug", Value: true})
 	AssertTrue(t, opts.Has("debug"))
 	AssertFalse(t, opts.Has("missing"))
@@ -66,12 +64,12 @@ func TestOptions_Has_Good(t *testing.T) {
 
 // --- Options.String ---
 
-func TestOptions_String_Good(t *testing.T) {
+func TestOptions_String_Good(t *T) {
 	opts := NewOptions(Option{Key: "name", Value: "brain"})
 	AssertEqual(t, "brain", opts.String("name"))
 }
 
-func TestOptions_String_Bad(t *testing.T) {
+func TestOptions_String_Bad(t *T) {
 	opts := NewOptions(Option{Key: "port", Value: 8080})
 	AssertEqual(t, "", opts.String("port"))
 	AssertEqual(t, "", opts.String("missing"))
@@ -79,12 +77,12 @@ func TestOptions_String_Bad(t *testing.T) {
 
 // --- Options.Int ---
 
-func TestOptions_Int_Good(t *testing.T) {
+func TestOptions_Int_Good(t *T) {
 	opts := NewOptions(Option{Key: "port", Value: 8080})
 	AssertEqual(t, 8080, opts.Int("port"))
 }
 
-func TestOptions_Int_Bad(t *testing.T) {
+func TestOptions_Int_Bad(t *T) {
 	opts := NewOptions(Option{Key: "name", Value: "brain"})
 	AssertEqual(t, 0, opts.Int("name"))
 	AssertEqual(t, 0, opts.Int("missing"))
@@ -92,12 +90,12 @@ func TestOptions_Int_Bad(t *testing.T) {
 
 // --- Options.Bool ---
 
-func TestOptions_Bool_Good(t *testing.T) {
+func TestOptions_Bool_Good(t *T) {
 	opts := NewOptions(Option{Key: "debug", Value: true})
 	AssertTrue(t, opts.Bool("debug"))
 }
 
-func TestOptions_Bool_Bad(t *testing.T) {
+func TestOptions_Bool_Bad(t *T) {
 	opts := NewOptions(Option{Key: "name", Value: "brain"})
 	AssertFalse(t, opts.Bool("name"))
 	AssertFalse(t, opts.Bool("missing"))
@@ -105,7 +103,7 @@ func TestOptions_Bool_Bad(t *testing.T) {
 
 // --- Options.Items ---
 
-func TestOptions_Items_Good(t *testing.T) {
+func TestOptions_Items_Good(t *T) {
 	opts := NewOptions(Option{Key: "a", Value: 1}, Option{Key: "b", Value: 2})
 	items := opts.Items()
 	AssertLen(t, items, 2)
@@ -113,7 +111,7 @@ func TestOptions_Items_Good(t *testing.T) {
 
 // --- Options with typed struct ---
 
-func TestOptions_TypedStruct_Good(t *testing.T) {
+func TestOptions_TypedStruct_Good(t *T) {
 	type BrainConfig struct {
 		Name       string
 		OllamaURL  string
@@ -132,41 +130,41 @@ func TestOptions_TypedStruct_Good(t *testing.T) {
 
 // --- Result ---
 
-func TestOptions_Result_New_Good(t *testing.T) {
+func TestOptions_Result_New_Good(t *T) {
 	r := Result{}.New("value")
 	AssertEqual(t, "value", r.Value)
 }
 
-func TestOptions_Result_New_Error_Bad(t *testing.T) {
+func TestOptions_Result_New_Error_Bad(t *T) {
 	err := E("test", "failed", nil)
 	r := Result{}.New(err)
 	AssertFalse(t, r.OK)
 	AssertEqual(t, err, r.Value)
 }
 
-func TestOptions_Result_Result_Good(t *testing.T) {
+func TestOptions_Result_Result_Good(t *T) {
 	r := Result{Value: "hello", OK: true}
 	AssertEqual(t, r, r.Result())
 }
 
-func TestOptions_Result_Result_WithArgs_Good(t *testing.T) {
+func TestOptions_Result_Result_WithArgs_Good(t *T) {
 	r := Result{}.Result("value")
 	AssertEqual(t, "value", r.Value)
 }
 
-func TestOptions_Result_Get_Good(t *testing.T) {
+func TestOptions_Result_Get_Good(t *T) {
 	r := Result{Value: "hello", OK: true}
 	AssertTrue(t, r.Get().OK)
 }
 
-func TestOptions_Result_Get_Bad(t *testing.T) {
+func TestOptions_Result_Get_Bad(t *T) {
 	r := Result{Value: "err", OK: false}
 	AssertFalse(t, r.Get().OK)
 }
 
 // --- WithOption ---
 
-func TestOptions_WithOption_Good(t *testing.T) {
+func TestOptions_WithOption_Good(t *T) {
 	c := New(
 		WithOption("name", "myapp"),
 		WithOption("port", 8080),

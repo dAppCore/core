@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"bytes"
-	"testing"
 
 	. "dappco.re/go/core"
 )
@@ -13,19 +12,19 @@ func (failingWriter) Write(_ []byte) (int, error) {
 	return 0, E("test.failingWriter", "write failed", nil)
 }
 
-func TestTable_NewTable_Good(t *testing.T) {
+func TestTable_NewTable_Good(t *T) {
 	var out bytes.Buffer
 
 	AssertNotNil(t, NewTable(&out))
 }
 
-func TestTable_NewTable_Bad(t *testing.T) {
+func TestTable_NewTable_Bad(t *T) {
 	table := NewTable(nil)
 
 	AssertError(t, table.Flush())
 }
 
-func TestTable_NewTable_Ugly(t *testing.T) {
+func TestTable_NewTable_Ugly(t *T) {
 	var out bytes.Buffer
 	table := NewTable(&out)
 
@@ -33,7 +32,7 @@ func TestTable_NewTable_Ugly(t *testing.T) {
 	AssertContains(t, out.String(), "Name")
 }
 
-func TestTable_Row_Good(t *testing.T) {
+func TestTable_Row_Good(t *T) {
 	var out bytes.Buffer
 	table := NewTable(&out)
 
@@ -43,7 +42,7 @@ func TestTable_Row_Good(t *testing.T) {
 	AssertContains(t, out.String(), "Status")
 }
 
-func TestTable_Row_Bad(t *testing.T) {
+func TestTable_Row_Bad(t *T) {
 	var out bytes.Buffer
 	table := NewTable(&out)
 
@@ -52,7 +51,7 @@ func TestTable_Row_Bad(t *testing.T) {
 	AssertEqual(t, "\n", out.String())
 }
 
-func TestTable_Row_Ugly(t *testing.T) {
+func TestTable_Row_Ugly(t *T) {
 	var out bytes.Buffer
 	table := NewTable(&out)
 
@@ -62,7 +61,7 @@ func TestTable_Row_Ugly(t *testing.T) {
 	AssertContains(t, out.String(), "ok")
 }
 
-func TestTable_Flush_Good(t *testing.T) {
+func TestTable_Flush_Good(t *T) {
 	var out bytes.Buffer
 
 	err := NewTable(&out).Row("A", "B").Flush()
@@ -71,13 +70,13 @@ func TestTable_Flush_Good(t *testing.T) {
 	AssertContains(t, out.String(), "A")
 }
 
-func TestTable_Flush_Bad(t *testing.T) {
+func TestTable_Flush_Bad(t *T) {
 	table := NewTable(failingWriter{})
 
 	AssertError(t, table.Row("A").Flush())
 }
 
-func TestTable_Flush_Ugly(t *testing.T) {
+func TestTable_Flush_Ugly(t *T) {
 	var out bytes.Buffer
 	table := NewTable(&out).Row("A")
 

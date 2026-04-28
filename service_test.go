@@ -2,33 +2,32 @@ package core_test
 
 import (
 	"context"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
 // --- Service Registration ---
 
-func TestService_Register_Good(t *testing.T) {
+func TestService_Register_Good(t *T) {
 	c := New()
 	r := c.Service("auth", Service{})
 	AssertTrue(t, r.OK)
 }
 
-func TestService_Register_Duplicate_Bad(t *testing.T) {
+func TestService_Register_Duplicate_Bad(t *T) {
 	c := New()
 	c.Service("auth", Service{})
 	r := c.Service("auth", Service{})
 	AssertFalse(t, r.OK)
 }
 
-func TestService_Register_Empty_Bad(t *testing.T) {
+func TestService_Register_Empty_Bad(t *T) {
 	c := New()
 	r := c.Service("", Service{})
 	AssertFalse(t, r.OK)
 }
 
-func TestService_Get_Good(t *testing.T) {
+func TestService_Get_Good(t *T) {
 	c := New()
 	c.Service("brain", Service{OnStart: func() Result { return Result{OK: true} }})
 	r := c.Service("brain")
@@ -36,13 +35,13 @@ func TestService_Get_Good(t *testing.T) {
 	AssertNotNil(t, r.Value)
 }
 
-func TestService_Get_Bad(t *testing.T) {
+func TestService_Get_Bad(t *T) {
 	c := New()
 	r := c.Service("nonexistent")
 	AssertFalse(t, r.OK)
 }
 
-func TestService_Names_Good(t *testing.T) {
+func TestService_Names_Good(t *T) {
 	c := New()
 	c.Service("a", Service{})
 	c.Service("b", Service{})
@@ -54,7 +53,7 @@ func TestService_Names_Good(t *testing.T) {
 
 // --- Service Lifecycle ---
 
-func TestService_Lifecycle_Good(t *testing.T) {
+func TestService_Lifecycle_Good(t *T) {
 	c := New()
 	started := false
 	stopped := false
@@ -99,8 +98,8 @@ func (s *autoLifecycleService) HandleIPCEvents(_ *Core, msg Message) Result {
 	return Result{OK: true}
 }
 
-func TestService_RegisterService_Bad(t *testing.T) {
-	t.Run("EmptyName", func(t *testing.T) {
+func TestService_RegisterService_Bad(t *T) {
+	t.Run("EmptyName", func(t *T) {
 		c := New()
 		r := c.RegisterService("", "value")
 		AssertFalse(t, r.OK)
@@ -112,7 +111,7 @@ func TestService_RegisterService_Bad(t *testing.T) {
 		}
 	})
 
-	t.Run("DuplicateName", func(t *testing.T) {
+	t.Run("DuplicateName", func(t *T) {
 		c := New()
 		AssertTrue(t, c.RegisterService("svc", "first").OK)
 
@@ -120,7 +119,7 @@ func TestService_RegisterService_Bad(t *testing.T) {
 		AssertFalse(t, r.OK)
 	})
 
-	t.Run("LockedRegistry", func(t *testing.T) {
+	t.Run("LockedRegistry", func(t *T) {
 		c := New()
 		c.LockEnable()
 		c.LockApply()
@@ -130,8 +129,8 @@ func TestService_RegisterService_Bad(t *testing.T) {
 	})
 }
 
-func TestService_RegisterService_Ugly(t *testing.T) {
-	t.Run("AutoDiscoversLifecycleAndIPCHandlers", func(t *testing.T) {
+func TestService_RegisterService_Ugly(t *T) {
+	t.Run("AutoDiscoversLifecycleAndIPCHandlers", func(t *T) {
 		c := New()
 		svc := &autoLifecycleService{}
 
@@ -145,7 +144,7 @@ func TestService_RegisterService_Ugly(t *testing.T) {
 		AssertContains(t, svc.messages, Message("ping"))
 	})
 
-	t.Run("NilInstanceReturnsServiceDTO", func(t *testing.T) {
+	t.Run("NilInstanceReturnsServiceDTO", func(t *T) {
 		c := New()
 		AssertTrue(t, c.RegisterService("nil", nil).OK)
 
@@ -162,13 +161,13 @@ func TestService_RegisterService_Ugly(t *testing.T) {
 	})
 }
 
-func TestService_ServiceFor_Bad(t *testing.T) {
+func TestService_ServiceFor_Bad(t *T) {
 	typed, ok := ServiceFor[string](New(), "missing")
 	AssertFalse(t, ok)
 	AssertEqual(t, "", typed)
 }
 
-func TestService_ServiceFor_Ugly(t *testing.T) {
+func TestService_ServiceFor_Ugly(t *T) {
 	c := New()
 	AssertTrue(t, c.RegisterService("value", "hello").OK)
 
@@ -177,14 +176,14 @@ func TestService_ServiceFor_Ugly(t *testing.T) {
 	AssertEqual(t, 0, typed)
 }
 
-func TestService_MustServiceFor_Bad(t *testing.T) {
+func TestService_MustServiceFor_Bad(t *T) {
 	c := New()
 	AssertPanicsWithError(t, `core.MustServiceFor: service "missing" not found or wrong type`, func() {
 		_ = MustServiceFor[string](c, "missing")
 	})
 }
 
-func TestService_MustServiceFor_Ugly(t *testing.T) {
+func TestService_MustServiceFor_Ugly(t *T) {
 	var c *Core
 	AssertPanics(t, func() {
 		_ = MustServiceFor[string](c, "missing")

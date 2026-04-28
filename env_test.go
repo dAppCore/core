@@ -5,12 +5,11 @@ package core_test
 import (
 	"os"
 	"strings"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
-func TestEnv_Setenv_Good(t *testing.T) {
+func TestEnv_Setenv_Good(t *T) {
 	key := envTestKey(t, "GOOD")
 	t.Cleanup(func() {
 		RequireNoError(t, os.Unsetenv(key))
@@ -20,12 +19,12 @@ func TestEnv_Setenv_Good(t *testing.T) {
 	AssertEqual(t, "ok", Env(key))
 }
 
-func TestEnv_Setenv_Bad(t *testing.T) {
+func TestEnv_Setenv_Bad(t *T) {
 	err := Setenv("CORE_GO_BAD=KEY", "bad")
 	AssertError(t, err)
 }
 
-func TestEnv_Setenv_Ugly(t *testing.T) {
+func TestEnv_Setenv_Ugly(t *T) {
 	key := envTestKey(t, "UGLY")
 	t.Cleanup(func() {
 		RequireNoError(t, os.Unsetenv(key))
@@ -37,7 +36,7 @@ func TestEnv_Setenv_Ugly(t *testing.T) {
 	AssertEqual(t, "", value)
 }
 
-func TestEnv_UnsetEnv_Good(t *testing.T) {
+func TestEnv_UnsetEnv_Good(t *T) {
 	key := envTestKey(t, "GOOD")
 	RequireNoError(t, os.Setenv(key, "set"))
 	t.Cleanup(func() {
@@ -50,7 +49,7 @@ func TestEnv_UnsetEnv_Good(t *testing.T) {
 	AssertEqual(t, "", Env(key))
 }
 
-func TestEnv_UnsetEnv_Bad(t *testing.T) {
+func TestEnv_UnsetEnv_Bad(t *T) {
 	key := envTestKey(t, "BAD")
 	RequireNoError(t, os.Setenv(key, "set"))
 	t.Cleanup(func() {
@@ -61,7 +60,7 @@ func TestEnv_UnsetEnv_Bad(t *testing.T) {
 	AssertEqual(t, "set", Env(key))
 }
 
-func TestEnv_UnsetEnv_Ugly(t *testing.T) {
+func TestEnv_UnsetEnv_Ugly(t *T) {
 	key := envTestKey(t, "UGLY")
 	RequireNoError(t, os.Unsetenv(key))
 
@@ -70,7 +69,7 @@ func TestEnv_UnsetEnv_Ugly(t *testing.T) {
 	AssertFalse(t, ok)
 }
 
-func envTestKey(t *testing.T, suffix string) string {
+func envTestKey(t *T, suffix string) string {
 	t.Helper()
 
 	name := strings.NewReplacer("/", "_", " ", "_", "=", "_").Replace(t.Name())

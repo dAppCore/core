@@ -1,14 +1,12 @@
 package core_test
 
 import (
-	"testing"
-
 	. "dappco.re/go/core"
 )
 
 // --- Drive (Transport Handles) ---
 
-func TestDrive_New_Good(t *testing.T) {
+func TestDrive_New_Good(t *T) {
 	c := New()
 	r := c.Drive().New(NewOptions(
 		Option{Key: "name", Value: "api"},
@@ -19,7 +17,7 @@ func TestDrive_New_Good(t *testing.T) {
 	AssertEqual(t, "https://api.lthn.ai", r.Value.(*DriveHandle).Transport)
 }
 
-func TestDrive_New_Bad(t *testing.T) {
+func TestDrive_New_Bad(t *T) {
 	c := New()
 	// Missing name
 	r := c.Drive().New(NewOptions(
@@ -28,7 +26,7 @@ func TestDrive_New_Bad(t *testing.T) {
 	AssertFalse(t, r.OK)
 }
 
-func TestDrive_Get_Good(t *testing.T) {
+func TestDrive_Get_Good(t *T) {
 	c := New()
 	c.Drive().New(NewOptions(
 		Option{Key: "name", Value: "ssh"},
@@ -40,20 +38,20 @@ func TestDrive_Get_Good(t *testing.T) {
 	AssertEqual(t, "ssh://claude@10.69.69.165", handle.Transport)
 }
 
-func TestDrive_Get_Bad(t *testing.T) {
+func TestDrive_Get_Bad(t *T) {
 	c := New()
 	r := c.Drive().Get("nonexistent")
 	AssertFalse(t, r.OK)
 }
 
-func TestDrive_Has_Good(t *testing.T) {
+func TestDrive_Has_Good(t *T) {
 	c := New()
 	c.Drive().New(NewOptions(Option{Key: "name", Value: "mcp"}, Option{Key: "transport", Value: "mcp://mcp.lthn.sh"}))
 	AssertTrue(t, c.Drive().Has("mcp"))
 	AssertFalse(t, c.Drive().Has("missing"))
 }
 
-func TestDrive_Names_Good(t *testing.T) {
+func TestDrive_Names_Good(t *T) {
 	c := New()
 	c.Drive().New(NewOptions(Option{Key: "name", Value: "api"}, Option{Key: "transport", Value: "https://api.lthn.ai"}))
 	c.Drive().New(NewOptions(Option{Key: "name", Value: "ssh"}, Option{Key: "transport", Value: "ssh://claude@10.69.69.165"}))
@@ -65,7 +63,7 @@ func TestDrive_Names_Good(t *testing.T) {
 	AssertContains(t, names, "mcp")
 }
 
-func TestDrive_OptionsPreserved_Good(t *testing.T) {
+func TestDrive_OptionsPreserved_Good(t *T) {
 	c := New()
 	c.Drive().New(NewOptions(
 		Option{Key: "name", Value: "api"},

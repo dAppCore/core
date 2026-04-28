@@ -1,7 +1,6 @@
 package core_test
 
 import (
-
 	. "dappco.re/go/core"
 )
 
@@ -34,4 +33,3 @@ func ExampleCleanPath() {
 	// a/c
 	// deploy/to/homelab
 }
-

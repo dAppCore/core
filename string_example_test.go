@@ -1,7 +1,6 @@
 package core_test
 
 import (
-
 	. "dappco.re/go/core"
 )
 

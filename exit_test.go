@@ -3,14 +3,13 @@ package core
 import (
 	"errors"
 	"sync"
-	"testing"
 	"time"
 )
 
 // captureExit swaps the package-level osExit hook for the duration of the test.
 // Returns (captured-code, restore-func). The captured code defaults to -1 so
 // tests can distinguish "not called" from "called with 0".
-func captureExit(t *testing.T) (codePtr *int, restore func()) {
+func captureExit(t *T) (codePtr *int, restore func()) {
 	t.Helper()
 	captured := -1
 	codePtr = &captured
@@ -25,7 +24,7 @@ func blockShutdown(c *Core) func() {
 	return func() { once.Do(c.waitGroup.Done) }
 }
 
-func waitForExitWithCleanup(t *testing.T, done <-chan struct{}, release func(), timeout time.Duration, msg string) {
+func waitForExitWithCleanup(t *T, done <-chan struct{}, release func(), timeout time.Duration, msg string) {
 	t.Helper()
 	select {
 	case <-done:
@@ -39,7 +38,7 @@ func waitForExitWithCleanup(t *testing.T, done <-chan struct{}, release func(), 
 	}
 }
 
-func TestExit_Exit_Good(t *testing.T) {
+func TestExit_Exit_Good(t *T) {
 	got, restore := captureExit(t)
 	defer restore()
 
@@ -49,7 +48,7 @@ func TestExit_Exit_Good(t *testing.T) {
 	AssertEqual(t, 0, *got)
 }
 
-func TestExit_Exit_Bad(t *testing.T) {
+func TestExit_Exit_Bad(t *T) {
 	// Bad: caller passes a non-zero code via a fatal error path.
 	// Recoverable boundary: we observe the captured code, no process death.
 	got, restore := captureExit(t)
@@ -61,7 +60,7 @@ func TestExit_Exit_Bad(t *testing.T) {
 	AssertEqual(t, 127, *got)
 }
 
-func TestExit_Exit_Ugly(t *testing.T) {
+func TestExit_Exit_Ugly(t *T) {
 	// Ugly: Exit called twice (e.g. signal handler races user-triggered exit).
 	// Both calls land; second wins. ServiceShutdown is idempotent.
 	got, restore := captureExit(t)
@@ -74,7 +73,7 @@ func TestExit_Exit_Ugly(t *testing.T) {
 	AssertEqual(t, 2, *got)
 }
 
-func TestExit_ExitWith_Good(t *testing.T) {
+func TestExit_ExitWith_Good(t *T) {
 	got, restore := captureExit(t)
 	defer restore()
 
@@ -84,7 +83,7 @@ func TestExit_ExitWith_Good(t *testing.T) {
 	AssertEqual(t, 5, *got)
 }
 
-func TestExit_ExitWith_Bad(t *testing.T) {
+func TestExit_ExitWith_Bad(t *T) {
 	// Bad: zero timeout = wait forever. With a registered service whose OnStop
 	// returns immediately, ServiceShutdown completes; Exit lands.
 	got, restore := captureExit(t)
@@ -96,7 +95,7 @@ func TestExit_ExitWith_Bad(t *testing.T) {
 	AssertEqual(t, 9, *got)
 }
 
-func TestExitWith_NegativeTimeout_Bad(t *testing.T) {
+func TestExitWith_NegativeTimeout_Bad(t *T) {
 	got, restore := captureExit(t)
 	defer restore()
 
@@ -119,7 +118,7 @@ func TestExitWith_NegativeTimeout_Bad(t *testing.T) {
 	AssertLess(t, elapsed, 100*time.Millisecond)
 }
 
-func TestExitWith_ZeroTimeout_Good(t *testing.T) {
+func TestExitWith_ZeroTimeout_Good(t *T) {
 	got, restore := captureExit(t)
 	defer restore()
 
@@ -146,7 +145,7 @@ func TestExitWith_ZeroTimeout_Good(t *testing.T) {
 	AssertEqual(t, 8, *got)
 }
 
-func TestExitWith_PositiveTimeout_Good(t *testing.T) {
+func TestExitWith_PositiveTimeout_Good(t *T) {
 	got, restore := captureExit(t)
 	defer restore()
 
@@ -170,7 +169,7 @@ func TestExitWith_PositiveTimeout_Good(t *testing.T) {
 	AssertLess(t, elapsed, 500*time.Millisecond)
 }
 
-func TestExit_ExitWith_Ugly(t *testing.T) {
+func TestExit_ExitWith_Ugly(t *T) {
 	// Ugly: shutdown takes longer than the timeout. Service blocks for 200ms,
 	// timeout is 10ms — process exits with the warning logged, no panic.
 	got, restore := captureExit(t)
@@ -190,7 +189,7 @@ func TestExit_ExitWith_Ugly(t *testing.T) {
 		"ExitWith must respect the timeout, not wait for slow shutdown")
 }
 
-func TestExit_ExitNow_Good(t *testing.T) {
+func TestExit_ExitNow_Good(t *T) {
 	got, restore := captureExit(t)
 	defer restore()
 
@@ -200,7 +199,7 @@ func TestExit_ExitNow_Good(t *testing.T) {
 	AssertEqual(t, 0, *got)
 }
 
-func TestExit_ExitNow_Bad(t *testing.T) {
+func TestExit_ExitNow_Bad(t *T) {
 	// Bad: ExitNow called from a panic recovery path with non-zero code.
 	got, restore := captureExit(t)
 	defer restore()
@@ -216,7 +215,7 @@ func TestExit_ExitNow_Bad(t *testing.T) {
 	AssertEqual(t, 2, *got)
 }
 
-func TestExit_ExitNow_Ugly(t *testing.T) {
+func TestExit_ExitNow_Ugly(t *T) {
 	// Ugly: ExitNow does NOT run shutdown — verify the OnStop hook is NOT called.
 	got, restore := captureExit(t)
 	defer restore()
@@ -234,7 +233,7 @@ func TestExit_ExitNow_Ugly(t *testing.T) {
 		"ExitNow must skip the shutdown chain — OnStop must not run")
 }
 
-func TestExit_PackageExit_Good(t *testing.T) {
+func TestExit_PackageExit_Good(t *T) {
 	got, restore := captureExit(t)
 	defer restore()
 
@@ -243,7 +242,7 @@ func TestExit_PackageExit_Good(t *testing.T) {
 	AssertEqual(t, 0, *got)
 }
 
-func TestExit_PackageExit_Bad(t *testing.T) {
+func TestExit_PackageExit_Bad(t *T) {
 	// Bad: package-level Exit called with non-zero code from cli error helper.
 	got, restore := captureExit(t)
 	defer restore()
@@ -253,7 +252,7 @@ func TestExit_PackageExit_Bad(t *testing.T) {
 	AssertEqual(t, 1, *got)
 }
 
-func TestExit_PackageExit_Ugly(t *testing.T) {
+func TestExit_PackageExit_Ugly(t *T) {
 	// Ugly: package-level Exit called repeatedly. Each call lands.
 	got, restore := captureExit(t)
 	defer restore()

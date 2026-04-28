@@ -1,14 +1,12 @@
 package core_test
 
 import (
-	"testing"
-
 	. "dappco.re/go/core"
 )
 
 // --- Config ---
 
-func TestConfig_SetGet_Good(t *testing.T) {
+func TestConfig_SetGet_Good(t *T) {
 	c := New()
 	c.Config().Set("api_url", "https://api.lthn.ai")
 	c.Config().Set("max_agents", 5)
@@ -18,14 +16,14 @@ func TestConfig_SetGet_Good(t *testing.T) {
 	AssertEqual(t, "https://api.lthn.ai", r.Value)
 }
 
-func TestConfig_Get_Bad(t *testing.T) {
+func TestConfig_Get_Bad(t *T) {
 	c := New()
 	r := c.Config().Get("missing")
 	AssertFalse(t, r.OK)
 	AssertNil(t, r.Value)
 }
 
-func TestConfig_TypedAccessors_Good(t *testing.T) {
+func TestConfig_TypedAccessors_Good(t *T) {
 	c := New()
 	c.Config().Set("url", "https://lthn.ai")
 	c.Config().Set("port", 8080)
@@ -36,7 +34,7 @@ func TestConfig_TypedAccessors_Good(t *testing.T) {
 	AssertTrue(t, c.Config().Bool("debug"))
 }
 
-func TestConfig_TypedAccessors_Bad(t *testing.T) {
+func TestConfig_TypedAccessors_Bad(t *T) {
 	c := New()
 	// Missing keys return zero values
 	AssertEqual(t, "", c.Config().String("missing"))
@@ -46,7 +44,7 @@ func TestConfig_TypedAccessors_Bad(t *testing.T) {
 
 // --- Feature Flags ---
 
-func TestConfig_Features_Good(t *testing.T) {
+func TestConfig_Features_Good(t *T) {
 	c := New()
 	c.Config().Enable("dark-mode")
 	c.Config().Enable("beta")
@@ -56,7 +54,7 @@ func TestConfig_Features_Good(t *testing.T) {
 	AssertFalse(t, c.Config().Enabled("missing"))
 }
 
-func TestConfig_Features_Disable_Good(t *testing.T) {
+func TestConfig_Features_Disable_Good(t *T) {
 	c := New()
 	c.Config().Enable("feature")
 	AssertTrue(t, c.Config().Enabled("feature"))
@@ -65,14 +63,14 @@ func TestConfig_Features_Disable_Good(t *testing.T) {
 	AssertFalse(t, c.Config().Enabled("feature"))
 }
 
-func TestConfig_Features_CaseSensitive(t *testing.T) {
+func TestConfig_Features_CaseSensitive(t *T) {
 	c := New()
 	c.Config().Enable("Feature")
 	AssertTrue(t, c.Config().Enabled("Feature"))
 	AssertFalse(t, c.Config().Enabled("feature"))
 }
 
-func TestConfig_EnabledFeatures_Good(t *testing.T) {
+func TestConfig_EnabledFeatures_Good(t *T) {
 	c := New()
 	c.Config().Enable("a")
 	c.Config().Enable("b")
@@ -87,7 +85,7 @@ func TestConfig_EnabledFeatures_Good(t *testing.T) {
 
 // --- ConfigVar ---
 
-func TestConfig_ConfigVar_Good(t *testing.T) {
+func TestConfig_ConfigVar_Good(t *T) {
 	v := NewConfigVar("hello")
 	AssertTrue(t, v.IsSet())
 	AssertEqual(t, "hello", v.Get())

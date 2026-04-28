@@ -1,14 +1,12 @@
 package core_test
 
 import (
-	"testing"
-
 	. "dappco.re/go/core"
 )
 
 // --- Command DTO ---
 
-func TestCommand_Register_Good(t *testing.T) {
+func TestCommand_Register_Good(t *T) {
 	c := New()
 	r := c.Command("deploy", Command{Action: func(_ Options) Result {
 		return Result{Value: "deployed", OK: true}
@@ -16,7 +14,7 @@ func TestCommand_Register_Good(t *testing.T) {
 	AssertTrue(t, r.OK)
 }
 
-func TestCommand_Get_Good(t *testing.T) {
+func TestCommand_Get_Good(t *T) {
 	c := New()
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	r := c.Command("deploy")
@@ -24,13 +22,13 @@ func TestCommand_Get_Good(t *testing.T) {
 	AssertNotNil(t, r.Value)
 }
 
-func TestCommand_Get_Bad(t *testing.T) {
+func TestCommand_Get_Bad(t *T) {
 	c := New()
 	r := c.Command("nonexistent")
 	AssertFalse(t, r.OK)
 }
 
-func TestCommand_Run_Good(t *testing.T) {
+func TestCommand_Run_Good(t *T) {
 	c := New()
 	c.Command("greet", Command{Action: func(opts Options) Result {
 		return Result{Value: Concat("hello ", opts.String("name")), OK: true}
@@ -41,7 +39,7 @@ func TestCommand_Run_Good(t *testing.T) {
 	AssertEqual(t, "hello world", r.Value)
 }
 
-func TestCommand_Run_NoAction_Good(t *testing.T) {
+func TestCommand_Run_NoAction_Good(t *T) {
 	c := New()
 	c.Command("empty", Command{Description: "no action"})
 	cmd := c.Command("empty").Value.(*Command)
@@ -51,7 +49,7 @@ func TestCommand_Run_NoAction_Good(t *testing.T) {
 
 // --- Nested Commands ---
 
-func TestCommand_Nested_Good(t *testing.T) {
+func TestCommand_Nested_Good(t *T) {
 	c := New()
 	c.Command("deploy/to/homelab", Command{Action: func(_ Options) Result {
 		return Result{Value: "deployed to homelab", OK: true}
@@ -65,7 +63,7 @@ func TestCommand_Nested_Good(t *testing.T) {
 	AssertTrue(t, c.Command("deploy/to").OK)
 }
 
-func TestCommand_Paths_Good(t *testing.T) {
+func TestCommand_Paths_Good(t *T) {
 	c := New()
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Command("serve", Command{Action: func(_ Options) Result { return Result{OK: true} }})
@@ -80,21 +78,21 @@ func TestCommand_Paths_Good(t *testing.T) {
 
 // --- I18n Key Derivation ---
 
-func TestCommand_I18nKey_Good(t *testing.T) {
+func TestCommand_I18nKey_Good(t *T) {
 	c := New()
 	c.Command("deploy/to/homelab", Command{})
 	cmd := c.Command("deploy/to/homelab").Value.(*Command)
 	AssertEqual(t, "cmd.deploy.to.homelab.description", cmd.I18nKey())
 }
 
-func TestCommand_I18nKey_Custom_Good(t *testing.T) {
+func TestCommand_I18nKey_Custom_Good(t *T) {
 	c := New()
 	c.Command("deploy", Command{Description: "custom.deploy.key"})
 	cmd := c.Command("deploy").Value.(*Command)
 	AssertEqual(t, "custom.deploy.key", cmd.I18nKey())
 }
 
-func TestCommand_I18nKey_Simple_Good(t *testing.T) {
+func TestCommand_I18nKey_Simple_Good(t *T) {
 	c := New()
 	c.Command("serve", Command{})
 	cmd := c.Command("serve").Value.(*Command)
@@ -103,7 +101,7 @@ func TestCommand_I18nKey_Simple_Good(t *testing.T) {
 
 // --- Managed ---
 
-func TestCommand_IsManaged_Good(t *testing.T) {
+func TestCommand_IsManaged_Good(t *T) {
 	c := New()
 	c.Command("serve", Command{
 		Action:  func(_ Options) Result { return Result{Value: "running", OK: true} },
@@ -113,7 +111,7 @@ func TestCommand_IsManaged_Good(t *testing.T) {
 	AssertTrue(t, cmd.IsManaged())
 }
 
-func TestCommand_IsManaged_Bad_NotManaged(t *testing.T) {
+func TestCommand_IsManaged_Bad_NotManaged(t *T) {
 	c := New()
 	c.Command("deploy", Command{
 		Action: func(_ Options) Result { return Result{OK: true} },
@@ -122,14 +120,14 @@ func TestCommand_IsManaged_Bad_NotManaged(t *testing.T) {
 	AssertFalse(t, cmd.IsManaged())
 }
 
-func TestCommand_Duplicate_Bad(t *testing.T) {
+func TestCommand_Duplicate_Bad(t *T) {
 	c := New()
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	r := c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	AssertFalse(t, r.OK)
 }
 
-func TestCommand_InvalidPath_Bad(t *testing.T) {
+func TestCommand_InvalidPath_Bad(t *T) {
 	c := New()
 	AssertFalse(t, c.Command("/leading", Command{}).OK)
 	AssertFalse(t, c.Command("trailing/", Command{}).OK)
@@ -138,7 +136,7 @@ func TestCommand_InvalidPath_Bad(t *testing.T) {
 
 // --- Cli Run with Managed ---
 
-func TestCli_Run_Managed_Good(t *testing.T) {
+func TestCli_Run_Managed_Good(t *T) {
 	c := New()
 	ran := false
 	c.Command("serve", Command{
@@ -150,7 +148,7 @@ func TestCli_Run_Managed_Good(t *testing.T) {
 	AssertTrue(t, ran)
 }
 
-func TestCli_Run_NoAction_Bad(t *testing.T) {
+func TestCli_Run_NoAction_Bad(t *T) {
 	c := New()
 	c.Command("empty", Command{})
 	r := c.Cli().Run("empty")
@@ -159,7 +157,7 @@ func TestCli_Run_NoAction_Bad(t *testing.T) {
 
 // --- Empty path ---
 
-func TestCommand_EmptyPath_Bad(t *testing.T) {
+func TestCommand_EmptyPath_Bad(t *T) {
 	c := New()
 	r := c.Command("", Command{})
 	AssertFalse(t, r.OK)

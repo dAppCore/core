@@ -3,7 +3,6 @@ package core_test
 import (
 	"context"
 	"sync"
-	"testing"
 	"time"
 
 	. "dappco.re/go/core"
@@ -11,7 +10,7 @@ import (
 
 // --- PerformAsync ---
 
-func TestTask_PerformAsync_Good(t *testing.T) {
+func TestTask_PerformAsync_Good(t *T) {
 	c := New()
 	var mu sync.Mutex
 	var result string
@@ -34,7 +33,7 @@ func TestTask_PerformAsync_Good(t *testing.T) {
 	mu.Unlock()
 }
 
-func TestTask_PerformAsync_Good_Progress(t *testing.T) {
+func TestTask_PerformAsync_Good_Progress(t *T) {
 	c := New()
 	c.Action("tracked", func(_ context.Context, _ Options) Result {
 		return Result{OK: true}
@@ -45,7 +44,7 @@ func TestTask_PerformAsync_Good_Progress(t *testing.T) {
 	c.Progress(taskID, 0.5, "halfway", "tracked")
 }
 
-func TestTask_PerformAsync_Good_Completion(t *testing.T) {
+func TestTask_PerformAsync_Good_Completion(t *T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
 
@@ -71,7 +70,7 @@ func TestTask_PerformAsync_Good_Completion(t *testing.T) {
 	}
 }
 
-func TestTask_PerformAsync_Bad_ActionNotRegistered(t *testing.T) {
+func TestTask_PerformAsync_Bad_ActionNotRegistered(t *T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
 
@@ -92,7 +91,7 @@ func TestTask_PerformAsync_Bad_ActionNotRegistered(t *testing.T) {
 	}
 }
 
-func TestTask_PerformAsync_Bad_AfterShutdown(t *testing.T) {
+func TestTask_PerformAsync_Bad_AfterShutdown(t *T) {
 	c := New()
 	c.Action("work", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 
@@ -105,7 +104,7 @@ func TestTask_PerformAsync_Bad_AfterShutdown(t *testing.T) {
 
 // --- RegisterAction + RegisterActions (broadcast handlers) ---
 
-func TestTask_RegisterAction_Good(t *testing.T) {
+func TestTask_RegisterAction_Good(t *T) {
 	c := New()
 	called := false
 	c.RegisterAction(func(_ *Core, _ Message) Result {
@@ -116,7 +115,7 @@ func TestTask_RegisterAction_Good(t *testing.T) {
 	AssertTrue(t, called)
 }
 
-func TestTask_RegisterActions_Good(t *testing.T) {
+func TestTask_RegisterActions_Good(t *T) {
 	c := New()
 	count := 0
 	h := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }

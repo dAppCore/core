@@ -2,14 +2,13 @@ package core_test
 
 import (
 	"io/fs"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
 // --- Fs (Sandboxed Filesystem) ---
 
-func TestFs_WriteRead_Good(t *testing.T) {
+func TestFs_WriteRead_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 
@@ -21,13 +20,13 @@ func TestFs_WriteRead_Good(t *testing.T) {
 	AssertEqual(t, "hello core", r.Value.(string))
 }
 
-func TestFs_Read_Bad(t *testing.T) {
+func TestFs_Read_Bad(t *T) {
 	c := New()
 	r := c.Fs().Read("/nonexistent/path/to/file.txt")
 	AssertFalse(t, r.OK)
 }
 
-func TestFs_EnsureDir_Good(t *testing.T) {
+func TestFs_EnsureDir_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "sub", "dir")
@@ -35,7 +34,7 @@ func TestFs_EnsureDir_Good(t *testing.T) {
 	AssertTrue(t, c.Fs().IsDir(path))
 }
 
-func TestFs_IsDir_Good(t *testing.T) {
+func TestFs_IsDir_Good(t *T) {
 	c := New()
 	dir := t.TempDir()
 	AssertTrue(t, c.Fs().IsDir(dir))
@@ -43,7 +42,7 @@ func TestFs_IsDir_Good(t *testing.T) {
 	AssertFalse(t, c.Fs().IsDir(""))
 }
 
-func TestFs_IsFile_Good(t *testing.T) {
+func TestFs_IsFile_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "test.txt")
@@ -53,7 +52,7 @@ func TestFs_IsFile_Good(t *testing.T) {
 	AssertFalse(t, c.Fs().IsFile(""))
 }
 
-func TestFs_Exists_Good(t *testing.T) {
+func TestFs_Exists_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "exists.txt")
@@ -63,7 +62,7 @@ func TestFs_Exists_Good(t *testing.T) {
 	AssertFalse(t, c.Fs().Exists(Path(dir, "nope")))
 }
 
-func TestFs_List_Good(t *testing.T) {
+func TestFs_List_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	c.Fs().Write(Path(dir, "a.txt"), "a")
@@ -73,7 +72,7 @@ func TestFs_List_Good(t *testing.T) {
 	AssertLen(t, r.Value.([]fs.DirEntry), 2)
 }
 
-func TestFs_Stat_Good(t *testing.T) {
+func TestFs_Stat_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "stat.txt")
@@ -83,7 +82,7 @@ func TestFs_Stat_Good(t *testing.T) {
 	AssertEqual(t, "stat.txt", r.Value.(fs.FileInfo).Name())
 }
 
-func TestFs_Open_Good(t *testing.T) {
+func TestFs_Open_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "open.txt")
@@ -93,7 +92,7 @@ func TestFs_Open_Good(t *testing.T) {
 	CloseStream(r.Value)
 }
 
-func TestFs_Create_Good(t *testing.T) {
+func TestFs_Create_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "sub", "created.txt")
@@ -104,7 +103,7 @@ func TestFs_Create_Good(t *testing.T) {
 	AssertEqual(t, "hello", rr.Value.(string))
 }
 
-func TestFs_Append_Good(t *testing.T) {
+func TestFs_Append_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "append.txt")
@@ -116,7 +115,7 @@ func TestFs_Append_Good(t *testing.T) {
 	AssertEqual(t, "first second", rr.Value.(string))
 }
 
-func TestFs_ReadStream_Good(t *testing.T) {
+func TestFs_ReadStream_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "stream.txt")
@@ -126,7 +125,7 @@ func TestFs_ReadStream_Good(t *testing.T) {
 	CloseStream(r.Value)
 }
 
-func TestFs_WriteStream_Good(t *testing.T) {
+func TestFs_WriteStream_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "sub", "ws.txt")
@@ -135,7 +134,7 @@ func TestFs_WriteStream_Good(t *testing.T) {
 	WriteAll(r.Value, "stream")
 }
 
-func TestFs_Delete_Good(t *testing.T) {
+func TestFs_Delete_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "delete.txt")
@@ -144,7 +143,7 @@ func TestFs_Delete_Good(t *testing.T) {
 	AssertFalse(t, c.Fs().Exists(path))
 }
 
-func TestFs_DeleteAll_Good(t *testing.T) {
+func TestFs_DeleteAll_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	sub := Path(dir, "deep", "nested")
@@ -154,7 +153,7 @@ func TestFs_DeleteAll_Good(t *testing.T) {
 	AssertFalse(t, c.Fs().Exists(Path(dir, "deep")))
 }
 
-func TestFs_Rename_Good(t *testing.T) {
+func TestFs_Rename_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	old := Path(dir, "old.txt")
@@ -165,7 +164,7 @@ func TestFs_Rename_Good(t *testing.T) {
 	AssertTrue(t, c.Fs().Exists(nw))
 }
 
-func TestFs_WriteMode_Good(t *testing.T) {
+func TestFs_WriteMode_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "secret.txt")
@@ -177,7 +176,7 @@ func TestFs_WriteMode_Good(t *testing.T) {
 
 // --- Zero Value ---
 
-func TestFs_ZeroValue_Good(t *testing.T) {
+func TestFs_ZeroValue_Good(t *T) {
 	dir := t.TempDir()
 	zeroFs := &Fs{}
 
@@ -191,7 +190,7 @@ func TestFs_ZeroValue_Good(t *testing.T) {
 	AssertTrue(t, zeroFs.IsDir(dir))
 }
 
-func TestFs_ZeroValue_List_Good(t *testing.T) {
+func TestFs_ZeroValue_List_Good(t *T) {
 	dir := t.TempDir()
 	zeroFs := &Fs{}
 
@@ -202,38 +201,38 @@ func TestFs_ZeroValue_List_Good(t *testing.T) {
 	AssertLen(t, entries, 1)
 }
 
-func TestFs_Exists_NotFound_Bad(t *testing.T) {
+func TestFs_Exists_NotFound_Bad(t *T) {
 	c := New()
 	AssertFalse(t, c.Fs().Exists("/nonexistent/path/xyz"))
 }
 
 // --- Fs path/validatePath edge cases ---
 
-func TestFs_Read_EmptyPath_Ugly(t *testing.T) {
+func TestFs_Read_EmptyPath_Ugly(t *T) {
 	c := New()
 	r := c.Fs().Read("")
 	AssertFalse(t, r.OK)
 }
 
-func TestFs_Write_EmptyPath_Ugly(t *testing.T) {
+func TestFs_Write_EmptyPath_Ugly(t *T) {
 	c := New()
 	r := c.Fs().Write("", "data")
 	AssertFalse(t, r.OK)
 }
 
-func TestFs_Delete_Protected_Ugly(t *testing.T) {
+func TestFs_Delete_Protected_Ugly(t *T) {
 	c := New()
 	r := c.Fs().Delete("/")
 	AssertFalse(t, r.OK)
 }
 
-func TestFs_DeleteAll_Protected_Ugly(t *testing.T) {
+func TestFs_DeleteAll_Protected_Ugly(t *T) {
 	c := New()
 	r := c.Fs().DeleteAll("/")
 	AssertFalse(t, r.OK)
 }
 
-func TestFs_ReadStream_WriteStream_Good(t *testing.T) {
+func TestFs_ReadStream_WriteStream_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "stream.txt")
@@ -248,7 +247,7 @@ func TestFs_ReadStream_WriteStream_Good(t *testing.T) {
 
 // --- WriteAtomic ---
 
-func TestFs_WriteAtomic_Good(t *testing.T) {
+func TestFs_WriteAtomic_Good(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "status.json")
@@ -260,7 +259,7 @@ func TestFs_WriteAtomic_Good(t *testing.T) {
 	AssertEqual(t, `{"status":"completed"}`, read.Value)
 }
 
-func TestFs_WriteAtomic_Good_Overwrite(t *testing.T) {
+func TestFs_WriteAtomic_Good_Overwrite(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "data.txt")
@@ -271,14 +270,14 @@ func TestFs_WriteAtomic_Good_Overwrite(t *testing.T) {
 	AssertEqual(t, "second", read.Value)
 }
 
-func TestFs_WriteAtomic_Bad_ReadOnlyDir(t *testing.T) {
+func TestFs_WriteAtomic_Bad_ReadOnlyDir(t *T) {
 	// Write to a non-existent root that can't be created
 	m := (&Fs{}).New("/proc/nonexistent")
 	r := m.WriteAtomic("file.txt", "data")
 	AssertFalse(t, r.OK, "WriteAtomic must fail when parent dir cannot be created")
 }
 
-func TestFs_WriteAtomic_Ugly_NoTempFileLeftOver(t *testing.T) {
+func TestFs_WriteAtomic_Ugly_NoTempFileLeftOver(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "clean.txt")
@@ -292,7 +291,7 @@ func TestFs_WriteAtomic_Ugly_NoTempFileLeftOver(t *testing.T) {
 	}
 }
 
-func TestFs_WriteAtomic_Good_CreatesParentDir(t *testing.T) {
+func TestFs_WriteAtomic_Good_CreatesParentDir(t *T) {
 	dir := t.TempDir()
 	c := New()
 	path := Path(dir, "sub", "dir", "file.txt")
@@ -305,13 +304,13 @@ func TestFs_WriteAtomic_Good_CreatesParentDir(t *testing.T) {
 
 // --- NewUnrestricted ---
 
-func TestFs_NewUnrestricted_Good(t *testing.T) {
+func TestFs_NewUnrestricted_Good(t *T) {
 	sandboxed := (&Fs{}).New(t.TempDir())
 	unrestricted := sandboxed.NewUnrestricted()
 	AssertEqual(t, "/", unrestricted.Root())
 }
 
-func TestFs_NewUnrestricted_Good_CanReadOutsideSandbox(t *testing.T) {
+func TestFs_NewUnrestricted_Good_CanReadOutsideSandbox(t *T) {
 	dir := t.TempDir()
 	outside := Path(dir, "outside.txt")
 	(&Fs{}).New("/").Write(outside, "hello")
@@ -324,7 +323,7 @@ func TestFs_NewUnrestricted_Good_CanReadOutsideSandbox(t *testing.T) {
 	AssertEqual(t, "hello", r.Value)
 }
 
-func TestFs_NewUnrestricted_Ugly_OriginalStaysSandboxed(t *testing.T) {
+func TestFs_NewUnrestricted_Ugly_OriginalStaysSandboxed(t *T) {
 	dir := t.TempDir()
 	sandbox := Path(dir, "sandbox")
 	(&Fs{}).New("/").EnsureDir(sandbox)
@@ -337,12 +336,12 @@ func TestFs_NewUnrestricted_Ugly_OriginalStaysSandboxed(t *testing.T) {
 
 // --- Root ---
 
-func TestFs_Root_Good(t *testing.T) {
+func TestFs_Root_Good(t *T) {
 	m := (&Fs{}).New("/home/agent")
 	AssertEqual(t, "/home/agent", m.Root())
 }
 
-func TestFs_Root_Good_Default(t *testing.T) {
+func TestFs_Root_Good_Default(t *T) {
 	m := (&Fs{}).New("")
 	AssertEqual(t, "/", m.Root())
 }
@@ -359,7 +358,7 @@ func TestFs_Root_Good_Default(t *testing.T) {
 //	    skipme.txt
 //	  .git/
 //	    HEAD
-func walkSeqSeed(t *testing.T, dir string) {
+func walkSeqSeed(t *T, dir string) {
 	t.Helper()
 	c := New()
 	c.Fs().Write(Path(dir, "a.txt"), "alpha")
@@ -368,7 +367,7 @@ func walkSeqSeed(t *testing.T, dir string) {
 	c.Fs().Write(Path(dir, ".git", "HEAD"), "ref: refs/heads/main")
 }
 
-func TestFs_WalkSeq_Good(t *testing.T) {
+func TestFs_WalkSeq_Good(t *T) {
 	dir := t.TempDir()
 	walkSeqSeed(t, dir)
 	c := New()
@@ -386,7 +385,7 @@ func TestFs_WalkSeq_Good(t *testing.T) {
 	AssertTrue(t, seen["HEAD"])
 }
 
-func TestFs_WalkSeq_Good_BreakStops(t *testing.T) {
+func TestFs_WalkSeq_Good_BreakStops(t *T) {
 	dir := t.TempDir()
 	walkSeqSeed(t, dir)
 	c := New()
@@ -402,7 +401,7 @@ func TestFs_WalkSeq_Good_BreakStops(t *testing.T) {
 	AssertEqual(t, 2, count)
 }
 
-func TestFs_WalkSeq_Good_RelPath(t *testing.T) {
+func TestFs_WalkSeq_Good_RelPath(t *T) {
 	dir := t.TempDir()
 	walkSeqSeed(t, dir)
 	c := New()
@@ -419,7 +418,7 @@ func TestFs_WalkSeq_Good_RelPath(t *testing.T) {
 	}
 }
 
-func TestFs_WalkSeqSkip_Good(t *testing.T) {
+func TestFs_WalkSeqSkip_Good(t *T) {
 	dir := t.TempDir()
 	walkSeqSeed(t, dir)
 	c := New()
@@ -437,7 +436,7 @@ func TestFs_WalkSeqSkip_Good(t *testing.T) {
 	AssertFalse(t, seen["HEAD"], ".git contents should be skipped")
 }
 
-func TestFs_WalkSeqSkip_Good_RootBasenameNotSkipped(t *testing.T) {
+func TestFs_WalkSeqSkip_Good_RootBasenameNotSkipped(t *T) {
 	// If the user explicitly walks a directory whose basename matches a
 	// skipName, the walk root itself is still entered.
 	parent := t.TempDir()
@@ -451,7 +450,7 @@ func TestFs_WalkSeqSkip_Good_RootBasenameNotSkipped(t *testing.T) {
 	AssertTrue(t, seen["kept.txt"], "walk root must not be self-skipped")
 }
 
-func TestFs_WalkSeq_Good_SandboxContainment(t *testing.T) {
+func TestFs_WalkSeq_Good_SandboxContainment(t *T) {
 	// Fs sandboxed to a temp dir; walking ".." must NOT escape — every
 	// yielded entry path must remain inside the sandbox root.
 	root := t.TempDir()
@@ -468,7 +467,7 @@ func TestFs_WalkSeq_Good_SandboxContainment(t *testing.T) {
 	}
 }
 
-func TestFs_WalkSeq_Good_FileMode(t *testing.T) {
+func TestFs_WalkSeq_Good_FileMode(t *T) {
 	dir := t.TempDir()
 	c := New()
 	c.Fs().WriteMode(Path(dir, "secret.key"), "x", 0o600)

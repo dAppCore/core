@@ -2,31 +2,30 @@ package core_test
 
 import (
 	"context"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
 // --- New ---
 
-func TestCore_New_Good(t *testing.T) {
+func TestCore_New_Good(t *T) {
 	c := New()
 	AssertNotNil(t, c)
 }
 
-func TestCore_New_WithOptions_Good(t *testing.T) {
+func TestCore_New_WithOptions_Good(t *T) {
 	c := New(WithOptions(NewOptions(Option{Key: "name", Value: "myapp"})))
 	AssertNotNil(t, c)
 	AssertEqual(t, "myapp", c.App().Name)
 }
 
-func TestCore_New_WithOptions_Bad(t *testing.T) {
+func TestCore_New_WithOptions_Bad(t *T) {
 	// Empty options — should still create a valid Core
 	c := New(WithOptions(NewOptions()))
 	AssertNotNil(t, c)
 }
 
-func TestCore_New_WithService_Good(t *testing.T) {
+func TestCore_New_WithService_Good(t *T) {
 	started := false
 	c := New(
 		WithOptions(NewOptions(Option{Key: "name", Value: "myapp"})),
@@ -45,7 +44,7 @@ func TestCore_New_WithService_Good(t *testing.T) {
 	AssertTrue(t, started)
 }
 
-func TestCore_New_WithServiceLock_Good(t *testing.T) {
+func TestCore_New_WithServiceLock_Good(t *T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			c.Service("allowed", Service{})
@@ -59,7 +58,7 @@ func TestCore_New_WithServiceLock_Good(t *testing.T) {
 	AssertFalse(t, reg.OK)
 }
 
-func TestCore_New_WithService_Bad_FailingOption(t *testing.T) {
+func TestCore_New_WithService_Bad_FailingOption(t *T) {
 	secondCalled := false
 	_ = New(
 		WithService(func(c *Core) Result {
@@ -75,7 +74,7 @@ func TestCore_New_WithService_Bad_FailingOption(t *testing.T) {
 
 // --- Accessors ---
 
-func TestCore_Accessors_Good(t *testing.T) {
+func TestCore_Accessors_Good(t *T) {
 	c := New()
 	AssertNotNil(t, c.App())
 	AssertNotNil(t, c.Data())
@@ -90,7 +89,7 @@ func TestCore_Accessors_Good(t *testing.T) {
 	AssertEqual(t, c, c.Core())
 }
 
-func TestOptions_Accessor_Good(t *testing.T) {
+func TestOptions_Accessor_Good(t *T) {
 	c := New(WithOptions(NewOptions(
 		Option{Key: "name", Value: "testapp"},
 		Option{Key: "port", Value: 8080},
@@ -103,7 +102,7 @@ func TestOptions_Accessor_Good(t *testing.T) {
 	AssertTrue(t, opts.Bool("debug"))
 }
 
-func TestOptions_Accessor_Nil(t *testing.T) {
+func TestOptions_Accessor_Nil(t *T) {
 	c := New()
 	// No options passed — Options() returns nil
 	AssertNil(t, c.Options())
@@ -111,7 +110,7 @@ func TestOptions_Accessor_Nil(t *testing.T) {
 
 // --- Core Error/Log Helpers ---
 
-func TestCore_LogError_Good(t *testing.T) {
+func TestCore_LogError_Good(t *T) {
 	c := New()
 	cause := AnError
 	r := c.LogError(cause, "test.Operation", "something broke")
@@ -121,7 +120,7 @@ func TestCore_LogError_Good(t *testing.T) {
 	AssertErrorIs(t, err, cause)
 }
 
-func TestCore_LogWarn_Good(t *testing.T) {
+func TestCore_LogWarn_Good(t *T) {
 	c := New()
 	r := c.LogWarn(AnError, "test.Operation", "heads up")
 
@@ -129,14 +128,14 @@ func TestCore_LogWarn_Good(t *testing.T) {
 	AssertTrue(t, ok)
 }
 
-func TestCore_Must_Ugly(t *testing.T) {
+func TestCore_Must_Ugly(t *T) {
 	c := New()
 	AssertPanics(t, func() {
 		c.Must(AnError, "test.Operation", "fatal")
 	})
 }
 
-func TestCore_Must_Nil_Good(t *testing.T) {
+func TestCore_Must_Nil_Good(t *T) {
 	c := New()
 	AssertNotPanics(t, func() {
 		c.Must(nil, "test.Operation", "no error")
@@ -145,7 +144,7 @@ func TestCore_Must_Nil_Good(t *testing.T) {
 
 // --- RegistryOf ---
 
-func TestCore_RegistryOf_Good_Services(t *testing.T) {
+func TestCore_RegistryOf_Good_Services(t *T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			return c.Service("alpha", Service{})
@@ -161,7 +160,7 @@ func TestCore_RegistryOf_Good_Services(t *testing.T) {
 	AssertTrue(t, reg.Has("cli"))
 }
 
-func TestCore_RegistryOf_Good_Commands(t *testing.T) {
+func TestCore_RegistryOf_Good_Commands(t *T) {
 	c := New()
 	c.Command("deploy", Command{Action: func(_ Options) Result { return Result{OK: true} }})
 	c.Command("test", Command{Action: func(_ Options) Result { return Result{OK: true} }})
@@ -171,7 +170,7 @@ func TestCore_RegistryOf_Good_Commands(t *testing.T) {
 	AssertTrue(t, reg.Has("test"))
 }
 
-func TestCore_RegistryOf_Good_Actions(t *testing.T) {
+func TestCore_RegistryOf_Good_Actions(t *T) {
 	c := New()
 	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 	c.Action("brain.recall", func(_ context.Context, _ Options) Result { return Result{OK: true} })
@@ -182,7 +181,7 @@ func TestCore_RegistryOf_Good_Actions(t *testing.T) {
 	AssertEqual(t, 2, reg.Len())
 }
 
-func TestCore_RegistryOf_Bad_Unknown(t *testing.T) {
+func TestCore_RegistryOf_Bad_Unknown(t *T) {
 	c := New()
 	reg := c.RegistryOf("nonexistent")
 	AssertEqual(t, 0, reg.Len(), "unknown registry returns empty")
@@ -190,7 +189,7 @@ func TestCore_RegistryOf_Bad_Unknown(t *testing.T) {
 
 // --- RunE ---
 
-func TestCore_RunE_Good(t *testing.T) {
+func TestCore_RunE_Good(t *T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			return c.Service("healthy", Service{
@@ -203,7 +202,7 @@ func TestCore_RunE_Good(t *testing.T) {
 	AssertNoError(t, err)
 }
 
-func TestCore_RunE_Bad_StartupFailure(t *testing.T) {
+func TestCore_RunE_Bad_StartupFailure(t *T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			return c.Service("broken", Service{
@@ -218,7 +217,7 @@ func TestCore_RunE_Bad_StartupFailure(t *testing.T) {
 	AssertContains(t, err.Error(), "startup failed")
 }
 
-func TestCore_RunE_Ugly_StartupFailureCallsShutdown(t *testing.T) {
+func TestCore_RunE_Ugly_StartupFailureCallsShutdown(t *T) {
 	shutdownCalled := false
 	c := New(
 		WithService(func(c *Core) Result {

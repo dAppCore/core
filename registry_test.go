@@ -2,21 +2,20 @@ package core_test
 
 import (
 	"sync"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
 // --- Set ---
 
-func TestRegistry_Set_Good(t *testing.T) {
+func TestRegistry_Set_Good(t *T) {
 	r := NewRegistry[string]()
 	res := r.Set("alpha", "first")
 	AssertTrue(t, res.OK)
 	AssertTrue(t, r.Has("alpha"))
 }
 
-func TestRegistry_Set_Good_Update(t *testing.T) {
+func TestRegistry_Set_Good_Update(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "first")
 	r.Set("alpha", "second")
@@ -25,7 +24,7 @@ func TestRegistry_Set_Good_Update(t *testing.T) {
 	AssertEqual(t, 1, r.Len(), "update should not increase count")
 }
 
-func TestRegistry_Set_Bad_Locked(t *testing.T) {
+func TestRegistry_Set_Bad_Locked(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "first")
 	r.Lock()
@@ -33,7 +32,7 @@ func TestRegistry_Set_Bad_Locked(t *testing.T) {
 	AssertFalse(t, res.OK)
 }
 
-func TestRegistry_Set_Bad_SealedNewKey(t *testing.T) {
+func TestRegistry_Set_Bad_SealedNewKey(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "first")
 	r.Seal()
@@ -41,7 +40,7 @@ func TestRegistry_Set_Bad_SealedNewKey(t *testing.T) {
 	AssertFalse(t, res.OK, "sealed registry must reject new keys")
 }
 
-func TestRegistry_Set_Good_SealedExistingKey(t *testing.T) {
+func TestRegistry_Set_Good_SealedExistingKey(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "first")
 	r.Seal()
@@ -50,7 +49,7 @@ func TestRegistry_Set_Good_SealedExistingKey(t *testing.T) {
 	AssertEqual(t, "updated", r.Get("alpha").Value)
 }
 
-func TestRegistry_Set_Ugly_ConcurrentWrites(t *testing.T) {
+func TestRegistry_Set_Ugly_ConcurrentWrites(t *T) {
 	r := NewRegistry[int]()
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
@@ -66,7 +65,7 @@ func TestRegistry_Set_Ugly_ConcurrentWrites(t *testing.T) {
 
 // --- Get ---
 
-func TestRegistry_Get_Good(t *testing.T) {
+func TestRegistry_Get_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	res := r.Get("alpha")
@@ -74,13 +73,13 @@ func TestRegistry_Get_Good(t *testing.T) {
 	AssertEqual(t, "value", res.Value)
 }
 
-func TestRegistry_Get_Bad_NotFound(t *testing.T) {
+func TestRegistry_Get_Bad_NotFound(t *T) {
 	r := NewRegistry[string]()
 	res := r.Get("missing")
 	AssertFalse(t, res.OK)
 }
 
-func TestRegistry_Get_Ugly_EmptyKey(t *testing.T) {
+func TestRegistry_Get_Ugly_EmptyKey(t *T) {
 	r := NewRegistry[string]()
 	r.Set("", "empty-key")
 	res := r.Get("")
@@ -90,18 +89,18 @@ func TestRegistry_Get_Ugly_EmptyKey(t *testing.T) {
 
 // --- Has ---
 
-func TestRegistry_Has_Good(t *testing.T) {
+func TestRegistry_Has_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	AssertTrue(t, r.Has("alpha"))
 }
 
-func TestRegistry_Has_Bad_NotFound(t *testing.T) {
+func TestRegistry_Has_Bad_NotFound(t *T) {
 	r := NewRegistry[string]()
 	AssertFalse(t, r.Has("missing"))
 }
 
-func TestRegistry_Has_Ugly_AfterDelete(t *testing.T) {
+func TestRegistry_Has_Ugly_AfterDelete(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	r.Delete("alpha")
@@ -110,7 +109,7 @@ func TestRegistry_Has_Ugly_AfterDelete(t *testing.T) {
 
 // --- Names ---
 
-func TestRegistry_Names_Good(t *testing.T) {
+func TestRegistry_Names_Good(t *T) {
 	r := NewRegistry[int]()
 	r.Set("charlie", 3)
 	r.Set("alpha", 1)
@@ -118,12 +117,12 @@ func TestRegistry_Names_Good(t *testing.T) {
 	AssertEqual(t, []string{"charlie", "alpha", "bravo"}, r.Names(), "must preserve insertion order")
 }
 
-func TestRegistry_Names_Bad_Empty(t *testing.T) {
+func TestRegistry_Names_Bad_Empty(t *T) {
 	r := NewRegistry[int]()
 	AssertEmpty(t, r.Names())
 }
 
-func TestRegistry_Names_Ugly_AfterDeleteAndReinsert(t *testing.T) {
+func TestRegistry_Names_Ugly_AfterDeleteAndReinsert(t *T) {
 	r := NewRegistry[int]()
 	r.Set("a", 1)
 	r.Set("b", 2)
@@ -135,7 +134,7 @@ func TestRegistry_Names_Ugly_AfterDeleteAndReinsert(t *testing.T) {
 
 // --- Each ---
 
-func TestRegistry_Each_Good(t *testing.T) {
+func TestRegistry_Each_Good(t *T) {
 	r := NewRegistry[int]()
 	r.Set("a", 1)
 	r.Set("b", 2)
@@ -150,14 +149,14 @@ func TestRegistry_Each_Good(t *testing.T) {
 	AssertEqual(t, 6, sum)
 }
 
-func TestRegistry_Each_Bad_Empty(t *testing.T) {
+func TestRegistry_Each_Bad_Empty(t *T) {
 	r := NewRegistry[int]()
 	called := false
 	r.Each(func(_ string, _ int) { called = true })
 	AssertFalse(t, called)
 }
 
-func TestRegistry_Each_Ugly_SkipsDisabled(t *testing.T) {
+func TestRegistry_Each_Ugly_SkipsDisabled(t *T) {
 	r := NewRegistry[int]()
 	r.Set("a", 1)
 	r.Set("b", 2)
@@ -170,7 +169,7 @@ func TestRegistry_Each_Ugly_SkipsDisabled(t *testing.T) {
 
 // --- Len ---
 
-func TestRegistry_Len_Good(t *testing.T) {
+func TestRegistry_Len_Good(t *T) {
 	r := NewRegistry[string]()
 	AssertEqual(t, 0, r.Len())
 	r.Set("a", "1")
@@ -181,7 +180,7 @@ func TestRegistry_Len_Good(t *testing.T) {
 
 // --- List ---
 
-func TestRegistry_List_Good(t *testing.T) {
+func TestRegistry_List_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Set("process.run", "run")
 	r.Set("process.start", "start")
@@ -192,14 +191,14 @@ func TestRegistry_List_Good(t *testing.T) {
 	AssertContains(t, items, "start")
 }
 
-func TestRegistry_List_Bad_NoMatch(t *testing.T) {
+func TestRegistry_List_Bad_NoMatch(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "1")
 	items := r.List("beta.*")
 	AssertEmpty(t, items)
 }
 
-func TestRegistry_List_Ugly_SkipsDisabled(t *testing.T) {
+func TestRegistry_List_Ugly_SkipsDisabled(t *T) {
 	r := NewRegistry[string]()
 	r.Set("process.run", "run")
 	r.Set("process.kill", "kill")
@@ -209,7 +208,7 @@ func TestRegistry_List_Ugly_SkipsDisabled(t *testing.T) {
 	AssertEqual(t, "run", items[0])
 }
 
-func TestRegistry_List_Good_WildcardAll(t *testing.T) {
+func TestRegistry_List_Good_WildcardAll(t *T) {
 	r := NewRegistry[string]()
 	r.Set("a", "1")
 	r.Set("b", "2")
@@ -219,7 +218,7 @@ func TestRegistry_List_Good_WildcardAll(t *testing.T) {
 
 // --- Delete ---
 
-func TestRegistry_Delete_Good(t *testing.T) {
+func TestRegistry_Delete_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	res := r.Delete("alpha")
@@ -228,13 +227,13 @@ func TestRegistry_Delete_Good(t *testing.T) {
 	AssertEqual(t, 0, r.Len())
 }
 
-func TestRegistry_Delete_Bad_NotFound(t *testing.T) {
+func TestRegistry_Delete_Bad_NotFound(t *T) {
 	r := NewRegistry[string]()
 	res := r.Delete("missing")
 	AssertFalse(t, res.OK)
 }
 
-func TestRegistry_Delete_Ugly_Locked(t *testing.T) {
+func TestRegistry_Delete_Ugly_Locked(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	r.Lock()
@@ -245,7 +244,7 @@ func TestRegistry_Delete_Ugly_Locked(t *testing.T) {
 
 // --- Disable / Enable ---
 
-func TestRegistry_Disable_Good(t *testing.T) {
+func TestRegistry_Disable_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	res := r.Disable("alpha")
@@ -256,13 +255,13 @@ func TestRegistry_Disable_Good(t *testing.T) {
 	AssertTrue(t, r.Get("alpha").OK)
 }
 
-func TestRegistry_Disable_Bad_NotFound(t *testing.T) {
+func TestRegistry_Disable_Bad_NotFound(t *T) {
 	r := NewRegistry[string]()
 	res := r.Disable("missing")
 	AssertFalse(t, res.OK)
 }
 
-func TestRegistry_Disable_Ugly_EnableRoundtrip(t *testing.T) {
+func TestRegistry_Disable_Ugly_EnableRoundtrip(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	r.Disable("alpha")
@@ -278,7 +277,7 @@ func TestRegistry_Disable_Ugly_EnableRoundtrip(t *testing.T) {
 	AssertEqual(t, []string{"alpha"}, seen)
 }
 
-func TestRegistry_Enable_Bad_NotFound(t *testing.T) {
+func TestRegistry_Enable_Bad_NotFound(t *T) {
 	r := NewRegistry[string]()
 	res := r.Enable("missing")
 	AssertFalse(t, res.OK)
@@ -286,7 +285,7 @@ func TestRegistry_Enable_Bad_NotFound(t *testing.T) {
 
 // --- Lock ---
 
-func TestRegistry_Lock_Good(t *testing.T) {
+func TestRegistry_Lock_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	r.Lock()
@@ -296,14 +295,14 @@ func TestRegistry_Lock_Good(t *testing.T) {
 	AssertTrue(t, r.Has("alpha"))
 }
 
-func TestRegistry_Lock_Bad_SetAfterLock(t *testing.T) {
+func TestRegistry_Lock_Bad_SetAfterLock(t *T) {
 	r := NewRegistry[string]()
 	r.Lock()
 	res := r.Set("new", "value")
 	AssertFalse(t, res.OK)
 }
 
-func TestRegistry_Lock_Ugly_UpdateAfterLock(t *testing.T) {
+func TestRegistry_Lock_Ugly_UpdateAfterLock(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "first")
 	r.Lock()
@@ -314,7 +313,7 @@ func TestRegistry_Lock_Ugly_UpdateAfterLock(t *testing.T) {
 
 // --- Seal ---
 
-func TestRegistry_Seal_Good(t *testing.T) {
+func TestRegistry_Seal_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "first")
 	r.Seal()
@@ -325,14 +324,14 @@ func TestRegistry_Seal_Good(t *testing.T) {
 	AssertEqual(t, "second", r.Get("alpha").Value)
 }
 
-func TestRegistry_Seal_Bad_NewKey(t *testing.T) {
+func TestRegistry_Seal_Bad_NewKey(t *T) {
 	r := NewRegistry[string]()
 	r.Seal()
 	res := r.Set("new", "value")
 	AssertFalse(t, res.OK)
 }
 
-func TestRegistry_Seal_Ugly_DeleteWhileSealed(t *testing.T) {
+func TestRegistry_Seal_Ugly_DeleteWhileSealed(t *T) {
 	r := NewRegistry[string]()
 	r.Set("alpha", "value")
 	r.Seal()
@@ -343,7 +342,7 @@ func TestRegistry_Seal_Ugly_DeleteWhileSealed(t *testing.T) {
 
 // --- Open ---
 
-func TestRegistry_Open_Good(t *testing.T) {
+func TestRegistry_Open_Good(t *T) {
 	r := NewRegistry[string]()
 	r.Lock()
 	AssertTrue(t, r.Locked())
@@ -356,7 +355,7 @@ func TestRegistry_Open_Good(t *testing.T) {
 
 // --- Concurrency ---
 
-func TestRegistry_Ugly_ConcurrentReadWrite(t *testing.T) {
+func TestRegistry_Ugly_ConcurrentReadWrite(t *T) {
 	r := NewRegistry[int]()
 	var wg sync.WaitGroup
 

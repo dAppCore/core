@@ -2,7 +2,6 @@ package core_test
 
 import (
 	"encoding/hex"
-	"testing"
 
 	. "dappco.re/go/core"
 )
@@ -19,16 +18,16 @@ const (
 
 // --- Hash ---
 
-func TestHash_SHA256_Good(t *testing.T) {
+func TestHash_SHA256_Good(t *T) {
 	AssertEqual(t, digestFromHex(t, sha256HelloHex), SHA256([]byte("hello")))
 }
 
-func TestHash_SHA256_Bad(t *testing.T) {
+func TestHash_SHA256_Bad(t *T) {
 	AssertEqual(t, digestFromHex(t, sha256EmptyHex), SHA256(nil))
 	AssertEqual(t, SHA256(nil), SHA256([]byte{}))
 }
 
-func TestHash_SHA256_Ugly(t *testing.T) {
+func TestHash_SHA256_Ugly(t *T) {
 	data := []byte("The quick brown fox jumps over the lazy dog")
 	sum := SHA256(data)
 
@@ -38,16 +37,16 @@ func TestHash_SHA256_Ugly(t *testing.T) {
 	AssertNotEqual(t, sum, SHA256(data))
 }
 
-func TestHash_SHA256Hex_Good(t *testing.T) {
+func TestHash_SHA256Hex_Good(t *T) {
 	AssertEqual(t, sha256HelloHex, SHA256Hex([]byte("hello")))
 }
 
-func TestHash_SHA256Hex_Bad(t *testing.T) {
+func TestHash_SHA256Hex_Bad(t *T) {
 	AssertEqual(t, sha256EmptyHex, SHA256Hex(nil))
 	AssertEqual(t, SHA256Hex(nil), SHA256Hex([]byte{}))
 }
 
-func TestHash_SHA256Hex_Ugly(t *testing.T) {
+func TestHash_SHA256Hex_Ugly(t *T) {
 	data := []byte("The quick brown fox jumps over the lazy dog")
 	sum := SHA256Hex(data)
 
@@ -57,47 +56,47 @@ func TestHash_SHA256Hex_Ugly(t *testing.T) {
 	AssertNotEqual(t, sum, SHA256Hex(data))
 }
 
-func TestHash_SHA256String_Good(t *testing.T) {
+func TestHash_SHA256String_Good(t *T) {
 	AssertEqual(t, SHA256([]byte("hello")), SHA256String("hello"))
 }
 
-func TestHash_SHA256String_Bad(t *testing.T) {
+func TestHash_SHA256String_Bad(t *T) {
 	AssertEqual(t, SHA256([]byte{}), SHA256String(""))
 }
 
-func TestHash_SHA256String_Ugly(t *testing.T) {
+func TestHash_SHA256String_Ugly(t *T) {
 	s := "line 1\nline 2\t\x00"
 
 	AssertEqual(t, SHA256([]byte(s)), SHA256String(s))
 }
 
-func TestHash_SHA256HexString_Good(t *testing.T) {
+func TestHash_SHA256HexString_Good(t *T) {
 	AssertEqual(t, SHA256Hex([]byte("hello")), SHA256HexString("hello"))
 }
 
-func TestHash_SHA256HexString_Bad(t *testing.T) {
+func TestHash_SHA256HexString_Bad(t *T) {
 	AssertEqual(t, SHA256Hex([]byte{}), SHA256HexString(""))
 }
 
-func TestHash_SHA256HexString_Ugly(t *testing.T) {
+func TestHash_SHA256HexString_Ugly(t *T) {
 	s := "line 1\nline 2\t\x00"
 
 	AssertEqual(t, SHA256Hex([]byte(s)), SHA256HexString(s))
 }
 
-func TestHash_HMAC_Good(t *testing.T) {
+func TestHash_HMAC_Good(t *T) {
 	data := []byte("The quick brown fox jumps over the lazy dog")
 
 	AssertEqual(t, hmacSHA256Hex, HexEncode(HMAC("sha256", []byte("key"), data)))
 }
 
-func TestHash_HMAC_Bad(t *testing.T) {
+func TestHash_HMAC_Bad(t *T) {
 	AssertPanics(t, func() {
 		_ = HMAC("md5", []byte("key"), []byte("data"))
 	})
 }
 
-func TestHash_HMAC_Ugly(t *testing.T) {
+func TestHash_HMAC_Ugly(t *T) {
 	key := []byte("key")
 	data := []byte("The quick brown fox jumps over the lazy dog")
 	digest := HMAC("sha512", key, data)
@@ -109,19 +108,19 @@ func TestHash_HMAC_Ugly(t *testing.T) {
 	AssertNotEqual(t, digest, HMAC("sha512", key, data))
 }
 
-func TestHash_HKDF_Good(t *testing.T) {
+func TestHash_HKDF_Good(t *T) {
 	key := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("info"), 32)
 
 	AssertEqual(t, hkdfSHA256Hex, HexEncode(key))
 }
 
-func TestHash_HKDF_Bad(t *testing.T) {
+func TestHash_HKDF_Bad(t *T) {
 	AssertPanics(t, func() {
 		_ = HKDF("md5", []byte("secret"), nil, nil, 16)
 	})
 }
 
-func TestHash_HKDF_Ugly(t *testing.T) {
+func TestHash_HKDF_Ugly(t *T) {
 	key := HKDF("sha512", []byte("secret"), []byte("salt"), []byte("info"), 32)
 	empty := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("info"), 0)
 
@@ -129,7 +128,7 @@ func TestHash_HKDF_Ugly(t *testing.T) {
 	AssertEqual(t, []byte{}, empty)
 }
 
-func digestFromHex(t *testing.T, want string) [32]byte {
+func digestFromHex(t *T, want string) [32]byte {
 	t.Helper()
 
 	b, err := hex.DecodeString(want)

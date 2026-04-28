@@ -2,21 +2,20 @@ package core_test
 
 import (
 	"context"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
 // --- Entitled ---
 
-func TestEntitlement_Entitled_Good_DefaultPermissive(t *testing.T) {
+func TestEntitlement_Entitled_Good_DefaultPermissive(t *T) {
 	c := New()
 	e := c.Entitled("anything")
 	AssertTrue(t, e.Allowed, "default checker permits everything")
 	AssertTrue(t, e.Unlimited)
 }
 
-func TestEntitlement_Entitled_Good_BooleanGate(t *testing.T) {
+func TestEntitlement_Entitled_Good_BooleanGate(t *T) {
 	c := New()
 	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
 		if action == "premium.feature" {
@@ -30,7 +29,7 @@ func TestEntitlement_Entitled_Good_BooleanGate(t *testing.T) {
 	AssertEqual(t, "not in package", c.Entitled("other.feature").Reason)
 }
 
-func TestEntitlement_Entitled_Good_QuantityCheck(t *testing.T) {
+func TestEntitlement_Entitled_Good_QuantityCheck(t *T) {
 	c := New()
 	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
 		if action == "social.accounts" {
@@ -58,7 +57,7 @@ func TestEntitlement_Entitled_Good_QuantityCheck(t *testing.T) {
 	AssertEqual(t, "limit exceeded", e.Reason)
 }
 
-func TestEntitlement_Entitled_Bad_Denied(t *testing.T) {
+func TestEntitlement_Entitled_Bad_Denied(t *T) {
 	c := New()
 	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
 		return Entitlement{Allowed: false, Reason: "locked by M1"}
@@ -69,7 +68,7 @@ func TestEntitlement_Entitled_Bad_Denied(t *testing.T) {
 	AssertEqual(t, "locked by M1", e.Reason)
 }
 
-func TestEntitlement_Entitled_Ugly_DefaultQuantityIsOne(t *testing.T) {
+func TestEntitlement_Entitled_Ugly_DefaultQuantityIsOne(t *T) {
 	c := New()
 	var receivedQty int
 	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
@@ -83,7 +82,7 @@ func TestEntitlement_Entitled_Ugly_DefaultQuantityIsOne(t *testing.T) {
 
 // --- Action.Run Entitlement Enforcement ---
 
-func TestEntitlement_ActionRun_Good_Permitted(t *testing.T) {
+func TestEntitlement_ActionRun_Good_Permitted(t *T) {
 	c := New()
 	c.Action("work", func(_ context.Context, _ Options) Result {
 		return Result{Value: "done", OK: true}
@@ -94,7 +93,7 @@ func TestEntitlement_ActionRun_Good_Permitted(t *testing.T) {
 	AssertEqual(t, "done", r.Value)
 }
 
-func TestEntitlement_ActionRun_Bad_Denied(t *testing.T) {
+func TestEntitlement_ActionRun_Bad_Denied(t *T) {
 	c := New()
 	c.Action("restricted", func(_ context.Context, _ Options) Result {
 		return Result{Value: "should not reach", OK: true}
@@ -114,7 +113,7 @@ func TestEntitlement_ActionRun_Bad_Denied(t *testing.T) {
 	AssertContains(t, err.Error(), "tier too low")
 }
 
-func TestEntitlement_ActionRun_Good_OtherActionsStillWork(t *testing.T) {
+func TestEntitlement_ActionRun_Good_OtherActionsStillWork(t *T) {
 	c := New()
 	c.Action("allowed", func(_ context.Context, _ Options) Result {
 		return Result{Value: "ok", OK: true}
@@ -135,37 +134,37 @@ func TestEntitlement_ActionRun_Good_OtherActionsStillWork(t *testing.T) {
 
 // --- NearLimit ---
 
-func TestEntitlement_NearLimit_Good(t *testing.T) {
+func TestEntitlement_NearLimit_Good(t *T) {
 	e := Entitlement{Allowed: true, Limit: 100, Used: 85, Remaining: 15}
 	AssertTrue(t, e.NearLimit(0.8))
 	AssertFalse(t, e.NearLimit(0.9))
 }
 
-func TestEntitlement_NearLimit_Bad_Unlimited(t *testing.T) {
+func TestEntitlement_NearLimit_Bad_Unlimited(t *T) {
 	e := Entitlement{Allowed: true, Unlimited: true}
 	AssertFalse(t, e.NearLimit(0.8), "unlimited should never be near limit")
 }
 
-func TestEntitlement_NearLimit_Ugly_ZeroLimit(t *testing.T) {
+func TestEntitlement_NearLimit_Ugly_ZeroLimit(t *T) {
 	e := Entitlement{Allowed: true, Limit: 0}
 	AssertFalse(t, e.NearLimit(0.8), "boolean gate (limit=0) should not report near limit")
 }
 
 // --- UsagePercent ---
 
-func TestEntitlement_UsagePercent_Good(t *testing.T) {
+func TestEntitlement_UsagePercent_Good(t *T) {
 	e := Entitlement{Limit: 100, Used: 75}
 	AssertEqual(t, 75.0, e.UsagePercent())
 }
 
-func TestEntitlement_UsagePercent_Ugly_ZeroLimit(t *testing.T) {
+func TestEntitlement_UsagePercent_Ugly_ZeroLimit(t *T) {
 	e := Entitlement{Limit: 0, Used: 5}
 	AssertEqual(t, 0.0, e.UsagePercent(), "zero limit = boolean gate, no percentage")
 }
 
 // --- RecordUsage ---
 
-func TestEntitlement_RecordUsage_Good(t *testing.T) {
+func TestEntitlement_RecordUsage_Good(t *T) {
 	c := New()
 	var recorded string
 	var recordedQty int
@@ -180,7 +179,7 @@ func TestEntitlement_RecordUsage_Good(t *testing.T) {
 	AssertEqual(t, 10, recordedQty)
 }
 
-func TestEntitlement_RecordUsage_Good_NoRecorder(t *testing.T) {
+func TestEntitlement_RecordUsage_Good_NoRecorder(t *T) {
 	c := New()
 	// No recorder set — should not panic
 	AssertNotPanics(t, func() {
@@ -190,7 +189,7 @@ func TestEntitlement_RecordUsage_Good_NoRecorder(t *testing.T) {
 
 // --- Permission Model Integration ---
 
-func TestEntitlement_Ugly_SaaSGatingPattern(t *testing.T) {
+func TestEntitlement_Ugly_SaaSGatingPattern(t *T) {
 	c := New()
 
 	// Simulate RFC-004 entitlement service

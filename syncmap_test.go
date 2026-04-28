@@ -1,12 +1,10 @@
 package core_test
 
 import (
-	"testing"
-
 	. "dappco.re/go/core"
 )
 
-func TestSyncMap_Store_Good(t *testing.T) {
+func TestSyncMap_Store_Good(t *T) {
 	var m SyncMap
 	m.Store("k", 42)
 	v, ok := m.Load("k")
@@ -14,7 +12,7 @@ func TestSyncMap_Store_Good(t *testing.T) {
 	AssertEqual(t, 42, v)
 }
 
-func TestSyncMap_Store_Bad(t *testing.T) {
+func TestSyncMap_Store_Bad(t *T) {
 	// Bad: Load on absent key returns nil, false.
 	var m SyncMap
 	v, ok := m.Load("missing")
@@ -22,7 +20,7 @@ func TestSyncMap_Store_Bad(t *testing.T) {
 	AssertNil(t, v)
 }
 
-func TestSyncMap_Store_Ugly(t *testing.T) {
+func TestSyncMap_Store_Ugly(t *T) {
 	// Ugly: overwrite via Store, then via Swap, observe the chain.
 	var m SyncMap
 	m.Store("k", "first")
@@ -34,7 +32,7 @@ func TestSyncMap_Store_Ugly(t *testing.T) {
 	AssertEqual(t, "third", v)
 }
 
-func TestSyncMap_LoadOrStore_Good(t *testing.T) {
+func TestSyncMap_LoadOrStore_Good(t *T) {
 	var m SyncMap
 	actual, loaded := m.LoadOrStore("k", 1)
 	AssertFalse(t, loaded)
@@ -44,7 +42,7 @@ func TestSyncMap_LoadOrStore_Good(t *testing.T) {
 	AssertEqual(t, 1, actual, "second LoadOrStore returns existing value")
 }
 
-func TestSyncMap_LoadAndDelete_Good(t *testing.T) {
+func TestSyncMap_LoadAndDelete_Good(t *T) {
 	var m SyncMap
 	m.Store("k", "v")
 	v, loaded := m.LoadAndDelete("k")
@@ -54,7 +52,7 @@ func TestSyncMap_LoadAndDelete_Good(t *testing.T) {
 	AssertFalse(t, ok)
 }
 
-func TestSyncMap_CompareAndSwap_Good(t *testing.T) {
+func TestSyncMap_CompareAndSwap_Good(t *T) {
 	var m SyncMap
 	m.Store("k", 1)
 	swapped := m.CompareAndSwap("k", 1, 2)
@@ -63,7 +61,7 @@ func TestSyncMap_CompareAndSwap_Good(t *testing.T) {
 	AssertEqual(t, 2, v)
 }
 
-func TestSyncMap_CompareAndSwap_Bad(t *testing.T) {
+func TestSyncMap_CompareAndSwap_Bad(t *T) {
 	// Bad: CompareAndSwap with mismatched old returns false, no change.
 	var m SyncMap
 	m.Store("k", 1)
@@ -73,7 +71,7 @@ func TestSyncMap_CompareAndSwap_Bad(t *testing.T) {
 	AssertEqual(t, 1, v)
 }
 
-func TestSyncMap_Range_Good(t *testing.T) {
+func TestSyncMap_Range_Good(t *T) {
 	var m SyncMap
 	m.Store("a", 1)
 	m.Store("b", 2)
@@ -85,7 +83,7 @@ func TestSyncMap_Range_Good(t *testing.T) {
 	AssertEqual(t, 2, count)
 }
 
-func TestSyncMap_Range_Bad(t *testing.T) {
+func TestSyncMap_Range_Bad(t *T) {
 	// Bad: Range on empty map fires zero callbacks.
 	var m SyncMap
 	count := 0
@@ -96,7 +94,7 @@ func TestSyncMap_Range_Bad(t *testing.T) {
 	AssertEqual(t, 0, count)
 }
 
-func TestSyncMap_Range_Ugly(t *testing.T) {
+func TestSyncMap_Range_Ugly(t *T) {
 	// Ugly: Range with early termination — function returns false.
 	var m SyncMap
 	for i := 0; i < 10; i++ {
@@ -110,7 +108,7 @@ func TestSyncMap_Range_Ugly(t *testing.T) {
 	AssertEqual(t, 1, count)
 }
 
-func TestSyncMap_Clear_Good(t *testing.T) {
+func TestSyncMap_Clear_Good(t *T) {
 	var m SyncMap
 	m.Store("a", 1)
 	m.Store("b", 2)
@@ -119,7 +117,7 @@ func TestSyncMap_Clear_Good(t *testing.T) {
 	AssertFalse(t, ok)
 }
 
-func TestSyncMap_Concurrent_Ugly(t *testing.T) {
+func TestSyncMap_Concurrent_Ugly(t *T) {
 	// Ugly: 100 goroutines storing disjoint keys; Range must see all.
 	var m SyncMap
 	var wg WaitGroup

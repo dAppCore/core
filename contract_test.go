@@ -4,7 +4,6 @@ package core_test
 
 import (
 	"context"
-	"testing"
 
 	. "dappco.re/go/core"
 )
@@ -30,7 +29,7 @@ func stubFactory(c *Core) Result {
 // stubFactory lives in package "dappco.re/go/core_test", so the last path
 // segment is "core_test" — WithService strips the "_test" suffix and registers
 // the service under the name "core".
-func TestContract_WithService_NameDiscovery_Good(t *testing.T) {
+func TestContract_WithService_NameDiscovery_Good(t *T) {
 	c := New(WithService(stubFactory))
 
 	names := c.Services()
@@ -41,7 +40,7 @@ func TestContract_WithService_NameDiscovery_Good(t *testing.T) {
 // TestWithService_FactorySelfRegisters_Good verifies that when a factory
 // returns Result{OK:true} with no Value (it registered itself), WithService
 // does not attempt a second registration and returns success.
-func TestContract_WithService_FactorySelfRegisters_Good(t *testing.T) {
+func TestContract_WithService_FactorySelfRegisters_Good(t *T) {
 	selfReg := func(c *Core) Result {
 		// Factory registers directly, returns no instance.
 		c.Service("self", Service{})
@@ -57,7 +56,7 @@ func TestContract_WithService_FactorySelfRegisters_Good(t *testing.T) {
 
 // --- WithName ---
 
-func TestContract_WithName_Good(t *testing.T) {
+func TestContract_WithName_Good(t *T) {
 	c := New(
 		WithName("custom", func(c *Core) Result {
 			return Result{Value: &stubNamedService{}, OK: true}
@@ -77,7 +76,7 @@ func (s *lifecycleService) OnStartup(_ context.Context) Result {
 	return Result{OK: true}
 }
 
-func TestContract_WithService_Lifecycle_Good(t *testing.T) {
+func TestContract_WithService_Lifecycle_Good(t *T) {
 	svc := &lifecycleService{}
 	c := New(
 		WithService(func(c *Core) Result {
@@ -100,7 +99,7 @@ func (s *ipcService) HandleIPCEvents(c *Core, msg Message) Result {
 	return Result{OK: true}
 }
 
-func TestContract_WithService_IPCHandler_Good(t *testing.T) {
+func TestContract_WithService_IPCHandler_Good(t *T) {
 	svc := &ipcService{}
 	c := New(
 		WithService(func(c *Core) Result {
@@ -116,7 +115,7 @@ func TestContract_WithService_IPCHandler_Good(t *testing.T) {
 
 // TestWithService_FactoryError_Bad verifies that a failing factory
 // stops further option processing (second service not registered).
-func TestContract_WithService_FactoryError_Bad(t *testing.T) {
+func TestContract_WithService_FactoryError_Bad(t *T) {
 	secondCalled := false
 	c := New(
 		WithService(func(c *Core) Result {

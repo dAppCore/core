@@ -2,14 +2,13 @@ package core_test
 
 import (
 	"context"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
 // --- Process.Run ---
 
-func TestProcess_Run_Good(t *testing.T) {
+func TestProcess_Run_Good(t *T) {
 	c := New()
 	// Register a mock process handler
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
@@ -22,14 +21,14 @@ func TestProcess_Run_Good(t *testing.T) {
 	AssertEqual(t, "output of git", r.Value)
 }
 
-func TestProcess_Run_Bad_NotRegistered(t *testing.T) {
+func TestProcess_Run_Bad_NotRegistered(t *T) {
 	c := New()
 	// No process service registered — sandboxed Core
 	r := c.Process().Run(context.Background(), "git", "log")
 	AssertFalse(t, r.OK, "sandboxed Core must not execute commands")
 }
 
-func TestProcess_Run_Ugly_HandlerPanics(t *testing.T) {
+func TestProcess_Run_Ugly_HandlerPanics(t *T) {
 	c := New()
 	c.Action("process.run", func(_ context.Context, _ Options) Result {
 		panic("segfault")
@@ -40,7 +39,7 @@ func TestProcess_Run_Ugly_HandlerPanics(t *testing.T) {
 
 // --- Process.RunIn ---
 
-func TestProcess_RunIn_Good(t *testing.T) {
+func TestProcess_RunIn_Good(t *T) {
 	c := New()
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
 		dir := opts.String("dir")
@@ -55,7 +54,7 @@ func TestProcess_RunIn_Good(t *testing.T) {
 
 // --- Process.RunWithEnv ---
 
-func TestProcess_RunWithEnv_Good(t *testing.T) {
+func TestProcess_RunWithEnv_Good(t *T) {
 	c := New()
 	c.Action("process.run", func(_ context.Context, opts Options) Result {
 		r := opts.Get("env")
@@ -73,7 +72,7 @@ func TestProcess_RunWithEnv_Good(t *testing.T) {
 
 // --- Process.Start ---
 
-func TestProcess_Start_Good(t *testing.T) {
+func TestProcess_Start_Good(t *T) {
 	c := New()
 	c.Action("process.start", func(_ context.Context, opts Options) Result {
 		return Result{Value: "proc-1", OK: true}
@@ -87,7 +86,7 @@ func TestProcess_Start_Good(t *testing.T) {
 	AssertEqual(t, "proc-1", r.Value)
 }
 
-func TestProcess_Start_Bad_NotRegistered(t *testing.T) {
+func TestProcess_Start_Bad_NotRegistered(t *T) {
 	c := New()
 	r := c.Process().Start(context.Background(), NewOptions())
 	AssertFalse(t, r.OK)
@@ -95,7 +94,7 @@ func TestProcess_Start_Bad_NotRegistered(t *testing.T) {
 
 // --- Process.Kill ---
 
-func TestProcess_Kill_Good(t *testing.T) {
+func TestProcess_Kill_Good(t *T) {
 	c := New()
 	c.Action("process.kill", func(_ context.Context, opts Options) Result {
 		return Result{OK: true}
@@ -109,7 +108,7 @@ func TestProcess_Kill_Good(t *testing.T) {
 
 // --- Process.Exists ---
 
-func TestProcess_Exists_Good(t *testing.T) {
+func TestProcess_Exists_Good(t *T) {
 	c := New()
 	AssertFalse(t, c.Process().Exists(), "no process service = no capability")
 
@@ -121,7 +120,7 @@ func TestProcess_Exists_Good(t *testing.T) {
 
 // --- Permission model ---
 
-func TestProcess_Ugly_PermissionByRegistration(t *testing.T) {
+func TestProcess_Ugly_PermissionByRegistration(t *T) {
 	// Full Core
 	full := New()
 	full.Action("process.run", func(_ context.Context, opts Options) Result {

@@ -2,14 +2,13 @@ package core_test
 
 import (
 	"context"
-	"testing"
 
 	. "dappco.re/go/core"
 )
 
 // --- NamedAction Register ---
 
-func TestAction_NamedAction_Good_Register(t *testing.T) {
+func TestAction_NamedAction_Good_Register(t *T) {
 	c := New()
 	def := c.Action("process.run", func(_ context.Context, opts Options) Result {
 		return Result{Value: "output", OK: true}
@@ -19,7 +18,7 @@ func TestAction_NamedAction_Good_Register(t *testing.T) {
 	AssertTrue(t, def.Exists())
 }
 
-func TestAction_NamedAction_Good_Invoke(t *testing.T) {
+func TestAction_NamedAction_Good_Invoke(t *T) {
 	c := New()
 	c.Action("git.log", func(_ context.Context, opts Options) Result {
 		dir := opts.String("dir")
@@ -33,13 +32,13 @@ func TestAction_NamedAction_Good_Invoke(t *testing.T) {
 	AssertEqual(t, "log from /repo", r.Value)
 }
 
-func TestAction_NamedAction_Bad_NotRegistered(t *testing.T) {
+func TestAction_NamedAction_Bad_NotRegistered(t *T) {
 	c := New()
 	r := c.Action("missing.action").Run(context.Background(), NewOptions())
 	AssertFalse(t, r.OK, "invoking unregistered action must fail")
 }
 
-func TestAction_NamedAction_Good_Exists(t *testing.T) {
+func TestAction_NamedAction_Good_Exists(t *T) {
 	c := New()
 	c.Action("brain.recall", func(_ context.Context, _ Options) Result {
 		return Result{OK: true}
@@ -48,7 +47,7 @@ func TestAction_NamedAction_Good_Exists(t *testing.T) {
 	AssertFalse(t, c.Action("brain.forget").Exists())
 }
 
-func TestAction_NamedAction_Ugly_PanicRecovery(t *testing.T) {
+func TestAction_NamedAction_Ugly_PanicRecovery(t *T) {
 	c := New()
 	c.Action("explode", func(_ context.Context, _ Options) Result {
 		panic("boom")
@@ -60,7 +59,7 @@ func TestAction_NamedAction_Ugly_PanicRecovery(t *testing.T) {
 	AssertContains(t, err.Error(), "panic")
 }
 
-func TestAction_NamedAction_Ugly_NilAction(t *testing.T) {
+func TestAction_NamedAction_Ugly_NilAction(t *T) {
 	var def *Action
 	r := def.Run(context.Background(), NewOptions())
 	AssertFalse(t, r.OK)
@@ -69,7 +68,7 @@ func TestAction_NamedAction_Ugly_NilAction(t *testing.T) {
 
 // --- Actions listing ---
 
-func TestAction_Actions_Good(t *testing.T) {
+func TestAction_Actions_Good(t *T) {
 	c := New()
 	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 	c.Action("process.kill", func(_ context.Context, _ Options) Result { return Result{OK: true} })
@@ -80,14 +79,14 @@ func TestAction_Actions_Good(t *testing.T) {
 	AssertEqual(t, []string{"process.run", "process.kill", "agentic.dispatch"}, names)
 }
 
-func TestAction_Actions_Bad_Empty(t *testing.T) {
+func TestAction_Actions_Bad_Empty(t *T) {
 	c := New()
 	AssertEmpty(t, c.Actions())
 }
 
 // --- Action fields ---
 
-func TestAction_NamedAction_Good_DescriptionAndSchema(t *testing.T) {
+func TestAction_NamedAction_Good_DescriptionAndSchema(t *T) {
 	c := New()
 	def := c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 	def.Description = "Execute a command synchronously"
@@ -103,7 +102,7 @@ func TestAction_NamedAction_Good_DescriptionAndSchema(t *testing.T) {
 
 // --- Permission by registration ---
 
-func TestAction_NamedAction_Good_PermissionModel(t *testing.T) {
+func TestAction_NamedAction_Good_PermissionModel(t *T) {
 	// Full Core — process registered
 	full := New()
 	full.Action("process.run", func(_ context.Context, _ Options) Result {
@@ -124,7 +123,7 @@ func TestAction_NamedAction_Good_PermissionModel(t *testing.T) {
 
 // --- Action overwrite ---
 
-func TestAction_NamedAction_Good_Overwrite(t *testing.T) {
+func TestAction_NamedAction_Good_Overwrite(t *T) {
 	c := New()
 	c.Action("hot.reload", func(_ context.Context, _ Options) Result {
 		return Result{Value: "v1", OK: true}
@@ -140,7 +139,7 @@ func TestAction_NamedAction_Good_Overwrite(t *testing.T) {
 
 // --- Task Composition ---
 
-func TestAction_Task_Good_Sequential(t *testing.T) {
+func TestAction_Task_Good_Sequential(t *T) {
 	c := New()
 	var order []string
 	c.Action("step.a", func(_ context.Context, _ Options) Result {
@@ -165,7 +164,7 @@ func TestAction_Task_Good_Sequential(t *testing.T) {
 	AssertEqual(t, "output-b", r.Value, "last step's result is returned")
 }
 
-func TestAction_Task_Bad_StepFails(t *testing.T) {
+func TestAction_Task_Bad_StepFails(t *T) {
 	c := New()
 	var order []string
 	c.Action("step.ok", func(_ context.Context, _ Options) Result {
@@ -194,7 +193,7 @@ func TestAction_Task_Bad_StepFails(t *testing.T) {
 	AssertEqual(t, []string{"ok", "fail"}, order, "chain stops on failure, step.never skipped")
 }
 
-func TestAction_Task_Bad_MissingAction(t *testing.T) {
+func TestAction_Task_Bad_MissingAction(t *T) {
 	c := New()
 	c.Task("missing", Task{
 		Steps: []Step{
@@ -205,7 +204,7 @@ func TestAction_Task_Bad_MissingAction(t *testing.T) {
 	AssertFalse(t, r.OK)
 }
 
-func TestAction_Task_Good_PreviousInput(t *testing.T) {
+func TestAction_Task_Good_PreviousInput(t *T) {
 	c := New()
 	c.Action("produce", func(_ context.Context, _ Options) Result {
 		return Result{Value: "data-from-step-1", OK: true}
@@ -230,14 +229,14 @@ func TestAction_Task_Good_PreviousInput(t *testing.T) {
 	AssertEqual(t, "got: data-from-step-1", r.Value)
 }
 
-func TestAction_Task_Ugly_EmptySteps(t *testing.T) {
+func TestAction_Task_Ugly_EmptySteps(t *T) {
 	c := New()
 	c.Task("empty", Task{})
 	r := c.Task("empty").Run(context.Background(), c, NewOptions())
 	AssertFalse(t, r.OK)
 }
 
-func TestAction_Tasks_Good(t *testing.T) {
+func TestAction_Tasks_Good(t *T) {
 	c := New()
 	c.Task("deploy", Task{Steps: []Step{{Action: "x"}}})
 	c.Task("review", Task{Steps: []Step{{Action: "y"}}})
