@@ -29,7 +29,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"text/template"
 )
@@ -293,11 +292,11 @@ func GeneratePack(pkg ScannedPackage) Result {
 // --- Compression ---
 
 func compressFile(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
+	r := ReadFile(path)
+	if !r.OK {
+		return "", r.Value.(error)
 	}
-	return compress(string(data))
+	return compress(string(r.Value.([]byte)))
 }
 
 func compress(input string) (string, error) {
@@ -437,7 +436,7 @@ func (s *Embed) ReadFile(name string) Result {
 	if !r.OK {
 		return r
 	}
-	return ReadFile(s.fsys, r.Value.(string))
+	return ReadFSFile(s.fsys, r.Value.(string))
 }
 
 // ReadString reads the named file as a string.
@@ -566,8 +565,8 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 	if err != nil {
 		return Result{err, false}
 	}
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return Result{err, false}
+	if r := MkdirAll(targetDir, 0755); !r.OK {
+		return r
 	}
 
 	// Categorise files
@@ -619,8 +618,8 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 		if err != nil {
 			return Result{err, false}
 		}
-		if err := os.MkdirAll(target, 0755); err != nil {
-			return Result{err, false}
+		if r := MkdirAll(target, 0755); !r.OK {
+			return r
 		}
 	}
 
@@ -647,10 +646,11 @@ func Extract(fsys FS, targetDir string, data any, opts ...ExtractOptions) Result
 			return Result{err, false}
 		}
 
-		f, err := os.Create(targetFile)
-		if err != nil {
-			return Result{err, false}
+		r := Create(targetFile)
+		if !r.OK {
+			return r
 		}
+		f := r.Value.(*OSFile)
 		if err := tmpl.Execute(f, data); err != nil {
 			f.Close()
 			return Result{err, false}
@@ -708,19 +708,20 @@ func copyFile(fsys FS, source, target string) error {
 	}
 	defer s.Close()
 
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-		return err
+	if r := MkdirAll(filepath.Dir(target), 0755); !r.OK {
+		return r.Value.(error)
 	}
 
-	d, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-
-	r := Copy(d, s)
+	r := Create(target)
 	if !r.OK {
 		return r.Value.(error)
+	}
+	d := r.Value.(*OSFile)
+	defer d.Close()
+
+	copied := Copy(d, s)
+	if !copied.OK {
+		return copied.Value.(error)
 	}
 	return nil
 }

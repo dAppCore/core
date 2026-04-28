@@ -5,7 +5,6 @@
 
 package core
 
-
 // --- Core Struct ---
 
 // Core is the central application object that manages services, assets, and communication.

@@ -5,7 +5,6 @@
 package core
 
 import (
-	"os"
 	"path/filepath"
 )
 
@@ -47,13 +46,13 @@ func (a App) New(opts Options) App {
 }
 
 // Find locates a program on PATH and returns a Result containing the App.
-// Uses os.Stat to search PATH directories — no os/exec dependency.
+// Uses core.Stat to search PATH directories — no os/exec dependency.
 //
 //	r := core.App{}.Find("node", "Node.js")
 //	if r.OK { app := r.Value.(*App) }
 func (a App) Find(filename, name string) Result {
 	// If filename contains a separator, check it directly
-	if Contains(filename, string(os.PathSeparator)) {
+	if Contains(filename, string(PathSeparator)) {
 		abs := PathAbs(filename)
 		if !abs.OK {
 			return abs
@@ -69,7 +68,7 @@ func (a App) Find(filename, name string) Result {
 	if pathEnv == "" {
 		return Result{E("app.Find", "PATH is empty", nil), false}
 	}
-	for _, dir := range Split(pathEnv, string(os.PathListSeparator)) {
+	for _, dir := range Split(pathEnv, string(PathListSeparator)) {
 		candidate := filepath.Join(dir, filename)
 		if isExecutable(candidate) {
 			abs := PathAbs(candidate)
@@ -84,10 +83,14 @@ func (a App) Find(filename, name string) Result {
 
 // isExecutable checks if a path exists and is executable.
 func isExecutable(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
+	r := Stat(path)
+	if !r.OK {
 		return false
 	}
+	info := r.Value.(interface {
+		IsDir() bool
+		Mode() FileMode
+	})
 	// Regular file with at least one execute bit
 	return !info.IsDir() && info.Mode()&0111 != 0
 }

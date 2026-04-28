@@ -13,22 +13,16 @@
 //	c.ExitNow(2)            // skip shutdown, immediate (panic recovery only)
 //	core.Exit(1)            // package-level, no *Core in scope (cli error helpers)
 //
-// All four call the unexported osExit() — the singular boundary in core/go where
-// the os.Exit syscall is invoked. Consumers never import "os" for this.
+// All four call core.Exit after graceful shutdown when needed. Consumers never
+// import "os" for this.
 
 package core
-
-import "os"
-
-// osExit is the singular call to os.Exit in core/go.
-// Tests override via the testExitCode hook; production wires straight through.
-var osExit = os.Exit
 
 // ExitOptions configures graceful exit behaviour.
 //
 //	c.ExitWith(core.ExitOptions{Code: 1, Timeout: 5 * core.Second})
 type ExitOptions struct {
-	// Code is the process exit code passed to os.Exit.
+	// Code is the process exit code passed to core.Exit.
 	Code int
 	// Timeout bounds how long ServiceShutdown may run before the process
 	// terminates anyway. Zero means wait forever (legacy behaviour).
@@ -76,7 +70,7 @@ func (c *Core) ExitWith(opts ExitOptions) {
 		Warn("exit timeout, forcing immediate termination",
 			"timeout", timeout, "code", opts.Code)
 	}
-	osExit(opts.Code)
+	Exit(opts.Code)
 }
 
 // ExitNow terminates immediately without running shutdown hooks.
@@ -86,15 +80,4 @@ func (c *Core) ExitWith(opts ExitOptions) {
 //	defer func() {
 //	    if r := recover(); r != nil { c.ExitNow(2) }
 //	}()
-func (c *Core) ExitNow(code int) { osExit(code) }
-
-// Exit (package level) terminates immediately without running shutdown hooks.
-// For callsites that do not have a *Core reference (e.g. cli error helpers).
-// Equivalent to calling ExitNow on a Core instance.
-//
-//	// cli/pkg/cli/errors.go — no *Core in scope
-//	func Fatal(msg string) {
-//	    Error(msg)
-//	    core.Exit(1)
-//	}
-func Exit(code int) { osExit(code) }
+func (c *Core) ExitNow(code int) { Exit(code) }

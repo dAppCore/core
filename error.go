@@ -10,10 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
-	"os"
 	"path/filepath"
-	"runtime"
-	"runtime/debug"
 )
 
 // ErrorSink is the shared interface for error reporting.
@@ -398,11 +395,11 @@ func (h *ErrorPanic) Recover() {
 	report := CrashReport{
 		Timestamp: Now(),
 		Error:     err.Error(),
-		Stack:     string(debug.Stack()),
+		Stack:     string(StackBuf()),
 		System: CrashSystem{
-			OperatingSystem: runtime.GOOS,
-			Architecture:    runtime.GOARCH,
-			Version:         runtime.Version(),
+			OperatingSystem: OS(),
+			Architecture:    Arch(),
+			Version:         GoVersion(),
 		},
 		Meta: maps.Clone(h.meta),
 	}
@@ -440,10 +437,11 @@ func (h *ErrorPanic) Reports(n int) Result {
 	}
 	crashMu.Lock()
 	defer crashMu.Unlock()
-	data, err := os.ReadFile(h.filePath)
-	if err != nil {
-		return Result{err, false}
+	r := ReadFile(h.filePath)
+	if !r.OK {
+		return r
 	}
+	data := r.Value.([]byte)
 	var reports []CrashReport
 	if r := JSONUnmarshal(data, &reports); !r.OK {
 		return r
@@ -461,8 +459,8 @@ func (h *ErrorPanic) appendReport(report CrashReport) {
 	defer crashMu.Unlock()
 
 	var reports []CrashReport
-	if data, err := os.ReadFile(h.filePath); err == nil {
-		if r := JSONUnmarshal(data, &reports); !r.OK {
+	if read := ReadFile(h.filePath); read.OK {
+		if r := JSONUnmarshal(read.Value.([]byte), &reports); !r.OK {
 			reports = nil
 		}
 	}
@@ -473,11 +471,11 @@ func (h *ErrorPanic) appendReport(report CrashReport) {
 		Default().Error(Concat("crash report marshal failed: ", err.Error()))
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(h.filePath), 0755); err != nil {
-		Default().Error(Concat("crash report dir failed: ", err.Error()))
+	if r := MkdirAll(filepath.Dir(h.filePath), 0755); !r.OK {
+		Default().Error(Concat("crash report dir failed: ", r.Error()))
 		return
 	}
-	if err := os.WriteFile(h.filePath, data, 0600); err != nil {
-		Default().Error(Concat("crash report write failed: ", err.Error()))
+	if r := WriteFile(h.filePath, data, 0600); !r.OK {
+		Default().Error(Concat("crash report write failed: ", r.Error()))
 	}
 }

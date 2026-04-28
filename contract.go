@@ -4,7 +4,6 @@
 
 package core
 
-
 // Message is the type for IPC broadcasts (fire-and-forget).
 //
 //	c := core.New()

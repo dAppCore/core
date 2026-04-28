@@ -4,8 +4,7 @@
 
 package core
 
-import (
-)
+import ()
 
 // ConfigVar is a variable that can be set, unset, and queried for its state.
 //

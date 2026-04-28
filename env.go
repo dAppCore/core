@@ -4,18 +4,9 @@
 // Wraps os environment mutation APIs so downstream packages can stay on core.
 package core
 
-import "os"
-
-// Setenv sets an environment variable using os.Setenv.
-//
-//	err := core.Setenv("FORGE_TOKEN", token)
-func Setenv(key, value string) error {
-	return os.Setenv(key, value)
-}
-
-// UnsetEnv removes an environment variable using os.Unsetenv.
+// UnsetEnv removes an environment variable.
 //
 //	err := core.UnsetEnv("FORGE_TOKEN")
 func UnsetEnv(key string) error {
-	return os.Unsetenv(key)
+	return Unsetenv(key)
 }

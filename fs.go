@@ -3,7 +3,6 @@ package core
 
 import (
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
@@ -87,7 +86,10 @@ func (m *Fs) path(p string) string {
 	// treat it as relative to the current working directory.
 	// This makes io.Local behave more like the standard 'os' package.
 	if root == "/" && !filepath.IsAbs(p) {
-		cwd, _ := os.Getwd()
+		cwd := ""
+		if r := Getwd(); r.OK {
+			cwd = r.Value.(string)
+		}
 		return filepath.Join(cwd, p)
 	}
 
@@ -115,7 +117,7 @@ func (m *Fs) validatePath(p string) Result {
 	}
 
 	// Split the cleaned path into components
-	parts := Split(filepath.Clean("/"+p), string(os.PathSeparator))
+	parts := Split(filepath.Clean("/"+p), string(PathSeparator))
 	current := root
 
 	for _, part := range parts {
@@ -126,7 +128,7 @@ func (m *Fs) validatePath(p string) Result {
 		next := filepath.Join(current, part)
 		realNext, err := filepath.EvalSymlinks(next)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if IsNotExist(err) {
 				// Part doesn't exist, we can't follow symlinks anymore.
 				// Since the path is already Cleaned and current is safe,
 				// appending a component to current will not escape.
@@ -144,7 +146,7 @@ func (m *Fs) validatePath(p string) Result {
 			if r := UserCurrent(); r.OK {
 				username = r.Value.(*User).Username
 			}
-			Print(os.Stderr, "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
+			Print(Stderr(), "[%s] SECURITY sandbox escape detected root=%s path=%s attempted=%s user=%s",
 				Now().Format(TimeRFC3339), root, p, realNext, username)
 			if err == nil {
 				err = E("fs.validatePath", Concat("sandbox escape: ", p, " resolves outside ", m.root), nil)
@@ -167,11 +169,11 @@ func (m *Fs) Read(p string) Result {
 	if !vp.OK {
 		return vp
 	}
-	data, err := os.ReadFile(vp.Value.(string))
-	if err != nil {
-		return Result{err, false}
+	r := ReadFile(vp.Value.(string))
+	if !r.OK {
+		return r
 	}
-	return Result{string(data), true}
+	return Result{string(r.Value.([]byte)), true}
 }
 
 // Write saves content to file, creating parent directories as needed.
@@ -191,17 +193,17 @@ func (m *Fs) Write(p, content string) Result {
 //	fsys := (&core.Fs{}).New("/tmp/agent-workspace")
 //	r := fsys.WriteMode("secrets/token", "lethean-token", 0o600)
 //	if !r.OK { return r }
-func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
+func (m *Fs) WriteMode(p, content string, mode FileMode) Result {
 	vp := m.validatePath(p)
 	if !vp.OK {
 		return vp
 	}
 	full := vp.Value.(string)
-	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return Result{err, false}
+	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+		return r
 	}
-	if err := os.WriteFile(full, []byte(content), mode); err != nil {
-		return Result{err, false}
+	if r := WriteFile(full, []byte(content), mode); !r.OK {
+		return r
 	}
 	return Result{OK: true}
 }
@@ -212,18 +214,11 @@ func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result {
 //	dir := fs.TempDir("agent-workspace")
 //	defer fs.DeleteAll(dir)
 func (m *Fs) TempDir(prefix string) string {
-	dir, err := os.MkdirTemp("", prefix)
-	if err != nil {
+	r := MkdirTemp("", prefix)
+	if !r.OK {
 		return ""
 	}
-	return dir
-}
-
-// DirFS returns an fs.FS rooted at the given directory path.
-//
-//	fsys := core.DirFS("/path/to/templates")
-func DirFS(dir string) FS {
-	return os.DirFS(dir)
+	return r.Value.(string)
 }
 
 // ReadDir reads a directory from fsys.
@@ -233,10 +228,10 @@ func ReadDir(fsys FS, name string) Result {
 	return Result{}.New(fs.ReadDir(fsys, name))
 }
 
-// ReadFile reads a file from fsys.
+// ReadFSFile reads a file from fsys.
 //
-//	r := core.ReadFile(core.DirFS("templates"), "README.md")
-func ReadFile(fsys FS, name string) Result {
+//	r := core.ReadFSFile(core.DirFS("templates"), "README.md")
+func ReadFSFile(fsys FS, name string) Result {
 	data, err := fs.ReadFile(fsys, name)
 	if err != nil {
 		return Result{err, false}
@@ -273,17 +268,17 @@ func (m *Fs) WriteAtomic(p, content string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return Result{err, false}
+	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+		return r
 	}
 
 	tmp := full + ".tmp." + shortRand()
-	if err := os.WriteFile(tmp, []byte(content), 0644); err != nil {
-		return Result{err, false}
+	if r := WriteFile(tmp, []byte(content), 0644); !r.OK {
+		return r
 	}
-	if err := os.Rename(tmp, full); err != nil {
-		os.Remove(tmp)
-		return Result{err, false}
+	if r := Rename(tmp, full); !r.OK {
+		Remove(tmp)
+		return r
 	}
 	return Result{OK: true}
 }
@@ -298,8 +293,8 @@ func (m *Fs) EnsureDir(p string) Result {
 	if !vp.OK {
 		return vp
 	}
-	if err := os.MkdirAll(vp.Value.(string), 0755); err != nil {
-		return Result{err, false}
+	if r := MkdirAll(vp.Value.(string), 0755); !r.OK {
+		return r
 	}
 	return Result{OK: true}
 }
@@ -316,8 +311,12 @@ func (m *Fs) IsDir(p string) bool {
 	if !vp.OK {
 		return false
 	}
-	info, err := os.Stat(vp.Value.(string))
-	return err == nil && info.IsDir()
+	r := Stat(vp.Value.(string))
+	if !r.OK {
+		return false
+	}
+	info := r.Value.(interface{ IsDir() bool })
+	return info.IsDir()
 }
 
 // IsFile returns true if path is a regular file.
@@ -332,8 +331,12 @@ func (m *Fs) IsFile(p string) bool {
 	if !vp.OK {
 		return false
 	}
-	info, err := os.Stat(vp.Value.(string))
-	return err == nil && info.Mode().IsRegular()
+	r := Stat(vp.Value.(string))
+	if !r.OK {
+		return false
+	}
+	info := r.Value.(interface{ Mode() FileMode })
+	return info.Mode().IsRegular()
 }
 
 // Exists returns true if path exists.
@@ -345,8 +348,7 @@ func (m *Fs) Exists(p string) bool {
 	if !vp.OK {
 		return false
 	}
-	_, err := os.Stat(vp.Value.(string))
-	return err == nil
+	return Stat(vp.Value.(string)).OK
 }
 
 // List returns directory entries.
@@ -359,7 +361,7 @@ func (m *Fs) List(p string) Result {
 	if !vp.OK {
 		return vp
 	}
-	return Result{}.New(os.ReadDir(vp.Value.(string)))
+	return ReadDir(DirFS(vp.Value.(string)), ".")
 }
 
 // Stat returns file info.
@@ -372,7 +374,7 @@ func (m *Fs) Stat(p string) Result {
 	if !vp.OK {
 		return vp
 	}
-	return Result{}.New(os.Stat(vp.Value.(string)))
+	return Stat(vp.Value.(string))
 }
 
 // Open opens the named file for reading.
@@ -386,7 +388,7 @@ func (m *Fs) Open(p string) Result {
 	if !vp.OK {
 		return vp
 	}
-	return Result{}.New(os.Open(vp.Value.(string)))
+	return Open(vp.Value.(string))
 }
 
 // Create creates or truncates the named file.
@@ -401,10 +403,10 @@ func (m *Fs) Create(p string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return Result{err, false}
+	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+		return r
 	}
-	return Result{}.New(os.Create(full))
+	return Create(full)
 }
 
 // Append opens the named file for appending, creating it if it doesn't exist.
@@ -419,10 +421,10 @@ func (m *Fs) Append(p string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-		return Result{err, false}
+	if r := MkdirAll(filepath.Dir(full), 0755); !r.OK {
+		return r
 	}
-	return Result{}.New(os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644))
+	return OpenFile(full, O_APPEND|O_CREATE|O_WRONLY, 0644)
 }
 
 // ReadStream returns a reader for the file content.
@@ -484,11 +486,11 @@ func (m *Fs) Delete(p string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if full == "/" || full == os.Getenv("HOME") {
+	if full == "/" || full == Getenv("HOME") {
 		return Result{E("fs.Delete", Concat("refusing to delete protected path: ", full), nil), false}
 	}
-	if err := os.Remove(full); err != nil {
-		return Result{err, false}
+	if r := Remove(full); !r.OK {
+		return r
 	}
 	return Result{OK: true}
 }
@@ -504,11 +506,11 @@ func (m *Fs) DeleteAll(p string) Result {
 		return vp
 	}
 	full := vp.Value.(string)
-	if full == "/" || full == os.Getenv("HOME") {
+	if full == "/" || full == Getenv("HOME") {
 		return Result{E("fs.DeleteAll", Concat("refusing to delete protected path: ", full), nil), false}
 	}
-	if err := os.RemoveAll(full); err != nil {
-		return Result{err, false}
+	if r := RemoveAll(full); !r.OK {
+		return r
 	}
 	return Result{OK: true}
 }
@@ -527,10 +529,7 @@ func (m *Fs) Rename(oldPath, newPath string) Result {
 	if !newVp.OK {
 		return newVp
 	}
-	if err := os.Rename(oldVp.Value.(string), newVp.Value.(string)); err != nil {
-		return Result{err, false}
-	}
-	return Result{OK: true}
+	return Rename(oldVp.Value.(string), newVp.Value.(string))
 }
 
 // FsEntry is a directory entry yielded by WalkSeq and WalkSeqSkip.

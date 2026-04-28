@@ -7,7 +7,6 @@ package core
 
 import (
 	goio "io"
-	"os"
 )
 
 // Level defines logging verbosity.
@@ -146,7 +145,7 @@ func NewLog(opts LogOptions) *Log {
 		output = RotationWriterFactory(*opts.Rotation)
 	}
 	if output == nil {
-		output = os.Stderr
+		output = Stderr()
 	}
 
 	return &Log{
@@ -352,10 +351,10 @@ func Username() string {
 	if r := UserCurrent(); r.OK {
 		return r.Value.(*User).Username
 	}
-	if u := os.Getenv("USER"); u != "" {
+	if u := Getenv("USER"); u != "" {
 		return u
 	}
-	return os.Getenv("USERNAME")
+	return Getenv("USERNAME")
 }
 
 // --- Default logger ---

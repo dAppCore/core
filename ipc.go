@@ -6,7 +6,6 @@
 
 package core
 
-
 // Ipc holds IPC dispatch data and the named action registry.
 //
 //	ipc := (&core.Ipc{}).New()

@@ -7,10 +7,6 @@
 //	c.Cli().Run()
 package core
 
-import (
-	"os"
-)
-
 // CliOptions holds configuration for the Cli service.
 //
 //	c := core.New()
@@ -33,12 +29,12 @@ type Cli struct {
 //
 //	core.New(core.WithService(core.CliRegister))
 func CliRegister(c *Core) Result {
-	cl := &Cli{output: os.Stdout}
+	cl := &Cli{output: Stdout()}
 	cl.ServiceRuntime = NewServiceRuntime[CliOptions](c, CliOptions{})
 	return c.RegisterService("cli", cl)
 }
 
-// Print writes to the CLI output (defaults to os.Stdout).
+// Print writes to the CLI output (defaults to core.Stdout()).
 //
 //	c.Cli().Print("hello %s", "world")
 func (cl *Cli) Print(format string, args ...any) {
@@ -47,18 +43,18 @@ func (cl *Cli) Print(format string, args ...any) {
 
 // SetOutput sets the CLI output writer.
 //
-//	c.Cli().SetOutput(os.Stderr)
+//	c.Cli().SetOutput(core.Stderr())
 func (cl *Cli) SetOutput(w Writer) {
 	cl.output = w
 }
 
-// Run resolves os.Args to a command path and executes it.
+// Run resolves core.Args() to a command path and executes it.
 //
 //	c.Cli().Run()
 //	c.Cli().Run("deploy", "to", "homelab")
 func (cl *Cli) Run(args ...string) Result {
 	if len(args) == 0 {
-		args = os.Args[1:]
+		args = Args()[1:]
 	}
 
 	clean := FilterArgs(args)

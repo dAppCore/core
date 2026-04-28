@@ -215,6 +215,7 @@ func (w *WaitGroup) Go(fn func()) {
 		fn()
 	}()
 }
+
 // --- SyncMap: Concurrent map ---
 //
 // For most use cases, prefer map[K]V + core.RWMutex (type-safe, easier
