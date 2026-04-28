@@ -132,9 +132,13 @@ func TestLsp_LSPServe_Good(t *T) {
 }
 
 func TestLsp_LSPServe_Bad(t *T) {
-	// Calling with a nil context would panic on ctx.Done() — verify the
-	// boundary contract by reading the function pointer (no-invoke).
-	AssertNotNil(t, LSPServe)
+	ctx, cancel := WithCancel(Background())
+	cancel()
+
+	r := LSPServe(ctx)
+
+	AssertFalse(t, r.OK)
+	AssertError(t, r.Value.(error))
 }
 
 func TestLsp_LSPServe_Ugly(t *T) {

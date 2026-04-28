@@ -106,6 +106,17 @@ func TestLsp_lspExtractDocumentChange_Ugly(t *T) {
 	AssertNil(t, content)
 }
 
+func TestLsp_lspExtractDocumentChangeMissingDocument_Bad(t *T) {
+	uri, content := lspExtractDocumentChange(map[string]any{
+		"contentChanges": []any{
+			map[string]any{"text": "package agent\n"},
+		},
+	})
+
+	AssertEqual(t, "", uri)
+	AssertNil(t, content)
+}
+
 // --- lspTestImportsDiagnostic ---
 
 func TestLsp_lspTestImportsDiagnostic_Good(t *T) {
@@ -178,6 +189,28 @@ import (
 	AssertEmpty(t, diags)
 }
 
+func TestLsp_lspSporDiagnosticNonGo_Bad(t *T) {
+	diags := lspSporDiagnostic("file:///agent.txt", []byte(`import "fmt"`))
+
+	AssertEmpty(t, diags)
+}
+
+func TestLsp_lspSporDiagnosticImportBlock_Good(t *T) {
+	content := []byte(`package agent
+
+import (
+	// allowed comment
+
+	"strings"
+)
+`)
+	diags := lspSporDiagnostic("file:///agent.go", content)
+
+	AssertLen(t, diags, 1)
+	AssertEqual(t, "spor", diags[0].Source)
+	AssertContains(t, diags[0].Message, "strings")
+}
+
 // --- lspNamingDiagnostic ---
 
 func TestLsp_lspNamingDiagnostic_Good(t *T) {
@@ -225,6 +258,28 @@ func (r *Runner[T]) Start() {}
 `)
 	diags := lspNamingDiagnostic(Concat("file://", PathJoin(dir, "agent.go")), content)
 	AssertEmpty(t, diags)
+}
+
+func TestLsp_lspNamingDiagnosticCache_Good(t *T) {
+	dir := t.TempDir()
+	tests := []byte(`package agent
+
+func TestAgent_SyncAgent_Good(t *T) {}
+func TestAgent_SyncAgent_Bad(t *T) {}
+`)
+	RequireTrue(t, WriteFile(PathJoin(dir, "agent_test.go"), tests, 0o644).OK)
+	RequireTrue(t, WriteFile(PathJoin(dir, "notes.txt"), []byte("ignored"), 0o644).OK)
+
+	content := []byte(`package agent
+
+func SyncAgent() {}
+`)
+	first := lspNamingDiagnostic(Concat("file://", PathJoin(dir, "agent.go")), content)
+	second := lspNamingDiagnostic(Concat("file://", PathJoin(dir, "agent.go")), content)
+
+	AssertLen(t, first, 1)
+	AssertLen(t, second, 1)
+	AssertEqual(t, first[0].Message, second[0].Message)
 }
 
 // --- lspNamingDiagnosticsFromSuffixes ---
@@ -297,6 +352,24 @@ func newTestLSPServer() (*lspServer, *bytes.Buffer, *bytes.Buffer) {
 	return srv, in, out
 }
 
+type failingLSPWriter struct{}
+
+func (f failingLSPWriter) Write([]byte) (int, error) {
+	return 0, AnError
+}
+
+type bodyFailingLSPWriter struct {
+	writes int
+}
+
+func (w *bodyFailingLSPWriter) Write(p []byte) (int, error) {
+	w.writes++
+	if w.writes > 1 {
+		return 0, AnError
+	}
+	return len(p), nil
+}
+
 func TestLsp_lspServer_run_Good(t *T) {
 	srv, _, _ := newTestLSPServer()
 	ctx, cancel := WithCancel(Background())
@@ -319,6 +392,21 @@ func TestLsp_lspServer_run_Ugly(t *T) {
 	srv.in = NewBufReader(in)
 	r := srv.run(Background())
 	AssertFalse(t, r.OK)
+}
+
+func TestLsp_lspServer_runDispatch_Good(t *T) {
+	srv, in, out := newTestLSPServer()
+	body := `{"jsonrpc":"2.0","method":"initialize","id":1}`
+	in.WriteString("Content-Length: ")
+	in.WriteString(Itoa(len(body)))
+	in.WriteString("\r\n\r\n")
+	in.WriteString(body)
+	srv.in = NewBufReader(in)
+
+	r := srv.run(Background())
+
+	AssertTrue(t, r.OK)
+	AssertContains(t, out.String(), "core-go-lsp")
 }
 
 func TestLsp_lspServer_readMessage_Good(t *T) {
@@ -375,6 +463,28 @@ func TestLsp_lspServer_writeMessage_Ugly(t *T) {
 	AssertContains(t, out.String(), "Content-Length:")
 }
 
+func TestLsp_lspServer_writeMessageWriter_Bad(t *T) {
+	srv, _, _ := newTestLSPServer()
+	srv.out = failingLSPWriter{}
+
+	err := srv.writeMessage(map[string]any{"jsonrpc": "2.0"})
+
+	AssertError(t, err)
+	AssertErrorIs(t, err, AnError)
+}
+
+func TestLsp_lspServer_writeMessageBodyWriter_Ugly(t *T) {
+	srv, _, _ := newTestLSPServer()
+	writer := &bodyFailingLSPWriter{}
+	srv.out = writer
+
+	err := srv.writeMessage(map[string]any{"jsonrpc": "2.0"})
+
+	AssertError(t, err)
+	AssertErrorIs(t, err, AnError)
+	AssertEqual(t, 2, writer.writes)
+}
+
 func TestLsp_lspServer_dispatch_Good(t *T) {
 	srv, _, out := newTestLSPServer()
 	id := 1
@@ -395,6 +505,29 @@ func TestLsp_lspServer_dispatch_Ugly(t *T) {
 	srv, _, out := newTestLSPServer()
 	srv.dispatch([]byte(`{"jsonrpc":"2.0","method":"unknown/method","id":42}`))
 	AssertEqual(t, 0, out.Len())
+}
+
+func TestLsp_lspServer_dispatchLifecycle_Good(t *T) {
+	srv, _, out := newTestLSPServer()
+	id := 9
+
+	srv.dispatch([]byte(`{"jsonrpc":"2.0","method":"initialized"}`))
+	srv.dispatch([]byte(`{"jsonrpc":"2.0","method":"exit"}`))
+	srv.dispatch([]byte(Sprintf(`{"jsonrpc":"2.0","method":"shutdown","id":%d}`, id)))
+
+	AssertContains(t, out.String(), `"id":9`)
+}
+
+func TestLsp_lspServer_dispatchDocumentMethods_Ugly(t *T) {
+	srv, _, out := newTestLSPServer()
+	srv.documents["file:///agent_test.go"] = []byte("old")
+
+	srv.dispatch([]byte(`{"jsonrpc":"2.0","method":"textDocument/didSave","params":{"textDocument":{"uri":"file:///agent_test.go","text":"package agent_test\n\nimport \"sync\"\n"}}}`))
+	srv.dispatch([]byte(`{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///agent_test.go"},"contentChanges":[{"text":"package agent_test\n\nimport \"context\"\n"}]}}`))
+	srv.dispatch([]byte(`{"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"file:///agent_test.go"}}}`))
+
+	AssertContains(t, out.String(), "publishDiagnostics")
+	AssertEqual(t, 0, len(srv.documents))
 }
 
 func TestLsp_lspServer_handleInitialize_Good(t *T) {
@@ -616,8 +749,10 @@ func TestLsp_lspResultShapeDiagnostic_Ugly(t *T) {
 func TestLsp_lspMatchResultPattern_Good(t *T) {
 	cases := []string{
 		"x, err := callExternal()",
+		"x, err = callExternal()",
 		"if x, err := f(); err != nil {",
 		"if err := g(); err != nil {",
+		"if err  := g(); err != nil {",
 		"_, err := openFile(path)",
 	}
 	for _, line := range cases {
@@ -656,6 +791,10 @@ func TestLsp_lspStripGoSyntax_Good(t *T) {
 	AssertContains(t, out, ":=")
 	AssertNotContains(t, out, "snider")
 	AssertNotContains(t, out, "comment")
+
+	escaped := lspStripGoSyntax(`agent := "cod\"ex"; ready := true`, &in)
+	AssertContains(t, escaped, "ready := true")
+	AssertNotContains(t, escaped, `cod\"ex`)
 }
 
 func TestLsp_lspStripGoSyntax_Bad(t *T) {

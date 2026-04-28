@@ -99,6 +99,10 @@ func TestEmbed_AddGetAsset_Good(t *T) {
 }
 
 func TestEmbed_GetAsset_Bad(t *T) {
+	AddAsset("missing-name-group", "present", MustCompressTestAsset(t, "ready"))
+	missingName := GetAsset("missing-name-group", "missing")
+	AssertFalse(t, missingName.OK)
+
 	r := GetAsset("missing-group", "missing")
 	AssertFalse(t, r.OK)
 }
@@ -128,6 +132,28 @@ func TestEmbed_ScanAssets_Good(t *T) {
 func TestEmbed_ScanAssets_Bad(t *T) {
 	r := ScanAssets([]string{"nonexistent.go"})
 	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_ScanAssetsGroup_Good(t *T) {
+	dir := t.TempDir()
+	source := `package agent
+
+import core "dappco.re/go"
+
+func assets() {
+	_ = core.Group("assets")
+}
+`
+	goFile := Path(dir, "agent.go")
+	(&Fs{}).New("/").Write(goFile, source)
+
+	r := ScanAssets([]string{goFile})
+
+	AssertTrue(t, r.OK)
+	pkgs := r.Value.([]ScannedPackage)
+	AssertLen(t, pkgs, 1)
+	AssertLen(t, pkgs[0].Groups, 1)
+	AssertContains(t, pkgs[0].Groups[0], "assets")
 }
 
 func TestEmbed_GeneratePack_Empty_Good(t *T) {
@@ -350,6 +376,31 @@ func TestEmbed_GeneratePack_Ugly(t *T) {
 	AssertContains(t, r.Value.(string), `core.AddAsset("assets", "agent.txt"`)
 }
 
+func TestEmbed_GeneratePackDeduplicates_Ugly(t *T) {
+	dir := t.TempDir()
+	group := Path(dir, "assets")
+	f := (&Fs{}).New("/")
+	f.EnsureDir(group)
+	asset := Path(group, "agent.txt")
+	f.Write(asset, "dispatch ready")
+	pkg := ScannedPackage{
+		PackageName:   "agentpack",
+		BaseDirectory: dir,
+		Groups:        []string{group},
+		Assets: []AssetRef{{
+			Name:     "agent.txt",
+			Group:    "assets",
+			FullPath: asset,
+		}},
+	}
+
+	r := GeneratePack(pkg)
+
+	AssertTrue(t, r.OK)
+	source := r.Value.(string)
+	AssertLen(t, Split(source, `core.AddAsset("assets", "agent.txt"`), 2)
+}
+
 func TestEmbed_Mount_Ugly(t *T) {
 	dir := t.TempDir()
 	r := Mount(DirFS(dir), ".")
@@ -389,6 +440,14 @@ func TestEmbed_Embed_Open_Ugly(t *T) {
 	AssertFalse(t, r.OK)
 }
 
+func TestEmbed_Embed_OpenTraversal_Bad(t *T) {
+	emb := mustMountTestFS(t, ".")
+	r := emb.Open("../secrets")
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "path traversal rejected")
+}
+
 func TestEmbed_Embed_ReadDir_Good(t *T) {
 	emb := mustMountTestFS(t, "tests/data")
 	r := emb.ReadDir(".")
@@ -408,6 +467,21 @@ func TestEmbed_Embed_ReadDir_Ugly(t *T) {
 	AssertFalse(t, r.OK)
 }
 
+func TestEmbed_Embed_ReadDirTraversal_Bad(t *T) {
+	emb := mustMountTestFS(t, "tests/data")
+	r := emb.ReadDir("../../secrets")
+
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadDirParentTraversal_Ugly(t *T) {
+	emb := mustMountTestFS(t, ".")
+	r := emb.ReadDir("../secrets")
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "path traversal rejected")
+}
+
 func TestEmbed_Embed_ReadFile_Good(t *T) {
 	emb := mustMountTestFS(t, "tests/data")
 	r := emb.ReadFile("test.txt")
@@ -425,6 +499,14 @@ func TestEmbed_Embed_ReadFile_Ugly(t *T) {
 	emb := mustMountTestFS(t, "tests/data")
 	r := emb.ReadFile("../../secrets/token")
 	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_Embed_ReadFileTraversal_Bad(t *T) {
+	emb := mustMountTestFS(t, ".")
+	r := emb.ReadFile("../secrets/token")
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "path traversal rejected")
 }
 
 func TestEmbed_Embed_ReadString_Good(t *T) {
@@ -550,4 +632,71 @@ func TestEmbed_Extract_Ugly(t *T) {
 	AssertTrue(t, read.OK)
 	AssertEqual(t, "agent codex", read.Value)
 	AssertFalse(t, f.Exists(Path(target, "skip.txt")))
+}
+
+func TestEmbed_ExtractCustomFilter_Good(t *T) {
+	target := t.TempDir()
+	src := t.TempDir()
+	f := (&Fs{}).New("/")
+	f.Write(Path(src, "agent.gotmpl"), "agent {{.Agent}}")
+
+	r := Extract(DirFS(src), target, map[string]string{"Agent": "codex"}, ExtractOptions{
+		TemplateFilters: []string{".gotmpl"},
+		RenameFiles:     map[string]string{"agent": "agent.txt"},
+	})
+
+	AssertTrue(t, r.OK)
+	read := f.Read(Path(target, "agent.txt"))
+	AssertTrue(t, read.OK)
+	AssertEqual(t, "agent codex", read.Value)
+}
+
+func TestEmbed_ExtractRenderedPathEscape_Bad(t *T) {
+	target := t.TempDir()
+	src := t.TempDir()
+	f := (&Fs{}).New("/")
+	f.EnsureDir(Path(src, "{{.Name}}"))
+
+	r := Extract(DirFS(src), target, map[string]string{"Name": "../escape"})
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "path escapes target")
+}
+
+func TestEmbed_ExtractRenamedPathEscape_Bad(t *T) {
+	target := t.TempDir()
+	src := t.TempDir()
+	f := (&Fs{}).New("/")
+	f.Write(Path(src, "agent.txt"), "ready")
+
+	r := Extract(DirFS(src), target, nil, ExtractOptions{
+		RenameFiles: map[string]string{"agent.txt": "../escape.txt"},
+	})
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "path escapes target")
+}
+
+func TestEmbed_ExtractTemplateExecute_Bad(t *T) {
+	target := t.TempDir()
+	src := t.TempDir()
+	f := (&Fs{}).New("/")
+	f.Write(Path(src, "agent.tmpl"), "{{call .Agent}}")
+
+	r := Extract(DirFS(src), target, map[string]string{"Agent": "codex"})
+
+	AssertFalse(t, r.OK)
+}
+
+func TestEmbed_ExtractCopyParentFile_Ugly(t *T) {
+	target := t.TempDir()
+	src := t.TempDir()
+	f := (&Fs{}).New("/")
+	f.EnsureDir(Path(src, "blocked"))
+	f.Write(Path(src, "blocked", "agent.txt"), "ready")
+	f.Write(Path(target, "blocked"), "file")
+
+	r := Extract(DirFS(src), target, nil)
+
+	AssertFalse(t, r.OK)
 }

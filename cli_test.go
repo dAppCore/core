@@ -184,6 +184,37 @@ func TestCli_Cli_Run_Ugly(t *T) {
 	AssertContains(t, buf.String(), "homelab ops")
 }
 
+func TestCli_Cli_RunMissingCommand_Bad(t *T) {
+	c := New(WithOption("name", "homelab"))
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.Cli().SetBanner(func(_ *Cli) string { return "homelab ops" })
+	c.Command("system/status", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+
+	r := c.Cli().Run("agent", "missing")
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, buf.String(), "homelab ops")
+	AssertContains(t, buf.String(), "system/status")
+}
+
+func TestCli_Cli_RunFlagForms_Ugly(t *T) {
+	c := New()
+	var dryRun bool
+	var name string
+	c.Command("agent/run", Command{Action: func(opts Options) Result {
+		dryRun = opts.Bool("dry-run")
+		name = opts.String("_arg")
+		return Result{OK: true}
+	}})
+
+	r := c.Cli().Run("agent", "run", "--dry-run", "codex")
+
+	AssertTrue(t, r.OK)
+	AssertTrue(t, dryRun)
+	AssertEqual(t, "codex", name)
+}
+
 func TestCli_Cli_PrintHelp_Good(t *T) {
 	c := New(WithOption("name", "homelab"))
 	buf := NewBuffer()
@@ -209,6 +240,19 @@ func TestCli_Cli_PrintHelp_Ugly(t *T) {
 	c.Cli().SetOutput(buf)
 	c.Cli().PrintHelp()
 	AssertEqual(t, "Commands:\n", buf.String())
+}
+
+func TestCli_Cli_PrintHelpTranslated_Good(t *T) {
+	c := New()
+	buf := NewBuffer()
+	c.Cli().SetOutput(buf)
+	c.I18n().SetTranslator(&mockTranslator{})
+	c.Command("agent/status", Command{Action: func(_ Options) Result { return Result{OK: true} }})
+
+	c.Cli().PrintHelp()
+
+	AssertContains(t, buf.String(), "agent/status")
+	AssertContains(t, buf.String(), "translated:cmd.agent.status.description")
 }
 
 func TestCli_Cli_SetBanner_Good(t *T) {

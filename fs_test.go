@@ -587,10 +587,9 @@ func TestFs_Fs_TempDir_Good(t *T) {
 func TestFs_Fs_TempDir_Bad(t *T) {
 	fsys := (&Fs{}).New(ax7TempRoot(t))
 
-	dir := fsys.TempDir("")
-	defer RemoveAll(dir)
+	dir := fsys.TempDir(Path("missing", "nested", "agent-"))
 
-	AssertNotEmpty(t, dir)
+	AssertEqual(t, "", dir)
 }
 
 func TestFs_Fs_TempDir_Ugly(t *T) {
@@ -686,6 +685,16 @@ func TestFs_Fs_WriteAtomic_Bad(t *T) {
 	r := fsys.WriteAtomic("status/agent.json", `{"ok":true}`)
 
 	AssertFalse(t, r.OK)
+}
+
+func TestFs_Fs_WriteAtomicDirectoryTarget_Bad(t *T) {
+	fsys := (&Fs{}).New(ax7TempRoot(t))
+	AssertTrue(t, fsys.EnsureDir("status").OK)
+
+	r := fsys.WriteAtomic("status", "file")
+
+	AssertFalse(t, r.OK)
+	AssertFalse(t, fsys.Exists("status.tmp."))
 }
 
 func TestFs_Fs_WriteAtomic_Ugly(t *T) {
@@ -1045,6 +1054,17 @@ func TestFs_Fs_Delete_Ugly(t *T) {
 	AssertFalse(t, r.OK)
 }
 
+func TestFs_Fs_DeleteProtectedHome_Bad(t *T) {
+	home := Getenv("HOME")
+	RequireNotEmpty(t, home)
+	fsys := (&Fs{}).New("/")
+
+	r := fsys.Delete(home)
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "refusing to delete protected path")
+}
+
 func TestFs_Fs_DeleteAll_Good(t *T) {
 	fsys := (&Fs{}).New(ax7TempRoot(t))
 	AssertTrue(t, fsys.Write("sessions/one/status.json", "done").OK)
@@ -1061,6 +1081,17 @@ func TestFs_Fs_DeleteAll_Bad(t *T) {
 	r := fsys.DeleteAll("/")
 
 	AssertFalse(t, r.OK)
+}
+
+func TestFs_Fs_DeleteAllProtectedHome_Ugly(t *T) {
+	home := Getenv("HOME")
+	RequireNotEmpty(t, home)
+	fsys := (&Fs{}).New("/")
+
+	r := fsys.DeleteAll(home)
+
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "refusing to delete protected path")
 }
 
 func TestFs_Fs_DeleteAll_Ugly(t *T) {

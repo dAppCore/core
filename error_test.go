@@ -292,6 +292,17 @@ func TestError_AllOperations_Ugly(t *T) {
 	AssertEmpty(t, ops)
 }
 
+func TestError_AllOperationsBreak_Bad(t *T) {
+	err := Wrap(E("agent.Token", "expired", nil), "agent.Dispatch", "failed")
+	var ops []string
+	for op := range AllOperations(err) {
+		ops = append(ops, op)
+		break
+	}
+
+	AssertEqual(t, []string{"agent.Dispatch"}, ops)
+}
+
 type plainErr struct{ msg string }
 
 func (e *plainErr) Error() string { return e.msg }
@@ -417,7 +428,7 @@ func TestError_ErrorLog_Warn_Ugly(t *T) {
 }
 
 func TestError_ErrorMessage_Bad(t *T) {
-	AssertEqual(t, "plain failure", ErrorMessage(NewError("plain failure")))
+	AssertEqual(t, "plain failure", ErrorMessage(&plainErr{msg: "plain failure"}))
 }
 
 func TestError_ErrorMessage_Ugly(t *T) {
