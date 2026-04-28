@@ -5,7 +5,7 @@
 // defined in options.go alongside Options as a Core primitive; this
 // file extends it with the call-site helpers.
 //
-//	user := core.As[*User](c.Drive().Get(opts)).Must()
+//	user := core.MustCast[*User](c.Drive().Get(opts))
 //	timeout := core.HTTPGet(url).Or(defaultResp)
 package core
 
