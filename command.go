@@ -20,7 +20,6 @@
 //	"deploy/to/homelab"  → "cmd.deploy.to.homelab.description"
 package core
 
-
 // CommandAction is the function signature for command handlers.
 //
 //	func(opts core.Options) core.Result
@@ -28,14 +27,25 @@ type CommandAction func(Options) Result
 
 // Command is the DTO for an executable operation.
 // Commands are declarative — they carry enough information for multiple consumers:
+//
 //   - core.Cli() runs the Action
+//
 //   - core/cli adds rich help, completion, man pages
+//
 //   - go-process wraps Managed commands with lifecycle (PID, health, signals)
 //
-//	c.Command("serve", core.Command{
-//	    Action:  handler,
-//	    Managed: "process.daemon",  // go-process provides start/stop/restart
-//	})
+//     c.Command("serve", core.Command{
+//     Action:  handler,
+//     Managed: "process.daemon",  // go-process provides start/stop/restart
+//     })
+//
+// Usage:
+//
+//	cmd := core.Command{Action: func(opts core.Options) core.Result {
+//	    return core.Result{Value: core.Sprintf("deploy %s", opts.String("target")), OK: true}
+//	}}
+//	r := cmd.Run(core.NewOptions(core.Option{Key: "target", Value: "homelab"}))
+//	if !r.OK { return r }
 type Command struct {
 	Name        string
 	Description string        // i18n key — derived from path if empty
@@ -82,6 +92,9 @@ func (cmd *Command) IsManaged() bool {
 
 // CommandRegistry holds the command tree. Embeds Registry[*Command]
 // for thread-safe named storage with insertion order.
+//
+//	registry := &core.CommandRegistry{Registry: core.NewRegistry[*core.Command]()}
+//	registry.Set("deploy/to/homelab", &core.Command{Name: "homelab"})
 type CommandRegistry struct {
 	*Registry[*Command]
 }

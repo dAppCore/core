@@ -25,22 +25,15 @@ type Result struct {
 	OK    bool
 }
 
-// Result gets or sets the value. Zero args returns Value. With args, maps
-// Go (value, error) pairs to Result and returns self.
-//
-//	r.Result(file, err)     // OK = err == nil, Value = file
-//	r.Result(value)         // OK = true, Value = value
-//	r.Result()              // after set — returns the value
-func (r Result) Result(args ...any) Result {
-	if len(args) == 0 {
-		return r
-	}
-	return r.New(args...)
-}
-
 // New adapts Go (value, error) pairs into a Result.
 //
-//	r := core.Result{}.New(file, err)
+// Deprecated: prefer core.ResultOf(value, err) for the (T, error)
+// adapter or core.Ok(v) / core.Err(err) for direct construction.
+// New's variadic-reflective shape is awkward to read; the explicit
+// constructors document intent at the call site. Removed in v0.10.0.
+//
+//	r := core.Result{}.New(file, err)  // legacy
+//	r := core.ResultOf(file, err)      // preferred
 func (r Result) New(args ...any) Result {
 	if len(args) == 0 {
 		return r
@@ -68,16 +61,6 @@ func (r Result) New(args ...any) Result {
 
 	r.OK = true
 	return r
-}
-
-// Get returns the Result if OK, empty Result otherwise.
-//
-//	r := core.Result{Value: "hello", OK: true}.Get()
-func (r Result) Get() Result {
-	if r.OK {
-		return r
-	}
-	return Result{Value: r.Value, OK: false}
 }
 
 // Option is a single key-value configuration pair.
@@ -184,12 +167,64 @@ func (o Options) Bool(key string) bool {
 	return b
 }
 
+// Float64 retrieves a float64 value, 0 if missing or wrong type.
+// Promotes int/int64 to float64 so JSON-decoded numbers work uniformly.
+//
+//	weight := opts.Float64("weight")
+func (o Options) Float64(key string) float64 {
+	r := o.Get(key)
+	if !r.OK {
+		return 0
+	}
+	switch v := r.Value.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	}
+	return 0
+}
+
+// Duration retrieves a Duration value, 0 if missing or wrong type.
+// Accepts a Duration directly or a string parsed via ParseDuration.
+//
+//	timeout := opts.Duration("timeout")
+func (o Options) Duration(key string) Duration {
+	r := o.Get(key)
+	if !r.OK {
+		return 0
+	}
+	switch v := r.Value.(type) {
+	case Duration:
+		return v
+	case string:
+		if d := ParseDuration(v); d.OK {
+			if dur, ok := d.Value.(Duration); ok {
+				return dur
+			}
+		}
+	}
+	return 0
+}
+
 // Len returns the number of options.
+//
+//	opts := core.NewOptions(core.Option{Key: "agent", Value: "codex"})
+//	count := opts.Len()
+//	core.Println(count)
 func (o Options) Len() int {
 	return len(o.items)
 }
 
 // Items returns a copy of the underlying option slice.
+//
+//	opts := core.NewOptions(core.Option{Key: "agent", Value: "codex"})
+//	items := opts.Items()
+//	core.Println(items[0].Key)
 func (o Options) Items() []Option {
 	cp := make([]Option, len(o.items))
 	copy(cp, o.items)

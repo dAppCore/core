@@ -17,9 +17,10 @@
 
 package core
 
-import "context"
-
 // Service is a managed component with optional lifecycle.
+//
+//	svc := core.Service{Name: "agent", OnStart: func() core.Result { return core.Result{OK: true} }}
+//	core.New().Service("agent", svc)
 type Service struct {
 	Name     string
 	Instance any // the raw service instance (for interface discovery)
@@ -31,6 +32,9 @@ type Service struct {
 
 // ServiceRegistry holds registered services. Embeds Registry[*Service]
 // for thread-safe named storage with insertion order.
+//
+//	registry := &core.ServiceRegistry{Registry: core.NewRegistry[*core.Service]()}
+//	registry.Set("agent", &core.Service{Name: "agent"})
 type ServiceRegistry struct {
 	*Registry[*Service]
 	lockEnabled bool
@@ -99,7 +103,7 @@ func (c *Core) RegisterService(name string, instance any) Result {
 	}
 	if s, ok := instance.(Stoppable); ok {
 		srv.OnStop = func() Result {
-			return s.OnShutdown(context.Background())
+			return s.OnShutdown(Background())
 		}
 	}
 

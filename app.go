@@ -4,11 +4,6 @@
 
 package core
 
-import (
-	"os"
-	"path/filepath"
-)
-
 // App holds the application identity and optional GUI runtime.
 //
 //	app := core.App{}.New(core.NewOptions(
@@ -47,36 +42,36 @@ func (a App) New(opts Options) App {
 }
 
 // Find locates a program on PATH and returns a Result containing the App.
-// Uses os.Stat to search PATH directories — no os/exec dependency.
+// Uses core.Stat to search PATH directories — no os/exec dependency.
 //
 //	r := core.App{}.Find("node", "Node.js")
 //	if r.OK { app := r.Value.(*App) }
 func (a App) Find(filename, name string) Result {
 	// If filename contains a separator, check it directly
-	if Contains(filename, string(os.PathSeparator)) {
-		abs, err := filepath.Abs(filename)
-		if err != nil {
-			return Result{err, false}
+	if Contains(filename, string(PathSeparator)) {
+		abs := PathAbs(filename)
+		if !abs.OK {
+			return abs
 		}
-		if isExecutable(abs) {
-			return Result{&App{Name: name, Filename: filename, Path: abs}, true}
+		if isExecutable(abs.Value.(string)) {
+			return Result{&App{Name: name, Filename: filename, Path: abs.Value.(string)}, true}
 		}
 		return Result{E("app.Find", Concat(filename, " not found"), nil), false}
 	}
 
 	// Search PATH
-	pathEnv := os.Getenv("PATH")
+	pathEnv := Env("PATH")
 	if pathEnv == "" {
 		return Result{E("app.Find", "PATH is empty", nil), false}
 	}
-	for _, dir := range Split(pathEnv, string(os.PathListSeparator)) {
-		candidate := filepath.Join(dir, filename)
+	for _, dir := range Split(pathEnv, string(PathListSeparator)) {
+		candidate := PathJoin(dir, filename)
 		if isExecutable(candidate) {
-			abs, err := filepath.Abs(candidate)
-			if err != nil {
+			abs := PathAbs(candidate)
+			if !abs.OK {
 				continue
 			}
-			return Result{&App{Name: name, Filename: filename, Path: abs}, true}
+			return Result{&App{Name: name, Filename: filename, Path: abs.Value.(string)}, true}
 		}
 	}
 	return Result{E("app.Find", Concat(filename, " not found on PATH"), nil), false}
@@ -84,10 +79,14 @@ func (a App) Find(filename, name string) Result {
 
 // isExecutable checks if a path exists and is executable.
 func isExecutable(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
+	r := Stat(path)
+	if !r.OK {
 		return false
 	}
+	info := r.Value.(interface {
+		IsDir() bool
+		Mode() FileMode
+	})
 	// Regular file with at least one execute bit
 	return !info.IsDir() && info.Mode()&0111 != 0
 }

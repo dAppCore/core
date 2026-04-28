@@ -5,16 +5,13 @@
 
 package core
 
-import (
-	"context"
-	"os"
-	"sync"
-	"sync/atomic"
-)
-
 // --- Core Struct ---
 
 // Core is the central application object that manages services, assets, and communication.
+//
+//	c := core.New(core.WithOption("name", "homelab"))
+//	ctx := c.Context()
+//	_ = ctx
 type Core struct {
 	options *Options    // c.Options()        — Input configuration used to create this Core
 	app     *App        // c.App()            — Application identity + optional GUI runtime
@@ -36,11 +33,11 @@ type Core struct {
 	entitlementChecker EntitlementChecker // default: everything permitted
 	usageRecorder      UsageRecorder      // default: nil (no-op)
 
-	context       context.Context
-	cancel        context.CancelFunc
-	taskIDCounter atomic.Uint64
-	waitGroup     sync.WaitGroup
-	shutdown      atomic.Bool
+	context       Context
+	cancel        CancelFunc
+	taskIDCounter AtomicUint64
+	waitGroup     WaitGroup
+	shutdown      AtomicBool
 }
 
 // --- Accessors ---
@@ -116,7 +113,7 @@ func (c *Core) Env(key string) string { return Env(key) }
 // Context returns Core's lifecycle context (cancelled on shutdown).
 //
 //	ctx := c.Context()
-func (c *Core) Context() context.Context { return c.context }
+func (c *Core) Context() Context { return c.context }
 
 // Core returns self — satisfies the ServiceRuntime interface.
 //
@@ -125,45 +122,46 @@ func (c *Core) Core() *Core { return c }
 
 // --- Lifecycle ---
 
-// RunE starts all services, runs the CLI, then shuts down.
-// Returns an error instead of calling os.Exit — let main() handle the exit.
+// RunResult starts all services, runs the CLI, then shuts down.
+// Returns Result so main() can decide how to handle failure.
 // ServiceShutdown is always called via defer, even on startup failure or panic.
 //
-//	if err := c.RunE(); err != nil {
-//	    os.Exit(1)
-//	}
-func (c *Core) RunE() error {
-	defer c.ServiceShutdown(context.Background())
+//	r := c.RunResult()
+//	if !r.OK { core.Exit(1) }
+func (c *Core) RunResult() Result {
+	defer c.ServiceShutdown(Background())
 
 	r := c.ServiceStartup(c.context, nil)
 	if !r.OK {
-		if err, ok := r.Value.(error); ok {
-			return err
+		if _, ok := r.Value.(error); !ok {
+			return Result{Value: NewCode("core.run.startup", "startup failed"), OK: false}
 		}
-		return E("core.Run", "startup failed", nil)
+		return r
 	}
 
 	if cli := c.Cli(); cli != nil {
 		r = cli.Run()
 	}
 
-	if !r.OK {
-		if err, ok := r.Value.(error); ok {
-			return err
-		}
+	// CLI's empty-result "no commands registered, banner shown" is the
+	// no-op success case; treat as OK.
+	if !r.OK && r.Value == nil {
+		return Result{OK: true}
 	}
-	return nil
+	return r
 }
 
-// Run starts all services, runs the CLI, then shuts down.
-// Calls os.Exit(1) on failure. For error handling use RunE().
+// Run starts all services, runs the CLI, then shuts down. Calls
+// c.Exit(1) on failure (graceful shutdown chain, 30s timeout). For
+// programmatic error handling use RunResult().
 //
 //	c := core.New(core.WithService(myService.Register))
 //	c.Run()
 func (c *Core) Run() {
-	if err := c.RunE(); err != nil {
-		Error(err.Error())
-		os.Exit(1)
+	r := c.RunResult()
+	if !r.OK {
+		Error(r.Error())
+		c.Exit(1)
 	}
 }
 
@@ -189,16 +187,29 @@ func (c *Core) QUERYALL(q Query) Result { return c.QueryAll(q) }
 // --- Error+Log ---
 
 // LogError logs an error and returns the Result from ErrorLog.
+//
+//	c := core.New()
+//	err := core.NewError("homelab unreachable")
+//	r := c.LogError(err, "agent.Ping", "health check failed")
+//	if !r.OK { return r }
 func (c *Core) LogError(err error, op, msg string) Result {
 	return c.log.Error(err, op, msg)
 }
 
 // LogWarn logs a warning and returns the Result from ErrorLog.
+//
+//	c := core.New()
+//	err := core.NewError("config.host missing")
+//	r := c.LogWarn(err, "config.Load", "using default host")
+//	if !r.OK { return r }
 func (c *Core) LogWarn(err error, op, msg string) Result {
 	return c.log.Warn(err, op, msg)
 }
 
 // Must logs and panics if err is not nil.
+//
+//	c := core.New()
+//	c.Must(nil, "agent.Start", "startup failed")
 func (c *Core) Must(err error, op, msg string) {
 	c.log.Must(err, op, msg)
 }

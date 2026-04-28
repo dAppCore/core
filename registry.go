@@ -22,11 +22,6 @@
 //	Locked — fully frozen, no writes at all
 package core
 
-import (
-	"path/filepath"
-	"sync"
-)
-
 // registryMode controls write behaviour.
 type registryMode int
 
@@ -46,7 +41,7 @@ type Registry[T any] struct {
 	items    map[string]T
 	disabled map[string]bool
 	order    []string // insertion order
-	mu       sync.RWMutex
+	mu       RWMutex
 	mode     registryMode
 }
 
@@ -122,7 +117,7 @@ func (r *Registry[T]) Names() []string {
 }
 
 // List returns items whose names match the glob pattern.
-// Uses filepath.Match semantics: "*" matches any sequence, "?" matches one char.
+// Uses PathMatch semantics: "*" matches any sequence, "?" matches one char.
 //
 //	services := r.List("process.*")
 func (r *Registry[T]) List(pattern string) []T {
@@ -131,7 +126,7 @@ func (r *Registry[T]) List(pattern string) []T {
 
 	var result []T
 	for _, name := range r.order {
-		if matched, _ := filepath.Match(pattern, name); matched {
+		if matched := PathMatch(pattern, name); matched.OK && matched.Value.(bool) {
 			if !r.disabled[name] {
 				result = append(result, r.items[name])
 			}
@@ -222,6 +217,11 @@ func (r *Registry[T]) Enable(name string) Result {
 }
 
 // Disabled returns true if the item is soft-disabled.
+//
+//	r := core.NewRegistry[string]()
+//	r.Set("agent", "codex")
+//	r.Disable("agent")
+//	if r.Disabled("agent") { core.Println("disabled") }
 func (r *Registry[T]) Disabled(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -238,6 +238,10 @@ func (r *Registry[T]) Lock() {
 }
 
 // Locked returns true if the registry is fully frozen.
+//
+//	r := core.NewRegistry[string]()
+//	r.Lock()
+//	if r.Locked() { core.Println("locked") }
 func (r *Registry[T]) Locked() bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -255,6 +259,11 @@ func (r *Registry[T]) Seal() {
 }
 
 // Sealed returns true if the registry is sealed (no new keys).
+//
+//	r := core.NewRegistry[string]()
+//	r.Set("agent", "codex")
+//	r.Seal()
+//	if r.Sealed() { core.Println("sealed") }
 func (r *Registry[T]) Sealed() bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -63,6 +63,22 @@ type repositoryService struct {
 }
 ```
 
+CoreGO also re-exports the stdlib types your package would otherwise reach for. Prefer the core surface over importing stdlib directly:
+
+- I/O primitives: `core.Reader`, `core.Writer`, `core.Closer`, `core.EOF`, `core.Copy`, `core.WriteString`
+- OS surface: `core.FileMode`, `core.ModePerm`, `core.Stdin`, `core.Stdout`, `core.Stderr`
+- Networking: `core.Conn`, `core.Listener`, `core.IP`, `core.ParseIP`, `core.NetDial`, `core.NetListen`, `core.NetPipe`
+- HTTP: `core.Request`, `core.Response`, `core.Handler`, `core.HTTPServer`, `core.HTTPClient`, `core.HTTPGet`, `core.HTTPPost`, `core.NewHTTPTestServer`
+- Templating: `core.Template`, `core.NewTemplate`, `core.ParseTemplate`, `core.ExecuteTemplate`
+- SQL: `core.DB`, `core.Tx`, `core.Rows`, `core.ErrNoRows`, `core.SQLOpen`
+- Regex: `core.Regexp`, `core.Regex(pattern)`
+- Time: `core.Now`, `core.Sleep`, `core.Since`, `core.TimeFormat`, `core.TimeParse`, `core.TimeRFC3339`
+- Path: `core.Path`, `core.PathBase`, `core.PathDir`, `core.PathExt`, `core.PathRel`, `core.PathAbs`, `core.PathChangeExt`
+- Filesystem: `c.Fs().WalkSeq`, `c.Fs().WalkSeqSkip` for directory traversal
+- Slices/maps: `core.SliceContains`, `core.SliceFilter`, `core.SliceMap`, `core.SliceReduce`, `core.MapKeys`, `core.MapFilter`, `core.MapMerge`
+
+The destination state for `go.mod` in any package built on CoreGO is two lines — `module` and `go` — with no `require` block at all. Reach for stdlib only when CoreGO genuinely lacks the primitive; if your package needs something universal that's missing, the answer is to add it to CoreGO, not to import stdlib in your consumer.
+
 ## 5. Prefer Explicit Registration
 
 Register services and commands with names and paths that stay readable in grep results.
@@ -102,17 +118,56 @@ Do not introduce free-form `fmt.Errorf` chains in framework code.
 
 Follow the repository pattern:
 
-- `_Good`
-- `_Bad`
-- `_Ugly`
+- `_Good`   — happy path
+- `_Bad`    — expected failure (rejected input, returned error, refused operation)
+- `_Ugly`   — edge case (zero values, large inputs, boundary conditions, race-prone setup)
 
-Example:
+Test files import only the core package and use the `*T` alias for the test handle:
 
 ```go
-func TestRepositorySync_Good(t *testing.T) {}
-func TestRepositorySync_Bad(t *testing.T) {}
-func TestRepositorySync_Ugly(t *testing.T) {}
+package mypkg_test
+
+import (
+	. "dappco.re/go"
+)
+
+func TestRepositorySync_Good(t *T) {
+	r := svc.SyncRepository("core-go", "/srv/repos/core-go")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "synced", r.Value.(string))
+}
+
+func TestRepositorySync_Bad(t *T) {
+	r := svc.SyncRepository("", "")
+	AssertError(t, r.Value.(error), "name required")
+}
+
+func TestRepositorySync_Ugly(t *T) {
+	RequireNoError(t, setupTempRepo())
+	// ... continues with Assert* on the happy path
+}
 ```
+
+`*T` is `core.T` — an alias for `testing.T` so tests no longer need a separate `import "testing"` line. Go's test runner discovers `Test*` functions by signature; the alias is type-identical so discovery still works.
+
+Use `Assert*` for non-fatal assertions and `Require*` for "stop the test if this fails" preconditions. Both wrap `testing.TB` and emit one-line, AI-readable failure output:
+
+```
+fs_test.go:144: AssertEqual want="hello" got="world"
+```
+
+The full assertion family is in `test.go`:
+
+- Comparison: `AssertEqual`, `AssertNotEqual`, `AssertTrue`, `AssertFalse`
+- Nil: `AssertNil`, `AssertNotNil`
+- Errors: `AssertNoError`, `AssertError`, `AssertErrorIs`
+- Containers: `AssertContains`, `AssertNotContains`, `AssertLen`, `AssertEmpty`, `AssertNotEmpty`
+- Ordered: `AssertGreater`, `AssertGreaterOrEqual`, `AssertLess`, `AssertLessOrEqual`, `AssertInDelta`
+- Identity: `AssertSame`, `AssertElementsMatch`
+- Panics: `AssertPanics`, `AssertNotPanics`, `AssertPanicsWithError`
+- Fail-fast: `RequireNoError`, `RequireTrue`, `RequireNotEmpty`
+
+`core.AnError` is a sentinel error for tests that need a non-nil error without caring about its content.
 
 ## 9. Prefer Stable Shapes Over Clever APIs
 

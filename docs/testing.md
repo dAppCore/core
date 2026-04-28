@@ -1,116 +1,189 @@
 ---
 title: Testing
-description: Test naming and testing patterns used by CoreGO.
+description: Test naming, AX assertions, fuzzing, and CLI tests in CoreGO.
 ---
 
 # Testing
 
-The repository uses `github.com/stretchr/testify/assert` and a simple AX-friendly naming pattern.
-
-## Test Names
-
-Use:
-
-- `_Good` for expected success
-- `_Bad` for expected failure
-- `_Ugly` for panics, degenerate input, and edge behavior
-
-Examples from this repository:
+CoreGO ships its own AX-shaped test framework in `test.go`. Test files use a single dot-import — never `import "testing"` — and consume `*T`, `AssertX`, `RequireX`, `CLITest`, `AssertCLI` directly.
 
 ```go
-func TestNew_Good(t *testing.T) {}
-func TestService_Register_Duplicate_Bad(t *testing.T) {}
-func TestCore_Must_Ugly(t *testing.T) {}
+package mypkg_test
+
+import (
+	. "dappco.re/go"
+)
+
+func TestRepository_Sync_Good(t *T) {
+	r := svc.SyncRepository("agent", "/srv/repos/agent")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "synced", r.Value.(string))
+}
 ```
 
-## Start with a Small Core
+`*T` is `core.T`, a type-identical alias for `*testing.T`, so Go's runner discovers `Test*(t *T)` functions exactly as it does `Test*(t *testing.T)`.
+
+## Test naming
+
+`Test{Filename}_{Function}_{Good|Bad|Ugly}`. All three states are mandatory for full coverage:
+
+- `_Good` — happy path
+- `_Bad` — expected failure (rejected input, error returned, refused operation)
+- `_Ugly` — edge case (zero values, large inputs, race-prone setup, boundary conditions)
 
 ```go
-c := core.New(core.Options{
-	{Key: "name", Value: "test-core"},
-})
+func TestNew_Good(t *T) {}
+func TestService_Register_Duplicate_Bad(t *T) {}
+func TestCore_Must_Ugly(t *T) {}
+```
+
+## Assert and Require
+
+`AssertX` records a failure and continues; `RequireX` records and stops the test. Both wrap `testing.TB`, so helpers can accept either Test or Benchmark contexts.
+
+| Class | Helpers |
+|---|---|
+| Comparison | `AssertEqual`, `AssertNotEqual`, `AssertTrue`, `AssertFalse` |
+| Nil | `AssertNil`, `AssertNotNil` |
+| Errors | `AssertNoError`, `AssertError`, `AssertErrorIs` |
+| Containers | `AssertContains`, `AssertNotContains`, `AssertLen`, `AssertEmpty`, `AssertNotEmpty` |
+| Ordered | `AssertGreater`, `AssertGreaterOrEqual`, `AssertLess`, `AssertLessOrEqual`, `AssertInDelta` |
+| Identity | `AssertSame`, `AssertElementsMatch` |
+| Panics | `AssertPanics`, `AssertNotPanics`, `AssertPanicsWithError` |
+| Fail-fast | `RequireNoError`, `RequireTrue`, `RequireNotEmpty` |
+
+`AnError` is the sentinel for tests that need a non-nil error without caring about content.
+
+Failure messages are one-line, file:line + assertion + want/got — AI-readable. Pass = silent.
+
+## Start with a small Core
+
+```go
+c := New(WithName("test-core", nil))
 ```
 
 Then register only the pieces your test needs.
 
-## Test a Service
+## Test a service
 
 ```go
 started := false
 
-c.Service("audit", core.Service{
-	OnStart: func() core.Result {
+c := New(WithService(func(c *Core) Result {
+	c.Action("audit.startup", func(ctx Context, opts Options) Result {
 		started = true
-		return core.Result{OK: true}
-	},
-})
+		return Result{OK: true}
+	})
+	return Result{OK: true}
+}))
 
-r := c.ServiceStartup(context.Background(), nil)
-assert.True(t, r.OK)
-assert.True(t, started)
+r := c.ServiceStartup(Background(), nil)
+AssertTrue(t, r.OK)
+AssertTrue(t, started)
 ```
 
-## Test a Command
+## Test a query or action
 
 ```go
-c.Command("greet", core.Command{
-	Action: func(opts core.Options) core.Result {
-		return core.Result{Value: "hello " + opts.String("name"), OK: true}
-	},
+c := New()
+c.Action("compute", func(_ Context, _ Options) Result {
+	return Result{Value: 42, OK: true}
 })
 
-r := c.Cli().Run("greet", "--name=world")
-assert.True(t, r.OK)
-assert.Equal(t, "hello world", r.Value)
+r := c.Action("compute").Run(Background(), NewOptions())
+AssertEqual(t, 42, r.Value)
 ```
 
-## Test a Query or Task
+## Test async work
 
 ```go
-c.RegisterQuery(func(_ *core.Core, q core.Query) core.Result {
-	if q == "ping" {
-		return core.Result{Value: "pong", OK: true}
-	}
-	return core.Result{}
-})
+completed := make(chan ActionTaskCompleted, 1)
 
-assert.Equal(t, "pong", c.QUERY("ping").Value)
-```
-
-```go
-c.Action("compute", func(_ context.Context, _ core.Options) core.Result {
-	return core.Result{Value: 42, OK: true}
-})
-
-r := c.Action("compute").Run(context.Background(), core.NewOptions())
-assert.Equal(t, 42, r.Value)
-```
-
-## Test Async Work
-
-For `PerformAsync`, observe completion through the action bus.
-
-```go
-completed := make(chan core.ActionTaskCompleted, 1)
-
-c.RegisterAction(func(_ *core.Core, msg core.Message) core.Result {
-	if event, ok := msg.(core.ActionTaskCompleted); ok {
+c.RegisterAction(func(_ *Core, msg Message) Result {
+	if event, ok := msg.(ActionTaskCompleted); ok {
 		completed <- event
 	}
-	return core.Result{OK: true}
+	return Result{OK: true}
 })
 ```
 
-Then wait with normal Go test tools such as channels, timers, or `assert.Eventually`.
+## Real temporary paths
 
-## Use Real Temporary Paths
+When testing `Fs`, `Data.Extract`, or any I/O helper, use `t.TempDir()` and create realistic paths instead of mocking the filesystem.
 
-When testing `Fs`, `Data.Extract`, or other I/O helpers, use `t.TempDir()` and create realistic paths instead of mocking the filesystem by default.
+## Godoc examples
 
-## Repository Commands
+Example functions live in `*_example_test.go` files. The function body IS the runnable example; pkg.go.dev renders it as a code block. The DOCBLOCK above each Example is descriptive prose explaining the scenario being demonstrated — convention inverted from production `.go` files (where the docblock IS the usage example).
+
+```go
+// ExampleHKDF demonstrates deriving a session key from a master secret
+// and salt using HKDF-SHA256. The 32-byte derived key is suitable for
+// symmetric AEAD construction.
+func ExampleHKDF() {
+	r := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("session"), 32)
+	if r.OK {
+		Println(len(r.Value.([]byte)))
+	}
+	// Output: 32
+}
+```
+
+Use `core.Println` for output, NOT `fmt.Println`. The `// Output:` comment block must match runtime stdout exactly.
+
+## Fuzz harnesses
+
+Fuzz harnesses live in `*_fuzz_test.go` files. Use `*F` (alias for `*testing.F`):
+
+```go
+func FuzzURLParse(f *F) {
+	f.Add("https://example.com/path?q=1")
+	f.Add("")
+	f.Fuzz(func(t *T, raw string) {
+		r := URLParse(raw)
+		if r.OK {
+			// exercise round-trip / invariants
+		}
+	})
+}
+```
+
+Run with `go test -fuzz=FuzzXxx -fuzztime=30s`. The seed corpus alone runs via `go test -run "Fuzz"`.
+
+## CLI tests (AX-10)
+
+Per AX-10 (CLI tests as artifact validation), each command path has a `tests/cli/{path}/Taskfile.yaml` that drives binary-level scenarios. Inside Go tests, the `CLITest` shape + `AssertCLI`/`AssertCLIs` helpers dispatch through `c.Process()`, so the caller registers a process service (typically `dappco.re/go-process`) on the Core before invoking.
+
+```go
+c := New(WithService(process.Register))
+
+AssertCLI(t, c, CLITest{
+	Cmd:      "go",
+	Args:     []string{"version"},
+	WantOK:   true,
+	Contains: "go1.",
+})
+
+AssertCLIs(t, c, []CLITest{
+	{Name: "version", Cmd: "go", Args: []string{"version"}, WantOK: true, Contains: "go1."},
+	{Name: "vet",     Cmd: "go", Args: []string{"vet", "./..."}, WantOK: true},
+})
+```
+
+## Test data
+
+Fixtures live under `tests/data/`. Files with names beginning with `_` (e.g. `tests/data/_scantest/sample.go`) are excluded from compilation by Go's tool, so source-file fixtures don't pollute the module's compiled package set.
+
+The canonical embed pattern is `//go:embed all:tests/data` — the `all:` prefix includes `_`-prefixed entries that would otherwise be excluded.
+
+## SPOR drift guard
+
+`tests/cli/imports/check.sh` enforces the SPOR ownership rule mechanically — every stdlib package has exactly one production owner file. CI fails on any package imported by more than one non-owner. See `AGENTS.md` for the full ownership table.
+
+## Repository commands
 
 ```bash
-core go test
-core go test --run TestPerformAsync_Good
 go test ./...
+go test ./... -run TestPerformAsync_Good
+go test -fuzz=FuzzURLParse -fuzztime=30s
+bash tests/cli/imports/check.sh
 ```

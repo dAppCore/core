@@ -7,7 +7,7 @@
 package core
 
 import (
-	"fmt"
+	"html"
 	"strings"
 	"unicode/utf8"
 )
@@ -128,21 +128,6 @@ func NewReader(s string) *strings.Reader {
 	return strings.NewReader(s)
 }
 
-// Sprint converts any value to its string representation.
-//
-//	core.Sprint(42)       // "42"
-//	core.Sprint(err)      // "connection refused"
-func Sprint(args ...any) string {
-	return fmt.Sprint(args...)
-}
-
-// Sprintf formats a string with the given arguments.
-//
-//	core.Sprintf("%v=%q", "key", "value")  // `key="value"`
-func Sprintf(format string, args ...any) string {
-	return fmt.Sprintf(format, args...)
-}
-
 // Concat joins variadic string parts into one string.
 // Hook point for validation, sanitisation, and security checks.
 //
@@ -154,4 +139,18 @@ func Concat(parts ...string) string {
 		b.WriteString(p)
 	}
 	return b.String()
+}
+
+// HTMLEscape returns s with special HTML characters escaped.
+//
+//	escaped := core.HTMLEscape(`<a href="/search?q=go&lang=en">Go</a>`)
+func HTMLEscape(s string) string {
+	return html.EscapeString(s)
+}
+
+// HTMLUnescape returns s with HTML character references unescaped.
+//
+//	unescaped := core.HTMLUnescape("&lt;strong&gt;Go&lt;/strong&gt;")
+func HTMLUnescape(s string) string {
+	return html.UnescapeString(s)
 }

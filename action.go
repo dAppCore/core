@@ -6,7 +6,7 @@
 //
 // Register a named action:
 //
-//	c.Action("git.log", func(ctx context.Context, opts core.Options) core.Result {
+//	c.Action("git.log", func(ctx Context, opts core.Options) core.Result {
 //	    dir := opts.String("dir")
 //	    return c.Process().RunIn(ctx, dir, "git", "log")
 //	})
@@ -26,12 +26,10 @@
 //	names := c.Actions()  // ["process.run", "agentic.dispatch", ...]
 package core
 
-import "context"
-
 // ActionHandler is the function signature for all named actions.
 //
-//	func(ctx context.Context, opts core.Options) core.Result
-type ActionHandler func(context.Context, Options) Result
+//	func(ctx Context, opts core.Options) core.Result
+type ActionHandler func(Context, Options) Result
 
 // Action is a registered named action.
 //
@@ -51,7 +49,7 @@ type Action struct {
 // Returns Result{OK: false} if the action has no handler (not registered).
 //
 //	r := c.Action("process.run").Run(ctx, opts)
-func (a *Action) Run(ctx context.Context, opts Options) (result Result) {
+func (a *Action) Run(ctx Context, opts Options) (result Result) {
 	if a == nil || a.Handler == nil {
 		return Result{E("action.Run", Concat("action not registered: ", a.safeName()), nil), false}
 	}
@@ -77,6 +75,38 @@ func (a *Action) Run(ctx context.Context, opts Options) (result Result) {
 //	if c.Action("process.run").Exists() { ... }
 func (a *Action) Exists() bool {
 	return a != nil && a.Handler != nil
+}
+
+// Enable marks the action as runnable. Actions are enabled at
+// registration time; use this to re-enable an action that was
+// previously disabled. No-op when the action has no handler.
+//
+//	c.Action("process.run").Enable()
+func (a *Action) Enable() {
+	if a == nil || a.Handler == nil {
+		return
+	}
+	a.enabled = true
+}
+
+// Disable marks the action as soft-disabled. Run() returns
+// Result{OK: false} with Code "action.disabled" until Enable is
+// called. The handler stays registered so the capability is
+// queryable but cannot fire.
+//
+//	c.Action("dangerous.purge").Disable()  // re-enable later via .Enable()
+func (a *Action) Disable() {
+	if a == nil || a.Handler == nil {
+		return
+	}
+	a.enabled = false
+}
+
+// Enabled reports whether the action will run when invoked.
+//
+//	if c.Action("process.run").Enabled() { ... }
+func (a *Action) Enabled() bool {
+	return a != nil && a.Handler != nil && a.enabled
 }
 
 func (a *Action) safeName() string {
@@ -150,7 +180,7 @@ type Task struct {
 // The "previous" input pipes the last sync step's output to the next step.
 //
 //	r := c.Task("deploy").Run(ctx, opts)
-func (t *Task) Run(ctx context.Context, c *Core, opts Options) Result {
+func (t *Task) Run(ctx Context, c *Core, opts Options) Result {
 	if t == nil || len(t.Steps) == 0 {
 		return Result{E("task.Run", Concat("task has no steps: ", t.safeName()), nil), false}
 	}
@@ -228,6 +258,62 @@ func (c *Core) Task(name string, def ...Task) *Task {
 }
 
 // Tasks returns all registered task names.
+//
+//	c := core.New()
+//	names := c.Tasks()
+//	core.Println(core.Join(", ", names...))
 func (c *Core) Tasks() []string {
 	return c.ipc.tasks.Names()
 }
+
+// PerformAsync dispatches a named action in a background goroutine.
+// Broadcasts ActionTaskStarted, ActionTaskProgress, and ActionTaskCompleted
+// as IPC messages so other services can track progress.
+//
+//	r := c.PerformAsync("agentic.dispatch", opts)
+//	taskID := r.Value.(string)
+func (c *Core) PerformAsync(action string, opts Options) Result {
+	if c.shutdown.Load() {
+		return Result{}
+	}
+	taskID := ID()
+
+	c.ACTION(ActionTaskStarted{TaskIdentifier: taskID, Action: action, Options: opts})
+
+	c.waitGroup.Go(func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				c.ACTION(ActionTaskCompleted{
+					TaskIdentifier: taskID,
+					Action:         action,
+					Result:         Result{E("core.PerformAsync", Sprint("panic: ", rec), nil), false},
+				})
+			}
+		}()
+
+		r := c.Action(action).Run(Background(), opts)
+
+		c.ACTION(ActionTaskCompleted{
+			TaskIdentifier: taskID,
+			Action:         action,
+			Result:         r,
+		})
+	})
+
+	return Result{taskID, true}
+}
+
+// Progress broadcasts a progress update for a background task.
+//
+//	c.Progress(taskID, 0.5, "halfway done", "agentic.dispatch")
+func (c *Core) Progress(taskID string, progress float64, message string, action string) {
+	c.ACTION(ActionTaskProgress{
+		TaskIdentifier: taskID,
+		Action:         action,
+		Progress:       progress,
+		Message:        message,
+	})
+}
+
+// Registration methods (RegisterAction, RegisterActions)
+// are in ipc.go — registration is IPC's responsibility.

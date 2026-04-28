@@ -1,0 +1,22 @@
+# AX test-import discipline — `*_test.go` and `*_example_test.go` files
+# may only import `dappco.re/go` (dot-import). Every stdlib helper
+# already has a core wrapper; reaching for stdlib in a test violates
+# the SPOR pattern at the test layer and propagates the wrong shape
+# to consumer repos via AI replication.
+#
+# *_internal_test.go files are exempt — they're `package core` and
+# operate on the same internals as production code.
+
+version: "3"
+
+tasks:
+  default:
+    desc: Verify *_test.go and *_example_test.go files import only dappco.re/go.
+    deps:
+      - check
+
+  check:
+    desc: Scan test files for any import other than `. "dappco.re/go"`.
+    dir: ../../..
+    cmds:
+      - python3 tests/cli/test_imports/check.py

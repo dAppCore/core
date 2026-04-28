@@ -6,12 +6,16 @@
 
 package core
 
-import (
-	"sync"
-)
+import ()
 
 // Translator defines the interface for translation services.
 // Implemented by go-i18n's Srv.
+//
+//	c := core.New()
+//	if r := c.I18n().Translator(); r.OK {
+//	    tr := r.Value.(core.Translator)
+//	    _ = tr.SetLanguage("en-GB")
+//	}
 type Translator interface {
 	// Translate translates a message by its ID with optional arguments.
 	Translate(messageID string, args ...any) Result
@@ -41,14 +45,22 @@ type LocaleProvider interface {
 }
 
 // I18n manages locale collection and translation dispatch.
+//
+//	c := core.New()
+//	r := c.I18n().Translate("cmd.deploy.description")
+//	if r.OK { core.Println(r.Value.(string)) }
 type I18n struct {
-	mu         sync.RWMutex
+	mu         RWMutex
 	locales    []*Embed // collected from LocaleProvider services
 	locale     string
 	translator Translator // registered implementation (nil until set)
 }
 
 // AddLocales adds locale mounts (called during service registration).
+//
+//	c := core.New()
+//	r := core.Mount(core.DirFS("locales"), ".")
+//	if r.OK { c.I18n().AddLocales(r.Value.(*core.Embed)) }
 func (i *I18n) AddLocales(mounts ...*Embed) {
 	i.mu.Lock()
 	i.locales = append(i.locales, mounts...)
@@ -56,6 +68,10 @@ func (i *I18n) AddLocales(mounts ...*Embed) {
 }
 
 // Locales returns all collected locale mounts.
+//
+//	c := core.New()
+//	r := c.I18n().Locales()
+//	if r.OK { mounts := r.Value.([]*core.Embed); _ = mounts }
 func (i *I18n) Locales() Result {
 	i.mu.RLock()
 	out := make([]*Embed, len(i.locales))
@@ -66,6 +82,9 @@ func (i *I18n) Locales() Result {
 
 // SetTranslator registers the translation implementation.
 // Called by go-i18n's Srv during startup.
+//
+//	c := core.New()
+//	c.I18n().SetTranslator(nil)
 func (i *I18n) SetTranslator(t Translator) {
 	i.mu.Lock()
 	i.translator = t
@@ -77,6 +96,10 @@ func (i *I18n) SetTranslator(t Translator) {
 }
 
 // Translator returns the registered translation implementation, or nil.
+//
+//	c := core.New()
+//	r := c.I18n().Translator()
+//	if r.OK { tr := r.Value.(core.Translator); core.Println(tr.Language()) }
 func (i *I18n) Translator() Result {
 	i.mu.RLock()
 	t := i.translator
@@ -88,6 +111,10 @@ func (i *I18n) Translator() Result {
 }
 
 // Translate translates a message. Returns the key as-is if no translator is registered.
+//
+//	c := core.New()
+//	r := c.I18n().Translate("cmd.deploy.description")
+//	if r.OK { core.Println(r.Value.(string)) }
 func (i *I18n) Translate(messageID string, args ...any) Result {
 	i.mu.RLock()
 	t := i.translator
@@ -99,6 +126,10 @@ func (i *I18n) Translate(messageID string, args ...any) Result {
 }
 
 // SetLanguage sets the active language and forwards to the translator if registered.
+//
+//	c := core.New()
+//	r := c.I18n().SetLanguage("en-GB")
+//	if !r.OK { return r }
 func (i *I18n) SetLanguage(lang string) Result {
 	if lang == "" {
 		return Result{OK: true}
@@ -116,6 +147,11 @@ func (i *I18n) SetLanguage(lang string) Result {
 }
 
 // Language returns the current language code, or "en" if not set.
+//
+//	c := core.New()
+//	c.I18n().SetLanguage("en-GB")
+//	lang := c.I18n().Language()
+//	core.Println(lang)
 func (i *I18n) Language() string {
 	i.mu.RLock()
 	locale := i.locale
@@ -127,6 +163,10 @@ func (i *I18n) Language() string {
 }
 
 // AvailableLanguages returns all loaded language codes.
+//
+//	c := core.New()
+//	languages := c.I18n().AvailableLanguages()
+//	core.Println(core.Join(", ", languages...))
 func (i *I18n) AvailableLanguages() []string {
 	i.mu.RLock()
 	t := i.translator

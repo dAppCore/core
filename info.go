@@ -33,13 +33,56 @@
 package core
 
 import (
-	"os"
 	"runtime"
-	"strconv"
-	"time"
+	"runtime/debug"
 )
 
+// OS returns the operating system name (darwin, linux, windows, etc.)
+// the binary is running on.
+//
+//	if core.OS() == "darwin" { core.Println("on a Mac") }
+func OS() string {
+	return runtime.GOOS
+}
+
+// Arch returns the CPU architecture (amd64, arm64, etc.) the binary
+// was compiled for.
+//
+//	if core.Arch() == "arm64" { core.Println("Apple Silicon or arm64 Linux") }
+func Arch() string {
+	return runtime.GOARCH
+}
+
+// GoVersion returns the Go runtime version string (e.g. "go1.26.0")
+// the binary was compiled with.
+//
+//	core.Println(core.GoVersion())  // "go1.26.0"
+func GoVersion() string {
+	return runtime.Version()
+}
+
+// NumCPU returns the number of logical CPUs available to the running
+// process.
+//
+//	workers := core.NumCPU()
+//	core.Println(workers)
+func NumCPU() int {
+	return runtime.NumCPU()
+}
+
+// StackBuf returns the Go runtime stack trace of the current goroutine
+// as a byte slice. Used for crash reports and panic recovery.
+//
+//	report := core.StackBuf()
+//	core.Println(string(report))
+func StackBuf() []byte {
+	return debug.Stack()
+}
+
 // SysInfo holds read-only system information, populated once at init.
+//
+//	home := core.Env("DIR_HOME")
+//	core.Println(home)
 type SysInfo struct {
 	values map[string]string
 }
@@ -52,51 +95,51 @@ func init() {
 	i := systemInfo
 
 	// System
-	i.values["OS"] = runtime.GOOS
-	i.values["ARCH"] = runtime.GOARCH
-	i.values["GO"] = runtime.Version()
-	i.values["DS"] = string(os.PathSeparator)
-	i.values["PS"] = string(os.PathListSeparator)
-	i.values["PID"] = strconv.Itoa(os.Getpid())
-	i.values["NUM_CPU"] = strconv.Itoa(runtime.NumCPU())
+	i.values["OS"] = OS()
+	i.values["ARCH"] = Arch()
+	i.values["GO"] = GoVersion()
+	i.values["DS"] = string(PathSeparator)
+	i.values["PS"] = string(PathListSeparator)
+	i.values["PID"] = Itoa(Getpid())
+	i.values["NUM_CPU"] = Itoa(NumCPU())
 	i.values["USER"] = Username()
 
-	if h, err := os.Hostname(); err == nil {
-		i.values["HOSTNAME"] = h
+	if r := Hostname(); r.OK {
+		i.values["HOSTNAME"] = r.Value.(string)
 	}
 
 	// Directories — DS and DIR_HOME set first so Path() can use them.
-	// CORE_HOME overrides os.UserHomeDir() (e.g., agent workspaces).
-	if d := os.Getenv("CORE_HOME"); d != "" {
+	// CORE_HOME overrides core.UserHomeDir() (e.g., agent workspaces).
+	if d := Getenv("CORE_HOME"); d != "" {
 		i.values["DIR_HOME"] = d
-	} else if d, err := os.UserHomeDir(); err == nil {
-		i.values["DIR_HOME"] = d
+	} else if r := UserHomeDir(); r.OK {
+		i.values["DIR_HOME"] = r.Value.(string)
 	}
 
 	// Derived directories via Path() — single point of responsibility
 	i.values["DIR_DOWNLOADS"] = Path("Downloads")
 	i.values["DIR_CODE"] = Path("Code")
-	if d, err := os.UserConfigDir(); err == nil {
-		i.values["DIR_CONFIG"] = d
+	if r := UserConfigDir(); r.OK {
+		i.values["DIR_CONFIG"] = r.Value.(string)
 	}
-	if d, err := os.UserCacheDir(); err == nil {
-		i.values["DIR_CACHE"] = d
+	if r := UserCacheDir(); r.OK {
+		i.values["DIR_CACHE"] = r.Value.(string)
 	}
-	i.values["DIR_TMP"] = os.TempDir()
-	if d, err := os.Getwd(); err == nil {
-		i.values["DIR_CWD"] = d
+	i.values["DIR_TMP"] = TempDir()
+	if r := Getwd(); r.OK {
+		i.values["DIR_CWD"] = r.Value.(string)
 	}
 
 	// Platform-specific data directory
-	switch runtime.GOOS {
+	switch OS() {
 	case "darwin":
 		i.values["DIR_DATA"] = Path(Env("DIR_HOME"), "Library")
 	case "windows":
-		if d := os.Getenv("LOCALAPPDATA"); d != "" {
+		if d := Getenv("LOCALAPPDATA"); d != "" {
 			i.values["DIR_DATA"] = d
 		}
 	default:
-		if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+		if xdg := Getenv("XDG_DATA_HOME"); xdg != "" {
 			i.values["DIR_DATA"] = xdg
 		} else if Env("DIR_HOME") != "" {
 			i.values["DIR_DATA"] = Path(Env("DIR_HOME"), ".local", "share")
@@ -104,22 +147,22 @@ func init() {
 	}
 
 	// Timestamps
-	i.values["CORE_START"] = time.Now().UTC().Format(time.RFC3339)
+	i.values["CORE_START"] = Now().UTC().Format(TimeRFC3339)
 }
 
 // Env returns a system information value by key.
 // Core keys (OS, DIR_HOME, DS, etc.) are pre-populated at init.
-// Unknown keys fall through to os.Getenv — making Env a universal
-// replacement for os.Getenv.
+// Unknown keys fall through to core.Getenv — making Env a universal
+// replacement for core.Getenv.
 //
 //	core.Env("OS")           // "darwin" (pre-populated)
 //	core.Env("DIR_HOME")     // "/Users/snider" (pre-populated)
-//	core.Env("FORGE_TOKEN")  // falls through to os.Getenv
+//	core.Env("FORGE_TOKEN")  // falls through to core.Getenv
 func Env(key string) string {
 	if v := systemInfo.values[key]; v != "" {
 		return v
 	}
-	return os.Getenv(key)
+	return Getenv(key)
 }
 
 // EnvKeys returns all available environment keys.

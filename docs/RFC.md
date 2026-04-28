@@ -1,8 +1,6 @@
 # CoreGO API Contract — RFC Specification
 
-> `dappco.re/go/core` — Dependency injection, service lifecycle, permission, and message-passing framework.
-> This document is the authoritative API contract. An agent should be able to write a service
-> that registers with Core from this document alone.
+This file is the canonical API catalog for `dappco.re/go`.
 
 **Status:** Living document
 **Module:** `dappco.re/go/core`

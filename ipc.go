@@ -6,19 +6,14 @@
 
 package core
 
-import (
-	"slices"
-	"sync"
-)
-
 // Ipc holds IPC dispatch data and the named action registry.
 //
 //	ipc := (&core.Ipc{}).New()
 type Ipc struct {
-	ipcMu       sync.RWMutex
+	ipcMu       RWMutex
 	ipcHandlers []func(*Core, Message) Result
 
-	queryMu       sync.RWMutex
+	queryMu       RWMutex
 	queryHandlers []QueryHandler
 
 	actions *Registry[*Action] // named action registry
@@ -29,7 +24,7 @@ type Ipc struct {
 // Each handler is wrapped in panic recovery. All handlers fire regardless of individual results.
 func (c *Core) broadcast(msg Message) Result {
 	c.ipc.ipcMu.RLock()
-	handlers := slices.Clone(c.ipc.ipcHandlers)
+	handlers := SliceClone(c.ipc.ipcHandlers)
 	c.ipc.ipcMu.RUnlock()
 
 	for _, h := range handlers {
@@ -50,7 +45,7 @@ func (c *Core) broadcast(msg Message) Result {
 //	r := c.Query(MyQuery{})
 func (c *Core) Query(q Query) Result {
 	c.ipc.queryMu.RLock()
-	handlers := slices.Clone(c.ipc.queryHandlers)
+	handlers := SliceClone(c.ipc.queryHandlers)
 	c.ipc.queryMu.RUnlock()
 
 	for _, h := range handlers {
@@ -68,7 +63,7 @@ func (c *Core) Query(q Query) Result {
 //	results := r.Value.([]any)
 func (c *Core) QueryAll(q Query) Result {
 	c.ipc.queryMu.RLock()
-	handlers := slices.Clone(c.ipc.queryHandlers)
+	handlers := SliceClone(c.ipc.queryHandlers)
 	c.ipc.queryMu.RUnlock()
 
 	var results []any
@@ -105,9 +100,14 @@ func (c *Core) RegisterAction(handler func(*Core, Message) Result) {
 }
 
 // RegisterActions registers multiple broadcast handlers.
+//
+//	c := core.New()
+//	c.RegisterActions(
+//	    func(c *core.Core, msg core.Message) core.Result { return core.Result{OK: true} },
+//	    func(c *core.Core, msg core.Message) core.Result { return core.Result{OK: true} },
+//	)
 func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
 	c.ipc.ipcMu.Lock()
 	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)
 	c.ipc.ipcMu.Unlock()
 }
-

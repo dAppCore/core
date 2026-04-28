@@ -7,18 +7,21 @@
 //	c.Cli().Run()
 package core
 
-import (
-	"io"
-	"os"
-)
-
 // CliOptions holds configuration for the Cli service.
+//
+//	c := core.New()
+//	runtime := core.NewServiceRuntime(c, core.CliOptions{})
+//	_ = runtime.Options()
 type CliOptions struct{}
 
 // Cli is the CLI surface for the Core command tree.
+//
+//	c := core.New(core.WithOption("name", "homelab"))
+//	cli := c.Cli()
+//	cli.Print("%s ready", c.App().Name)
 type Cli struct {
 	*ServiceRuntime[CliOptions]
-	output io.Writer
+	output Writer
 	banner func(*Cli) string
 }
 
@@ -26,12 +29,12 @@ type Cli struct {
 //
 //	core.New(core.WithService(core.CliRegister))
 func CliRegister(c *Core) Result {
-	cl := &Cli{output: os.Stdout}
+	cl := &Cli{output: Stdout()}
 	cl.ServiceRuntime = NewServiceRuntime[CliOptions](c, CliOptions{})
 	return c.RegisterService("cli", cl)
 }
 
-// Print writes to the CLI output (defaults to os.Stdout).
+// Print writes to the CLI output (defaults to core.Stdout()).
 //
 //	c.Cli().Print("hello %s", "world")
 func (cl *Cli) Print(format string, args ...any) {
@@ -40,18 +43,18 @@ func (cl *Cli) Print(format string, args ...any) {
 
 // SetOutput sets the CLI output writer.
 //
-//	c.Cli().SetOutput(os.Stderr)
-func (cl *Cli) SetOutput(w io.Writer) {
+//	c.Cli().SetOutput(core.Stderr())
+func (cl *Cli) SetOutput(w Writer) {
 	cl.output = w
 }
 
-// Run resolves os.Args to a command path and executes it.
+// Run resolves core.Args() to a command path and executes it.
 //
 //	c.Cli().Run()
 //	c.Cli().Run("deploy", "to", "homelab")
 func (cl *Cli) Run(args ...string) Result {
 	if len(args) == 0 {
-		args = os.Args[1:]
+		args = Args()[1:]
 	}
 
 	clean := FilterArgs(args)
@@ -154,6 +157,10 @@ func (cl *Cli) SetBanner(fn func(*Cli) string) {
 }
 
 // Banner returns the banner string.
+//
+//	c := core.New(core.WithOption("name", "homelab"))
+//	banner := c.Cli().Banner()
+//	core.Println(banner)
 func (cl *Cli) Banner() string {
 	if cl.banner != nil {
 		return cl.banner(cl)

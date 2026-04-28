@@ -7,20 +7,14 @@
 package core
 
 import (
-	"encoding/json"
 	"errors"
-	"iter"
-	"maps"
-	"os"
-	"path/filepath"
-	"runtime"
-	"runtime/debug"
-	"sync"
-	"time"
 )
 
 // ErrorSink is the shared interface for error reporting.
 // Implemented by ErrorLog (structured logging) and ErrorPanic (panic recovery).
+//
+//	var sink core.ErrorSink = core.Default()
+//	sink.Warn("homelab degraded", "service", "agent")
 type ErrorSink interface {
 	Error(msg string, keyvals ...any)
 	Warn(msg string, keyvals ...any)
@@ -30,6 +24,9 @@ var _ ErrorSink = (*Log)(nil)
 
 // Err represents a structured error with operational context.
 // It implements the error interface and supports unwrapping.
+//
+//	err := &core.Err{Operation: "config.Load", Message: "missing config.host", Code: "CONFIG_MISSING"}
+//	core.Println(err.Error())
 type Err struct {
 	Operation string // Operation being performed (e.g., "user.Save")
 	Message   string // Human-readable message
@@ -38,6 +35,10 @@ type Err struct {
 }
 
 // Error implements the error interface.
+//
+//	err := &core.Err{Operation: "agent.Run", Message: "failed"}
+//	msg := err.Error()
+//	core.Println(msg)
 func (e *Err) Error() string {
 	var prefix string
 	if e.Operation != "" {
@@ -56,6 +57,11 @@ func (e *Err) Error() string {
 }
 
 // Unwrap returns the underlying error for use with errors.Is and errors.As.
+//
+//	cause := core.NewError("connection refused")
+//	err := &core.Err{Operation: "agent.Ping", Message: "homelab unreachable", Cause: cause}
+//	root := err.Unwrap()
+//	core.Println(root)
 func (e *Err) Unwrap() error {
 	return e.Cause
 }
@@ -120,20 +126,31 @@ func NewCode(code, msg string) error {
 
 // Is reports whether any error in err's tree matches target.
 // Wrapper around errors.Is for convenience.
+//
+//	err := core.Wrap(core.EOF, "stream.Read", "agent stream closed")
+//	if core.Is(err, core.EOF) { core.Println("done") }
 func Is(err, target error) bool {
 	return errors.Is(err, target)
 }
 
 // As finds the first error in err's tree that matches target.
 // Wrapper around errors.As for convenience.
+//
+//	err := core.E("agent.Run", "failed", nil)
+//	var coreErr *core.Err
+//	if core.As(err, &coreErr) { core.Println(coreErr.Operation) }
 func As(err error, target any) bool {
 	return errors.As(err, target)
 }
 
-// NewError creates a simple error with the given text.
-// Wrapper around errors.New for convenience.
+// NewError creates a simple core.*Err carrying the given text.
+// Returns *Err so introspection helpers (Operation/ErrorCode/
+// ErrorMessage) work uniformly across NewError, NewCode, and E.
+//
+//	err := core.NewError("config.host missing")
+//	core.Println(err.Error())
 func NewError(text string) error {
-	return errors.New(text)
+	return &Err{Message: text}
 }
 
 // ErrorJoin combines multiple errors into one.
@@ -147,6 +164,10 @@ func ErrorJoin(errs ...error) error {
 
 // Operation extracts the operation name from an error.
 // Returns empty string if the error is not an *Err.
+//
+//	err := core.E("agent.Run", "failed", nil)
+//	op := core.Operation(err)
+//	core.Println(op)
 func Operation(err error) string {
 	var e *Err
 	if As(err, &e) {
@@ -157,6 +178,10 @@ func Operation(err error) string {
 
 // ErrorCode extracts the error code from an error.
 // Returns empty string if the error is not an *Err or has no code.
+//
+//	err := core.WrapCode(nil, "RATE_LIMITED", "agent.Call", "too many requests")
+//	code := core.ErrorCode(err)
+//	core.Println(code)
 func ErrorCode(err error) string {
 	var e *Err
 	if As(err, &e) {
@@ -167,6 +192,10 @@ func ErrorCode(err error) string {
 
 // Message extracts the message from an error.
 // Returns the error's Error() string if not an *Err.
+//
+//	err := core.E("config.Load", "missing config.host", nil)
+//	msg := core.ErrorMessage(err)
+//	core.Println(msg)
 func ErrorMessage(err error) string {
 	if err == nil {
 		return ""
@@ -180,6 +209,11 @@ func ErrorMessage(err error) string {
 
 // Root returns the root cause of an error chain.
 // Unwraps until no more wrapped errors are found.
+//
+//	cause := core.NewError("connection refused")
+//	err := core.Wrap(cause, "agent.Ping", "homelab unreachable")
+//	root := core.Root(err)
+//	core.Println(root)
 func Root(err error) error {
 	if err == nil {
 		return nil
@@ -195,7 +229,12 @@ func Root(err error) error {
 
 // AllOperations returns an iterator over all operational contexts in the error chain.
 // It traverses the error tree using errors.Unwrap.
-func AllOperations(err error) iter.Seq[string] {
+//
+//	err := core.Wrap(core.E("net.Dial", "refused", nil), "agent.Ping", "homelab unreachable")
+//	for op := range core.AllOperations(err) {
+//	    core.Println(op)
+//	}
+func AllOperations(err error) Seq[string] {
 	return func(yield func(string) bool) {
 		for err != nil {
 			if e, ok := err.(*Err); ok {
@@ -212,6 +251,10 @@ func AllOperations(err error) iter.Seq[string] {
 
 // StackTrace returns the logical stack trace (chain of operations) from an error.
 // It returns an empty slice if no operational context is found.
+//
+//	err := core.Wrap(core.E("net.Dial", "refused", nil), "agent.Ping", "homelab unreachable")
+//	stack := core.StackTrace(err)
+//	core.Println(core.Join(" -> ", stack...))
 func StackTrace(err error) []string {
 	var stack []string
 	for op := range AllOperations(err) {
@@ -221,6 +264,10 @@ func StackTrace(err error) []string {
 }
 
 // FormatStackTrace returns a pretty-printed logical stack trace.
+//
+//	err := core.Wrap(core.E("net.Dial", "refused", nil), "agent.Ping", "homelab unreachable")
+//	trace := core.FormatStackTrace(err)
+//	core.Println(trace)
 func FormatStackTrace(err error) string {
 	var ops []string
 	for op := range AllOperations(err) {
@@ -236,6 +283,10 @@ func FormatStackTrace(err error) string {
 
 // ErrorLog combines error creation with logging.
 // Primary action: return an error. Secondary: log it.
+//
+//	c := core.New()
+//	r := c.LogError(core.NewError("offline"), "agent.Ping", "homelab unreachable")
+//	if !r.OK { return r }
 type ErrorLog struct {
 	log *Log
 }
@@ -248,6 +299,10 @@ func (el *ErrorLog) logger() *Log {
 }
 
 // Error logs at Error level and returns a Result with the wrapped error.
+//
+//	err := &core.Err{Operation: "agent.Run", Message: "failed"}
+//	msg := err.Error()
+//	core.Println(msg)
 func (el *ErrorLog) Error(err error, op, msg string) Result {
 	if err == nil {
 		return Result{OK: true}
@@ -258,6 +313,10 @@ func (el *ErrorLog) Error(err error, op, msg string) Result {
 }
 
 // Warn logs at Warn level and returns a Result with the wrapped error.
+//
+//	c := core.New()
+//	r := c.Log().Warn(core.NewError("missing config.host"), "config.Load", "using default host")
+//	if !r.OK { return r }
 func (el *ErrorLog) Warn(err error, op, msg string) Result {
 	if err == nil {
 		return Result{OK: true}
@@ -268,6 +327,9 @@ func (el *ErrorLog) Warn(err error, op, msg string) Result {
 }
 
 // Must logs and panics if err is not nil.
+//
+//	c := core.New()
+//	c.Log().Must(nil, "agent.Start", "startup failed")
 func (el *ErrorLog) Must(err error, op, msg string) {
 	if err != nil {
 		el.logger().Error(msg, "op", op, "err", err)
@@ -278,8 +340,11 @@ func (el *ErrorLog) Must(err error, op, msg string) {
 // --- Crash Recovery & Reporting ---
 
 // CrashReport represents a single crash event.
+//
+//	report := core.CrashReport{Error: "panic: agent failed", Meta: map[string]string{"service": "agent"}}
+//	core.Println(report.Error)
 type CrashReport struct {
-	Timestamp time.Time         `json:"timestamp"`
+	Timestamp Time              `json:"timestamp"`
 	Error     string            `json:"error"`
 	Stack     string            `json:"stack"`
 	System    CrashSystem       `json:"system,omitempty"`
@@ -287,6 +352,9 @@ type CrashReport struct {
 }
 
 // CrashSystem holds system information at crash time.
+//
+//	system := core.CrashSystem{OperatingSystem: "linux", Architecture: "amd64", Version: "go1.26"}
+//	core.Println(system.OperatingSystem)
 type CrashSystem struct {
 	OperatingSystem string `json:"operatingsystem"`
 	Architecture    string `json:"architecture"`
@@ -294,6 +362,9 @@ type CrashSystem struct {
 }
 
 // ErrorPanic manages panic recovery and crash reporting.
+//
+//	c := core.New()
+//	defer c.Error().Recover()
 type ErrorPanic struct {
 	filePath string
 	meta     map[string]string
@@ -302,6 +373,9 @@ type ErrorPanic struct {
 
 // Recover captures a panic and creates a crash report.
 // Use as: defer c.Error().Recover()
+//
+//	c := core.New()
+//	defer c.Error().Recover()
 func (h *ErrorPanic) Recover() {
 	if h == nil {
 		return
@@ -317,15 +391,15 @@ func (h *ErrorPanic) Recover() {
 	}
 
 	report := CrashReport{
-		Timestamp: time.Now(),
+		Timestamp: Now(),
 		Error:     err.Error(),
-		Stack:     string(debug.Stack()),
+		Stack:     string(StackBuf()),
 		System: CrashSystem{
-			OperatingSystem: runtime.GOOS,
-			Architecture:    runtime.GOARCH,
-			Version:         runtime.Version(),
+			OperatingSystem: OS(),
+			Architecture:    Arch(),
+			Version:         GoVersion(),
 		},
-		Meta: maps.Clone(h.meta),
+		Meta: MapClone(h.meta),
 	}
 
 	if h.onCrash != nil {
@@ -338,6 +412,11 @@ func (h *ErrorPanic) Recover() {
 }
 
 // SafeGo runs a function in a goroutine with panic recovery.
+//
+//	c := core.New()
+//	c.Error().SafeGo(func() {
+//	    core.Info("agent worker started")
+//	})
 func (h *ErrorPanic) SafeGo(fn func()) {
 	go func() {
 		defer h.Recover()
@@ -346,19 +425,24 @@ func (h *ErrorPanic) SafeGo(fn func()) {
 }
 
 // Reports returns the last n crash reports from the file.
+//
+//	c := core.New()
+//	r := c.Error().Reports(5)
+//	if r.OK { reports := r.Value.([]core.CrashReport); _ = reports }
 func (h *ErrorPanic) Reports(n int) Result {
 	if h.filePath == "" {
 		return Result{}
 	}
 	crashMu.Lock()
 	defer crashMu.Unlock()
-	data, err := os.ReadFile(h.filePath)
-	if err != nil {
-		return Result{err, false}
+	r := ReadFile(h.filePath)
+	if !r.OK {
+		return r
 	}
+	data := r.Value.([]byte)
 	var reports []CrashReport
-	if err := json.Unmarshal(data, &reports); err != nil {
-		return Result{err, false}
+	if r := JSONUnmarshal(data, &reports); !r.OK {
+		return r
 	}
 	if n <= 0 || len(reports) <= n {
 		return Result{reports, true}
@@ -366,30 +450,30 @@ func (h *ErrorPanic) Reports(n int) Result {
 	return Result{reports[len(reports)-n:], true}
 }
 
-var crashMu sync.Mutex
+var crashMu Mutex
 
 func (h *ErrorPanic) appendReport(report CrashReport) {
 	crashMu.Lock()
 	defer crashMu.Unlock()
 
 	var reports []CrashReport
-	if data, err := os.ReadFile(h.filePath); err == nil {
-		if err := json.Unmarshal(data, &reports); err != nil {
+	if read := ReadFile(h.filePath); read.OK {
+		if r := JSONUnmarshal(read.Value.([]byte), &reports); !r.OK {
 			reports = nil
 		}
 	}
 
 	reports = append(reports, report)
-	data, err := json.MarshalIndent(reports, "", "  ")
-	if err != nil {
-		Default().Error(Concat("crash report marshal failed: ", err.Error()))
+	data := JSONMarshalIndent(reports, "", "  ")
+	if !data.OK {
+		Default().Error(Concat("crash report marshal failed: ", data.Error()))
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(h.filePath), 0755); err != nil {
-		Default().Error(Concat("crash report dir failed: ", err.Error()))
+	if r := MkdirAll(PathDir(h.filePath), 0755); !r.OK {
+		Default().Error(Concat("crash report dir failed: ", r.Error()))
 		return
 	}
-	if err := os.WriteFile(h.filePath, data, 0600); err != nil {
-		Default().Error(Concat("crash report write failed: ", err.Error()))
+	if r := WriteFile(h.filePath, data.Value.([]byte), 0600); !r.OK {
+		Default().Error(Concat("crash report write failed: ", r.Error()))
 	}
 }

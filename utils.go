@@ -5,19 +5,9 @@
 
 package core
 
-import (
-	crand "crypto/rand"
-	"encoding/hex"
-	"fmt"
-	"io"
-	"os"
-	"strconv"
-	"sync/atomic"
-)
-
 // --- ID Generation ---
 
-var idCounter atomic.Uint64
+var idCounter AtomicUint64
 
 // ID returns a unique identifier. Format: "id-{counter}-{random}".
 // Counter is process-wide atomic. Random suffix prevents collision across restarts.
@@ -25,13 +15,15 @@ var idCounter atomic.Uint64
 //	id := core.ID()  // "id-1-a3f2b1"
 //	id2 := core.ID() // "id-2-c7e4d9"
 func ID() string {
-	return Concat("id-", strconv.FormatUint(idCounter.Add(1), 10), "-", shortRand())
+	return Concat("id-", FormatUint(idCounter.Add(1), 10), "-", shortRand())
 }
 
 func shortRand() string {
-	b := make([]byte, 3)
-	crand.Read(b)
-	return hex.EncodeToString(b)
+	r := RandomBytes(3)
+	if !r.OK {
+		return "000000"
+	}
+	return HexEncode(r.Value.([]byte))
 }
 
 // --- Validation ---
@@ -64,26 +56,6 @@ func SanitisePath(path string) string {
 		return "invalid"
 	}
 	return safe
-}
-
-// --- I/O ---
-
-// Println prints values to stdout with a newline. Replaces fmt.Println.
-//
-//	core.Println("hello", 42, true)
-func Println(args ...any) {
-	fmt.Println(args...)
-}
-
-// Print writes a formatted line to a writer, defaulting to os.Stdout.
-//
-//	core.Print(nil, "hello %s", "world")     // → stdout
-//	core.Print(w, "port: %d", 8080)          // → w
-func Print(w io.Writer, format string, args ...any) {
-	if w == nil {
-		w = os.Stdout
-	}
-	fmt.Fprintf(w, format+"\n", args...)
 }
 
 // JoinPath joins string segments into a path with "/" separator.

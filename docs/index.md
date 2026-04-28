@@ -5,7 +5,7 @@ description: AX-first documentation for the CoreGO framework.
 
 # CoreGO
 
-CoreGO is the foundation layer for the Core ecosystem. Module: `dappco.re/go/core`.
+CoreGO is the foundation layer for the Core ecosystem. Module: `dappco.re/go`.
 
 ## What CoreGO Provides
 
@@ -28,7 +28,7 @@ CoreGO is the foundation layer for the Core ecosystem. Module: `dappco.re/go/cor
 ```go
 package main
 
-import "dappco.re/go/core"
+import "dappco.re/go"
 
 func main() {
     c := core.New(
