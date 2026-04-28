@@ -5,7 +5,6 @@
 package core
 
 import (
-	"context"
 	"reflect"
 	"sync"
 )
@@ -35,20 +34,20 @@ type QueryHandler func(*Core, Query) Result
 
 // Startable is implemented by services that need startup initialisation.
 //
-//	func (s *MyService) OnStartup(ctx context.Context) core.Result {
+//	func (s *MyService) OnStartup(ctx Context) core.Result {
 //	    return core.Result{OK: true}
 //	}
 type Startable interface {
-	OnStartup(ctx context.Context) Result
+	OnStartup(ctx Context) Result
 }
 
 // Stoppable is implemented by services that need shutdown cleanup.
 //
-//	func (s *MyService) OnShutdown(ctx context.Context) core.Result {
+//	func (s *MyService) OnShutdown(ctx Context) core.Result {
 //	    return core.Result{OK: true}
 //	}
 type Stoppable interface {
-	OnShutdown(ctx context.Context) Result
+	OnShutdown(ctx Context) Result
 }
 
 // --- Action Messages ---
@@ -56,7 +55,7 @@ type Stoppable interface {
 // ActionServiceStartup is broadcast when a Core service finishes startup.
 //
 //	c := core.New()
-//	c.Action("service.startup", func(ctx context.Context, opts core.Options) core.Result {
+//	c.Action("service.startup", func(ctx Context, opts core.Options) core.Result {
 //	    name := opts.String("name")
 //	    core.Println(core.Sprintf("service %s started", name))
 //	    return core.Result{OK: true}
@@ -66,7 +65,7 @@ type ActionServiceStartup struct{}
 // ActionServiceShutdown is broadcast when Core begins service shutdown.
 //
 //	c := core.New()
-//	c.Action("service.shutdown", func(ctx context.Context, opts core.Options) core.Result {
+//	c.Action("service.shutdown", func(ctx Context, opts core.Options) core.Result {
 //	    name := opts.String("name")
 //	    core.Println(core.Sprintf("service %s stopped", name))
 //	    return core.Result{OK: true}
@@ -144,7 +143,7 @@ func New(opts ...CoreOption) *Core {
 		commands:           &CommandRegistry{Registry: NewRegistry[*Command]()},
 		entitlementChecker: defaultChecker,
 	}
-	c.context, c.cancel = context.WithCancel(context.Background())
+	c.context, c.cancel = WithCancel(Background())
 	c.api.core = c
 
 	// Core services

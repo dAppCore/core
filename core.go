@@ -6,7 +6,6 @@
 package core
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 )
@@ -39,8 +38,8 @@ type Core struct {
 	entitlementChecker EntitlementChecker // default: everything permitted
 	usageRecorder      UsageRecorder      // default: nil (no-op)
 
-	context       context.Context
-	cancel        context.CancelFunc
+	context       Context
+	cancel        CancelFunc
 	taskIDCounter atomic.Uint64
 	waitGroup     sync.WaitGroup
 	shutdown      atomic.Bool
@@ -119,7 +118,7 @@ func (c *Core) Env(key string) string { return Env(key) }
 // Context returns Core's lifecycle context (cancelled on shutdown).
 //
 //	ctx := c.Context()
-func (c *Core) Context() context.Context { return c.context }
+func (c *Core) Context() Context { return c.context }
 
 // Core returns self — satisfies the ServiceRuntime interface.
 //
@@ -136,7 +135,7 @@ func (c *Core) Core() *Core { return c }
 //	    os.Exit(1)
 //	}
 func (c *Core) RunE() error {
-	defer c.ServiceShutdown(context.Background())
+	defer c.ServiceShutdown(Background())
 
 	r := c.ServiceStartup(c.context, nil)
 	if !r.OK {

@@ -25,7 +25,6 @@
 //	c.Process().Run(ctx, "git", "log")  // Result{OK: false}
 package core
 
-import "context"
 
 // Process is the Core primitive for process management.
 // Zero dependencies — delegates to named Actions.
@@ -33,7 +32,7 @@ import "context"
 //	c := core.New()
 //	proc := c.Process()
 //	if proc.Exists() {
-//	    _ = proc.Run(context.Background(), "git", "status", "--short")
+//	    _ = proc.Run(Background(), "git", "status", "--short")
 //	}
 type Process struct {
 	core *Core
@@ -50,7 +49,7 @@ func (c *Core) Process() *Process {
 //
 //	r := c.Process().Run(ctx, "git", "log", "--oneline")
 //	if r.OK { output := r.Value.(string) }
-func (p *Process) Run(ctx context.Context, command string, args ...string) Result {
+func (p *Process) Run(ctx Context, command string, args ...string) Result {
 	return p.core.Action("process.run").Run(ctx, NewOptions(
 		Option{Key: "command", Value: command},
 		Option{Key: "args", Value: args},
@@ -60,7 +59,7 @@ func (p *Process) Run(ctx context.Context, command string, args ...string) Resul
 // RunIn executes a command in a specific directory.
 //
 //	r := c.Process().RunIn(ctx, "/repo", "go", "test", "./...")
-func (p *Process) RunIn(ctx context.Context, dir string, command string, args ...string) Result {
+func (p *Process) RunIn(ctx Context, dir string, command string, args ...string) Result {
 	return p.core.Action("process.run").Run(ctx, NewOptions(
 		Option{Key: "command", Value: command},
 		Option{Key: "args", Value: args},
@@ -71,7 +70,7 @@ func (p *Process) RunIn(ctx context.Context, dir string, command string, args ..
 // RunWithEnv executes with additional environment variables.
 //
 //	r := c.Process().RunWithEnv(ctx, dir, []string{"GOWORK=off"}, "go", "test")
-func (p *Process) RunWithEnv(ctx context.Context, dir string, env []string, command string, args ...string) Result {
+func (p *Process) RunWithEnv(ctx Context, dir string, env []string, command string, args ...string) Result {
 	return p.core.Action("process.run").Run(ctx, NewOptions(
 		Option{Key: "command", Value: command},
 		Option{Key: "args", Value: args},
@@ -83,14 +82,14 @@ func (p *Process) RunWithEnv(ctx context.Context, dir string, env []string, comm
 // Start spawns a detached/background process.
 //
 //	r := c.Process().Start(ctx, ProcessStartOptions{Command: "docker", Args: []string{"run", "..."}})
-func (p *Process) Start(ctx context.Context, opts Options) Result {
+func (p *Process) Start(ctx Context, opts Options) Result {
 	return p.core.Action("process.start").Run(ctx, opts)
 }
 
 // Kill terminates a managed process by ID or PID.
 //
 //	c.Process().Kill(ctx, core.NewOptions(core.Option{Key: "id", Value: processID}))
-func (p *Process) Kill(ctx context.Context, opts Options) Result {
+func (p *Process) Kill(ctx Context, opts Options) Result {
 	return p.core.Action("process.kill").Run(ctx, opts)
 }
 

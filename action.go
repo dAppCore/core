@@ -6,7 +6,7 @@
 //
 // Register a named action:
 //
-//	c.Action("git.log", func(ctx context.Context, opts core.Options) core.Result {
+//	c.Action("git.log", func(ctx Context, opts core.Options) core.Result {
 //	    dir := opts.String("dir")
 //	    return c.Process().RunIn(ctx, dir, "git", "log")
 //	})
@@ -26,12 +26,11 @@
 //	names := c.Actions()  // ["process.run", "agentic.dispatch", ...]
 package core
 
-import "context"
 
 // ActionHandler is the function signature for all named actions.
 //
-//	func(ctx context.Context, opts core.Options) core.Result
-type ActionHandler func(context.Context, Options) Result
+//	func(ctx Context, opts core.Options) core.Result
+type ActionHandler func(Context, Options) Result
 
 // Action is a registered named action.
 //
@@ -51,7 +50,7 @@ type Action struct {
 // Returns Result{OK: false} if the action has no handler (not registered).
 //
 //	r := c.Action("process.run").Run(ctx, opts)
-func (a *Action) Run(ctx context.Context, opts Options) (result Result) {
+func (a *Action) Run(ctx Context, opts Options) (result Result) {
 	if a == nil || a.Handler == nil {
 		return Result{E("action.Run", Concat("action not registered: ", a.safeName()), nil), false}
 	}
@@ -150,7 +149,7 @@ type Task struct {
 // The "previous" input pipes the last sync step's output to the next step.
 //
 //	r := c.Task("deploy").Run(ctx, opts)
-func (t *Task) Run(ctx context.Context, c *Core, opts Options) Result {
+func (t *Task) Run(ctx Context, c *Core, opts Options) Result {
 	if t == nil || len(t.Steps) == 0 {
 		return Result{E("task.Run", Concat("task has no steps: ", t.safeName()), nil), false}
 	}

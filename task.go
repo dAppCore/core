@@ -6,8 +6,6 @@
 
 package core
 
-import "context"
-
 // PerformAsync dispatches a named action in a background goroutine.
 // Broadcasts ActionTaskStarted, ActionTaskProgress, and ActionTaskCompleted
 // as IPC messages so other services can track progress.
@@ -33,7 +31,7 @@ func (c *Core) PerformAsync(action string, opts Options) Result {
 			}
 		}()
 
-		r := c.Action(action).Run(context.Background(), opts)
+		r := c.Action(action).Run(Background(), opts)
 
 		c.ACTION(ActionTaskCompleted{
 			TaskIdentifier: taskID,

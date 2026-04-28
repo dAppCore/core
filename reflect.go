@@ -91,3 +91,12 @@ func ValueOf(v any) Value {
 func DeepEqual(x, y any) bool {
 	return reflect.DeepEqual(x, y)
 }
+
+// Zero returns a Value representing the zero value for type t. Used
+// for default-value comparison without an explicit zero literal.
+//
+//	t := core.TypeOf((*MyStruct)(nil))
+//	zero := core.Zero(t.Elem()).Interface()
+func Zero(t Type) Value {
+	return reflect.Zero(t)
+}

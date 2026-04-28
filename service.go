@@ -17,7 +17,6 @@
 
 package core
 
-import "context"
 
 // Service is a managed component with optional lifecycle.
 //
@@ -105,7 +104,7 @@ func (c *Core) RegisterService(name string, instance any) Result {
 	}
 	if s, ok := instance.(Stoppable); ok {
 		srv.OnStop = func() Result {
-			return s.OnShutdown(context.Background())
+			return s.OnShutdown(Background())
 		}
 	}
 

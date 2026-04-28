@@ -7,7 +7,6 @@
 package core
 
 import (
-	"context"
 	"maps"
 	"slices"
 )
@@ -53,11 +52,11 @@ func (r *ServiceRuntime[T]) Config() *Config { return r.core.Config() }
 // ServiceStartup runs OnStart for all registered services that have one.
 //
 //	c := core.New()
-//	r := c.ServiceStartup(context.Background(), nil)
+//	r := c.ServiceStartup(Background(), nil)
 //	if !r.OK { return r }
-func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
+func (c *Core) ServiceStartup(ctx Context, options any) Result {
 	c.shutdown.Store(false)
-	c.context, c.cancel = context.WithCancel(ctx)
+	c.context, c.cancel = WithCancel(ctx)
 	startables := c.Startables()
 	if startables.OK {
 		for _, s := range startables.Value.([]*Service) {
@@ -77,9 +76,9 @@ func (c *Core) ServiceStartup(ctx context.Context, options any) Result {
 // ServiceShutdown drains background tasks, then stops all registered services.
 //
 //	c := core.New()
-//	r := c.ServiceShutdown(context.Background())
+//	r := c.ServiceShutdown(Background())
 //	if !r.OK { return r }
-func (c *Core) ServiceShutdown(ctx context.Context) Result {
+func (c *Core) ServiceShutdown(ctx Context) Result {
 	c.shutdown.Store(true)
 	c.cancel() // signal all context-aware tasks to stop
 	c.ACTION(ActionServiceShutdown{})
@@ -193,18 +192,18 @@ func (r *Runtime) ServiceName() string { return "Core" }
 // ServiceStartup starts all services via the embedded Core.
 //
 //	r := core.Runtime{Core: core.New()}
-//	result := r.ServiceStartup(context.Background(), nil)
+//	result := r.ServiceStartup(Background(), nil)
 //	if !result.OK { return result }
-func (r *Runtime) ServiceStartup(ctx context.Context, options any) Result {
+func (r *Runtime) ServiceStartup(ctx Context, options any) Result {
 	return r.Core.ServiceStartup(ctx, options)
 }
 
 // ServiceShutdown stops all services via the embedded Core.
 //
 //	r := core.Runtime{Core: core.New()}
-//	result := r.ServiceShutdown(context.Background())
+//	result := r.ServiceShutdown(Background())
 //	if !result.OK { return result }
-func (r *Runtime) ServiceShutdown(ctx context.Context) Result {
+func (r *Runtime) ServiceShutdown(ctx Context) Result {
 	if r.Core != nil {
 		return r.Core.ServiceShutdown(ctx)
 	}

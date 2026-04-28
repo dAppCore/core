@@ -19,7 +19,6 @@
 //	c.SetUsageRecorder(myRecorder)
 package core
 
-import "context"
 
 // Entitlement is the result of a permission check.
 // Carries context for both boolean gates (Allowed) and usage limits (Limit/Used/Remaining).
@@ -62,23 +61,23 @@ func (e Entitlement) UsagePercent() float64 {
 // EntitlementChecker answers "can [subject] do [action] with [quantity]?"
 // Subject comes from context (workspace, entity, user — consumer's concern).
 //
-//	checker := func(action string, quantity int, ctx context.Context) core.Entitlement {
+//	checker := func(action string, quantity int, ctx Context) core.Entitlement {
 //	    return core.Entitlement{Allowed: action == "process.run", Limit: 10, Used: quantity}
 //	}
 //	core.New().SetEntitlementChecker(core.EntitlementChecker(checker))
-type EntitlementChecker func(action string, quantity int, ctx context.Context) Entitlement
+type EntitlementChecker func(action string, quantity int, ctx Context) Entitlement
 
 // UsageRecorder records consumption after a gated action succeeds.
 // Consumer packages provide the implementation (database, cache, etc).
 //
-//	recorder := func(action string, quantity int, ctx context.Context) {
+//	recorder := func(action string, quantity int, ctx Context) {
 //	    core.Info("usage recorded", "action", action, "quantity", quantity)
 //	}
 //	core.New().SetUsageRecorder(core.UsageRecorder(recorder))
-type UsageRecorder func(action string, quantity int, ctx context.Context)
+type UsageRecorder func(action string, quantity int, ctx Context)
 
 // defaultChecker — trusted conclave, everything permitted.
-func defaultChecker(_ string, _ int, _ context.Context) Entitlement {
+func defaultChecker(_ string, _ int, _ Context) Entitlement {
 	return Entitlement{Allowed: true, Unlimited: true}
 }
 
@@ -106,7 +105,7 @@ func (c *Core) Entitled(action string, quantity ...int) Entitlement {
 // SetEntitlementChecker replaces the default (permissive) checker.
 // Called by go-entitlements or commerce-matrix during OnStartup.
 //
-//	func (s *EntitlementService) OnStartup(ctx context.Context) core.Result {
+//	func (s *EntitlementService) OnStartup(ctx Context) core.Result {
 //	    s.Core().SetEntitlementChecker(s.check)
 //	    return core.Result{OK: true}
 //	}
@@ -137,7 +136,7 @@ func (c *Core) RecordUsage(action string, quantity ...int) {
 // Called by go-entitlements during OnStartup.
 //
 //	c := core.New()
-//	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+//	c.SetUsageRecorder(func(action string, quantity int, ctx Context) {
 //	    core.Info("usage recorded", "action", action, "quantity", quantity)
 //	})
 func (c *Core) SetUsageRecorder(recorder UsageRecorder) {

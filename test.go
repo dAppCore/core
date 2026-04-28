@@ -30,9 +30,7 @@
 package core
 
 import (
-	"errors"
 	"math"
-	"reflect"
 	"testing"
 )
 
@@ -40,7 +38,7 @@ import (
 // without caring about its content. Mirrors testify's assert.AnError.
 //
 //	core.AssertError(t, somethingThatFails(), core.AnError.Error())
-var AnError = errors.New("core test sentinel error")
+var AnError = NewError("core test sentinel error")
 
 // T is the canonical Go test handle, exported as core.T so test files
 // don't need a separate `import "testing"` line. Go's test runner
@@ -79,7 +77,7 @@ type F = testing.F
 //	core.AssertEqual(t, 42, result.Count)
 func AssertEqual(t testing.TB, want, got any, msg ...string) {
 	t.Helper()
-	if !reflect.DeepEqual(want, got) {
+	if !DeepEqual(want, got) {
 		t.Errorf("AssertEqual want=%#v got=%#v%s", want, got, assertMsg(msg))
 	}
 }
@@ -89,7 +87,7 @@ func AssertEqual(t testing.TB, want, got any, msg ...string) {
 //	core.AssertNotEqual(t, oldValue, newValue)
 func AssertNotEqual(t testing.TB, want, got any, msg ...string) {
 	t.Helper()
-	if reflect.DeepEqual(want, got) {
+	if DeepEqual(want, got) {
 		t.Errorf("AssertNotEqual want!=%#v got=%#v%s", want, got, assertMsg(msg))
 	}
 }
@@ -193,9 +191,9 @@ func AssertNotContains(t testing.TB, haystack, needle any, msg ...string) {
 //	core.AssertLen(t, items, 3)
 func AssertLen(t testing.TB, v any, want int, msg ...string) {
 	t.Helper()
-	rv := reflect.ValueOf(v)
+	rv := ValueOf(v)
 	switch rv.Kind() {
-	case reflect.String, reflect.Slice, reflect.Array, reflect.Map, reflect.Chan:
+	case KindString, KindSlice, KindArray, KindMap, KindChan:
 		if rv.Len() != want {
 			t.Errorf("AssertLen want=%d got=%d%s", want, rv.Len(), assertMsg(msg))
 		}
@@ -336,12 +334,12 @@ func AssertPanicsWithError(t testing.TB, wantSubstr string, fn func(), msg ...st
 	fn()
 }
 
-// AssertErrorIs fails the test if err does not wrap target (errors.Is).
+// AssertErrorIs fails the test if err does not wrap target (Is).
 //
 //	core.AssertErrorIs(t, err, fs.ErrNotExist)
 func AssertErrorIs(t testing.TB, err, target error, msg ...string) {
 	t.Helper()
-	if !errors.Is(err, target) {
+	if !Is(err, target) {
 		t.Errorf("AssertErrorIs want-target=%v got=%v%s", target, err, assertMsg(msg))
 	}
 }
@@ -367,9 +365,9 @@ func AssertInDelta(t testing.TB, want, got, delta float64, msg ...string) {
 //	core.AssertSame(t, c.Fs(), c.Fs())  // singleton check
 func AssertSame(t testing.TB, want, got any, msg ...string) {
 	t.Helper()
-	wv := reflect.ValueOf(want)
-	gv := reflect.ValueOf(got)
-	if wv.Kind() != reflect.Ptr || gv.Kind() != reflect.Ptr {
+	wv := ValueOf(want)
+	gv := ValueOf(got)
+	if wv.Kind() != KindPointer || gv.Kind() != KindPointer {
 		t.Errorf("AssertSame both args must be pointers, got want=%s got=%s%s", wv.Kind(), gv.Kind(), assertMsg(msg))
 		return
 	}
@@ -420,10 +418,10 @@ func RequireNotEmpty(t testing.TB, v any, msg ...string) {
 //	core.AssertElementsMatch(t, []int{1, 2, 3}, []int{3, 1, 2})
 func AssertElementsMatch(t testing.TB, want, got any, msg ...string) {
 	t.Helper()
-	wv := reflect.ValueOf(want)
-	gv := reflect.ValueOf(got)
-	if (wv.Kind() != reflect.Slice && wv.Kind() != reflect.Array) ||
-		(gv.Kind() != reflect.Slice && gv.Kind() != reflect.Array) {
+	wv := ValueOf(want)
+	gv := ValueOf(got)
+	if (wv.Kind() != KindSlice && wv.Kind() != KindArray) ||
+		(gv.Kind() != KindSlice && gv.Kind() != KindArray) {
 		t.Errorf("AssertElementsMatch both args must be slices/arrays, got want=%s got=%s%s", wv.Kind(), gv.Kind(), assertMsg(msg))
 		return
 	}
@@ -439,7 +437,7 @@ func AssertElementsMatch(t testing.TB, want, got any, msg ...string) {
 			if matched[j] {
 				continue
 			}
-			if reflect.DeepEqual(w, gv.Index(j).Interface()) {
+			if DeepEqual(w, gv.Index(j).Interface()) {
 				matched[j] = true
 				found = true
 				break
@@ -462,23 +460,23 @@ func assertMsg(msg []string) string {
 
 // assertContains is the internal helper for AssertContains.
 func assertContains(haystack, needle any) bool {
-	hv := reflect.ValueOf(haystack)
+	hv := ValueOf(haystack)
 	switch hv.Kind() {
-	case reflect.String:
-		nv := reflect.ValueOf(needle)
-		if nv.Kind() != reflect.String {
+	case KindString:
+		nv := ValueOf(needle)
+		if nv.Kind() != KindString {
 			return false
 		}
 		return Contains(hv.String(), nv.String())
-	case reflect.Slice, reflect.Array:
+	case KindSlice, KindArray:
 		for i := 0; i < hv.Len(); i++ {
-			if reflect.DeepEqual(hv.Index(i).Interface(), needle) {
+			if DeepEqual(hv.Index(i).Interface(), needle) {
 				return true
 			}
 		}
-	case reflect.Map:
+	case KindMap:
 		for _, k := range hv.MapKeys() {
-			if reflect.DeepEqual(k.Interface(), needle) {
+			if DeepEqual(k.Interface(), needle) {
 				return true
 			}
 		}
@@ -492,9 +490,9 @@ func assertIsNil(v any) bool {
 	if v == nil {
 		return true
 	}
-	rv := reflect.ValueOf(v)
+	rv := ValueOf(v)
 	switch rv.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case KindChan, KindFunc, KindInterface, KindMap, KindPointer, KindSlice:
 		return rv.IsNil()
 	}
 	return false
@@ -507,65 +505,65 @@ func assertIsEmpty(v any) bool {
 	if v == nil {
 		return true
 	}
-	rv := reflect.ValueOf(v)
+	rv := ValueOf(v)
 	switch rv.Kind() {
-	case reflect.String, reflect.Slice, reflect.Array, reflect.Map, reflect.Chan:
+	case KindString, KindSlice, KindArray, KindMap, KindChan:
 		return rv.Len() == 0
-	case reflect.Ptr, reflect.Interface:
+	case KindPointer, KindInterface:
 		if rv.IsNil() {
 			return true
 		}
 		return assertIsEmpty(rv.Elem().Interface())
 	}
-	zero := reflect.Zero(rv.Type()).Interface()
-	return reflect.DeepEqual(v, zero)
+	zero := Zero(rv.Type()).Interface()
+	return DeepEqual(v, zero)
 }
 
 // assertCompare returns -1, 0, +1 if a is less, equal, or greater than b.
 // The boolean is false when the values are not comparable as a numeric or
 // string pair.
 func assertCompare(a, b any) (int, bool) {
-	av := reflect.ValueOf(a)
-	bv := reflect.ValueOf(b)
+	av := ValueOf(a)
+	bv := ValueOf(b)
 	switch av.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case KindInt, KindInt8, KindInt16, KindInt32, KindInt64:
 		switch bv.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		case KindInt, KindInt8, KindInt16, KindInt32, KindInt64:
 			return assertCmpInt64(av.Int(), bv.Int()), true
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		case KindUint, KindUint8, KindUint16, KindUint32, KindUint64:
 			ai := av.Int()
 			bi := bv.Uint()
 			if ai < 0 {
 				return -1, true
 			}
 			return assertCmpUint64(uint64(ai), bi), true
-		case reflect.Float32, reflect.Float64:
+		case KindFloat32, KindFloat64:
 			return assertCmpFloat64(float64(av.Int()), bv.Float()), true
 		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case KindUint, KindUint8, KindUint16, KindUint32, KindUint64:
 		switch bv.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		case KindInt, KindInt8, KindInt16, KindInt32, KindInt64:
 			bi := bv.Int()
 			if bi < 0 {
 				return 1, true
 			}
 			return assertCmpUint64(av.Uint(), uint64(bi)), true
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		case KindUint, KindUint8, KindUint16, KindUint32, KindUint64:
 			return assertCmpUint64(av.Uint(), bv.Uint()), true
-		case reflect.Float32, reflect.Float64:
+		case KindFloat32, KindFloat64:
 			return assertCmpFloat64(float64(av.Uint()), bv.Float()), true
 		}
-	case reflect.Float32, reflect.Float64:
+	case KindFloat32, KindFloat64:
 		switch bv.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		case KindInt, KindInt8, KindInt16, KindInt32, KindInt64:
 			return assertCmpFloat64(av.Float(), float64(bv.Int())), true
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		case KindUint, KindUint8, KindUint16, KindUint32, KindUint64:
 			return assertCmpFloat64(av.Float(), float64(bv.Uint())), true
-		case reflect.Float32, reflect.Float64:
+		case KindFloat32, KindFloat64:
 			return assertCmpFloat64(av.Float(), bv.Float()), true
 		}
-	case reflect.String:
-		if bv.Kind() == reflect.String {
+	case KindString:
+		if bv.Kind() == KindString {
 			a, b := av.String(), bv.String()
 			if a < b {
 				return -1, true

@@ -25,7 +25,6 @@
 package core
 
 import (
-	"context"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -162,7 +161,7 @@ func extractScheme(transport string) string {
 // If the action name contains ":", the prefix is the endpoint and the suffix is the action.
 //
 //	c.Action("charon:agentic.status")  // → c.API().Call("charon", "agentic.status", opts)
-func (c *Core) RemoteAction(name string, ctx context.Context, opts Options) Result {
+func (c *Core) RemoteAction(name string, ctx Context, opts Options) Result {
 	for i, ch := range name {
 		if ch == ':' {
 			endpoint := name[:i]
@@ -320,9 +319,9 @@ func NewHTTPRequest(method, target string, body Reader) Result {
 	return Result{req, true}
 }
 
-// NewHTTPRequestContext is NewHTTPRequest with a context.Context attached.
+// NewHTTPRequestContext is NewHTTPRequest with a Context attached.
 //
-//	ctx := context.Background()
+//	ctx := Background()
 //	body := core.NewBufferString(`{"agent":"codex"}`)
 //	r := core.NewHTTPRequestContext(ctx, "POST", "https://api.lethean.example/v1/tasks", body)
 //	if !r.OK {
@@ -330,7 +329,7 @@ func NewHTTPRequest(method, target string, body Reader) Result {
 //	}
 //	req := r.Value.(*core.Request)
 //	req.Header.Set("Content-Type", "application/json")
-func NewHTTPRequestContext(ctx context.Context, method, target string, body Reader) Result {
+func NewHTTPRequestContext(ctx Context, method, target string, body Reader) Result {
 	req, err := http.NewRequestWithContext(ctx, method, target, body)
 	if err != nil {
 		return Result{err, false}

@@ -17,13 +17,10 @@
 //
 // ErrNoRows is the canonical sentinel for "no row matched" queries.
 //
-//	if errors.Is(err, core.ErrNoRows) { /* not found */ }
+//	if core.Is(err, core.ErrNoRows) { /* not found */ }
 package core
 
-import (
-	"database/sql"
-	"errors"
-)
+import "database/sql"
 
 // DB is a connection-pooled handle to a SQL database.
 //
@@ -117,7 +114,7 @@ type NullTime = sql.NullTime
 // ErrNoRows is the canonical "no row matched" sentinel returned by
 // QueryRow when the query returns zero rows.
 //
-//	if errors.Is(err, core.ErrNoRows) { /* handle "not found" */ }
+//	if Is(err, core.ErrNoRows) { /* handle "not found" */ }
 var ErrNoRows = sql.ErrNoRows
 
 // ErrTxDone is returned when a transaction operation runs after
@@ -154,5 +151,5 @@ func SQLDrivers() []string {
 //
 //	if core.SQLIsNoRows(err) { /* not found */ }
 func SQLIsNoRows(err error) bool {
-	return errors.Is(err, sql.ErrNoRows)
+	return Is(err, sql.ErrNoRows)
 }

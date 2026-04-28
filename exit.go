@@ -19,7 +19,6 @@
 package core
 
 import (
-	"context"
 	"os"
 	"time"
 )
@@ -46,7 +45,7 @@ type ExitOptions struct {
 // TimeoutStopSec).
 //
 //	// fatal error in a signal handler
-//	c.Action("signal.received", func(ctx context.Context, opts core.Options) core.Result {
+//	c.Action("signal.received", func(ctx Context, opts core.Options) core.Result {
 //	    if opts.String("name") == "SIGINT" { c.Exit(0) }
 //	    return core.Result{OK: true}
 //	})
@@ -61,11 +60,11 @@ func (c *Core) Exit(code int) {
 //	// daemon with a tighter shutdown budget
 //	c.ExitWith(core.ExitOptions{Code: 0, Timeout: 5 * time.Second})
 func (c *Core) ExitWith(opts ExitOptions) {
-	ctx := context.Background()
+	ctx := Background()
 	timeout := opts.Timeout
 	if timeout != 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
+		var cancel CancelFunc
+		ctx, cancel = WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 	done := make(chan struct{})
