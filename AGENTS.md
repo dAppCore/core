@@ -168,6 +168,10 @@ func TestRepository_Sync_Ugly(t *T) {
 For godoc Example* funcs (in `*_example_test.go`):
 
 ```go
+// ExampleNewArray demonstrates building a small Array[string], adding
+// elements, and querying length and membership. Array is the zero-value-
+// usable, type-safe slice wrapper preferred over []T for collections
+// you'll mutate.
 func ExampleNewArray() {
     a := NewArray[string]()
     a.Add("alpha")
@@ -179,6 +183,8 @@ func ExampleNewArray() {
     // true
 }
 ```
+
+The convention here **inverts** the AX-2 production rule: in production `.go` files the docblock IS the example (tab-indented usage), but in `*_example_test.go` files the function body IS the example (godoc renders it as a runnable code block) — so the docblock above each Example function is **descriptive prose** explaining the scenario being demonstrated. pkg.go.dev surfaces this prose above the rendered code.
 
 Use `core.Println` for output, NOT `fmt.Println`. The `// Output:` comment block must match runtime stdout exactly; Go's test runner verifies this.
 
