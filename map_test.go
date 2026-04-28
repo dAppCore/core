@@ -1,7 +1,7 @@
 package core_test
 
 import (
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestMap_MapKeys_Good(t *T) {

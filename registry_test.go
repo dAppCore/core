@@ -3,7 +3,7 @@ package core_test
 import (
 	"sync"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // --- Set ---

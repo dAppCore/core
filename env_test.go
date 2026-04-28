@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestEnv_Setenv_Good(t *T) {

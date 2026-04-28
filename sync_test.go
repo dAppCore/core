@@ -3,7 +3,7 @@ package core_test
 import (
 	"time"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // --- Mutex ---

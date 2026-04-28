@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // --- Mount ---
@@ -149,7 +149,7 @@ func TestEmbed_GeneratePack_WithFiles_Good(t *T) {
 	(&Fs{}).New("/").EnsureDir(assetDir)
 	(&Fs{}).New("/").Write(Path(assetDir, "hello.txt"), "hello world")
 
-	source := "package test\nimport \"dappco.re/go/core\"\nfunc example() {\n\t_, _ = core.GetAsset(\"mygroup\", \"hello.txt\")\n}\n"
+	source := "package test\nimport \"dappco.re/go\"\nfunc example() {\n\t_, _ = core.GetAsset(\"mygroup\", \"hello.txt\")\n}\n"
 	goFile := Path(dir, "test.go")
 	(&Fs{}).New("/").Write(goFile, source)
 

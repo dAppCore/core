@@ -3,7 +3,7 @@ package core_test
 import (
 	"net/url"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // --- URLParse ---

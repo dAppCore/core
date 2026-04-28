@@ -3,7 +3,7 @@
 package core_test
 
 import (
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestNet_ParseIP_Good_IPv4(t *T) {

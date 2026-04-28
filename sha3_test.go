@@ -3,7 +3,7 @@ package core_test
 import (
 	"encoding/hex"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 const (

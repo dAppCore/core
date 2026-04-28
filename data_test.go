@@ -3,7 +3,7 @@ package core_test
 import (
 	"embed"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 //go:embed testdata

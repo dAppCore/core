@@ -5,7 +5,7 @@ package core_test
 import (
 	"os"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestOs_FileMode_Good_Alias(t *T) {

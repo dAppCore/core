@@ -5,7 +5,7 @@ package core_test
 import (
 	"time"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestInfo_Env_OS_Good(t *T) {

@@ -3,7 +3,7 @@ package core_test
 import (
 	"io/fs"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // --- Fs (Sandboxed Filesystem) ---

@@ -1,3 +1,3 @@
-module dappco.re/go/core
+module dappco.re/go
 
 go 1.26.0

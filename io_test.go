@@ -7,7 +7,7 @@ import (
 	"errors"
 	"strings"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestIo_EOF_Good(t *T) {

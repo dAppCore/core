@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/exec"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestLock_Good(t *T) {

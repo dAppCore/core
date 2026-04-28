@@ -3,7 +3,7 @@
 package core_test
 
 import (
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestRegexp_Regex_Good_Compile(t *T) {

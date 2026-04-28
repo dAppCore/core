@@ -3,7 +3,7 @@
 package core_test
 
 import (
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestPath_Relative(t *T) {

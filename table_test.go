@@ -3,7 +3,7 @@ package core_test
 import (
 	"bytes"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 type failingWriter struct{}

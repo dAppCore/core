@@ -5,7 +5,7 @@ package core_test
 import (
 	"context"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // --- WithService ---
@@ -26,7 +26,7 @@ func stubFactory(c *Core) Result {
 // service name from the factory's package path and registers the instance via
 // RegisterService, making it retrievable through c.Services().
 //
-// stubFactory lives in package "dappco.re/go/core_test", so the last path
+// stubFactory lives in package "dappco.re/go_test", so the last path
 // segment is "core_test" — WithService strips the "_test" suffix and registers
 // the service under the name "core".
 func TestContract_WithService_NameDiscovery_Good(t *T) {

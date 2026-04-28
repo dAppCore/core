@@ -1,6 +1,6 @@
 package core_test
 
-import . "dappco.re/go/core"
+import . "dappco.re/go"
 
 func ExampleInfo() {
 	Info("server started", "port", 8080)

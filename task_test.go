@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // --- PerformAsync ---

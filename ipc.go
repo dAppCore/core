@@ -110,4 +110,3 @@ func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result) {
 	c.ipc.ipcHandlers = append(c.ipc.ipcHandlers, handlers...)
 	c.ipc.ipcMu.Unlock()
 }
-

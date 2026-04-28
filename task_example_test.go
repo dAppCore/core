@@ -3,7 +3,7 @@ package core_test
 import (
 	"context"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func ExampleTask_Run() {

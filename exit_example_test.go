@@ -3,7 +3,7 @@ package core_test
 import (
 	"time"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // ExampleCore_Exit demonstrates the call shape. The osExit hook is overridden

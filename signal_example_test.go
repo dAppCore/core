@@ -3,7 +3,7 @@ package core_test
 import (
 	"context"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 // ExampleCore_Signal_exists shows the registration check.

@@ -5,7 +5,7 @@ package core_test
 import (
 	"bytes"
 
-	. "dappco.re/go/core"
+	. "dappco.re/go"
 )
 
 func TestTemplate_NewTemplate_Good(t *T) {
