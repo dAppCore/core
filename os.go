@@ -335,18 +335,29 @@ func Getenv(key string) string {
 	return os.Getenv(key)
 }
 
-// Setenv sets an environment variable.
+// Setenv sets an environment variable. Returns Result with OK=false +
+// Code "env.invalid" when the OS rejects the assignment (e.g. key
+// containing '=' or NUL).
 //
-//	err := core.Setenv("FORGE_TOKEN", token)
-func Setenv(key, value string) error {
-	return os.Setenv(key, value)
+//	r := core.Setenv("FORGE_TOKEN", token)
+//	if !r.OK { return r }
+func Setenv(key, value string) Result {
+	if err := os.Setenv(key, value); err != nil {
+		return Result{Value: WrapCode(err, "env.invalid", "Setenv", "OS rejected env assignment"), OK: false}
+	}
+	return Result{OK: true}
 }
 
-// Unsetenv removes an environment variable.
+// Unsetenv removes an environment variable. Returns Result with
+// OK=false + Code "env.invalid" when the OS rejects the removal.
 //
-//	err := core.Unsetenv("FORGE_TOKEN")
-func Unsetenv(key string) error {
-	return os.Unsetenv(key)
+//	r := core.Unsetenv("FORGE_TOKEN")
+//	if !r.OK { return r }
+func Unsetenv(key string) Result {
+	if err := os.Unsetenv(key); err != nil {
+		return Result{Value: WrapCode(err, "env.invalid", "Unsetenv", "OS rejected env removal"), OK: false}
+	}
+	return Result{OK: true}
 }
 
 // LookupEnv retrieves the value of the environment variable named by key.

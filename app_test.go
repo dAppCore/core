@@ -115,7 +115,7 @@ func TestApp_App_Find_Bad(t *T) {
 
 func TestApp_App_Find_Ugly(t *T) {
 	oldPath, hadPath := LookupEnv("PATH")
-	AssertNoError(t, Setenv("PATH", ""))
+	RequireTrue(t, Setenv("PATH", "").OK)
 	defer func() {
 		if hadPath {
 			Setenv("PATH", oldPath)

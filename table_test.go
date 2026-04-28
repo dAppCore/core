@@ -17,14 +17,14 @@ func TestTable_NewTable_Good(t *T) {
 func TestTable_NewTable_Bad(t *T) {
 	table := NewTable(nil)
 
-	AssertError(t, table.Flush())
+	AssertFalse(t, table.Flush().OK)
 }
 
 func TestTable_NewTable_Ugly(t *T) {
 	out := NewBuffer()
 	table := NewTable(out)
 
-	AssertNoError(t, table.Row("Name", "Status").Flush())
+	AssertTrue(t, table.Row("Name", "Status").Flush().OK)
 	AssertContains(t, out.String(), "Name")
 }
 
@@ -33,7 +33,7 @@ func TestTable_Row_Good(t *T) {
 	table := NewTable(out)
 
 	AssertSame(t, table, table.Row("Name", "Status"))
-	AssertNoError(t, table.Flush())
+	AssertTrue(t, table.Flush().OK)
 	AssertContains(t, out.String(), "Name")
 	AssertContains(t, out.String(), "Status")
 }
@@ -43,7 +43,7 @@ func TestTable_Row_Bad(t *T) {
 	table := NewTable(out)
 
 	AssertSame(t, table, table.Row())
-	AssertNoError(t, table.Flush())
+	AssertTrue(t, table.Flush().OK)
 	AssertEqual(t, "\n", out.String())
 }
 
@@ -52,7 +52,7 @@ func TestTable_Row_Ugly(t *T) {
 	table := NewTable(out)
 
 	table.Row("Name", "Status").Row("api", "ok")
-	AssertNoError(t, table.Flush())
+	AssertTrue(t, table.Flush().OK)
 	AssertContains(t, out.String(), "api")
 	AssertContains(t, out.String(), "ok")
 }
@@ -60,24 +60,24 @@ func TestTable_Row_Ugly(t *T) {
 func TestTable_Flush_Good(t *T) {
 	out := NewBuffer()
 
-	err := NewTable(out).Row("A", "B").Flush()
+	r := NewTable(out).Row("A", "B").Flush()
 
-	AssertNoError(t, err)
+	AssertTrue(t, r.OK)
 	AssertContains(t, out.String(), "A")
 }
 
 func TestTable_Flush_Bad(t *T) {
 	table := NewTable(failingWriter{})
 
-	AssertError(t, table.Row("A").Flush())
+	AssertFalse(t, table.Row("A").Flush().OK)
 }
 
 func TestTable_Flush_Ugly(t *T) {
 	out := NewBuffer()
 	table := NewTable(out).Row("A")
 
-	AssertNoError(t, table.Flush())
-	AssertNoError(t, table.Flush())
+	AssertTrue(t, table.Flush().OK)
+	AssertTrue(t, table.Flush().OK)
 }
 
 func TestTable_Table_Row_Good(t *T) {
@@ -85,7 +85,7 @@ func TestTable_Table_Row_Good(t *T) {
 	table := NewTable(out)
 
 	AssertSame(t, table, table.Row("Name", "Status"))
-	AssertNoError(t, table.Flush())
+	AssertTrue(t, table.Flush().OK)
 	AssertContains(t, out.String(), "Name")
 	AssertContains(t, out.String(), "Status")
 }
@@ -102,7 +102,7 @@ func TestTable_Table_Row_Ugly(t *T) {
 
 	table.Row("Name", "Status", "Updated").Row("agent.dispatch", "ok", "now")
 
-	AssertNoError(t, table.Flush())
+	AssertTrue(t, table.Flush().OK)
 	AssertContains(t, out.String(), "agent.dispatch")
 	AssertContains(t, out.String(), "Updated")
 }
@@ -110,24 +110,25 @@ func TestTable_Table_Row_Ugly(t *T) {
 func TestTable_Table_Flush_Good(t *T) {
 	out := NewBuffer()
 
-	err := NewTable(out).Row("Name", "Status").Flush()
+	r := NewTable(out).Row("Name", "Status").Flush()
 
-	AssertNoError(t, err)
+	AssertTrue(t, r.OK)
 	AssertContains(t, out.String(), "Status")
 }
 
 func TestTable_Table_Flush_Bad(t *T) {
 	var table *Table
 
-	err := table.Flush()
+	r := table.Flush()
 
-	AssertError(t, err, "table is nil")
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "table is nil")
 }
 
 func TestTable_Table_Flush_Ugly(t *T) {
 	out := NewBuffer()
 	table := NewTable(out)
 
-	AssertNoError(t, table.Flush())
+	AssertTrue(t, table.Flush().OK)
 	AssertEqual(t, "", out.String())
 }

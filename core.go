@@ -122,45 +122,45 @@ func (c *Core) Core() *Core { return c }
 
 // --- Lifecycle ---
 
-// RunE starts all services, runs the CLI, then shuts down.
-// Returns an error instead of calling os.Exit — let main() handle the exit.
+// RunResult starts all services, runs the CLI, then shuts down.
+// Returns Result so main() can decide how to handle failure.
 // ServiceShutdown is always called via defer, even on startup failure or panic.
 //
-//	if err := c.RunE(); err != nil {
-//	    os.Exit(1)
-//	}
-func (c *Core) RunE() error {
+//	r := c.RunResult()
+//	if !r.OK { core.Exit(1) }
+func (c *Core) RunResult() Result {
 	defer c.ServiceShutdown(Background())
 
 	r := c.ServiceStartup(c.context, nil)
 	if !r.OK {
-		if err, ok := r.Value.(error); ok {
-			return err
+		if _, ok := r.Value.(error); !ok {
+			return Result{Value: NewCode("core.run.startup", "startup failed"), OK: false}
 		}
-		return E("core.Run", "startup failed", nil)
+		return r
 	}
 
 	if cli := c.Cli(); cli != nil {
 		r = cli.Run()
 	}
 
-	if !r.OK {
-		if err, ok := r.Value.(error); ok {
-			return err
-		}
+	// CLI's empty-result "no commands registered, banner shown" is the
+	// no-op success case; treat as OK.
+	if !r.OK && r.Value == nil {
+		return Result{OK: true}
 	}
-	return nil
+	return r
 }
 
-// Run starts all services, runs the CLI, then shuts down.
-// Calls c.Exit(1) on failure (graceful shutdown chain, 30s timeout).
-// For error handling use RunE().
+// Run starts all services, runs the CLI, then shuts down. Calls
+// c.Exit(1) on failure (graceful shutdown chain, 30s timeout). For
+// programmatic error handling use RunResult().
 //
 //	c := core.New(core.WithService(myService.Register))
 //	c.Run()
 func (c *Core) Run() {
-	if err := c.RunE(); err != nil {
-		Error(err.Error())
+	r := c.RunResult()
+	if !r.OK {
+		Error(r.Error())
 		c.Exit(1)
 	}
 }

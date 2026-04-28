@@ -29,6 +29,6 @@ func ExampleTable_Flush() {
 	buf := NewBuffer()
 	table := NewTable(buf)
 	table.Row("Name", "Status")
-	Println(table.Flush() == nil)
+	Println(table.Flush().OK)
 	// Output: true
 }

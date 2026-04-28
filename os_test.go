@@ -617,23 +617,21 @@ func TestOs_TempDir_Ugly(t *T) {
 func TestOs_Unsetenv_Good(t *T) {
 	t.Setenv("CORE_AX7_UNSET", "value")
 
-	err := Unsetenv("CORE_AX7_UNSET")
+	r := Unsetenv("CORE_AX7_UNSET")
 	_, ok := LookupEnv("CORE_AX7_UNSET")
 
-	AssertNoError(t, err)
+	AssertTrue(t, r.OK)
 	AssertFalse(t, ok)
 }
 
 func TestOs_Unsetenv_Bad(t *T) {
-	err := Unsetenv("")
-
-	AssertNoError(t, err)
+	r := Unsetenv("")
+	AssertTrue(t, r.OK)
 }
 
 func TestOs_Unsetenv_Ugly(t *T) {
-	err := Unsetenv("CORE_AX7_ALREADY_MISSING")
-
-	AssertNoError(t, err)
+	r := Unsetenv("CORE_AX7_ALREADY_MISSING")
+	AssertTrue(t, r.OK)
 }
 
 func TestOs_UserCacheDir_Good(t *T) {

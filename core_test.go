@@ -185,9 +185,9 @@ func TestCore_RegistryOf_Bad_Unknown(t *T) {
 	AssertEqual(t, 0, reg.Len(), "unknown registry returns empty")
 }
 
-// --- RunE ---
+// --- RunResult ---
 
-func TestCore_RunE_Good(t *T) {
+func TestCore_RunResult_Good(t *T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			return c.Service("healthy", Service{
@@ -196,11 +196,11 @@ func TestCore_RunE_Good(t *T) {
 			})
 		}),
 	)
-	err := c.RunE()
-	AssertNoError(t, err)
+	r := c.RunResult()
+	AssertTrue(t, r.OK)
 }
 
-func TestCore_RunE_Bad_StartupFailure(t *T) {
+func TestCore_RunResult_Bad(t *T) {
 	c := New(
 		WithService(func(c *Core) Result {
 			return c.Service("broken", Service{
@@ -210,12 +210,12 @@ func TestCore_RunE_Bad_StartupFailure(t *T) {
 			})
 		}),
 	)
-	err := c.RunE()
-	AssertError(t, err)
-	AssertContains(t, err.Error(), "startup failed")
+	r := c.RunResult()
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "startup failed")
 }
 
-func TestCore_RunE_Ugly_StartupFailureCallsShutdown(t *T) {
+func TestCore_RunResult_Ugly(t *T) {
 	shutdownCalled := false
 	c := New(
 		WithService(func(c *Core) Result {
@@ -232,13 +232,13 @@ func TestCore_RunE_Ugly_StartupFailureCallsShutdown(t *T) {
 			})
 		}),
 	)
-	err := c.RunE()
-	AssertError(t, err)
+	r := c.RunResult()
+	AssertFalse(t, r.OK)
 	AssertTrue(t, shutdownCalled, "ServiceShutdown must be called even when startup fails — cleanup service must get OnStop")
 }
 
-// Run() delegates to RunE() — tested via RunE tests above.
-// os.Exit behaviour is verified by RunE returning error correctly.
+// Run() delegates to RunResult() — tested via RunResult tests above.
+// c.Exit(1) behaviour is verified by RunResult returning OK=false correctly.
 
 func TestCore_Core_ACTION_Good(t *T) {
 	c := New()
@@ -659,25 +659,26 @@ func TestCore_Core_Run_Ugly(t *T) {
 	})
 }
 
-func TestCore_Core_RunE_Good(t *T) {
+func TestCore_Core_RunResult_Good(t *T) {
 	c := New()
 	c.Cli().SetOutput(NewBuffer())
-	AssertNoError(t, c.RunE())
+	AssertTrue(t, c.RunResult().OK)
 }
 
-func TestCore_Core_RunE_Bad(t *T) {
+func TestCore_Core_RunResult_Bad(t *T) {
 	c := New(WithService(func(c *Core) Result {
 		return c.Service("agent", Service{
 			OnStart: func() Result { return Result{Value: NewError("startup refused"), OK: false} },
 		})
 	}))
 
-	err := c.RunE()
+	r := c.RunResult()
 
-	AssertError(t, err, "startup refused")
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "startup refused")
 }
 
-func TestCore_Core_RunE_Ugly(t *T) {
+func TestCore_Core_RunResult_Ugly(t *T) {
 	stopped := false
 	c := New(
 		WithService(func(c *Core) Result {
@@ -693,8 +694,9 @@ func TestCore_Core_RunE_Ugly(t *T) {
 		}),
 	)
 
-	err := c.RunE()
+	r := c.RunResult()
 
-	AssertError(t, err, "boom")
+	AssertFalse(t, r.OK)
+	AssertContains(t, r.Error(), "boom")
 	AssertTrue(t, stopped)
 }

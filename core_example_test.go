@@ -56,11 +56,12 @@ func ExampleCore_Core() {
 	// Output: true
 }
 
-// ExampleCore_RunE runs `Core.RunE` through the error-returning startup path for Core
-// orchestration. Core keeps orchestration helpers reachable from one predictable facade.
-func ExampleCore_RunE() {
+// ExampleCore_RunResult runs `Core.RunResult` through the Result-returning startup path
+// for Core orchestration. Core keeps orchestration helpers reachable from one
+// predictable facade.
+func ExampleCore_RunResult() {
 	c := New()
-	Println(c.RunE() == nil)
+	Println(c.RunResult().OK)
 	// Output: true
 }
 

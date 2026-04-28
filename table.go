@@ -47,16 +47,22 @@ func (t *Table) Row(cells ...string) *Table {
 }
 
 // Flush flushes buffered table output to the underlying writer.
+// Returns Result with OK=false + Code "table.flush.failed" when the
+// underlying writer rejects the flush.
 //
-//	if err := table.Flush(); err != nil { return err }
-func (t *Table) Flush() error {
+//	r := table.Flush()
+//	if !r.OK { return r }
+func (t *Table) Flush() Result {
 	if t == nil {
-		return E("core.Table.Flush", "table is nil", nil)
+		return Result{Value: NewCode("table.nil", "table is nil"), OK: false}
 	}
 	if t.err != nil {
-		return t.err
+		return Result{Value: WrapCode(t.err, "table.flush.failed", "Table.Flush", "buffered write failed"), OK: false}
 	}
-	return t.writer.Flush()
+	if err := t.writer.Flush(); err != nil {
+		return Result{Value: WrapCode(err, "table.flush.failed", "Table.Flush", "writer rejected flush"), OK: false}
+	}
+	return Result{OK: true}
 }
 
 func (t *Table) write(s string) {

@@ -7,7 +7,7 @@ func TestTable_Table_write_Good(t *T) {
 	table := NewTable(out)
 
 	table.write("Name\tStatus\n")
-	RequireNoError(t, table.Flush())
+	RequireTrue(t, table.Flush().OK)
 
 	AssertContains(t, out.String(), "Name")
 	AssertContains(t, out.String(), "Status")
@@ -24,5 +24,5 @@ func TestTable_Table_write_Ugly(t *T) {
 
 	table.write("agent\n")
 
-	AssertError(t, table.Flush())
+	AssertFalse(t, table.Flush().OK)
 }
