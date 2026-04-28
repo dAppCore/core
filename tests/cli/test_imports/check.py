@@ -22,28 +22,44 @@ from collections import defaultdict
 
 ALLOWED = {"dappco.re/go"}
 
+_PACKAGE = re.compile(r"^package\s+\w+", re.MULTILINE)
+_DECL_BOUNDARY = re.compile(
+    r"^(?:func|type|var|const)\s+", re.MULTILINE
+)
 _SINGLE = re.compile(r'^import\s+(?:[\w.]+\s+)?"([^"]+)"', re.MULTILINE)
 _BLOCK_HEAD = re.compile(r"^import\s*\(", re.MULTILINE)
 
 
 def imports(text: str) -> list[str]:
-    """Return list of import paths from a Go source file."""
+    """Return list of import paths from a Go source file. Only scans the
+    pre-declaration prefix — Go import blocks are required to appear
+    before any func/type/var/const declaration, so we never confuse
+    `import (` literals embedded in raw-string fixtures inside test
+    bodies with real imports.
+    """
+    pkg = _PACKAGE.search(text)
+    if not pkg:
+        return []
+    start = pkg.end()
+    decl = _DECL_BOUNDARY.search(text, start)
+    end = decl.start() if decl else len(text)
+    prefix = text[start:end]
+
     paths = []
-    for m in _SINGLE.finditer(text):
+    for m in _SINGLE.finditer(prefix):
         paths.append(m.group(1))
-    for head in _BLOCK_HEAD.finditer(text):
-        # Walk to matching `)`
+    for head in _BLOCK_HEAD.finditer(prefix):
         i = head.end()
         depth = 1
-        while i < len(text) and depth > 0:
-            if text[i] == "(":
+        while i < len(prefix) and depth > 0:
+            if prefix[i] == "(":
                 depth += 1
-            elif text[i] == ")":
+            elif prefix[i] == ")":
                 depth -= 1
                 if depth == 0:
                     break
             i += 1
-        block = text[head.end() : i]
+        block = prefix[head.end() : i]
         for line in block.splitlines():
             line = line.strip()
             if not line or line.startswith("//") or line.startswith("/*"):
