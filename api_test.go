@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- mock stream for testing ---
@@ -40,7 +39,7 @@ func mockFactory(response string) StreamFactory {
 
 func TestApi_API_Good_Accessor(t *testing.T) {
 	c := New()
-	assert.NotNil(t, c.API())
+	AssertNotNil(t, c.API())
 }
 
 // --- RegisterProtocol ---
@@ -48,7 +47,7 @@ func TestApi_API_Good_Accessor(t *testing.T) {
 func TestApi_RegisterProtocol_Good(t *testing.T) {
 	c := New()
 	c.API().RegisterProtocol("http", mockFactory("ok"))
-	assert.Contains(t, c.API().Protocols(), "http")
+	AssertContains(t, c.API().Protocols(), "http")
 }
 
 // --- Stream ---
@@ -62,20 +61,20 @@ func TestApi_Stream_Good(t *testing.T) {
 	))
 
 	r := c.API().Stream("charon")
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 
 	stream := r.Value.(Stream)
 	stream.Send([]byte("ping"))
 	resp, err := stream.Receive()
-	assert.NoError(t, err)
-	assert.Equal(t, "pong", string(resp))
+	AssertNoError(t, err)
+	AssertEqual(t, "pong", string(resp))
 	stream.Close()
 }
 
 func TestApi_Stream_Bad_EndpointNotFound(t *testing.T) {
 	c := New()
 	r := c.API().Stream("nonexistent")
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestApi_Stream_Bad_NoProtocolHandler(t *testing.T) {
@@ -86,7 +85,7 @@ func TestApi_Stream_Bad_NoProtocolHandler(t *testing.T) {
 	))
 
 	r := c.API().Stream("unknown")
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 // --- Call ---
@@ -100,14 +99,14 @@ func TestApi_Call_Good(t *testing.T) {
 	))
 
 	r := c.API().Call("charon", "agentic.status", NewOptions())
-	assert.True(t, r.OK)
-	assert.Contains(t, r.Value.(string), "ok")
+	AssertTrue(t, r.OK)
+	AssertContains(t, r.Value.(string), "ok")
 }
 
 func TestApi_Call_Bad_EndpointNotFound(t *testing.T) {
 	c := New()
 	r := c.API().Call("missing", "action", NewOptions())
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 // --- RemoteAction ---
@@ -119,8 +118,8 @@ func TestApi_RemoteAction_Good_Local(t *testing.T) {
 	})
 
 	r := c.RemoteAction("local.action", context.Background(), NewOptions())
-	assert.True(t, r.OK)
-	assert.Equal(t, "local", r.Value)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "local", r.Value)
 }
 
 func TestApi_RemoteAction_Good_Remote(t *testing.T) {
@@ -132,15 +131,15 @@ func TestApi_RemoteAction_Good_Remote(t *testing.T) {
 	))
 
 	r := c.RemoteAction("charon:agentic.status", context.Background(), NewOptions())
-	assert.True(t, r.OK)
-	assert.Contains(t, r.Value.(string), "remote")
+	AssertTrue(t, r.OK)
+	AssertContains(t, r.Value.(string), "remote")
 }
 
 func TestApi_RemoteAction_Ugly_NoColon(t *testing.T) {
 	c := New()
 	// No colon — falls through to local action (which doesn't exist)
 	r := c.RemoteAction("nonexistent", context.Background(), NewOptions())
-	assert.False(t, r.OK, "non-existent local action should fail")
+	AssertFalse(t, r.OK, "non-existent local action should fail")
 }
 
 // --- extractScheme ---
@@ -152,5 +151,5 @@ func TestApi_Ugly_SchemeExtraction(t *testing.T) {
 	c.API().RegisterProtocol("mcp", mockFactory("mcp"))
 	c.API().RegisterProtocol("ws", mockFactory("ws"))
 
-	assert.Equal(t, 3, len(c.API().Protocols()))
+	AssertEqual(t, 3, len(c.API().Protocols()))
 }

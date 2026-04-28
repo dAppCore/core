@@ -6,28 +6,27 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestLock_Good(t *testing.T) {
 	c := New()
 	lock := c.Lock("test")
-	assert.NotNil(t, lock)
-	assert.NotNil(t, lock.Mutex)
+	AssertNotNil(t, lock)
+	AssertNotNil(t, lock.Mutex)
 }
 
 func TestLock_SameName_Good(t *testing.T) {
 	c := New()
 	l1 := c.Lock("shared")
 	l2 := c.Lock("shared")
-	assert.Equal(t, l1, l2)
+	AssertEqual(t, l1, l2)
 }
 
 func TestLock_DifferentName_Good(t *testing.T) {
 	c := New()
 	l1 := c.Lock("a")
 	l2 := c.Lock("b")
-	assert.NotEqual(t, l1, l2)
+	AssertNotEqual(t, l1, l2)
 }
 
 func TestLock_LockEnable_Good(t *testing.T) {
@@ -37,23 +36,23 @@ func TestLock_LockEnable_Good(t *testing.T) {
 	c.LockApply()
 
 	r := c.Service("late", Service{})
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestLock_Startables_Good(t *testing.T) {
 	c := New()
 	c.Service("s", Service{OnStart: func() Result { return Result{OK: true} }})
 	r := c.Startables()
-	assert.True(t, r.OK)
-	assert.Len(t, r.Value.([]*Service), 1)
+	AssertTrue(t, r.OK)
+	AssertLen(t, r.Value.([]*Service), 1)
 }
 
 func TestLock_Stoppables_Good(t *testing.T) {
 	c := New()
 	c.Service("s", Service{OnStop: func() Result { return Result{OK: true} }})
 	r := c.Stoppables()
-	assert.True(t, r.OK)
-	assert.Len(t, r.Value.([]*Service), 1)
+	AssertTrue(t, r.OK)
+	AssertLen(t, r.Value.([]*Service), 1)
 }
 
 func TestLock_LockUnlock_Good(t *testing.T) {
@@ -69,7 +68,7 @@ func TestLock_LockUnlock_Bad(t *testing.T) {
 	l.Lock()
 	defer l.Unlock()
 	r := l.TryLock()
-	assert.False(t, r.OK, "TryLock on already-held lock must report not-acquired")
+	AssertFalse(t, r.OK, "TryLock on already-held lock must report not-acquired")
 }
 
 func TestLock_LockUnlock_Ugly(t *testing.T) {
@@ -101,8 +100,8 @@ func TestLock_RLockRUnlock_Bad(t *testing.T) {
 		cmd.Env = append(os.Environ(), "CORE_LOCK_RUNLOCK_BAD=1")
 		out, err := cmd.CombinedOutput()
 
-		assert.Error(t, err, "RUnlock without prior RLock must fail")
-		assert.Contains(t, string(out), "sync: RUnlock of unlocked RWMutex")
+		AssertError(t, err)
+		AssertContains(t, string(out), "sync: RUnlock of unlocked RWMutex")
 	})
 }
 
@@ -119,7 +118,7 @@ func TestLock_TryLock_Good(t *testing.T) {
 	c := New()
 	l := c.Lock("a")
 	r := l.TryLock()
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 	l.Unlock()
 }
 
@@ -129,18 +128,18 @@ func TestLock_TryLock_Bad(t *testing.T) {
 	l.Lock()
 	defer l.Unlock()
 	r := l.TryLock()
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestLock_TryLock_Ugly(t *testing.T) {
 	c := New()
 	l := c.Lock("a")
 	r1 := l.TryLock()
-	assert.True(t, r1.OK)
+	AssertTrue(t, r1.OK)
 	r2 := l.TryLock()
-	assert.False(t, r2.OK)
+	AssertFalse(t, r2.OK)
 	l.Unlock()
 	r3 := l.TryLock()
-	assert.True(t, r3.OK)
+	AssertTrue(t, r3.OK)
 	l.Unlock()
 }

@@ -4,23 +4,22 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSyncMap_Store_Good(t *testing.T) {
 	var m SyncMap
 	m.Store("k", 42)
 	v, ok := m.Load("k")
-	assert.True(t, ok)
-	assert.Equal(t, 42, v)
+	AssertTrue(t, ok)
+	AssertEqual(t, 42, v)
 }
 
 func TestSyncMap_Store_Bad(t *testing.T) {
 	// Bad: Load on absent key returns nil, false.
 	var m SyncMap
 	v, ok := m.Load("missing")
-	assert.False(t, ok)
-	assert.Nil(t, v)
+	AssertFalse(t, ok)
+	AssertNil(t, v)
 }
 
 func TestSyncMap_Store_Ugly(t *testing.T) {
@@ -29,39 +28,39 @@ func TestSyncMap_Store_Ugly(t *testing.T) {
 	m.Store("k", "first")
 	m.Store("k", "second")
 	prev, loaded := m.Swap("k", "third")
-	assert.True(t, loaded)
-	assert.Equal(t, "second", prev)
+	AssertTrue(t, loaded)
+	AssertEqual(t, "second", prev)
 	v, _ := m.Load("k")
-	assert.Equal(t, "third", v)
+	AssertEqual(t, "third", v)
 }
 
 func TestSyncMap_LoadOrStore_Good(t *testing.T) {
 	var m SyncMap
 	actual, loaded := m.LoadOrStore("k", 1)
-	assert.False(t, loaded)
-	assert.Equal(t, 1, actual)
+	AssertFalse(t, loaded)
+	AssertEqual(t, 1, actual)
 	actual, loaded = m.LoadOrStore("k", 2)
-	assert.True(t, loaded)
-	assert.Equal(t, 1, actual, "second LoadOrStore returns existing value")
+	AssertTrue(t, loaded)
+	AssertEqual(t, 1, actual, "second LoadOrStore returns existing value")
 }
 
 func TestSyncMap_LoadAndDelete_Good(t *testing.T) {
 	var m SyncMap
 	m.Store("k", "v")
 	v, loaded := m.LoadAndDelete("k")
-	assert.True(t, loaded)
-	assert.Equal(t, "v", v)
+	AssertTrue(t, loaded)
+	AssertEqual(t, "v", v)
 	_, ok := m.Load("k")
-	assert.False(t, ok)
+	AssertFalse(t, ok)
 }
 
 func TestSyncMap_CompareAndSwap_Good(t *testing.T) {
 	var m SyncMap
 	m.Store("k", 1)
 	swapped := m.CompareAndSwap("k", 1, 2)
-	assert.True(t, swapped)
+	AssertTrue(t, swapped)
 	v, _ := m.Load("k")
-	assert.Equal(t, 2, v)
+	AssertEqual(t, 2, v)
 }
 
 func TestSyncMap_CompareAndSwap_Bad(t *testing.T) {
@@ -69,9 +68,9 @@ func TestSyncMap_CompareAndSwap_Bad(t *testing.T) {
 	var m SyncMap
 	m.Store("k", 1)
 	swapped := m.CompareAndSwap("k", 99, 2)
-	assert.False(t, swapped)
+	AssertFalse(t, swapped)
 	v, _ := m.Load("k")
-	assert.Equal(t, 1, v)
+	AssertEqual(t, 1, v)
 }
 
 func TestSyncMap_Range_Good(t *testing.T) {
@@ -83,7 +82,7 @@ func TestSyncMap_Range_Good(t *testing.T) {
 		count++
 		return true
 	})
-	assert.Equal(t, 2, count)
+	AssertEqual(t, 2, count)
 }
 
 func TestSyncMap_Range_Bad(t *testing.T) {
@@ -94,7 +93,7 @@ func TestSyncMap_Range_Bad(t *testing.T) {
 		count++
 		return true
 	})
-	assert.Equal(t, 0, count)
+	AssertEqual(t, 0, count)
 }
 
 func TestSyncMap_Range_Ugly(t *testing.T) {
@@ -108,7 +107,7 @@ func TestSyncMap_Range_Ugly(t *testing.T) {
 		count++
 		return false // stop after first
 	})
-	assert.Equal(t, 1, count)
+	AssertEqual(t, 1, count)
 }
 
 func TestSyncMap_Clear_Good(t *testing.T) {
@@ -117,7 +116,7 @@ func TestSyncMap_Clear_Good(t *testing.T) {
 	m.Store("b", 2)
 	m.Clear()
 	_, ok := m.Load("a")
-	assert.False(t, ok)
+	AssertFalse(t, ok)
 }
 
 func TestSyncMap_Concurrent_Ugly(t *testing.T) {
@@ -137,5 +136,5 @@ func TestSyncMap_Concurrent_Ugly(t *testing.T) {
 		count++
 		return true
 	})
-	assert.Equal(t, 100, count)
+	AssertEqual(t, 100, count)
 }

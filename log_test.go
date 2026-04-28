@@ -4,14 +4,13 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- Log ---
 
 func TestLog_New_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
-	assert.NotNil(t, l)
+	AssertNotNil(t, l)
 }
 
 func TestLog_AllLevels_Good(t *testing.T) {
@@ -35,7 +34,7 @@ func TestLog_LevelFiltering_Good(t *testing.T) {
 func TestLog_SetLevel_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	l.SetLevel(LevelDebug)
-	assert.Equal(t, LevelDebug, l.Level())
+	AssertEqual(t, LevelDebug, l.Level())
 }
 
 func TestLog_SetRedactKeys_Good(t *testing.T) {
@@ -46,15 +45,15 @@ func TestLog_SetRedactKeys_Good(t *testing.T) {
 }
 
 func TestLog_LevelString_Good(t *testing.T) {
-	assert.Equal(t, "debug", LevelDebug.String())
-	assert.Equal(t, "info", LevelInfo.String())
-	assert.Equal(t, "warn", LevelWarn.String())
-	assert.Equal(t, "error", LevelError.String())
+	AssertEqual(t, "debug", LevelDebug.String())
+	AssertEqual(t, "info", LevelInfo.String())
+	AssertEqual(t, "warn", LevelWarn.String())
+	AssertEqual(t, "error", LevelError.String())
 }
 
 func TestLog_CoreLog_Good(t *testing.T) {
 	c := New()
-	assert.NotNil(t, c.Log())
+	AssertNotNil(t, c.Log())
 }
 
 func TestLog_ErrorSink_Good(t *testing.T) {
@@ -68,7 +67,7 @@ func TestLog_ErrorSink_Good(t *testing.T) {
 
 func TestLog_Default_Good(t *testing.T) {
 	d := Default()
-	assert.NotNil(t, d)
+	AssertNotNil(t, d)
 }
 
 func TestLog_SetDefault_Good(t *testing.T) {
@@ -77,7 +76,7 @@ func TestLog_SetDefault_Good(t *testing.T) {
 
 	custom := NewLog(LogOptions{Level: LevelDebug})
 	SetDefault(custom)
-	assert.Equal(t, custom, Default())
+	AssertEqual(t, custom, Default())
 }
 
 func TestLog_PackageLevelFunctions_Good(t *testing.T) {
@@ -99,7 +98,7 @@ func TestLog_PackageSetLevel_Good(t *testing.T) {
 
 func TestLog_Username_Good(t *testing.T) {
 	u := Username()
-	assert.NotEmpty(t, u)
+	AssertNotEmpty(t, u)
 }
 
 // --- LogErr ---
@@ -107,7 +106,7 @@ func TestLog_Username_Good(t *testing.T) {
 func TestLog_LogErr_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	le := NewLogErr(l)
-	assert.NotNil(t, le)
+	AssertNotNil(t, le)
 
 	err := E("test.Operation", "something broke", nil)
 	le.Log(err)
@@ -124,13 +123,13 @@ func TestLog_LogErr_Nil_Good(t *testing.T) {
 func TestLog_LogPanic_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPanic(l)
-	assert.NotNil(t, lp)
+	AssertNotNil(t, lp)
 }
 
 func TestLog_LogPanic_Recover_Good(t *testing.T) {
 	l := NewLog(LogOptions{Level: LevelInfo})
 	lp := NewLogPanic(l)
-	assert.NotPanics(t, func() {
+	AssertNotPanics(t, func() {
 		defer lp.Recover()
 		panic("caught")
 	})

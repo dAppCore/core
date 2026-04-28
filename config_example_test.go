@@ -1,7 +1,6 @@
 package core_test
 
 import (
-
 	. "dappco.re/go/core"
 )
 
@@ -23,10 +22,12 @@ func ExampleConfig_Enable() {
 	c.Config().Enable("beta-features")
 
 	Println(c.Config().Enabled("dark-mode"))
-	Println(c.Config().EnabledFeatures())
+	features := c.Config().EnabledFeatures()
+	SliceSort(features)
+	Println(features)
 	// Output:
 	// true
-	// [dark-mode beta-features]
+	// [beta-features dark-mode]
 }
 
 func ExampleConfigVar() {

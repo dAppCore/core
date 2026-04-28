@@ -347,6 +347,41 @@ func AssertSame(t testing.TB, want, got any, msg ...string) {
 	}
 }
 
+// RequireNoError fails the test AND stops it if err is non-nil. Use when
+// the rest of the test depends on the operation succeeding.
+//
+//	core.RequireNoError(t, c.Fs().Write(p, "data").Error())
+func RequireNoError(t testing.TB, err error, msg ...string) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("RequireNoError got=%v%s", err, assertMsg(msg))
+	}
+}
+
+// RequireTrue fails the test AND stops it if condition is false. Use to
+// guard test invariants where continuing past a false condition is
+// meaningless.
+//
+//	core.RequireTrue(t, scanner.Scan(), "scan precondition")
+func RequireTrue(t testing.TB, condition bool, msg ...string) {
+	t.Helper()
+	if !condition {
+		t.Fatalf("RequireTrue want=true got=false%s", assertMsg(msg))
+	}
+}
+
+// RequireNotEmpty fails the test AND stops it if v is empty. Use to
+// guard test invariants where downstream assertions presume non-empty
+// fixture data.
+//
+//	core.RequireNotEmpty(t, fixturePath)
+func RequireNotEmpty(t testing.TB, v any, msg ...string) {
+	t.Helper()
+	if assertIsEmpty(v) {
+		t.Fatalf("RequireNotEmpty want=non-empty got=%#v%s", v, assertMsg(msg))
+	}
+}
+
 // AssertElementsMatch fails the test if want and got are not slices/arrays
 // containing the same elements regardless of order. Uses deep equality
 // per element.

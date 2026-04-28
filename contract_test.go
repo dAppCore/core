@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- WithService ---
@@ -36,7 +35,7 @@ func TestContract_WithService_NameDiscovery_Good(t *testing.T) {
 
 	names := c.Services()
 	// Service should be auto-registered under a discovered name (not just "cli" which is built-in)
-	assert.Greater(t, len(names), 1, "expected auto-discovered service to be registered alongside built-in 'cli'")
+	AssertGreater(t, len(names), 1, "expected auto-discovered service to be registered alongside built-in 'cli'")
 }
 
 // TestWithService_FactorySelfRegisters_Good verifies that when a factory
@@ -53,7 +52,7 @@ func TestContract_WithService_FactorySelfRegisters_Good(t *testing.T) {
 
 	// "self" must be present and registered exactly once.
 	svc := c.Service("self")
-	assert.True(t, svc.OK, "expected self-registered service to be present")
+	AssertTrue(t, svc.OK, "expected self-registered service to be present")
 }
 
 // --- WithName ---
@@ -64,7 +63,7 @@ func TestContract_WithName_Good(t *testing.T) {
 			return Result{Value: &stubNamedService{}, OK: true}
 		}),
 	)
-	assert.Contains(t, c.Services(), "custom")
+	AssertContains(t, c.Services(), "custom")
 }
 
 // --- Lifecycle ---
@@ -87,7 +86,7 @@ func TestContract_WithService_Lifecycle_Good(t *testing.T) {
 	)
 
 	c.ServiceStartup(context.Background(), nil)
-	assert.True(t, svc.started)
+	AssertTrue(t, svc.started)
 }
 
 // --- IPC Handler ---
@@ -110,7 +109,7 @@ func TestContract_WithService_IPCHandler_Good(t *testing.T) {
 	)
 
 	c.ACTION("ping")
-	assert.Equal(t, "ping", svc.received)
+	AssertEqual(t, "ping", svc.received)
 }
 
 // --- Error ---
@@ -128,6 +127,6 @@ func TestContract_WithService_FactoryError_Bad(t *testing.T) {
 			return Result{OK: true}
 		}),
 	)
-	assert.NotNil(t, c)
-	assert.False(t, secondCalled, "second option should not run after first fails")
+	AssertNotNil(t, c)
+	AssertFalse(t, secondCalled, "second option should not run after first fails")
 }

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- NamedAction Register ---
@@ -15,9 +14,9 @@ func TestAction_NamedAction_Good_Register(t *testing.T) {
 	def := c.Action("process.run", func(_ context.Context, opts Options) Result {
 		return Result{Value: "output", OK: true}
 	})
-	assert.NotNil(t, def)
-	assert.Equal(t, "process.run", def.Name)
-	assert.True(t, def.Exists())
+	AssertNotNil(t, def)
+	AssertEqual(t, "process.run", def.Name)
+	AssertTrue(t, def.Exists())
 }
 
 func TestAction_NamedAction_Good_Invoke(t *testing.T) {
@@ -30,14 +29,14 @@ func TestAction_NamedAction_Good_Invoke(t *testing.T) {
 	r := c.Action("git.log").Run(context.Background(), NewOptions(
 		Option{Key: "dir", Value: "/repo"},
 	))
-	assert.True(t, r.OK)
-	assert.Equal(t, "log from /repo", r.Value)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "log from /repo", r.Value)
 }
 
 func TestAction_NamedAction_Bad_NotRegistered(t *testing.T) {
 	c := New()
 	r := c.Action("missing.action").Run(context.Background(), NewOptions())
-	assert.False(t, r.OK, "invoking unregistered action must fail")
+	AssertFalse(t, r.OK, "invoking unregistered action must fail")
 }
 
 func TestAction_NamedAction_Good_Exists(t *testing.T) {
@@ -45,8 +44,8 @@ func TestAction_NamedAction_Good_Exists(t *testing.T) {
 	c.Action("brain.recall", func(_ context.Context, _ Options) Result {
 		return Result{OK: true}
 	})
-	assert.True(t, c.Action("brain.recall").Exists())
-	assert.False(t, c.Action("brain.forget").Exists())
+	AssertTrue(t, c.Action("brain.recall").Exists())
+	AssertFalse(t, c.Action("brain.forget").Exists())
 }
 
 func TestAction_NamedAction_Ugly_PanicRecovery(t *testing.T) {
@@ -55,17 +54,17 @@ func TestAction_NamedAction_Ugly_PanicRecovery(t *testing.T) {
 		panic("boom")
 	})
 	r := c.Action("explode").Run(context.Background(), NewOptions())
-	assert.False(t, r.OK, "panicking action must return !OK, not crash")
+	AssertFalse(t, r.OK, "panicking action must return !OK, not crash")
 	err, ok := r.Value.(error)
-	assert.True(t, ok)
-	assert.Contains(t, err.Error(), "panic")
+	AssertTrue(t, ok)
+	AssertContains(t, err.Error(), "panic")
 }
 
 func TestAction_NamedAction_Ugly_NilAction(t *testing.T) {
 	var def *Action
 	r := def.Run(context.Background(), NewOptions())
-	assert.False(t, r.OK)
-	assert.False(t, def.Exists())
+	AssertFalse(t, r.OK)
+	AssertFalse(t, def.Exists())
 }
 
 // --- Actions listing ---
@@ -77,13 +76,13 @@ func TestAction_Actions_Good(t *testing.T) {
 	c.Action("agentic.dispatch", func(_ context.Context, _ Options) Result { return Result{OK: true} })
 
 	names := c.Actions()
-	assert.Len(t, names, 3)
-	assert.Equal(t, []string{"process.run", "process.kill", "agentic.dispatch"}, names)
+	AssertLen(t, names, 3)
+	AssertEqual(t, []string{"process.run", "process.kill", "agentic.dispatch"}, names)
 }
 
 func TestAction_Actions_Bad_Empty(t *testing.T) {
 	c := New()
-	assert.Empty(t, c.Actions())
+	AssertEmpty(t, c.Actions())
 }
 
 // --- Action fields ---
@@ -98,8 +97,8 @@ func TestAction_NamedAction_Good_DescriptionAndSchema(t *testing.T) {
 	)
 
 	retrieved := c.Action("process.run")
-	assert.Equal(t, "Execute a command synchronously", retrieved.Description)
-	assert.True(t, retrieved.Schema.Has("command"))
+	AssertEqual(t, "Execute a command synchronously", retrieved.Description)
+	AssertTrue(t, retrieved.Schema.Has("command"))
 }
 
 // --- Permission by registration ---
@@ -116,11 +115,11 @@ func TestAction_NamedAction_Good_PermissionModel(t *testing.T) {
 
 	// Full can execute
 	r := full.Action("process.run").Run(context.Background(), NewOptions())
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 
 	// Sandboxed returns not-registered
 	r = sandboxed.Action("process.run").Run(context.Background(), NewOptions())
-	assert.False(t, r.OK, "sandboxed Core must not have process capability")
+	AssertFalse(t, r.OK, "sandboxed Core must not have process capability")
 }
 
 // --- Action overwrite ---
@@ -135,8 +134,8 @@ func TestAction_NamedAction_Good_Overwrite(t *testing.T) {
 	})
 
 	r := c.Action("hot.reload").Run(context.Background(), NewOptions())
-	assert.True(t, r.OK)
-	assert.Equal(t, "v2", r.Value, "latest handler wins")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "v2", r.Value, "latest handler wins")
 }
 
 // --- Task Composition ---
@@ -161,9 +160,9 @@ func TestAction_Task_Good_Sequential(t *testing.T) {
 	})
 
 	r := c.Task("pipeline").Run(context.Background(), c, NewOptions())
-	assert.True(t, r.OK)
-	assert.Equal(t, []string{"a", "b"}, order, "steps must run in order")
-	assert.Equal(t, "output-b", r.Value, "last step's result is returned")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, []string{"a", "b"}, order, "steps must run in order")
+	AssertEqual(t, "output-b", r.Value, "last step's result is returned")
 }
 
 func TestAction_Task_Bad_StepFails(t *testing.T) {
@@ -191,8 +190,8 @@ func TestAction_Task_Bad_StepFails(t *testing.T) {
 	})
 
 	r := c.Task("broken").Run(context.Background(), c, NewOptions())
-	assert.False(t, r.OK)
-	assert.Equal(t, []string{"ok", "fail"}, order, "chain stops on failure, step.never skipped")
+	AssertFalse(t, r.OK)
+	AssertEqual(t, []string{"ok", "fail"}, order, "chain stops on failure, step.never skipped")
 }
 
 func TestAction_Task_Bad_MissingAction(t *testing.T) {
@@ -203,7 +202,7 @@ func TestAction_Task_Bad_MissingAction(t *testing.T) {
 		},
 	})
 	r := c.Task("missing").Run(context.Background(), c, NewOptions())
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestAction_Task_Good_PreviousInput(t *testing.T) {
@@ -227,20 +226,20 @@ func TestAction_Task_Good_PreviousInput(t *testing.T) {
 	})
 
 	r := c.Task("pipe").Run(context.Background(), c, NewOptions())
-	assert.True(t, r.OK)
-	assert.Equal(t, "got: data-from-step-1", r.Value)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "got: data-from-step-1", r.Value)
 }
 
 func TestAction_Task_Ugly_EmptySteps(t *testing.T) {
 	c := New()
 	c.Task("empty", Task{})
 	r := c.Task("empty").Run(context.Background(), c, NewOptions())
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestAction_Tasks_Good(t *testing.T) {
 	c := New()
 	c.Task("deploy", Task{Steps: []Step{{Action: "x"}}})
 	c.Task("review", Task{Steps: []Step{{Action: "y"}}})
-	assert.Equal(t, []string{"deploy", "review"}, c.Tasks())
+	AssertEqual(t, []string{"deploy", "review"}, c.Tasks())
 }

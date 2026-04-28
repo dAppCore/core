@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- Bytes ---
@@ -12,17 +11,17 @@ import (
 func TestBytes_NewBuffer_Good(t *testing.T) {
 	buf := NewBuffer([]byte("hello"))
 
-	assert.Equal(t, "hello", buf.String())
-	assert.Equal(t, 5, buf.Len())
+	AssertEqual(t, "hello", buf.String())
+	AssertEqual(t, 5, buf.Len())
 }
 
 func TestBytes_NewBuffer_Bad(t *testing.T) {
 	buf := NewBuffer()
 
-	assert.NotNil(t, buf)
-	assert.Equal(t, 0, buf.Len())
-	assert.NoError(t, buf.WriteByte('x'))
-	assert.Equal(t, "x", buf.String())
+	AssertNotNil(t, buf)
+	AssertEqual(t, 0, buf.Len())
+	AssertNoError(t, buf.WriteByte('x'))
+	AssertEqual(t, "x", buf.String())
 }
 
 func TestBytes_NewBuffer_Ugly(t *testing.T) {
@@ -31,28 +30,28 @@ func TestBytes_NewBuffer_Ugly(t *testing.T) {
 
 	src[0] = 'z'
 
-	assert.Equal(t, "zbc", buf.String())
+	AssertEqual(t, "zbc", buf.String())
 }
 
 func TestBytes_NewBufferString_Good(t *testing.T) {
 	buf := NewBufferString("hello")
 
-	assert.Equal(t, "hello", buf.String())
-	assert.Equal(t, 5, buf.Len())
+	AssertEqual(t, "hello", buf.String())
+	AssertEqual(t, 5, buf.Len())
 }
 
 func TestBytes_NewBufferString_Bad(t *testing.T) {
 	buf := NewBufferString("")
 
-	assert.NotNil(t, buf)
-	assert.Equal(t, 0, buf.Len())
-	assert.NoError(t, buf.WriteByte('x'))
-	assert.Equal(t, "x", buf.String())
+	AssertNotNil(t, buf)
+	AssertEqual(t, 0, buf.Len())
+	AssertNoError(t, buf.WriteByte('x'))
+	AssertEqual(t, "x", buf.String())
 }
 
 func TestBytes_NewBufferString_Ugly(t *testing.T) {
 	buf := NewBufferString("a\x00b")
 
-	assert.Equal(t, []byte{'a', 0, 'b'}, buf.Bytes())
-	assert.Equal(t, 3, buf.Len())
+	AssertEqual(t, []byte{'a', 0, 'b'}, buf.Bytes())
+	AssertEqual(t, 3, buf.Len())
 }

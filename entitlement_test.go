@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- Entitled ---
@@ -13,8 +12,8 @@ import (
 func TestEntitlement_Entitled_Good_DefaultPermissive(t *testing.T) {
 	c := New()
 	e := c.Entitled("anything")
-	assert.True(t, e.Allowed, "default checker permits everything")
-	assert.True(t, e.Unlimited)
+	AssertTrue(t, e.Allowed, "default checker permits everything")
+	AssertTrue(t, e.Unlimited)
 }
 
 func TestEntitlement_Entitled_Good_BooleanGate(t *testing.T) {
@@ -26,9 +25,9 @@ func TestEntitlement_Entitled_Good_BooleanGate(t *testing.T) {
 		return Entitlement{Allowed: false, Reason: "not in package"}
 	})
 
-	assert.True(t, c.Entitled("premium.feature").Allowed)
-	assert.False(t, c.Entitled("other.feature").Allowed)
-	assert.Equal(t, "not in package", c.Entitled("other.feature").Reason)
+	AssertTrue(t, c.Entitled("premium.feature").Allowed)
+	AssertFalse(t, c.Entitled("other.feature").Allowed)
+	AssertEqual(t, "not in package", c.Entitled("other.feature").Reason)
 }
 
 func TestEntitlement_Entitled_Good_QuantityCheck(t *testing.T) {
@@ -48,15 +47,15 @@ func TestEntitlement_Entitled_Good_QuantityCheck(t *testing.T) {
 
 	// Can create 2 more (3 used of 5)
 	e := c.Entitled("social.accounts", 2)
-	assert.True(t, e.Allowed)
-	assert.Equal(t, 5, e.Limit)
-	assert.Equal(t, 3, e.Used)
-	assert.Equal(t, 2, e.Remaining)
+	AssertTrue(t, e.Allowed)
+	AssertEqual(t, 5, e.Limit)
+	AssertEqual(t, 3, e.Used)
+	AssertEqual(t, 2, e.Remaining)
 
 	// Can't create 3 more
 	e = c.Entitled("social.accounts", 3)
-	assert.False(t, e.Allowed)
-	assert.Equal(t, "limit exceeded", e.Reason)
+	AssertFalse(t, e.Allowed)
+	AssertEqual(t, "limit exceeded", e.Reason)
 }
 
 func TestEntitlement_Entitled_Bad_Denied(t *testing.T) {
@@ -66,8 +65,8 @@ func TestEntitlement_Entitled_Bad_Denied(t *testing.T) {
 	})
 
 	e := c.Entitled("product.create")
-	assert.False(t, e.Allowed)
-	assert.Equal(t, "locked by M1", e.Reason)
+	AssertFalse(t, e.Allowed)
+	AssertEqual(t, "locked by M1", e.Reason)
 }
 
 func TestEntitlement_Entitled_Ugly_DefaultQuantityIsOne(t *testing.T) {
@@ -79,7 +78,7 @@ func TestEntitlement_Entitled_Ugly_DefaultQuantityIsOne(t *testing.T) {
 	})
 
 	c.Entitled("test")
-	assert.Equal(t, 1, receivedQty, "default quantity should be 1")
+	AssertEqual(t, 1, receivedQty, "default quantity should be 1")
 }
 
 // --- Action.Run Entitlement Enforcement ---
@@ -91,8 +90,8 @@ func TestEntitlement_ActionRun_Good_Permitted(t *testing.T) {
 	})
 
 	r := c.Action("work").Run(context.Background(), NewOptions())
-	assert.True(t, r.OK)
-	assert.Equal(t, "done", r.Value)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "done", r.Value)
 }
 
 func TestEntitlement_ActionRun_Bad_Denied(t *testing.T) {
@@ -108,11 +107,11 @@ func TestEntitlement_ActionRun_Bad_Denied(t *testing.T) {
 	})
 
 	r := c.Action("restricted").Run(context.Background(), NewOptions())
-	assert.False(t, r.OK, "denied action must not execute")
+	AssertFalse(t, r.OK, "denied action must not execute")
 	err, ok := r.Value.(error)
-	assert.True(t, ok)
-	assert.Contains(t, err.Error(), "not entitled")
-	assert.Contains(t, err.Error(), "tier too low")
+	AssertTrue(t, ok)
+	AssertContains(t, err.Error(), "not entitled")
+	AssertContains(t, err.Error(), "tier too low")
 }
 
 func TestEntitlement_ActionRun_Good_OtherActionsStillWork(t *testing.T) {
@@ -130,38 +129,38 @@ func TestEntitlement_ActionRun_Good_OtherActionsStillWork(t *testing.T) {
 		return Entitlement{Allowed: true, Unlimited: true}
 	})
 
-	assert.True(t, c.Action("allowed").Run(context.Background(), NewOptions()).OK)
-	assert.False(t, c.Action("blocked").Run(context.Background(), NewOptions()).OK)
+	AssertTrue(t, c.Action("allowed").Run(context.Background(), NewOptions()).OK)
+	AssertFalse(t, c.Action("blocked").Run(context.Background(), NewOptions()).OK)
 }
 
 // --- NearLimit ---
 
 func TestEntitlement_NearLimit_Good(t *testing.T) {
 	e := Entitlement{Allowed: true, Limit: 100, Used: 85, Remaining: 15}
-	assert.True(t, e.NearLimit(0.8))
-	assert.False(t, e.NearLimit(0.9))
+	AssertTrue(t, e.NearLimit(0.8))
+	AssertFalse(t, e.NearLimit(0.9))
 }
 
 func TestEntitlement_NearLimit_Bad_Unlimited(t *testing.T) {
 	e := Entitlement{Allowed: true, Unlimited: true}
-	assert.False(t, e.NearLimit(0.8), "unlimited should never be near limit")
+	AssertFalse(t, e.NearLimit(0.8), "unlimited should never be near limit")
 }
 
 func TestEntitlement_NearLimit_Ugly_ZeroLimit(t *testing.T) {
 	e := Entitlement{Allowed: true, Limit: 0}
-	assert.False(t, e.NearLimit(0.8), "boolean gate (limit=0) should not report near limit")
+	AssertFalse(t, e.NearLimit(0.8), "boolean gate (limit=0) should not report near limit")
 }
 
 // --- UsagePercent ---
 
 func TestEntitlement_UsagePercent_Good(t *testing.T) {
 	e := Entitlement{Limit: 100, Used: 75}
-	assert.Equal(t, 75.0, e.UsagePercent())
+	AssertEqual(t, 75.0, e.UsagePercent())
 }
 
 func TestEntitlement_UsagePercent_Ugly_ZeroLimit(t *testing.T) {
 	e := Entitlement{Limit: 0, Used: 5}
-	assert.Equal(t, 0.0, e.UsagePercent(), "zero limit = boolean gate, no percentage")
+	AssertEqual(t, 0.0, e.UsagePercent(), "zero limit = boolean gate, no percentage")
 }
 
 // --- RecordUsage ---
@@ -177,14 +176,14 @@ func TestEntitlement_RecordUsage_Good(t *testing.T) {
 	})
 
 	c.RecordUsage("ai.credits", 10)
-	assert.Equal(t, "ai.credits", recorded)
-	assert.Equal(t, 10, recordedQty)
+	AssertEqual(t, "ai.credits", recorded)
+	AssertEqual(t, 10, recordedQty)
 }
 
 func TestEntitlement_RecordUsage_Good_NoRecorder(t *testing.T) {
 	c := New()
 	// No recorder set — should not panic
-	assert.NotPanics(t, func() {
+	AssertNotPanics(t, func() {
 		c.RecordUsage("anything", 5)
 	})
 }
@@ -221,15 +220,15 @@ func TestEntitlement_Ugly_SaaSGatingPattern(t *testing.T) {
 
 	// Can create 2 social accounts
 	e := c.Entitled("social.accounts", 2)
-	assert.True(t, e.Allowed)
+	AssertTrue(t, e.Allowed)
 
 	// AI credits near limit
 	e = c.Entitled("ai.credits", 1)
-	assert.True(t, e.Allowed)
-	assert.True(t, e.NearLimit(0.8))
-	assert.Equal(t, 96.0, e.UsagePercent())
+	AssertTrue(t, e.Allowed)
+	AssertTrue(t, e.NearLimit(0.8))
+	AssertEqual(t, 96.0, e.UsagePercent())
 
 	// Feature not in package
 	e = c.Entitled("premium.feature")
-	assert.False(t, e.Allowed)
+	AssertFalse(t, e.Allowed)
 }

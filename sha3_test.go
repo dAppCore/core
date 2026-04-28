@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -26,16 +25,16 @@ const (
 func TestSHA3_256_Good(t *testing.T) {
 	sum := SHA3_256([]byte("hello"))
 
-	assert.Equal(t, sha3_256HelloHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, sha3_256HelloHex, SHA3_256Hex([]byte("hello")))
+	AssertEqual(t, sha3_256HelloHex, hex.EncodeToString(sum[:]))
+	AssertEqual(t, sha3_256HelloHex, SHA3_256Hex([]byte("hello")))
 }
 
 func TestSHA3_256_Bad(t *testing.T) {
 	sum := SHA3_256(nil)
 
-	assert.Equal(t, sha3_256EmptyHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, SHA3_256(nil), SHA3_256([]byte{}))
-	assert.Equal(t, SHA3_256Hex(nil), SHA3_256Hex([]byte{}))
+	AssertEqual(t, sha3_256EmptyHex, hex.EncodeToString(sum[:]))
+	AssertEqual(t, SHA3_256(nil), SHA3_256([]byte{}))
+	AssertEqual(t, SHA3_256Hex(nil), SHA3_256Hex([]byte{}))
 }
 
 func TestSHA3_256_Ugly(t *testing.T) {
@@ -45,26 +44,26 @@ func TestSHA3_256_Ugly(t *testing.T) {
 
 	data[0] = 't'
 
-	assert.Equal(t, sha3_256QuickHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, sha3_256QuickHex, sumHex)
-	assert.NotEqual(t, sum, SHA3_256(data))
-	assert.NotEqual(t, sumHex, SHA3_256Hex(data))
+	AssertEqual(t, sha3_256QuickHex, hex.EncodeToString(sum[:]))
+	AssertEqual(t, sha3_256QuickHex, sumHex)
+	AssertNotEqual(t, sum, SHA3_256(data))
+	AssertNotEqual(t, sumHex, SHA3_256Hex(data))
 }
 
 func TestKeccak256_Good(t *testing.T) {
 	sum := Keccak256([]byte("hello"))
 
-	assert.Equal(t, keccak256HelloHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, keccak256HelloHex, Keccak256Hex([]byte("hello")))
+	AssertEqual(t, keccak256HelloHex, hex.EncodeToString(sum[:]))
+	AssertEqual(t, keccak256HelloHex, Keccak256Hex([]byte("hello")))
 }
 
 func TestKeccak256_Bad(t *testing.T) {
 	sum := Keccak256(nil)
 
-	assert.Equal(t, keccak256EmptyHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, Keccak256(nil), Keccak256([]byte{}))
-	assert.Equal(t, Keccak256Hex(nil), Keccak256Hex([]byte{}))
-	assert.NotEqual(t, SHA3_256(nil), Keccak256(nil))
+	AssertEqual(t, keccak256EmptyHex, hex.EncodeToString(sum[:]))
+	AssertEqual(t, Keccak256(nil), Keccak256([]byte{}))
+	AssertEqual(t, Keccak256Hex(nil), Keccak256Hex([]byte{}))
+	AssertNotEqual(t, SHA3_256(nil), Keccak256(nil))
 }
 
 func TestKeccak256_Ugly(t *testing.T) {
@@ -74,24 +73,24 @@ func TestKeccak256_Ugly(t *testing.T) {
 
 	data[0] = 't'
 
-	assert.Equal(t, keccak256QuickHex, hex.EncodeToString(sum[:]))
-	assert.Equal(t, keccak256QuickHex, sumHex)
-	assert.NotEqual(t, sum, Keccak256(data))
-	assert.NotEqual(t, sumHex, Keccak256Hex(data))
+	AssertEqual(t, keccak256QuickHex, hex.EncodeToString(sum[:]))
+	AssertEqual(t, keccak256QuickHex, sumHex)
+	AssertNotEqual(t, sum, Keccak256(data))
+	AssertNotEqual(t, sumHex, Keccak256Hex(data))
 }
 
 func TestSHA3_Shake_Good(t *testing.T) {
-	assert.Equal(t, sha3Shake128Empty32Hex, hex.EncodeToString(SHA3Shake128(nil, 32)))
-	assert.Equal(t, sha3Shake256Empty64Hex, hex.EncodeToString(SHA3Shake256(nil, 64)))
+	AssertEqual(t, sha3Shake128Empty32Hex, hex.EncodeToString(SHA3Shake128(nil, 32)))
+	AssertEqual(t, sha3Shake256Empty64Hex, hex.EncodeToString(SHA3Shake256(nil, 64)))
 }
 
 func TestSHA3_Shake_Bad(t *testing.T) {
-	assert.Empty(t, SHA3Shake128(nil, 0))
-	assert.Empty(t, SHA3Shake256([]byte{}, 0))
-	assert.Equal(t, SHA3Shake128(nil, 16), SHA3Shake128([]byte{}, 16))
-	assert.Equal(t, SHA3Shake256(nil, 16), SHA3Shake256([]byte{}, 16))
-	assert.Panics(t, func() { SHA3Shake128(nil, -1) })
-	assert.Panics(t, func() { SHA3Shake256(nil, -1) })
+	AssertEmpty(t, SHA3Shake128(nil, 0))
+	AssertEmpty(t, SHA3Shake256([]byte{}, 0))
+	AssertEqual(t, SHA3Shake128(nil, 16), SHA3Shake128([]byte{}, 16))
+	AssertEqual(t, SHA3Shake256(nil, 16), SHA3Shake256([]byte{}, 16))
+	AssertPanics(t, func() { SHA3Shake128(nil, -1) })
+	AssertPanics(t, func() { SHA3Shake256(nil, -1) })
 }
 
 func TestSHA3_Shake_Ugly(t *testing.T) {
@@ -99,11 +98,11 @@ func TestSHA3_Shake_Ugly(t *testing.T) {
 	out128 := SHA3Shake128(data, 32)
 	out256 := SHA3Shake256(data, 64)
 
-	assert.Equal(t, SHA3Shake128(data, 16), out128[:16])
-	assert.Equal(t, SHA3Shake256(data, 32), out256[:32])
+	AssertEqual(t, SHA3Shake128(data, 16), out128[:16])
+	AssertEqual(t, SHA3Shake256(data, 32), out256[:32])
 
 	data[0] = 'z'
 
-	assert.NotEqual(t, out128, SHA3Shake128(data, 32))
-	assert.NotEqual(t, out256, SHA3Shake256(data, 64))
+	AssertNotEqual(t, out128, SHA3Shake128(data, 32))
+	AssertNotEqual(t, out256, SHA3Shake256(data, 64))
 }

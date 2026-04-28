@@ -5,8 +5,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // captureExit swaps the package-level osExit hook for the duration of the test.
@@ -48,7 +46,7 @@ func TestExit_Exit_Good(t *testing.T) {
 	c := New()
 	c.Exit(0)
 
-	assert.Equal(t, 0, *got)
+	AssertEqual(t, 0, *got)
 }
 
 func TestExit_Exit_Bad(t *testing.T) {
@@ -60,7 +58,7 @@ func TestExit_Exit_Bad(t *testing.T) {
 	c := New()
 	c.Exit(127)
 
-	assert.Equal(t, 127, *got)
+	AssertEqual(t, 127, *got)
 }
 
 func TestExit_Exit_Ugly(t *testing.T) {
@@ -73,7 +71,7 @@ func TestExit_Exit_Ugly(t *testing.T) {
 	c.Exit(1)
 	c.Exit(2)
 
-	assert.Equal(t, 2, *got)
+	AssertEqual(t, 2, *got)
 }
 
 func TestExit_ExitWith_Good(t *testing.T) {
@@ -83,7 +81,7 @@ func TestExit_ExitWith_Good(t *testing.T) {
 	c := New()
 	c.ExitWith(ExitOptions{Code: 5, Timeout: 100 * time.Millisecond})
 
-	assert.Equal(t, 5, *got)
+	AssertEqual(t, 5, *got)
 }
 
 func TestExit_ExitWith_Bad(t *testing.T) {
@@ -95,7 +93,7 @@ func TestExit_ExitWith_Bad(t *testing.T) {
 	c := New()
 	c.ExitWith(ExitOptions{Code: 9, Timeout: 0})
 
-	assert.Equal(t, 9, *got)
+	AssertEqual(t, 9, *got)
 }
 
 func TestExitWith_NegativeTimeout_Bad(t *testing.T) {
@@ -117,8 +115,8 @@ func TestExitWith_NegativeTimeout_Bad(t *testing.T) {
 		"negative ExitOptions.Timeout must exit immediately, not wait forever")
 
 	elapsed := time.Since(start)
-	assert.Equal(t, 7, *got)
-	assert.Less(t, elapsed, 100*time.Millisecond)
+	AssertEqual(t, 7, *got)
+	AssertLess(t, elapsed, 100*time.Millisecond)
 }
 
 func TestExitWith_ZeroTimeout_Good(t *testing.T) {
@@ -145,7 +143,7 @@ func TestExitWith_ZeroTimeout_Good(t *testing.T) {
 	waitForExitWithCleanup(t, done, release, 500*time.Millisecond,
 		"zero ExitOptions.Timeout did not exit after shutdown completed")
 
-	assert.Equal(t, 8, *got)
+	AssertEqual(t, 8, *got)
 }
 
 func TestExitWith_PositiveTimeout_Good(t *testing.T) {
@@ -167,9 +165,9 @@ func TestExitWith_PositiveTimeout_Good(t *testing.T) {
 		"positive ExitOptions.Timeout must bound shutdown")
 
 	elapsed := time.Since(start)
-	assert.Equal(t, 6, *got)
-	assert.GreaterOrEqual(t, elapsed, 10*time.Millisecond)
-	assert.Less(t, elapsed, 500*time.Millisecond)
+	AssertEqual(t, 6, *got)
+	AssertGreaterOrEqual(t, elapsed, 10*time.Millisecond)
+	AssertLess(t, elapsed, 500*time.Millisecond)
 }
 
 func TestExit_ExitWith_Ugly(t *testing.T) {
@@ -187,8 +185,8 @@ func TestExit_ExitWith_Ugly(t *testing.T) {
 	c.ExitWith(ExitOptions{Code: 3, Timeout: 10 * time.Millisecond})
 	elapsed := time.Since(start)
 
-	assert.Equal(t, 3, *got)
-	assert.Less(t, elapsed, 200*time.Millisecond,
+	AssertEqual(t, 3, *got)
+	AssertLess(t, elapsed, 200*time.Millisecond,
 		"ExitWith must respect the timeout, not wait for slow shutdown")
 }
 
@@ -199,7 +197,7 @@ func TestExit_ExitNow_Good(t *testing.T) {
 	c := New()
 	c.ExitNow(0)
 
-	assert.Equal(t, 0, *got)
+	AssertEqual(t, 0, *got)
 }
 
 func TestExit_ExitNow_Bad(t *testing.T) {
@@ -215,7 +213,7 @@ func TestExit_ExitNow_Bad(t *testing.T) {
 	}()
 	func() { panic(errors.New("boom")) }()
 
-	assert.Equal(t, 2, *got)
+	AssertEqual(t, 2, *got)
 }
 
 func TestExit_ExitNow_Ugly(t *testing.T) {
@@ -231,8 +229,8 @@ func TestExit_ExitNow_Ugly(t *testing.T) {
 	}})
 	c.ExitNow(4)
 
-	assert.Equal(t, 4, *got)
-	assert.False(t, stopped,
+	AssertEqual(t, 4, *got)
+	AssertFalse(t, stopped,
 		"ExitNow must skip the shutdown chain — OnStop must not run")
 }
 
@@ -242,7 +240,7 @@ func TestExit_PackageExit_Good(t *testing.T) {
 
 	Exit(0)
 
-	assert.Equal(t, 0, *got)
+	AssertEqual(t, 0, *got)
 }
 
 func TestExit_PackageExit_Bad(t *testing.T) {
@@ -252,7 +250,7 @@ func TestExit_PackageExit_Bad(t *testing.T) {
 
 	Exit(1)
 
-	assert.Equal(t, 1, *got)
+	AssertEqual(t, 1, *got)
 }
 
 func TestExit_PackageExit_Ugly(t *testing.T) {
@@ -264,5 +262,5 @@ func TestExit_PackageExit_Ugly(t *testing.T) {
 	Exit(2)
 	Exit(3)
 
-	assert.Equal(t, 3, *got)
+	AssertEqual(t, 3, *got)
 }

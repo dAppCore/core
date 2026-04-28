@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- IPC: Actions ---
@@ -20,8 +19,8 @@ func TestAction_Good(t *testing.T) {
 		return Result{OK: true}
 	})
 	r := c.ACTION(testMessage{payload: "hello"})
-	assert.True(t, r.OK)
-	assert.Equal(t, testMessage{payload: "hello"}, received)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, testMessage{payload: "hello"}, received)
 }
 
 func TestAction_Multiple_Good(t *testing.T) {
@@ -30,14 +29,14 @@ func TestAction_Multiple_Good(t *testing.T) {
 	handler := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }
 	c.RegisterActions(handler, handler, handler)
 	c.ACTION(nil)
-	assert.Equal(t, 3, count)
+	AssertEqual(t, 3, count)
 }
 
 func TestAction_None_Good(t *testing.T) {
 	c := New()
 	// No handlers registered — should succeed
 	r := c.ACTION(nil)
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 }
 
 func TestAction_Bad_HandlerFails(t *testing.T) {
@@ -47,7 +46,7 @@ func TestAction_Bad_HandlerFails(t *testing.T) {
 	})
 	// ACTION is broadcast — even with a failing handler, dispatch succeeds
 	r := c.ACTION(testMessage{payload: "test"})
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 }
 
 func TestAction_Ugly_HandlerFailsChainContinues(t *testing.T) {
@@ -66,8 +65,8 @@ func TestAction_Ugly_HandlerFailsChainContinues(t *testing.T) {
 		return Result{OK: true}
 	})
 	r := c.ACTION(testMessage{payload: "test"})
-	assert.True(t, r.OK)
-	assert.Equal(t, []int{1, 2, 3}, order, "all 3 handlers must fire even when handler 2 returns !OK")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, []int{1, 2, 3}, order, "all 3 handlers must fire even when handler 2 returns !OK")
 }
 
 func TestAction_Ugly_HandlerPanicsChainContinues(t *testing.T) {
@@ -85,8 +84,8 @@ func TestAction_Ugly_HandlerPanicsChainContinues(t *testing.T) {
 		return Result{OK: true}
 	})
 	r := c.ACTION(testMessage{payload: "test"})
-	assert.True(t, r.OK)
-	assert.Equal(t, []int{1, 3}, order, "handlers 1 and 3 must fire even when handler 2 panics")
+	AssertTrue(t, r.OK)
+	AssertEqual(t, []int{1, 3}, order, "handlers 1 and 3 must fire even when handler 2 panics")
 }
 
 // --- IPC: Queries ---
@@ -100,8 +99,8 @@ func TestIpc_Query_Good(t *testing.T) {
 		return Result{}
 	})
 	r := c.QUERY("ping")
-	assert.True(t, r.OK)
-	assert.Equal(t, "pong", r.Value)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "pong", r.Value)
 }
 
 func TestIpc_Query_Unhandled_Good(t *testing.T) {
@@ -110,7 +109,7 @@ func TestIpc_Query_Unhandled_Good(t *testing.T) {
 		return Result{}
 	})
 	r := c.QUERY("unknown")
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestIpc_QueryAll_Good(t *testing.T) {
@@ -122,11 +121,11 @@ func TestIpc_QueryAll_Good(t *testing.T) {
 		return Result{Value: "b", OK: true}
 	})
 	r := c.QUERYALL("anything")
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 	results := r.Value.([]any)
-	assert.Len(t, results, 2)
-	assert.Contains(t, results, "a")
-	assert.Contains(t, results, "b")
+	AssertLen(t, results, 2)
+	AssertContains(t, results, "a")
+	AssertContains(t, results, "b")
 }
 
 // --- IPC: Named Action Invocation ---
@@ -137,6 +136,6 @@ func TestIpc_ActionInvoke_Good(t *testing.T) {
 		return Result{Value: 42, OK: true}
 	})
 	r := c.Action("compute").Run(context.Background(), NewOptions())
-	assert.True(t, r.OK)
-	assert.Equal(t, 42, r.Value)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, 42, r.Value)
 }

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 type failingWriter struct{}
@@ -17,40 +16,40 @@ func (failingWriter) Write(_ []byte) (int, error) {
 func TestTable_NewTable_Good(t *testing.T) {
 	var out bytes.Buffer
 
-	assert.NotNil(t, NewTable(&out))
+	AssertNotNil(t, NewTable(&out))
 }
 
 func TestTable_NewTable_Bad(t *testing.T) {
 	table := NewTable(nil)
 
-	assert.Error(t, table.Flush())
+	AssertError(t, table.Flush())
 }
 
 func TestTable_NewTable_Ugly(t *testing.T) {
 	var out bytes.Buffer
 	table := NewTable(&out)
 
-	assert.NoError(t, table.Row("Name", "Status").Flush())
-	assert.Contains(t, out.String(), "Name")
+	AssertNoError(t, table.Row("Name", "Status").Flush())
+	AssertContains(t, out.String(), "Name")
 }
 
 func TestTable_Row_Good(t *testing.T) {
 	var out bytes.Buffer
 	table := NewTable(&out)
 
-	assert.Same(t, table, table.Row("Name", "Status"))
-	assert.NoError(t, table.Flush())
-	assert.Contains(t, out.String(), "Name")
-	assert.Contains(t, out.String(), "Status")
+	AssertSame(t, table, table.Row("Name", "Status"))
+	AssertNoError(t, table.Flush())
+	AssertContains(t, out.String(), "Name")
+	AssertContains(t, out.String(), "Status")
 }
 
 func TestTable_Row_Bad(t *testing.T) {
 	var out bytes.Buffer
 	table := NewTable(&out)
 
-	assert.Same(t, table, table.Row())
-	assert.NoError(t, table.Flush())
-	assert.Equal(t, "\n", out.String())
+	AssertSame(t, table, table.Row())
+	AssertNoError(t, table.Flush())
+	AssertEqual(t, "\n", out.String())
 }
 
 func TestTable_Row_Ugly(t *testing.T) {
@@ -58,9 +57,9 @@ func TestTable_Row_Ugly(t *testing.T) {
 	table := NewTable(&out)
 
 	table.Row("Name", "Status").Row("api", "ok")
-	assert.NoError(t, table.Flush())
-	assert.Contains(t, out.String(), "api")
-	assert.Contains(t, out.String(), "ok")
+	AssertNoError(t, table.Flush())
+	AssertContains(t, out.String(), "api")
+	AssertContains(t, out.String(), "ok")
 }
 
 func TestTable_Flush_Good(t *testing.T) {
@@ -68,20 +67,20 @@ func TestTable_Flush_Good(t *testing.T) {
 
 	err := NewTable(&out).Row("A", "B").Flush()
 
-	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "A")
+	AssertNoError(t, err)
+	AssertContains(t, out.String(), "A")
 }
 
 func TestTable_Flush_Bad(t *testing.T) {
 	table := NewTable(failingWriter{})
 
-	assert.Error(t, table.Row("A").Flush())
+	AssertError(t, table.Row("A").Flush())
 }
 
 func TestTable_Flush_Ugly(t *testing.T) {
 	var out bytes.Buffer
 	table := NewTable(&out).Row("A")
 
-	assert.NoError(t, table.Flush())
-	assert.NoError(t, table.Flush())
+	AssertNoError(t, table.Flush())
+	AssertNoError(t, table.Flush())
 }

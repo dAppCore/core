@@ -4,16 +4,15 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- AtomicBool ---
 
 func TestAtomic_Bool_Good(t *testing.T) {
 	var a AtomicBool
-	assert.False(t, a.Load())
+	AssertFalse(t, a.Load())
 	a.Store(true)
-	assert.True(t, a.Load())
+	AssertTrue(t, a.Load())
 }
 
 func TestAtomic_Bool_Bad(t *testing.T) {
@@ -21,8 +20,8 @@ func TestAtomic_Bool_Bad(t *testing.T) {
 	var a AtomicBool
 	a.Store(true)
 	swapped := a.CompareAndSwap(false, false)
-	assert.False(t, swapped)
-	assert.True(t, a.Load(), "CAS with wrong old must not mutate")
+	AssertFalse(t, swapped)
+	AssertTrue(t, a.Load(), "CAS with wrong old must not mutate")
 }
 
 func TestAtomic_Bool_Ugly(t *testing.T) {
@@ -41,7 +40,7 @@ func TestAtomic_Bool_Ugly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, int32(1), wins.Load(),
+	AssertEqual(t, int32(1), wins.Load(),
 		"exactly one goroutine must win the CAS race")
 }
 
@@ -50,9 +49,9 @@ func TestAtomic_Bool_Ugly(t *testing.T) {
 func TestAtomic_Int32_Good(t *testing.T) {
 	var a AtomicInt32
 	a.Store(5)
-	assert.Equal(t, int32(5), a.Load())
+	AssertEqual(t, int32(5), a.Load())
 	got := a.Add(3)
-	assert.Equal(t, int32(8), got)
+	AssertEqual(t, int32(8), got)
 }
 
 func TestAtomic_Int32_Bad(t *testing.T) {
@@ -60,8 +59,8 @@ func TestAtomic_Int32_Bad(t *testing.T) {
 	var a AtomicInt32
 	a.Store(10)
 	prev := a.Swap(20)
-	assert.Equal(t, int32(10), prev)
-	assert.Equal(t, int32(20), a.Load())
+	AssertEqual(t, int32(10), prev)
+	AssertEqual(t, int32(20), a.Load())
 }
 
 func TestAtomic_Int32_Ugly(t *testing.T) {
@@ -76,7 +75,7 @@ func TestAtomic_Int32_Ugly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, int32(1000), a.Load())
+	AssertEqual(t, int32(1000), a.Load())
 }
 
 // --- AtomicInt64 ---
@@ -84,15 +83,15 @@ func TestAtomic_Int32_Ugly(t *testing.T) {
 func TestAtomic_Int64_Good(t *testing.T) {
 	var a AtomicInt64
 	a.Store(1 << 40)
-	assert.Equal(t, int64(1<<40), a.Load())
+	AssertEqual(t, int64(1<<40), a.Load())
 }
 
 func TestAtomic_Int64_Bad(t *testing.T) {
 	var a AtomicInt64
 	a.Store(100)
 	swapped := a.CompareAndSwap(99, 200)
-	assert.False(t, swapped)
-	assert.Equal(t, int64(100), a.Load())
+	AssertFalse(t, swapped)
+	AssertEqual(t, int64(100), a.Load())
 }
 
 func TestAtomic_Int64_Ugly(t *testing.T) {
@@ -106,7 +105,7 @@ func TestAtomic_Int64_Ugly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, int64(1000), a.Load())
+	AssertEqual(t, int64(1000), a.Load())
 }
 
 // --- AtomicUint32 ---
@@ -114,17 +113,17 @@ func TestAtomic_Int64_Ugly(t *testing.T) {
 func TestAtomic_Uint32_Good(t *testing.T) {
 	var a AtomicUint32
 	a.Store(7)
-	assert.Equal(t, uint32(7), a.Load())
+	AssertEqual(t, uint32(7), a.Load())
 	a.Add(3)
-	assert.Equal(t, uint32(10), a.Load())
+	AssertEqual(t, uint32(10), a.Load())
 }
 
 func TestAtomic_Uint32_Bad(t *testing.T) {
 	var a AtomicUint32
 	a.Store(5)
 	swapped := a.CompareAndSwap(99, 10)
-	assert.False(t, swapped)
-	assert.Equal(t, uint32(5), a.Load())
+	AssertFalse(t, swapped)
+	AssertEqual(t, uint32(5), a.Load())
 }
 
 func TestAtomic_Uint32_Ugly(t *testing.T) {
@@ -138,7 +137,7 @@ func TestAtomic_Uint32_Ugly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, uint32(1000), a.Load())
+	AssertEqual(t, uint32(1000), a.Load())
 }
 
 // --- AtomicUint64 ---
@@ -146,14 +145,14 @@ func TestAtomic_Uint32_Ugly(t *testing.T) {
 func TestAtomic_Uint64_Good(t *testing.T) {
 	var a AtomicUint64
 	a.Store(1 << 50)
-	assert.Equal(t, uint64(1<<50), a.Load())
+	AssertEqual(t, uint64(1<<50), a.Load())
 }
 
 func TestAtomic_Uint64_Bad(t *testing.T) {
 	var a AtomicUint64
 	a.Store(100)
 	prev := a.Swap(200)
-	assert.Equal(t, uint64(100), prev)
+	AssertEqual(t, uint64(100), prev)
 }
 
 func TestAtomic_Uint64_Ugly(t *testing.T) {
@@ -167,7 +166,7 @@ func TestAtomic_Uint64_Ugly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, uint64(1000), a.Load())
+	AssertEqual(t, uint64(1000), a.Load())
 }
 
 // --- AtomicPointer ---
@@ -178,17 +177,17 @@ type pointerVal struct {
 
 func TestAtomic_Pointer_Good(t *testing.T) {
 	var a AtomicPointer[pointerVal]
-	assert.Nil(t, a.Load())
+	AssertNil(t, a.Load())
 	v := &pointerVal{n: 42}
 	a.Store(v)
-	assert.Equal(t, 42, a.Load().n)
+	AssertEqual(t, 42, a.Load().n)
 }
 
 func TestAtomic_Pointer_Bad(t *testing.T) {
 	// Bad: Swap returns nil if no prior value.
 	var a AtomicPointer[pointerVal]
 	prev := a.Swap(&pointerVal{n: 1})
-	assert.Nil(t, prev)
+	AssertNil(t, prev)
 }
 
 func TestAtomic_Pointer_Ugly(t *testing.T) {
@@ -206,9 +205,9 @@ func TestAtomic_Pointer_Ugly(t *testing.T) {
 	}
 	wg.Wait()
 	final := a.Load()
-	assert.NotNil(t, final, "after 100 stores, Load must return non-nil")
-	assert.GreaterOrEqual(t, final.n, 0)
-	assert.Less(t, final.n, 100)
+	AssertNotNil(t, final, "after 100 stores, Load must return non-nil")
+	AssertGreaterOrEqual(t, final.n, 0)
+	AssertLess(t, final.n, 100)
 }
 
 func TestAtomic_Pointer_CompareAndSwap_Good(t *testing.T) {
@@ -217,6 +216,6 @@ func TestAtomic_Pointer_CompareAndSwap_Good(t *testing.T) {
 	new := &pointerVal{n: 2}
 	a.Store(old)
 	swapped := a.CompareAndSwap(old, new)
-	assert.True(t, swapped)
-	assert.Equal(t, 2, a.Load().n)
+	AssertTrue(t, swapped)
+	AssertEqual(t, 2, a.Load().n)
 }

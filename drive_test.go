@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- Drive (Transport Handles) ---
@@ -15,9 +14,9 @@ func TestDrive_New_Good(t *testing.T) {
 		Option{Key: "name", Value: "api"},
 		Option{Key: "transport", Value: "https://api.lthn.ai"},
 	))
-	assert.True(t, r.OK)
-	assert.Equal(t, "api", r.Value.(*DriveHandle).Name)
-	assert.Equal(t, "https://api.lthn.ai", r.Value.(*DriveHandle).Transport)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "api", r.Value.(*DriveHandle).Name)
+	AssertEqual(t, "https://api.lthn.ai", r.Value.(*DriveHandle).Transport)
 }
 
 func TestDrive_New_Bad(t *testing.T) {
@@ -26,7 +25,7 @@ func TestDrive_New_Bad(t *testing.T) {
 	r := c.Drive().New(NewOptions(
 		Option{Key: "transport", Value: "https://api.lthn.ai"},
 	))
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestDrive_Get_Good(t *testing.T) {
@@ -36,22 +35,22 @@ func TestDrive_Get_Good(t *testing.T) {
 		Option{Key: "transport", Value: "ssh://claude@10.69.69.165"},
 	))
 	r := c.Drive().Get("ssh")
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 	handle := r.Value.(*DriveHandle)
-	assert.Equal(t, "ssh://claude@10.69.69.165", handle.Transport)
+	AssertEqual(t, "ssh://claude@10.69.69.165", handle.Transport)
 }
 
 func TestDrive_Get_Bad(t *testing.T) {
 	c := New()
 	r := c.Drive().Get("nonexistent")
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestDrive_Has_Good(t *testing.T) {
 	c := New()
 	c.Drive().New(NewOptions(Option{Key: "name", Value: "mcp"}, Option{Key: "transport", Value: "mcp://mcp.lthn.sh"}))
-	assert.True(t, c.Drive().Has("mcp"))
-	assert.False(t, c.Drive().Has("missing"))
+	AssertTrue(t, c.Drive().Has("mcp"))
+	AssertFalse(t, c.Drive().Has("missing"))
 }
 
 func TestDrive_Names_Good(t *testing.T) {
@@ -60,10 +59,10 @@ func TestDrive_Names_Good(t *testing.T) {
 	c.Drive().New(NewOptions(Option{Key: "name", Value: "ssh"}, Option{Key: "transport", Value: "ssh://claude@10.69.69.165"}))
 	c.Drive().New(NewOptions(Option{Key: "name", Value: "mcp"}, Option{Key: "transport", Value: "mcp://mcp.lthn.sh"}))
 	names := c.Drive().Names()
-	assert.Len(t, names, 3)
-	assert.Contains(t, names, "api")
-	assert.Contains(t, names, "ssh")
-	assert.Contains(t, names, "mcp")
+	AssertLen(t, names, 3)
+	AssertContains(t, names, "api")
+	AssertContains(t, names, "ssh")
+	AssertContains(t, names, "mcp")
 }
 
 func TestDrive_OptionsPreserved_Good(t *testing.T) {
@@ -74,7 +73,7 @@ func TestDrive_OptionsPreserved_Good(t *testing.T) {
 		Option{Key: "timeout", Value: 30},
 	))
 	r := c.Drive().Get("api")
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 	handle := r.Value.(*DriveHandle)
-	assert.Equal(t, 30, handle.Options.Int("timeout"))
+	AssertEqual(t, 30, handle.Options.Int("timeout"))
 }

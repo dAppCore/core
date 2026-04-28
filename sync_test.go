@@ -5,7 +5,6 @@ import (
 	"time"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- Mutex ---
@@ -22,7 +21,7 @@ func TestSync_Mutex_Bad(t *testing.T) {
 	m.Lock()
 	defer m.Unlock()
 	r := m.TryLock()
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestSync_Mutex_Ugly(t *testing.T) {
@@ -43,7 +42,7 @@ func TestSync_Mutex_Ugly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, 1000, count)
+	AssertEqual(t, 1000, count)
 }
 
 // --- RWMutex ---
@@ -62,7 +61,7 @@ func TestSync_RWMutex_Bad(t *testing.T) {
 	m.Lock()
 	defer m.Unlock()
 	r := m.TryLock()
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestSync_RWMutex_Ugly(t *testing.T) {
@@ -95,13 +94,13 @@ func TestSync_RWMutex_Ugly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, 100, value)
+	AssertEqual(t, 100, value)
 }
 
 func TestSync_RWMutex_TryRLock_Good(t *testing.T) {
 	var m RWMutex
 	r := m.TryRLock()
-	assert.True(t, r.OK)
+	AssertTrue(t, r.OK)
 	m.RUnlock()
 }
 
@@ -113,13 +112,13 @@ func TestSync_Once_Good(t *testing.T) {
 	o.Do(func() { count++ })
 	o.Do(func() { count++ })
 	o.Do(func() { count++ })
-	assert.Equal(t, 1, count, "Once.Do must execute the function exactly once")
+	AssertEqual(t, 1, count, "Once.Do must execute the function exactly once")
 }
 
 func TestSync_Once_Bad(t *testing.T) {
 	// Bad: caller passes nil. Stdlib Once panics on nil; we pass through.
 	var o Once
-	assert.Panics(t, func() { o.Do(nil) })
+	AssertPanics(t, func() { o.Do(nil) })
 }
 
 func TestSync_Once_Ugly(t *testing.T) {
@@ -128,11 +127,11 @@ func TestSync_Once_Ugly(t *testing.T) {
 	count := 0
 	o.Do(func() { count++ })
 	o.Do(func() { count++ })
-	assert.Equal(t, 1, count)
+	AssertEqual(t, 1, count)
 	o.Reset()
 	o.Do(func() { count++ })
 	o.Do(func() { count++ })
-	assert.Equal(t, 2, count, "After Reset, Do must fire once more")
+	AssertEqual(t, 2, count, "After Reset, Do must fire once more")
 }
 
 // --- WaitGroup ---
@@ -152,7 +151,7 @@ func TestSync_WaitGroup_Good(t *testing.T) {
 	wg.Wait()
 	mu.Lock()
 	defer mu.Unlock()
-	assert.True(t, done)
+	AssertTrue(t, done)
 }
 
 func TestSync_WaitGroup_Bad(t *testing.T) {
@@ -160,7 +159,7 @@ func TestSync_WaitGroup_Bad(t *testing.T) {
 	var wg WaitGroup
 	wg.Add(1)
 	wg.Done()
-	assert.Panics(t, func() { wg.Done() })
+	AssertPanics(t, func() { wg.Done() })
 }
 
 func TestSync_WaitGroup_Ugly(t *testing.T) {
@@ -180,5 +179,5 @@ func TestSync_WaitGroup_Ugly(t *testing.T) {
 	wg.Wait()
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Equal(t, 100, counter)
+	AssertEqual(t, 100, counter)
 }

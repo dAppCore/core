@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -21,12 +20,12 @@ const (
 // --- Hash ---
 
 func TestHash_SHA256_Good(t *testing.T) {
-	assert.Equal(t, digestFromHex(t, sha256HelloHex), SHA256([]byte("hello")))
+	AssertEqual(t, digestFromHex(t, sha256HelloHex), SHA256([]byte("hello")))
 }
 
 func TestHash_SHA256_Bad(t *testing.T) {
-	assert.Equal(t, digestFromHex(t, sha256EmptyHex), SHA256(nil))
-	assert.Equal(t, SHA256(nil), SHA256([]byte{}))
+	AssertEqual(t, digestFromHex(t, sha256EmptyHex), SHA256(nil))
+	AssertEqual(t, SHA256(nil), SHA256([]byte{}))
 }
 
 func TestHash_SHA256_Ugly(t *testing.T) {
@@ -35,17 +34,17 @@ func TestHash_SHA256_Ugly(t *testing.T) {
 
 	data[0] = 't'
 
-	assert.Equal(t, digestFromHex(t, sha256QuickHex), sum)
-	assert.NotEqual(t, sum, SHA256(data))
+	AssertEqual(t, digestFromHex(t, sha256QuickHex), sum)
+	AssertNotEqual(t, sum, SHA256(data))
 }
 
 func TestHash_SHA256Hex_Good(t *testing.T) {
-	assert.Equal(t, sha256HelloHex, SHA256Hex([]byte("hello")))
+	AssertEqual(t, sha256HelloHex, SHA256Hex([]byte("hello")))
 }
 
 func TestHash_SHA256Hex_Bad(t *testing.T) {
-	assert.Equal(t, sha256EmptyHex, SHA256Hex(nil))
-	assert.Equal(t, SHA256Hex(nil), SHA256Hex([]byte{}))
+	AssertEqual(t, sha256EmptyHex, SHA256Hex(nil))
+	AssertEqual(t, SHA256Hex(nil), SHA256Hex([]byte{}))
 }
 
 func TestHash_SHA256Hex_Ugly(t *testing.T) {
@@ -54,46 +53,46 @@ func TestHash_SHA256Hex_Ugly(t *testing.T) {
 
 	data[0] = 't'
 
-	assert.Equal(t, sha256QuickHex, sum)
-	assert.NotEqual(t, sum, SHA256Hex(data))
+	AssertEqual(t, sha256QuickHex, sum)
+	AssertNotEqual(t, sum, SHA256Hex(data))
 }
 
 func TestHash_SHA256String_Good(t *testing.T) {
-	assert.Equal(t, SHA256([]byte("hello")), SHA256String("hello"))
+	AssertEqual(t, SHA256([]byte("hello")), SHA256String("hello"))
 }
 
 func TestHash_SHA256String_Bad(t *testing.T) {
-	assert.Equal(t, SHA256([]byte{}), SHA256String(""))
+	AssertEqual(t, SHA256([]byte{}), SHA256String(""))
 }
 
 func TestHash_SHA256String_Ugly(t *testing.T) {
 	s := "line 1\nline 2\t\x00"
 
-	assert.Equal(t, SHA256([]byte(s)), SHA256String(s))
+	AssertEqual(t, SHA256([]byte(s)), SHA256String(s))
 }
 
 func TestHash_SHA256HexString_Good(t *testing.T) {
-	assert.Equal(t, SHA256Hex([]byte("hello")), SHA256HexString("hello"))
+	AssertEqual(t, SHA256Hex([]byte("hello")), SHA256HexString("hello"))
 }
 
 func TestHash_SHA256HexString_Bad(t *testing.T) {
-	assert.Equal(t, SHA256Hex([]byte{}), SHA256HexString(""))
+	AssertEqual(t, SHA256Hex([]byte{}), SHA256HexString(""))
 }
 
 func TestHash_SHA256HexString_Ugly(t *testing.T) {
 	s := "line 1\nline 2\t\x00"
 
-	assert.Equal(t, SHA256Hex([]byte(s)), SHA256HexString(s))
+	AssertEqual(t, SHA256Hex([]byte(s)), SHA256HexString(s))
 }
 
 func TestHash_HMAC_Good(t *testing.T) {
 	data := []byte("The quick brown fox jumps over the lazy dog")
 
-	assert.Equal(t, hmacSHA256Hex, HexEncode(HMAC("sha256", []byte("key"), data)))
+	AssertEqual(t, hmacSHA256Hex, HexEncode(HMAC("sha256", []byte("key"), data)))
 }
 
 func TestHash_HMAC_Bad(t *testing.T) {
-	assert.Panics(t, func() {
+	AssertPanics(t, func() {
 		_ = HMAC("md5", []byte("key"), []byte("data"))
 	})
 }
@@ -106,18 +105,18 @@ func TestHash_HMAC_Ugly(t *testing.T) {
 	key[0] = 'K'
 	data[0] = 't'
 
-	assert.Equal(t, hmacSHA512Hex, HexEncode(digest))
-	assert.NotEqual(t, digest, HMAC("sha512", key, data))
+	AssertEqual(t, hmacSHA512Hex, HexEncode(digest))
+	AssertNotEqual(t, digest, HMAC("sha512", key, data))
 }
 
 func TestHash_HKDF_Good(t *testing.T) {
 	key := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("info"), 32)
 
-	assert.Equal(t, hkdfSHA256Hex, HexEncode(key))
+	AssertEqual(t, hkdfSHA256Hex, HexEncode(key))
 }
 
 func TestHash_HKDF_Bad(t *testing.T) {
-	assert.Panics(t, func() {
+	AssertPanics(t, func() {
 		_ = HKDF("md5", []byte("secret"), nil, nil, 16)
 	})
 }
@@ -126,8 +125,8 @@ func TestHash_HKDF_Ugly(t *testing.T) {
 	key := HKDF("sha512", []byte("secret"), []byte("salt"), []byte("info"), 32)
 	empty := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("info"), 0)
 
-	assert.Equal(t, hkdfSHA512Hex, HexEncode(key))
-	assert.Equal(t, []byte{}, empty)
+	AssertEqual(t, hkdfSHA512Hex, HexEncode(key))
+	AssertEqual(t, []byte{}, empty)
 }
 
 func digestFromHex(t *testing.T, want string) [32]byte {

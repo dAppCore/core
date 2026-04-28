@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSignal_Exists_Good(t *testing.T) {
@@ -14,13 +13,13 @@ func TestSignal_Exists_Good(t *testing.T) {
 	c.Action("signal.received", func(_ context.Context, _ Options) Result {
 		return Result{OK: true}
 	})
-	assert.True(t, c.Signal().Exists())
+	AssertTrue(t, c.Signal().Exists())
 }
 
 func TestSignal_Exists_Bad(t *testing.T) {
 	// Bad: no signal service registered. Exists returns false.
 	c := New()
-	assert.False(t, c.Signal().Exists())
+	AssertFalse(t, c.Signal().Exists())
 }
 
 func TestSignal_Exists_Ugly(t *testing.T) {
@@ -31,7 +30,7 @@ func TestSignal_Exists_Ugly(t *testing.T) {
 	c.Action("signal.start", func(_ context.Context, _ Options) Result {
 		return Result{OK: true}
 	})
-	assert.False(t, c.Signal().Exists(),
+	AssertFalse(t, c.Signal().Exists(),
 		"Exists must key off signal.received, not just any signal.* action")
 }
 
@@ -44,8 +43,8 @@ func TestSignal_Stop_Good(t *testing.T) {
 		return Result{OK: true}
 	})
 	r := c.Signal().Stop()
-	assert.True(t, r.OK)
-	assert.True(t, called)
+	AssertTrue(t, r.OK)
+	AssertTrue(t, called)
 }
 
 func TestSignal_Stop_Bad(t *testing.T) {
@@ -53,7 +52,7 @@ func TestSignal_Stop_Bad(t *testing.T) {
 	// (permission-by-registration — no handler = no capability).
 	c := New()
 	r := c.Signal().Stop()
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 func TestSignal_Stop_Ugly(t *testing.T) {
@@ -64,5 +63,5 @@ func TestSignal_Stop_Ugly(t *testing.T) {
 		return Result{OK: false}
 	})
 	r := c.Signal().Stop()
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }

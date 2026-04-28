@@ -7,7 +7,6 @@ import (
 	"time"
 
 	. "dappco.re/go/core"
-	"github.com/stretchr/testify/assert"
 )
 
 // --- PerformAsync ---
@@ -25,13 +24,13 @@ func TestTask_PerformAsync_Good(t *testing.T) {
 	})
 
 	r := c.PerformAsync("work", NewOptions())
-	assert.True(t, r.OK)
-	assert.True(t, HasPrefix(r.Value.(string), "id-"), "should return task ID")
+	AssertTrue(t, r.OK)
+	AssertTrue(t, HasPrefix(r.Value.(string), "id-"), "should return task ID")
 
 	time.Sleep(100 * time.Millisecond)
 
 	mu.Lock()
-	assert.Equal(t, "done", result)
+	AssertEqual(t, "done", result)
 	mu.Unlock()
 }
 
@@ -65,8 +64,8 @@ func TestTask_PerformAsync_Good_Completion(t *testing.T) {
 
 	select {
 	case evt := <-completed:
-		assert.True(t, evt.Result.OK)
-		assert.Equal(t, "output", evt.Result.Value)
+		AssertTrue(t, evt.Result.OK)
+		AssertEqual(t, "output", evt.Result.Value)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for completion")
 	}
@@ -87,7 +86,7 @@ func TestTask_PerformAsync_Bad_ActionNotRegistered(t *testing.T) {
 
 	select {
 	case evt := <-completed:
-		assert.False(t, evt.Result.OK, "unregistered action should fail")
+		AssertFalse(t, evt.Result.OK, "unregistered action should fail")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out")
 	}
@@ -101,7 +100,7 @@ func TestTask_PerformAsync_Bad_AfterShutdown(t *testing.T) {
 	c.ServiceShutdown(context.Background())
 
 	r := c.PerformAsync("work", NewOptions())
-	assert.False(t, r.OK)
+	AssertFalse(t, r.OK)
 }
 
 // --- RegisterAction + RegisterActions (broadcast handlers) ---
@@ -114,7 +113,7 @@ func TestTask_RegisterAction_Good(t *testing.T) {
 		return Result{OK: true}
 	})
 	c.ACTION(nil)
-	assert.True(t, called)
+	AssertTrue(t, called)
 }
 
 func TestTask_RegisterActions_Good(t *testing.T) {
@@ -123,5 +122,5 @@ func TestTask_RegisterActions_Good(t *testing.T) {
 	h := func(_ *Core, _ Message) Result { count++; return Result{OK: true} }
 	c.RegisterActions(h, h)
 	c.ACTION(nil)
-	assert.Equal(t, 2, count)
+	AssertEqual(t, 2, count)
 }
