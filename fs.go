@@ -26,6 +26,12 @@ type FS = fs.FS
 //	if r.OK { file := r.Value.(core.FsFile); _ = file }
 type FsFile = fs.File
 
+// FsFileInfo describes a file returned by Stat and PathWalk.
+//
+//	info := stat.Value.(core.FsFileInfo)
+//	_ = info
+type FsFileInfo = fs.FileInfo
+
 // FsDirEntry is a directory entry returned by filesystem walkers.
 //
 //	r := emb.ReadDir(".")

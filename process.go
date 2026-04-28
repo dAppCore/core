@@ -25,6 +25,14 @@
 //	c.Process().Run(ctx, "git", "log")  // Result{OK: false}
 package core
 
+import "os/exec"
+
+// Cmd is os/exec.Cmd for adapters that need command handles.
+//
+//	var cmd *core.Cmd
+//	_ = cmd
+type Cmd = exec.Cmd
+
 // Process is the Core primitive for process management.
 // Zero dependencies — delegates to named Actions.
 //

@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"time"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- Mutex ---
 
@@ -142,7 +138,7 @@ func TestSync_WaitGroup_Good(t *T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		time.Sleep(10 * time.Millisecond)
+		Sleep(10 * Millisecond)
 		mu.Lock()
 		done = true
 		mu.Unlock()

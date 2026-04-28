@@ -2,17 +2,11 @@
 
 package core_test
 
-import (
-	"os"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 func TestOs_FileMode_Good_Alias(t *T) {
-	// FileMode alias must be assignable to/from os.FileMode.
-	var coreMode FileMode = 0o644
-	var osMode os.FileMode = coreMode
-	AssertEqual(t, os.FileMode(0o644), osMode)
+	var mode FileMode = 0o644
+	AssertEqual(t, FileMode(0o644), mode)
 }
 
 func TestOs_ModePerm_Good(t *T) {
@@ -291,7 +285,7 @@ func TestOs_IsNotExist_Ugly(t *T) {
 }
 
 func TestOs_IsPermission_Good(t *T) {
-	AssertTrue(t, IsPermission(os.ErrPermission))
+	AssertTrue(t, IsPermission(ErrPermissionForTest))
 }
 
 func TestOs_IsPermission_Bad(t *T) {
@@ -351,7 +345,7 @@ func TestOs_Lstat_Ugly(t *T) {
 	target := Path(dir, "agent.txt")
 	link := Path(dir, "current")
 	AssertTrue(t, WriteFile(target, []byte("ready"), 0o644).OK)
-	RequireNoError(t, os.Symlink(target, link))
+	RequireNoError(t, SymlinkForTest(target, link))
 
 	r := Lstat(link)
 

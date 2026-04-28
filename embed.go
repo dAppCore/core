@@ -29,6 +29,12 @@ import (
 	"go/token"
 )
 
+// EmbedFS is embed.FS re-exported for tests and consumers using go:embed.
+//
+//	var assets core.EmbedFS
+//	_ = assets
+type EmbedFS = embed.FS
+
 // --- Runtime: Asset Registry ---
 
 // AssetGroup holds a named collection of packed assets.

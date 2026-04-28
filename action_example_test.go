@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // ExampleAction declares action metadata for an agent dispatch workflow. Consumers copy
 // the Result-shaped handler contract for dAppCore actions and tasks.
@@ -21,10 +17,10 @@ func ExampleAction() {
 // dispatch workflow. Consumers copy the Result-shaped handler contract for dAppCore
 // actions and tasks.
 func ExampleActionHandler() {
-	var handler ActionHandler = func(_ context.Context, opts Options) Result {
+	var handler ActionHandler = func(_ Context, opts Options) Result {
 		return Result{Value: opts.String("name"), OK: true}
 	}
-	Println(handler(context.Background(), NewOptions(Option{Key: "name", Value: "deploy"})).Value)
+	Println(handler(Background(), NewOptions(Option{Key: "name", Value: "deploy"})).Value)
 	// Output: deploy
 }
 
@@ -33,11 +29,11 @@ func ExampleActionHandler() {
 // actions and tasks.
 func ExampleAction_Run() {
 	c := New()
-	c.Action("double", func(_ context.Context, opts Options) Result {
+	c.Action("double", func(_ Context, opts Options) Result {
 		return Result{Value: opts.Int("n") * 2, OK: true}
 	})
 
-	r := c.Action("double").Run(context.Background(), NewOptions(
+	r := c.Action("double").Run(Background(), NewOptions(
 		Option{Key: "n", Value: 21},
 	))
 	Println(r.Value)
@@ -49,7 +45,7 @@ func ExampleAction_Run() {
 // actions and tasks.
 func ExampleCore_Action() {
 	c := New()
-	c.Action("deploy", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("deploy", func(_ Context, _ Options) Result { return Result{OK: true} })
 	Println(c.Action("deploy").Exists())
 	// Output: true
 }
@@ -59,8 +55,8 @@ func ExampleCore_Action() {
 // dAppCore actions and tasks.
 func ExampleCore_Actions_action() {
 	c := New()
-	c.Action("deploy", func(_ context.Context, _ Options) Result { return Result{OK: true} })
-	c.Action("test", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("deploy", func(_ Context, _ Options) Result { return Result{OK: true} })
+	c.Action("test", func(_ Context, _ Options) Result { return Result{OK: true} })
 	Println(c.Actions())
 	// Output: [deploy test]
 }
@@ -119,7 +115,7 @@ func ExampleAction_Exists() {
 	c := New()
 	Println(c.Action("missing").Exists())
 
-	c.Action("present", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("present", func(_ Context, _ Options) Result { return Result{OK: true} })
 	Println(c.Action("present").Exists())
 	// Output:
 	// false
@@ -131,11 +127,11 @@ func ExampleAction_Exists() {
 // actions and tasks.
 func ExampleAction_Run_panicRecovery() {
 	c := New()
-	c.Action("boom", func(_ context.Context, _ Options) Result {
+	c.Action("boom", func(_ Context, _ Options) Result {
 		panic("explosion")
 	})
 
-	r := c.Action("boom").Run(context.Background(), NewOptions())
+	r := c.Action("boom").Run(Background(), NewOptions())
 	Println(r.OK)
 	// Output: false
 }
@@ -145,17 +141,17 @@ func ExampleAction_Run_panicRecovery() {
 // Result-shaped handler contract for dAppCore actions and tasks.
 func ExampleAction_Run_entitlementDenied() {
 	c := New()
-	c.Action("premium", func(_ context.Context, _ Options) Result {
+	c.Action("premium", func(_ Context, _ Options) Result {
 		return Result{Value: "secret", OK: true}
 	})
-	c.SetEntitlementChecker(func(action string, _ int, _ context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, _ int, _ Context) Entitlement {
 		if action == "premium" {
 			return Entitlement{Allowed: false, Reason: "upgrade"}
 		}
 		return Entitlement{Allowed: true, Unlimited: true}
 	})
 
-	r := c.Action("premium").Run(context.Background(), NewOptions())
+	r := c.Action("premium").Run(Background(), NewOptions())
 	Println(r.OK)
 	// Output: false
 }
@@ -166,11 +162,11 @@ func ExampleTask_Run() {
 	c := New()
 	var order string
 
-	c.Action("step.a", func(_ context.Context, _ Options) Result {
+	c.Action("step.a", func(_ Context, _ Options) Result {
 		order += "a"
 		return Result{Value: "from-a", OK: true}
 	})
-	c.Action("step.b", func(_ context.Context, opts Options) Result {
+	c.Action("step.b", func(_ Context, opts Options) Result {
 		order += "b"
 		input := opts.Get("_input")
 		if input.OK {
@@ -186,7 +182,7 @@ func ExampleTask_Run() {
 		},
 	})
 
-	r := c.Task("pipe").Run(context.Background(), c, NewOptions())
+	r := c.Task("pipe").Run(Background(), c, NewOptions())
 	Println(order)
 	Println(r.Value)
 	// Output:
@@ -198,7 +194,7 @@ func ExampleTask_Run() {
 // background task progress. Asynchronous work reports progress through Core task helpers.
 func ExampleCore_PerformAsync() {
 	c := New()
-	c.Action("bg.work", func(_ context.Context, _ Options) Result {
+	c.Action("bg.work", func(_ Context, _ Options) Result {
 		return Result{Value: "done", OK: true}
 	})
 

@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"bytes"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 type failingWriter struct{}
 
@@ -13,9 +9,9 @@ func (failingWriter) Write(_ []byte) (int, error) {
 }
 
 func TestTable_NewTable_Good(t *T) {
-	var out bytes.Buffer
+	out := NewBuffer()
 
-	AssertNotNil(t, NewTable(&out))
+	AssertNotNil(t, NewTable(out))
 }
 
 func TestTable_NewTable_Bad(t *T) {
@@ -25,16 +21,16 @@ func TestTable_NewTable_Bad(t *T) {
 }
 
 func TestTable_NewTable_Ugly(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out)
+	out := NewBuffer()
+	table := NewTable(out)
 
 	AssertNoError(t, table.Row("Name", "Status").Flush())
 	AssertContains(t, out.String(), "Name")
 }
 
 func TestTable_Row_Good(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out)
+	out := NewBuffer()
+	table := NewTable(out)
 
 	AssertSame(t, table, table.Row("Name", "Status"))
 	AssertNoError(t, table.Flush())
@@ -43,8 +39,8 @@ func TestTable_Row_Good(t *T) {
 }
 
 func TestTable_Row_Bad(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out)
+	out := NewBuffer()
+	table := NewTable(out)
 
 	AssertSame(t, table, table.Row())
 	AssertNoError(t, table.Flush())
@@ -52,8 +48,8 @@ func TestTable_Row_Bad(t *T) {
 }
 
 func TestTable_Row_Ugly(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out)
+	out := NewBuffer()
+	table := NewTable(out)
 
 	table.Row("Name", "Status").Row("api", "ok")
 	AssertNoError(t, table.Flush())
@@ -62,9 +58,9 @@ func TestTable_Row_Ugly(t *T) {
 }
 
 func TestTable_Flush_Good(t *T) {
-	var out bytes.Buffer
+	out := NewBuffer()
 
-	err := NewTable(&out).Row("A", "B").Flush()
+	err := NewTable(out).Row("A", "B").Flush()
 
 	AssertNoError(t, err)
 	AssertContains(t, out.String(), "A")
@@ -77,16 +73,16 @@ func TestTable_Flush_Bad(t *T) {
 }
 
 func TestTable_Flush_Ugly(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out).Row("A")
+	out := NewBuffer()
+	table := NewTable(out).Row("A")
 
 	AssertNoError(t, table.Flush())
 	AssertNoError(t, table.Flush())
 }
 
 func TestTable_Table_Row_Good(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out)
+	out := NewBuffer()
+	table := NewTable(out)
 
 	AssertSame(t, table, table.Row("Name", "Status"))
 	AssertNoError(t, table.Flush())
@@ -101,8 +97,8 @@ func TestTable_Table_Row_Bad(t *T) {
 }
 
 func TestTable_Table_Row_Ugly(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out)
+	out := NewBuffer()
+	table := NewTable(out)
 
 	table.Row("Name", "Status", "Updated").Row("agent.dispatch", "ok", "now")
 
@@ -112,9 +108,9 @@ func TestTable_Table_Row_Ugly(t *T) {
 }
 
 func TestTable_Table_Flush_Good(t *T) {
-	var out bytes.Buffer
+	out := NewBuffer()
 
-	err := NewTable(&out).Row("Name", "Status").Flush()
+	err := NewTable(out).Row("Name", "Status").Flush()
 
 	AssertNoError(t, err)
 	AssertContains(t, out.String(), "Status")
@@ -129,8 +125,8 @@ func TestTable_Table_Flush_Bad(t *T) {
 }
 
 func TestTable_Table_Flush_Ugly(t *T) {
-	var out bytes.Buffer
-	table := NewTable(&out)
+	out := NewBuffer()
+	table := NewTable(out)
 
 	AssertNoError(t, table.Flush())
 	AssertEqual(t, "", out.String())

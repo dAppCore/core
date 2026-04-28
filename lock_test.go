@@ -1,11 +1,6 @@
 package core_test
 
-import (
-	"os"
-	"os/exec"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 func TestLock_Good(t *T) {
 	c := New()
@@ -87,7 +82,7 @@ func TestLock_RLockRUnlock_Good(t *T) {
 }
 
 func TestLock_RLockRUnlock_Bad(t *T) {
-	if os.Getenv("CORE_LOCK_RUNLOCK_BAD") == "1" {
+	if Getenv("CORE_LOCK_RUNLOCK_BAD") == "1" {
 		c := New()
 		l := c.Lock("not-rlocked")
 		l.RUnlock()
@@ -95,8 +90,8 @@ func TestLock_RLockRUnlock_Bad(t *T) {
 	}
 
 	t.Run("without-prior-rlock", func(t *T) {
-		cmd := exec.Command(os.Args[0], "-test.run=^TestLock_RLockRUnlock_Bad$")
-		cmd.Env = append(os.Environ(), "CORE_LOCK_RUNLOCK_BAD=1")
+		cmd := ExecCmdForTest(Args()[0], "-test.run=^TestLock_RLockRUnlock_Bad$")
+		cmd.Env = append(Environ(), "CORE_LOCK_RUNLOCK_BAD=1")
 		out, err := cmd.CombinedOutput()
 
 		AssertError(t, err)

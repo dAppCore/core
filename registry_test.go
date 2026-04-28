@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"sync"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- Set ---
 
@@ -51,7 +47,7 @@ func TestRegistry_Set_Good_SealedExistingKey(t *T) {
 
 func TestRegistry_Set_Ugly_ConcurrentWrites(t *T) {
 	r := NewRegistry[int]()
-	var wg sync.WaitGroup
+	var wg WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func(n int) {
@@ -357,7 +353,7 @@ func TestRegistry_Open_Good(t *T) {
 
 func TestRegistry_Ugly_ConcurrentReadWrite(t *T) {
 	r := NewRegistry[int]()
-	var wg sync.WaitGroup
+	var wg WaitGroup
 
 	// Concurrent writers
 	for i := 0; i < 50; i++ {

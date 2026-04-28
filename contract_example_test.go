@@ -1,22 +1,18 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 type contractLifecycleService struct {
 	started bool
 	stopped bool
 }
 
-func (s *contractLifecycleService) OnStartup(_ context.Context) Result {
+func (s *contractLifecycleService) OnStartup(_ Context) Result {
 	s.started = true
 	return Result{OK: true}
 }
 
-func (s *contractLifecycleService) OnShutdown(_ context.Context) Result {
+func (s *contractLifecycleService) OnShutdown(_ Context) Result {
 	s.stopped = true
 	return Result{OK: true}
 }

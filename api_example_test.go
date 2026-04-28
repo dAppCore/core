@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 type exampleStream struct {
 	response []byte
@@ -95,12 +91,12 @@ func ExampleAPI_Protocols() {
 func ExampleCore_RemoteAction() {
 	c := New()
 	// Local action
-	c.Action("status", func(_ context.Context, _ Options) Result {
+	c.Action("status", func(_ Context, _ Options) Result {
 		return Result{Value: "running", OK: true}
 	})
 
 	// No colon — resolves locally
-	r := c.RemoteAction("status", context.Background(), NewOptions())
+	r := c.RemoteAction("status", Background(), NewOptions())
 	Println(r.Value)
 	// Output: running
 }

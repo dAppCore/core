@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- mock stream for testing ---
 
@@ -138,11 +134,11 @@ func TestApi_Call_Bad_EndpointNotFound(t *T) {
 
 func TestApi_RemoteAction_Good_Local(t *T) {
 	c := New()
-	c.Action("local.action", func(_ context.Context, _ Options) Result {
+	c.Action("local.action", func(_ Context, _ Options) Result {
 		return Result{Value: "local", OK: true}
 	})
 
-	r := c.RemoteAction("local.action", context.Background(), NewOptions())
+	r := c.RemoteAction("local.action", Background(), NewOptions())
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "local", r.Value)
 }
@@ -155,7 +151,7 @@ func TestApi_RemoteAction_Good_Remote(t *T) {
 		Option{Key: "transport", Value: "http://10.69.69.165:9101"},
 	))
 
-	r := c.RemoteAction("charon:agentic.status", context.Background(), NewOptions())
+	r := c.RemoteAction("charon:agentic.status", Background(), NewOptions())
 	AssertTrue(t, r.OK)
 	AssertContains(t, r.Value.(string), "remote")
 }
@@ -163,7 +159,7 @@ func TestApi_RemoteAction_Good_Remote(t *T) {
 func TestApi_RemoteAction_Ugly_NoColon(t *T) {
 	c := New()
 	// No colon — falls through to local action (which doesn't exist)
-	r := c.RemoteAction("nonexistent", context.Background(), NewOptions())
+	r := c.RemoteAction("nonexistent", Background(), NewOptions())
 	AssertFalse(t, r.OK, "non-existent local action should fail")
 }
 
@@ -339,7 +335,7 @@ func TestApi_Core_RemoteAction_Bad(t *T) {
 
 func TestApi_Core_RemoteAction_Ugly(t *T) {
 	c := New()
-	c.Action("agent.local", func(_ context.Context, _ Options) Result {
+	c.Action("agent.local", func(_ Context, _ Options) Result {
 		return Result{Value: "local dispatch", OK: true}
 	})
 

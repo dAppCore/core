@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // ExampleEntitlement_UsagePercent calculates usage percentage through
 // `Entitlement.UsagePercent` for usage-gated agent features. Usage checks separate policy
@@ -28,10 +24,10 @@ func ExampleEntitlement_NearLimit_threshold() {
 // for usage-gated agent features. Usage checks separate policy decisions from the action
 // body.
 func ExampleEntitlementChecker() {
-	var checker EntitlementChecker = func(action string, quantity int, _ context.Context) Entitlement {
+	var checker EntitlementChecker = func(action string, quantity int, _ Context) Entitlement {
 		return Entitlement{Allowed: action == "deploy" && quantity <= 1}
 	}
-	Println(checker("deploy", 1, context.Background()).Allowed)
+	Println(checker("deploy", 1, Background()).Allowed)
 	// Output: true
 }
 
@@ -39,10 +35,10 @@ func ExampleEntitlementChecker() {
 // agent features. Usage checks separate policy decisions from the action body.
 func ExampleUsageRecorder() {
 	var recorded string
-	var recorder UsageRecorder = func(action string, quantity int, _ context.Context) {
+	var recorder UsageRecorder = func(action string, quantity int, _ Context) {
 		recorded = Sprintf("%s:%d", action, quantity)
 	}
-	recorder("ai.credits", 3, context.Background())
+	recorder("ai.credits", 3, Background())
 	Println(recorded)
 	// Output: ai.credits:3
 }
@@ -64,7 +60,7 @@ func ExampleCore_Entitled() {
 // policy decisions from the action body.
 func ExampleCore_SetEntitlementChecker() {
 	c := New()
-	c.SetEntitlementChecker(func(action string, qty int, _ context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, _ Context) Entitlement {
 		limits := map[string]int{"social.accounts": 5, "ai.credits": 100}
 		usage := map[string]int{"social.accounts": 3, "ai.credits": 95}
 
@@ -94,7 +90,7 @@ func ExampleCore_SetEntitlementChecker() {
 func ExampleCore_RecordUsage() {
 	c := New()
 	var recorded string
-	c.SetUsageRecorder(func(action string, qty int, _ context.Context) {
+	c.SetUsageRecorder(func(action string, qty int, _ Context) {
 		recorded = Concat(action, ":", Sprint(qty))
 	})
 

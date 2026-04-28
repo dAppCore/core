@@ -2,11 +2,7 @@
 
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- WithService ---
 
@@ -71,7 +67,7 @@ type lifecycleService struct {
 	started bool
 }
 
-func (s *lifecycleService) OnStartup(_ context.Context) Result {
+func (s *lifecycleService) OnStartup(_ Context) Result {
 	s.started = true
 	return Result{OK: true}
 }
@@ -84,7 +80,7 @@ func TestContract_WithService_Lifecycle_Good(t *T) {
 		}),
 	)
 
-	c.ServiceStartup(context.Background(), nil)
+	c.ServiceStartup(Background(), nil)
 	AssertTrue(t, svc.started)
 }
 

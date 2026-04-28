@@ -1,12 +1,6 @@
 package core_test
 
-import (
-	"bytes"
-	"compress/gzip"
-	"encoding/base64"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- Mount ---
 
@@ -98,7 +92,7 @@ func TestEmbed_Extract_Good(t *T) {
 // --- Asset Pack ---
 
 func TestEmbed_AddGetAsset_Good(t *T) {
-	AddAsset("test-group", "greeting", mustCompress("hello world"))
+	AddAsset("test-group", "greeting", MustCompressTestAsset(t, "hello world"))
 	r := GetAsset("test-group", "greeting")
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "hello world", r.Value.(string))
@@ -110,7 +104,7 @@ func TestEmbed_GetAsset_Bad(t *T) {
 }
 
 func TestEmbed_GetAssetBytes_Good(t *T) {
-	AddAsset("bytes-group", "file", mustCompress("binary content"))
+	AddAsset("bytes-group", "file", MustCompressTestAsset(t, "binary content"))
 	r := GetAssetBytes("bytes-group", "file")
 	AssertTrue(t, r.OK)
 	AssertEqual(t, []byte("binary content"), r.Value.([]byte))
@@ -255,7 +249,7 @@ func TestEmbed_Extract_NilData_Good(t *T) {
 // --- AX-7 canonical triplets ---
 
 func TestEmbed_AddAsset_Good(t *T) {
-	AddAsset("lane-c-agent", "persona/developer.md", mustCompress("agent ready"))
+	AddAsset("lane-c-agent", "persona/developer.md", MustCompressTestAsset(t, "agent ready"))
 	r := GetAsset("lane-c-agent", "persona/developer.md")
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "agent ready", r.Value.(string))
@@ -268,15 +262,15 @@ func TestEmbed_AddAsset_Bad(t *T) {
 }
 
 func TestEmbed_AddAsset_Ugly(t *T) {
-	AddAsset("lane-c-overwrite", "status.txt", mustCompress("old"))
-	AddAsset("lane-c-overwrite", "status.txt", mustCompress("new"))
+	AddAsset("lane-c-overwrite", "status.txt", MustCompressTestAsset(t, "old"))
+	AddAsset("lane-c-overwrite", "status.txt", MustCompressTestAsset(t, "new"))
 	r := GetAsset("lane-c-overwrite", "status.txt")
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "new", r.Value.(string))
 }
 
 func TestEmbed_GetAsset_Good(t *T) {
-	AddAsset("lane-c-get", "agent.txt", mustCompress("codex"))
+	AddAsset("lane-c-get", "agent.txt", MustCompressTestAsset(t, "codex"))
 	r := GetAsset("lane-c-get", "agent.txt")
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "codex", r.Value.(string))
@@ -556,14 +550,4 @@ func TestEmbed_Extract_Ugly(t *T) {
 	AssertTrue(t, read.OK)
 	AssertEqual(t, "agent codex", read.Value)
 	AssertFalse(t, f.Exists(Path(target, "skip.txt")))
-}
-
-func mustCompress(input string) string {
-	var buf bytes.Buffer
-	b64 := base64.NewEncoder(base64.StdEncoding, &buf)
-	gz, _ := gzip.NewWriterLevel(b64, gzip.BestCompression)
-	gz.Write([]byte(input))
-	gz.Close()
-	b64.Close()
-	return buf.String()
 }

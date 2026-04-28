@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"io/fs"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- Fs (Sandboxed Filesystem) ---
 
@@ -69,7 +65,7 @@ func TestFs_List_Good(t *T) {
 	c.Fs().Write(Path(dir, "b.txt"), "b")
 	r := c.Fs().List(dir)
 	AssertTrue(t, r.OK)
-	AssertLen(t, r.Value.([]fs.DirEntry), 2)
+	AssertLen(t, r.Value.([]FsDirEntry), 2)
 }
 
 func TestFs_Stat_Good(t *T) {
@@ -79,7 +75,7 @@ func TestFs_Stat_Good(t *T) {
 	c.Fs().Write(path, "data")
 	r := c.Fs().Stat(path)
 	AssertTrue(t, r.OK)
-	AssertEqual(t, "stat.txt", r.Value.(fs.FileInfo).Name())
+	AssertEqual(t, "stat.txt", r.Value.(FsFileInfo).Name())
 }
 
 func TestFs_Open_Good(t *T) {
@@ -171,7 +167,7 @@ func TestFs_WriteMode_Good(t *T) {
 	AssertTrue(t, c.Fs().WriteMode(path, "secret", 0600).OK)
 	r := c.Fs().Stat(path)
 	AssertTrue(t, r.OK)
-	AssertEqual(t, "secret.txt", r.Value.(fs.FileInfo).Name())
+	AssertEqual(t, "secret.txt", r.Value.(FsFileInfo).Name())
 }
 
 // --- Zero Value ---
@@ -197,7 +193,7 @@ func TestFs_ZeroValue_List_Good(t *T) {
 	(&Fs{}).New("/").Write(Path(dir, "a.txt"), "a")
 	r := zeroFs.List(dir)
 	AssertTrue(t, r.OK)
-	entries := r.Value.([]fs.DirEntry)
+	entries := r.Value.([]FsDirEntry)
 	AssertLen(t, entries, 1)
 }
 
@@ -285,7 +281,7 @@ func TestFs_WriteAtomic_Ugly_NoTempFileLeftOver(t *T) {
 
 	// Check no .tmp files remain
 	lr := c.Fs().List(dir)
-	entries, _ := lr.Value.([]fs.DirEntry)
+	entries, _ := lr.Value.([]FsDirEntry)
 	for _, e := range entries {
 		AssertFalse(t, Contains(e.Name(), ".tmp."), "temp file should not remain after successful atomic write")
 	}
@@ -484,7 +480,7 @@ func TestFs_WalkSeq_Good_FileMode(t *T) {
 	for entry, err := range c.Fs().WalkSeq(dir) {
 		AssertNoError(t, err)
 		if entry.Name == "secret.key" {
-			AssertEqual(t, fs.FileMode(0o600), entry.Mode.Perm())
+			AssertEqual(t, FileMode(0o600), entry.Mode.Perm())
 		}
 	}
 }
@@ -647,8 +643,8 @@ func TestFs_Fs_WriteMode_Good(t *T) {
 	AssertTrue(t, r.OK)
 	stat := fsys.Stat("secrets/session.token")
 	AssertTrue(t, stat.OK)
-	info := stat.Value.(fs.FileInfo)
-	AssertEqual(t, fs.FileMode(0o600), info.Mode().Perm())
+	info := stat.Value.(FsFileInfo)
+	AssertEqual(t, FileMode(0o600), info.Mode().Perm())
 }
 
 func TestFs_Fs_WriteMode_Bad(t *T) {
@@ -668,8 +664,8 @@ func TestFs_Fs_WriteMode_Ugly(t *T) {
 	AssertTrue(t, r.OK)
 	stat := fsys.Stat("public.txt")
 	AssertTrue(t, stat.OK)
-	info := stat.Value.(fs.FileInfo)
-	AssertEqual(t, fs.FileMode(0o644), info.Mode().Perm())
+	info := stat.Value.(FsFileInfo)
+	AssertEqual(t, FileMode(0o644), info.Mode().Perm())
 }
 
 func TestFs_Fs_WriteAtomic_Good(t *T) {
@@ -825,7 +821,7 @@ func TestFs_Fs_List_Good(t *T) {
 	r := fsys.List("agents")
 
 	AssertTrue(t, r.OK)
-	AssertLen(t, r.Value.([]fs.DirEntry), 2)
+	AssertLen(t, r.Value.([]FsDirEntry), 2)
 }
 
 func TestFs_Fs_List_Bad(t *T) {
@@ -843,7 +839,7 @@ func TestFs_Fs_List_Ugly(t *T) {
 	r := fsys.List("agents")
 
 	AssertTrue(t, r.OK)
-	AssertLen(t, r.Value.([]fs.DirEntry), 0)
+	AssertLen(t, r.Value.([]FsDirEntry), 0)
 }
 
 func TestFs_Fs_Stat_Good(t *T) {
@@ -853,7 +849,7 @@ func TestFs_Fs_Stat_Good(t *T) {
 	r := fsys.Stat("agent.json")
 
 	AssertTrue(t, r.OK)
-	AssertEqual(t, "agent.json", r.Value.(fs.FileInfo).Name())
+	AssertEqual(t, "agent.json", r.Value.(FsFileInfo).Name())
 }
 
 func TestFs_Fs_Stat_Bad(t *T) {
@@ -871,7 +867,7 @@ func TestFs_Fs_Stat_Ugly(t *T) {
 	r := fsys.Stat("agents")
 
 	AssertTrue(t, r.OK)
-	AssertTrue(t, r.Value.(fs.FileInfo).IsDir())
+	AssertTrue(t, r.Value.(FsFileInfo).IsDir())
 }
 
 func TestFs_Fs_Open_Good(t *T) {
@@ -1197,7 +1193,7 @@ func TestFs_ReadDir_Ugly(t *T) {
 	r := ReadDir(DirFS(t.TempDir()), ".")
 
 	AssertTrue(t, r.OK)
-	AssertLen(t, r.Value.([]fs.DirEntry), 0)
+	AssertLen(t, r.Value.([]FsDirEntry), 0)
 }
 
 func TestFs_ReadFSFile_Good(t *T) {

@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // ExampleCore_accessors reads the grouped accessor methods through `Core` for Core
 // orchestration. Core keeps orchestration helpers reachable from one predictable facade.
@@ -150,7 +146,7 @@ func ExampleCore_Must() {
 // orchestration. Core keeps orchestration helpers reachable from one predictable facade.
 func ExampleCore_RegistryOf() {
 	c := New()
-	c.Action("deploy", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("deploy", func(_ Context, _ Options) Result { return Result{OK: true} })
 	Println(c.RegistryOf("actions").Names())
 	Println(c.RegistryOf("missing").Len())
 	// Output:

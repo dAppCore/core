@@ -2,6 +2,19 @@
 
 package core
 
+import "embed"
+
+//go:embed all:tests/data
+var EmbeddedTestFS embed.FS
+
+func MustCompressTestAsset(t *T, input string) string {
+	t.Helper()
+
+	packed, err := compress(input)
+	RequireNoError(t, err)
+	return packed
+}
+
 func TestEmbed_Embed_path_Good(t *T) {
 	embed := &Embed{basedir: "assets"}
 

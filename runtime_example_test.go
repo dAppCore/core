@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 type runtimeOptions struct {
 	Name string
@@ -67,10 +63,10 @@ func ExampleCore_ServiceStartup() {
 		return Result{OK: true}
 	}})
 
-	r := c.ServiceStartup(context.Background(), nil)
+	r := c.ServiceStartup(Background(), nil)
 	Println(r.OK)
 	Println(started)
-	c.ServiceShutdown(context.Background())
+	c.ServiceShutdown(Background())
 	// Output:
 	// true
 	// true
@@ -87,7 +83,7 @@ func ExampleCore_ServiceShutdown() {
 		return Result{OK: true}
 	}})
 
-	r := c.ServiceShutdown(context.Background())
+	r := c.ServiceShutdown(Background())
 	Println(r.OK)
 	Println(stopped)
 	// Output:
@@ -152,8 +148,8 @@ func ExampleRuntime_ServiceName() {
 // factories in one lifecycle path.
 func ExampleRuntime_ServiceStartup() {
 	rt := NewRuntime("gui").Value.(*Runtime)
-	Println(rt.ServiceStartup(context.Background(), nil).OK)
-	rt.ServiceShutdown(context.Background())
+	Println(rt.ServiceStartup(Background(), nil).OK)
+	rt.ServiceShutdown(Background())
 	// Output: true
 }
 
@@ -162,6 +158,6 @@ func ExampleRuntime_ServiceStartup() {
 // factories in one lifecycle path.
 func ExampleRuntime_ServiceShutdown() {
 	rt := NewRuntime("gui").Value.(*Runtime)
-	Println(rt.ServiceShutdown(context.Background()).OK)
+	Println(rt.ServiceShutdown(Background()).OK)
 	// Output: true
 }

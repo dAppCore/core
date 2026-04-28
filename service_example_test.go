@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 type exampleRegisteredService struct {
 	name string
@@ -98,9 +94,9 @@ func ExampleWithService() {
 			})
 		}),
 	)
-	c.ServiceStartup(context.Background(), nil)
+	c.ServiceStartup(Background(), nil)
 	Println(started)
-	c.ServiceShutdown(context.Background())
+	c.ServiceShutdown(Background())
 	// Output: true
 }
 

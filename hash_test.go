@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"encoding/hex"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 const (
 	sha256EmptyHex = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -138,10 +134,9 @@ func TestHash_HKDF_Ugly(t *T) {
 func digestFromHex(t *T, want string) [32]byte {
 	t.Helper()
 
-	b, err := hex.DecodeString(want)
-	if err != nil {
-		t.Fatalf("invalid SHA-256 fixture: %v", err)
-	}
+	r := HexDecode(want)
+	RequireTrue(t, r.OK)
+	b := r.Value.([]byte)
 	if len(b) != 32 {
 		t.Fatalf("invalid SHA-256 fixture length: %d", len(b))
 	}

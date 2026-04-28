@@ -1,18 +1,12 @@
 package core_test
 
-import (
-	"context"
-	"sync"
-	"time"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- NamedAction Register ---
 
 func TestAction_NamedAction_Good_Register(t *T) {
 	c := New()
-	def := c.Action("process.run", func(_ context.Context, opts Options) Result {
+	def := c.Action("process.run", func(_ Context, opts Options) Result {
 		return Result{Value: "output", OK: true}
 	})
 	AssertNotNil(t, def)
@@ -22,12 +16,12 @@ func TestAction_NamedAction_Good_Register(t *T) {
 
 func TestAction_NamedAction_Good_Invoke(t *T) {
 	c := New()
-	c.Action("git.log", func(_ context.Context, opts Options) Result {
+	c.Action("git.log", func(_ Context, opts Options) Result {
 		dir := opts.String("dir")
 		return Result{Value: Concat("log from ", dir), OK: true}
 	})
 
-	r := c.Action("git.log").Run(context.Background(), NewOptions(
+	r := c.Action("git.log").Run(Background(), NewOptions(
 		Option{Key: "dir", Value: "/repo"},
 	))
 	AssertTrue(t, r.OK)
@@ -36,13 +30,13 @@ func TestAction_NamedAction_Good_Invoke(t *T) {
 
 func TestAction_NamedAction_Bad_NotRegistered(t *T) {
 	c := New()
-	r := c.Action("missing.action").Run(context.Background(), NewOptions())
+	r := c.Action("missing.action").Run(Background(), NewOptions())
 	AssertFalse(t, r.OK, "invoking unregistered action must fail")
 }
 
 func TestAction_NamedAction_Good_Exists(t *T) {
 	c := New()
-	c.Action("brain.recall", func(_ context.Context, _ Options) Result {
+	c.Action("brain.recall", func(_ Context, _ Options) Result {
 		return Result{OK: true}
 	})
 	AssertTrue(t, c.Action("brain.recall").Exists())
@@ -51,10 +45,10 @@ func TestAction_NamedAction_Good_Exists(t *T) {
 
 func TestAction_NamedAction_Ugly_PanicRecovery(t *T) {
 	c := New()
-	c.Action("explode", func(_ context.Context, _ Options) Result {
+	c.Action("explode", func(_ Context, _ Options) Result {
 		panic("boom")
 	})
-	r := c.Action("explode").Run(context.Background(), NewOptions())
+	r := c.Action("explode").Run(Background(), NewOptions())
 	AssertFalse(t, r.OK, "panicking action must return !OK, not crash")
 	err, ok := r.Value.(error)
 	AssertTrue(t, ok)
@@ -63,7 +57,7 @@ func TestAction_NamedAction_Ugly_PanicRecovery(t *T) {
 
 func TestAction_NamedAction_Ugly_NilAction(t *T) {
 	var def *Action
-	r := def.Run(context.Background(), NewOptions())
+	r := def.Run(Background(), NewOptions())
 	AssertFalse(t, r.OK)
 	AssertFalse(t, def.Exists())
 }
@@ -72,9 +66,9 @@ func TestAction_NamedAction_Ugly_NilAction(t *T) {
 
 func TestAction_Actions_Good(t *T) {
 	c := New()
-	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
-	c.Action("process.kill", func(_ context.Context, _ Options) Result { return Result{OK: true} })
-	c.Action("agentic.dispatch", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("process.run", func(_ Context, _ Options) Result { return Result{OK: true} })
+	c.Action("process.kill", func(_ Context, _ Options) Result { return Result{OK: true} })
+	c.Action("agentic.dispatch", func(_ Context, _ Options) Result { return Result{OK: true} })
 
 	names := c.Actions()
 	AssertLen(t, names, 3)
@@ -90,7 +84,7 @@ func TestAction_Actions_Bad_Empty(t *T) {
 
 func TestAction_NamedAction_Good_DescriptionAndSchema(t *T) {
 	c := New()
-	def := c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	def := c.Action("process.run", func(_ Context, _ Options) Result { return Result{OK: true} })
 	def.Description = "Execute a command synchronously"
 	def.Schema = NewOptions(
 		Option{Key: "command", Value: "string"},
@@ -107,7 +101,7 @@ func TestAction_NamedAction_Good_DescriptionAndSchema(t *T) {
 func TestAction_NamedAction_Good_PermissionModel(t *T) {
 	// Full Core — process registered
 	full := New()
-	full.Action("process.run", func(_ context.Context, _ Options) Result {
+	full.Action("process.run", func(_ Context, _ Options) Result {
 		return Result{Value: "executed", OK: true}
 	})
 
@@ -115,11 +109,11 @@ func TestAction_NamedAction_Good_PermissionModel(t *T) {
 	sandboxed := New()
 
 	// Full can execute
-	r := full.Action("process.run").Run(context.Background(), NewOptions())
+	r := full.Action("process.run").Run(Background(), NewOptions())
 	AssertTrue(t, r.OK)
 
 	// Sandboxed returns not-registered
-	r = sandboxed.Action("process.run").Run(context.Background(), NewOptions())
+	r = sandboxed.Action("process.run").Run(Background(), NewOptions())
 	AssertFalse(t, r.OK, "sandboxed Core must not have process capability")
 }
 
@@ -127,14 +121,14 @@ func TestAction_NamedAction_Good_PermissionModel(t *T) {
 
 func TestAction_NamedAction_Good_Overwrite(t *T) {
 	c := New()
-	c.Action("hot.reload", func(_ context.Context, _ Options) Result {
+	c.Action("hot.reload", func(_ Context, _ Options) Result {
 		return Result{Value: "v1", OK: true}
 	})
-	c.Action("hot.reload", func(_ context.Context, _ Options) Result {
+	c.Action("hot.reload", func(_ Context, _ Options) Result {
 		return Result{Value: "v2", OK: true}
 	})
 
-	r := c.Action("hot.reload").Run(context.Background(), NewOptions())
+	r := c.Action("hot.reload").Run(Background(), NewOptions())
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "v2", r.Value, "latest handler wins")
 }
@@ -144,11 +138,11 @@ func TestAction_NamedAction_Good_Overwrite(t *T) {
 func TestAction_Task_Good_Sequential(t *T) {
 	c := New()
 	var order []string
-	c.Action("step.a", func(_ context.Context, _ Options) Result {
+	c.Action("step.a", func(_ Context, _ Options) Result {
 		order = append(order, "a")
 		return Result{Value: "output-a", OK: true}
 	})
-	c.Action("step.b", func(_ context.Context, _ Options) Result {
+	c.Action("step.b", func(_ Context, _ Options) Result {
 		order = append(order, "b")
 		return Result{Value: "output-b", OK: true}
 	})
@@ -160,7 +154,7 @@ func TestAction_Task_Good_Sequential(t *T) {
 		},
 	})
 
-	r := c.Task("pipeline").Run(context.Background(), c, NewOptions())
+	r := c.Task("pipeline").Run(Background(), c, NewOptions())
 	AssertTrue(t, r.OK)
 	AssertEqual(t, []string{"a", "b"}, order, "steps must run in order")
 	AssertEqual(t, "output-b", r.Value, "last step's result is returned")
@@ -169,15 +163,15 @@ func TestAction_Task_Good_Sequential(t *T) {
 func TestAction_Task_Bad_StepFails(t *T) {
 	c := New()
 	var order []string
-	c.Action("step.ok", func(_ context.Context, _ Options) Result {
+	c.Action("step.ok", func(_ Context, _ Options) Result {
 		order = append(order, "ok")
 		return Result{OK: true}
 	})
-	c.Action("step.fail", func(_ context.Context, _ Options) Result {
+	c.Action("step.fail", func(_ Context, _ Options) Result {
 		order = append(order, "fail")
 		return Result{Value: NewError("broke"), OK: false}
 	})
-	c.Action("step.never", func(_ context.Context, _ Options) Result {
+	c.Action("step.never", func(_ Context, _ Options) Result {
 		order = append(order, "never")
 		return Result{OK: true}
 	})
@@ -190,7 +184,7 @@ func TestAction_Task_Bad_StepFails(t *T) {
 		},
 	})
 
-	r := c.Task("broken").Run(context.Background(), c, NewOptions())
+	r := c.Task("broken").Run(Background(), c, NewOptions())
 	AssertFalse(t, r.OK)
 	AssertEqual(t, []string{"ok", "fail"}, order, "chain stops on failure, step.never skipped")
 }
@@ -202,16 +196,16 @@ func TestAction_Task_Bad_MissingAction(t *T) {
 			{Action: "nonexistent"},
 		},
 	})
-	r := c.Task("missing").Run(context.Background(), c, NewOptions())
+	r := c.Task("missing").Run(Background(), c, NewOptions())
 	AssertFalse(t, r.OK)
 }
 
 func TestAction_Task_Good_PreviousInput(t *T) {
 	c := New()
-	c.Action("produce", func(_ context.Context, _ Options) Result {
+	c.Action("produce", func(_ Context, _ Options) Result {
 		return Result{Value: "data-from-step-1", OK: true}
 	})
-	c.Action("consume", func(_ context.Context, opts Options) Result {
+	c.Action("consume", func(_ Context, opts Options) Result {
 		input := opts.Get("_input")
 		if !input.OK {
 			return Result{Value: "no input", OK: true}
@@ -226,7 +220,7 @@ func TestAction_Task_Good_PreviousInput(t *T) {
 		},
 	})
 
-	r := c.Task("pipe").Run(context.Background(), c, NewOptions())
+	r := c.Task("pipe").Run(Background(), c, NewOptions())
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "got: data-from-step-1", r.Value)
 }
@@ -234,7 +228,7 @@ func TestAction_Task_Good_PreviousInput(t *T) {
 func TestAction_Task_Ugly_EmptySteps(t *T) {
 	c := New()
 	c.Task("empty", Task{})
-	r := c.Task("empty").Run(context.Background(), c, NewOptions())
+	r := c.Task("empty").Run(Background(), c, NewOptions())
 	AssertFalse(t, r.OK)
 }
 
@@ -249,7 +243,7 @@ func TestAction_Tasks_Good(t *T) {
 
 func TestAction_Action_Run_Good(t *T) {
 	c := New()
-	a := c.Action("agent.dispatch", func(_ context.Context, opts Options) Result {
+	a := c.Action("agent.dispatch", func(_ Context, opts Options) Result {
 		return Result{Value: opts.String("agent"), OK: true}
 	})
 	r := a.Run(Background(), NewOptions(Option{Key: "agent", Value: "codex"}))
@@ -266,7 +260,7 @@ func TestAction_Action_Run_Bad(t *T) {
 
 func TestAction_Action_Run_Ugly(t *T) {
 	c := New()
-	a := c.Action("agent.panic", func(_ context.Context, _ Options) Result {
+	a := c.Action("agent.panic", func(_ Context, _ Options) Result {
 		panic("dispatch crashed")
 	})
 	r := a.Run(Background(), NewOptions())
@@ -275,7 +269,7 @@ func TestAction_Action_Run_Ugly(t *T) {
 }
 
 func TestAction_Action_Exists_Good(t *T) {
-	a := &Action{Name: "agent.dispatch", Handler: func(_ context.Context, _ Options) Result { return Result{OK: true} }}
+	a := &Action{Name: "agent.dispatch", Handler: func(_ Context, _ Options) Result { return Result{OK: true} }}
 	AssertTrue(t, a.Exists())
 }
 
@@ -291,7 +285,7 @@ func TestAction_Action_Exists_Ugly(t *T) {
 
 func TestAction_Core_Action_Good(t *T) {
 	c := New()
-	a := c.Action("agent.dispatch", func(_ context.Context, _ Options) Result {
+	a := c.Action("agent.dispatch", func(_ Context, _ Options) Result {
 		return Result{Value: "queued", OK: true}
 	})
 	AssertTrue(t, a.Exists())
@@ -307,8 +301,8 @@ func TestAction_Core_Action_Bad(t *T) {
 
 func TestAction_Core_Action_Ugly(t *T) {
 	c := New()
-	c.Action("agent.dispatch", func(_ context.Context, _ Options) Result { return Result{Value: "v1", OK: true} })
-	c.Action("agent.dispatch", func(_ context.Context, _ Options) Result { return Result{Value: "v2", OK: true} })
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result { return Result{Value: "v1", OK: true} })
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result { return Result{Value: "v2", OK: true} })
 	r := c.Action("agent.dispatch").Run(Background(), NewOptions())
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "v2", r.Value)
@@ -316,8 +310,8 @@ func TestAction_Core_Action_Ugly(t *T) {
 
 func TestAction_Core_Actions_Good(t *T) {
 	c := New()
-	c.Action("agent.prepare", func(_ context.Context, _ Options) Result { return Result{OK: true} })
-	c.Action("agent.dispatch", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("agent.prepare", func(_ Context, _ Options) Result { return Result{OK: true} })
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result { return Result{OK: true} })
 	AssertEqual(t, []string{"agent.prepare", "agent.dispatch"}, c.Actions())
 }
 
@@ -328,7 +322,7 @@ func TestAction_Core_Actions_Bad(t *T) {
 
 func TestAction_Core_Actions_Ugly(t *T) {
 	c := New()
-	c.Action("agent.prepare", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("agent.prepare", func(_ Context, _ Options) Result { return Result{OK: true} })
 	names := c.Actions()
 	names[0] = "mutated"
 	AssertEqual(t, []string{"agent.prepare"}, c.Actions())
@@ -336,7 +330,7 @@ func TestAction_Core_Actions_Ugly(t *T) {
 
 func TestAction_Task_Run_Good(t *T) {
 	c := New()
-	c.Action("agent.prepare", func(_ context.Context, _ Options) Result {
+	c.Action("agent.prepare", func(_ Context, _ Options) Result {
 		return Result{Value: "prepared", OK: true}
 	})
 	task := &Task{Name: "agent.dispatch", Steps: []Step{{Action: "agent.prepare"}}}
@@ -354,10 +348,10 @@ func TestAction_Task_Run_Bad(t *T) {
 
 func TestAction_Task_Run_Ugly(t *T) {
 	c := New()
-	c.Action("agent.prepare", func(_ context.Context, _ Options) Result {
+	c.Action("agent.prepare", func(_ Context, _ Options) Result {
 		return Result{Value: "session-token", OK: true}
 	})
-	c.Action("agent.dispatch", func(_ context.Context, opts Options) Result {
+	c.Action("agent.dispatch", func(_ Context, opts Options) Result {
 		return Result{Value: opts.String("_input"), OK: true}
 	})
 	task := &Task{Name: "agent.pipeline", Steps: []Step{
@@ -415,10 +409,10 @@ func TestAction_Core_Tasks_Ugly(t *T) {
 
 func TestAction_PerformAsync_Good(t *T) {
 	c := New()
-	var mu sync.Mutex
+	var mu Mutex
 	var result string
 
-	c.Action("work", func(_ context.Context, _ Options) Result {
+	c.Action("work", func(_ Context, _ Options) Result {
 		mu.Lock()
 		result = "done"
 		mu.Unlock()
@@ -429,7 +423,7 @@ func TestAction_PerformAsync_Good(t *T) {
 	AssertTrue(t, r.OK)
 	AssertTrue(t, HasPrefix(r.Value.(string), "id-"), "should return task ID")
 
-	time.Sleep(100 * time.Millisecond)
+	Sleep(100 * Millisecond)
 
 	mu.Lock()
 	AssertEqual(t, "done", result)
@@ -438,7 +432,7 @@ func TestAction_PerformAsync_Good(t *T) {
 
 func TestAction_PerformAsync_Good_Progress(t *T) {
 	c := New()
-	c.Action("tracked", func(_ context.Context, _ Options) Result {
+	c.Action("tracked", func(_ Context, _ Options) Result {
 		return Result{OK: true}
 	})
 
@@ -451,7 +445,7 @@ func TestAction_PerformAsync_Good_Completion(t *T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
 
-	c.Action("completable", func(_ context.Context, _ Options) Result {
+	c.Action("completable", func(_ Context, _ Options) Result {
 		return Result{Value: "output", OK: true}
 	})
 
@@ -464,11 +458,13 @@ func TestAction_PerformAsync_Good_Completion(t *T) {
 
 	c.PerformAsync("completable", NewOptions())
 
+	timeout, cancel := WithTimeout(Background(), 2*Second)
+	defer cancel()
 	select {
 	case evt := <-completed:
 		AssertTrue(t, evt.Result.OK)
 		AssertEqual(t, "output", evt.Result.Value)
-	case <-time.After(2 * time.Second):
+	case <-timeout.Done():
 		t.Fatal("timed out waiting for completion")
 	}
 }
@@ -486,20 +482,22 @@ func TestAction_PerformAsync_Bad_ActionNotRegistered(t *T) {
 
 	c.PerformAsync("nonexistent", NewOptions())
 
+	timeout, cancel := WithTimeout(Background(), 2*Second)
+	defer cancel()
 	select {
 	case evt := <-completed:
 		AssertFalse(t, evt.Result.OK, "unregistered action should fail")
-	case <-time.After(2 * time.Second):
+	case <-timeout.Done():
 		t.Fatal("timed out")
 	}
 }
 
 func TestAction_PerformAsync_Bad_AfterShutdown(t *T) {
 	c := New()
-	c.Action("work", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("work", func(_ Context, _ Options) Result { return Result{OK: true} })
 
-	c.ServiceStartup(context.Background(), nil)
-	c.ServiceShutdown(context.Background())
+	c.ServiceStartup(Background(), nil)
+	c.ServiceShutdown(Background())
 
 	r := c.PerformAsync("work", NewOptions())
 	AssertFalse(t, r.OK)
@@ -530,7 +528,7 @@ func TestAction_RegisterActions_Good(t *T) {
 func TestAction_Core_PerformAsync_Good(t *T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
-	c.Action("agent.dispatch", func(_ context.Context, _ Options) Result {
+	c.Action("agent.dispatch", func(_ Context, _ Options) Result {
 		return Result{Value: "dispatched", OK: true}
 	})
 	c.RegisterAction(func(_ *Core, msg Message) Result {
@@ -544,12 +542,14 @@ func TestAction_Core_PerformAsync_Good(t *T) {
 
 	AssertTrue(t, r.OK)
 	AssertTrue(t, HasPrefix(r.Value.(string), "id-"))
+	timeout, cancel := WithTimeout(Background(), 2*Second)
+	defer cancel()
 	select {
 	case evt := <-completed:
 		AssertTrue(t, evt.Result.OK)
 		AssertEqual(t, "agent.dispatch", evt.Action)
 		AssertEqual(t, "dispatched", evt.Result.Value)
-	case <-time.After(2 * time.Second):
+	case <-timeout.Done():
 		t.Fatal("timed out waiting for agent.dispatch completion")
 	}
 }
@@ -567,11 +567,13 @@ func TestAction_Core_PerformAsync_Bad(t *T) {
 	r := c.PerformAsync("agent.missing", NewOptions())
 
 	AssertTrue(t, r.OK)
+	timeout, cancel := WithTimeout(Background(), 2*Second)
+	defer cancel()
 	select {
 	case evt := <-completed:
 		AssertFalse(t, evt.Result.OK)
 		AssertEqual(t, "agent.missing", evt.Action)
-	case <-time.After(2 * time.Second):
+	case <-timeout.Done():
 		t.Fatal("timed out waiting for missing action completion")
 	}
 }
@@ -579,7 +581,7 @@ func TestAction_Core_PerformAsync_Bad(t *T) {
 func TestAction_Core_PerformAsync_Ugly(t *T) {
 	c := New()
 	completed := make(chan ActionTaskCompleted, 1)
-	c.Action("agent.panics", func(_ context.Context, _ Options) Result {
+	c.Action("agent.panics", func(_ Context, _ Options) Result {
 		panic("dispatch blew up")
 	})
 	c.RegisterAction(func(_ *Core, msg Message) Result {
@@ -592,11 +594,13 @@ func TestAction_Core_PerformAsync_Ugly(t *T) {
 	r := c.PerformAsync("agent.panics", NewOptions())
 
 	AssertTrue(t, r.OK)
+	timeout, cancel := WithTimeout(Background(), 2*Second)
+	defer cancel()
 	select {
 	case evt := <-completed:
 		AssertFalse(t, evt.Result.OK)
 		AssertContains(t, evt.Result.Error(), "panic")
-	case <-time.After(2 * time.Second):
+	case <-timeout.Done():
 		t.Fatal("timed out waiting for panic completion")
 	}
 }
@@ -613,13 +617,15 @@ func TestAction_Core_Progress_Good(t *T) {
 
 	c.Progress("task-1", 0.5, "halfway", "agent.dispatch")
 
+	timeout, cancel := WithTimeout(Background(), 2*Second)
+	defer cancel()
 	select {
 	case evt := <-progress:
 		AssertEqual(t, "task-1", evt.TaskIdentifier)
 		AssertEqual(t, 0.5, evt.Progress)
 		AssertEqual(t, "halfway", evt.Message)
 		AssertEqual(t, "agent.dispatch", evt.Action)
-	case <-time.After(2 * time.Second):
+	case <-timeout.Done():
 		t.Fatal("timed out waiting for progress event")
 	}
 }
@@ -644,13 +650,15 @@ func TestAction_Core_Progress_Ugly(t *T) {
 
 	c.Progress("", 1, "", "")
 
+	timeout, cancel := WithTimeout(Background(), 2*Second)
+	defer cancel()
 	select {
 	case evt := <-progress:
 		AssertEqual(t, "", evt.TaskIdentifier)
 		AssertEqual(t, 1.0, evt.Progress)
 		AssertEqual(t, "", evt.Message)
 		AssertEqual(t, "", evt.Action)
-	case <-time.After(2 * time.Second):
+	case <-timeout.Done():
 		t.Fatal("timed out waiting for empty progress event")
 	}
 }

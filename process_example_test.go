@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // ExampleCore_Process_accessor reads the accessor method through `Core.Process` for
 // managed process execution. Process launches and lifecycle controls flow through
@@ -19,7 +15,7 @@ func ExampleCore_Process_accessor() {
 // process execution. Process launches and lifecycle controls flow through Core.Process.
 func ExampleProcess_Run() {
 	c := New()
-	c.Action("process.run", func(_ context.Context, opts Options) Result {
+	c.Action("process.run", func(_ Context, opts Options) Result {
 		return Result{Value: Join(" ", append([]string{opts.String("command")}, opts.Get("args").Value.([]string)...)...), OK: true}
 	})
 
@@ -33,7 +29,7 @@ func ExampleProcess_Run() {
 // flow through Core.Process.
 func ExampleProcess_RunIn() {
 	c := New()
-	c.Action("process.run", func(_ context.Context, opts Options) Result {
+	c.Action("process.run", func(_ Context, opts Options) Result {
 		return Result{Value: opts.String("dir"), OK: true}
 	})
 
@@ -47,7 +43,7 @@ func ExampleProcess_RunIn() {
 // controls flow through Core.Process.
 func ExampleProcess_RunWithEnv() {
 	c := New()
-	c.Action("process.run", func(_ context.Context, opts Options) Result {
+	c.Action("process.run", func(_ Context, opts Options) Result {
 		return Result{Value: opts.Get("env").Value.([]string)[0], OK: true}
 	})
 
@@ -60,7 +56,7 @@ func ExampleProcess_RunWithEnv() {
 // execution. Process launches and lifecycle controls flow through Core.Process.
 func ExampleProcess_Start() {
 	c := New()
-	c.Action("process.start", func(_ context.Context, opts Options) Result {
+	c.Action("process.start", func(_ Context, opts Options) Result {
 		return Result{Value: opts.String("id"), OK: true}
 	})
 
@@ -73,7 +69,7 @@ func ExampleProcess_Start() {
 // execution. Process launches and lifecycle controls flow through Core.Process.
 func ExampleProcess_Kill() {
 	c := New()
-	c.Action("process.kill", func(_ context.Context, opts Options) Result {
+	c.Action("process.kill", func(_ Context, opts Options) Result {
 		return Result{Value: Concat("stopped:", opts.String("id")), OK: true}
 	})
 
@@ -87,7 +83,7 @@ func ExampleProcess_Kill() {
 func ExampleProcess_Exists() {
 	c := New()
 	Println(c.Process().Exists())
-	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("process.run", func(_ Context, _ Options) Result { return Result{OK: true} })
 	Println(c.Process().Exists())
 	// Output:
 	// false

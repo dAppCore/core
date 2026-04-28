@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- Core Creation ---
 
@@ -29,9 +25,9 @@ func ExampleNew_withService() {
 			})
 		}),
 	)
-	c.ServiceStartup(context.Background(), nil)
+	c.ServiceStartup(Background(), nil)
 	Println(c.Services())
-	c.ServiceShutdown(context.Background())
+	c.ServiceShutdown(Background())
 	// Output is non-deterministic (map order), so no Output comment
 }
 
@@ -66,7 +62,7 @@ func ExampleResult() {
 
 func ExampleCore_Action_register() {
 	c := New()
-	c.Action("greet", func(_ context.Context, opts Options) Result {
+	c.Action("greet", func(_ Context, opts Options) Result {
 		name := opts.String("name")
 		return Result{Value: Concat("hello ", name), OK: true}
 	})
@@ -76,13 +72,13 @@ func ExampleCore_Action_register() {
 
 func ExampleCore_Action_invoke() {
 	c := New()
-	c.Action("add", func(_ context.Context, opts Options) Result {
+	c.Action("add", func(_ Context, opts Options) Result {
 		a := opts.Int("a")
 		b := opts.Int("b")
 		return Result{Value: a + b, OK: true}
 	})
 
-	r := c.Action("add").Run(context.Background(), NewOptions(
+	r := c.Action("add").Run(Background(), NewOptions(
 		Option{Key: "a", Value: 3},
 		Option{Key: "b", Value: 4},
 	))
@@ -92,8 +88,8 @@ func ExampleCore_Action_invoke() {
 
 func ExampleCore_Actions() {
 	c := New()
-	c.Action("process.run", func(_ context.Context, _ Options) Result { return Result{OK: true} })
-	c.Action("brain.recall", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("process.run", func(_ Context, _ Options) Result { return Result{OK: true} })
+	c.Action("brain.recall", func(_ Context, _ Options) Result { return Result{OK: true} })
 
 	Println(c.Actions())
 	// Output: [process.run brain.recall]
@@ -105,11 +101,11 @@ func ExampleCore_Task() {
 	c := New()
 	order := ""
 
-	c.Action("step.a", func(_ context.Context, _ Options) Result {
+	c.Action("step.a", func(_ Context, _ Options) Result {
 		order += "a"
 		return Result{Value: "from-a", OK: true}
 	})
-	c.Action("step.b", func(_ context.Context, opts Options) Result {
+	c.Action("step.b", func(_ Context, opts Options) Result {
 		order += "b"
 		return Result{OK: true}
 	})
@@ -121,7 +117,7 @@ func ExampleCore_Task() {
 		},
 	})
 
-	c.Task("pipeline").Run(context.Background(), c, NewOptions())
+	c.Task("pipeline").Run(Background(), c, NewOptions())
 	Println(order)
 	// Output: ab
 }
@@ -180,7 +176,7 @@ func ExampleCore_Entitled_default() {
 
 func ExampleCore_Entitled_custom() {
 	c := New()
-	c.SetEntitlementChecker(func(action string, qty int, _ context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, _ Context) Entitlement {
 		if action == "premium" {
 			return Entitlement{Allowed: false, Reason: "upgrade required"}
 		}
@@ -213,12 +209,12 @@ func ExampleCore_Process() {
 	Println(c.Process().Exists())
 
 	// Register a mock process handler
-	c.Action("process.run", func(_ context.Context, opts Options) Result {
+	c.Action("process.run", func(_ Context, opts Options) Result {
 		return Result{Value: Concat("output of ", opts.String("command")), OK: true}
 	})
 	Println(c.Process().Exists())
 
-	r := c.Process().Run(context.Background(), "echo", "hello")
+	r := c.Process().Run(Background(), "echo", "hello")
 	Println(r.Value)
 	// Output:
 	// false

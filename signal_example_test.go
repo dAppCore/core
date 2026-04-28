@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // ExampleCore_Signal_exists checks whether signal handling has been registered in Core. OS
 // signal integration is represented as action-backed Core behaviour.
@@ -31,7 +27,7 @@ func ExampleCore_Signal() {
 // signal integration is represented as action-backed Core behaviour.
 func ExampleSignal_Stop() {
 	c := New()
-	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+	c.Action("signal.stop", func(_ Context, _ Options) Result {
 		return Result{Value: "stopped", OK: true}
 	})
 	r := c.Signal().Stop()
@@ -44,7 +40,7 @@ func ExampleSignal_Stop() {
 func ExampleSignal_Exists() {
 	c := New()
 	Println(c.Signal().Exists())
-	c.Action("signal.received", func(_ context.Context, _ Options) Result { return Result{OK: true} })
+	c.Action("signal.received", func(_ Context, _ Options) Result { return Result{OK: true} })
 	Println(c.Signal().Exists())
 	// Output:
 	// false
@@ -55,7 +51,7 @@ func ExampleSignal_Exists() {
 // on receipt. OS signal integration is represented as action-backed Core behaviour.
 func ExampleCore_Signal_subscribe() {
 	c := New()
-	c.Action("signal.received", func(_ context.Context, opts Options) Result {
+	c.Action("signal.received", func(_ Context, opts Options) Result {
 		Println("got", opts.String("name"))
 		return Result{OK: true}
 	})

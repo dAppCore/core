@@ -1,13 +1,8 @@
 package core_test
 
-import (
-	"embed"
+import . "dappco.re/go"
 
-	. "dappco.re/go"
-)
-
-//go:embed all:tests/data
-var testFS embed.FS
+var testFS EmbedFS = EmbeddedTestFS
 
 // --- Data (Embedded Content Mounts) ---
 

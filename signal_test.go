@@ -1,15 +1,11 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 func TestSignal_Exists_Good(t *T) {
 	// Good: with a registered signal.received action, Exists is true.
 	c := New()
-	c.Action("signal.received", func(_ context.Context, _ Options) Result {
+	c.Action("signal.received", func(_ Context, _ Options) Result {
 		return Result{OK: true}
 	})
 	AssertTrue(t, c.Signal().Exists())
@@ -26,7 +22,7 @@ func TestSignal_Exists_Ugly(t *T) {
 	// Exists keys off signal.received specifically — partial registration
 	// reports as no service available.
 	c := New()
-	c.Action("signal.start", func(_ context.Context, _ Options) Result {
+	c.Action("signal.start", func(_ Context, _ Options) Result {
 		return Result{OK: true}
 	})
 	AssertFalse(t, c.Signal().Exists(),
@@ -37,7 +33,7 @@ func TestSignal_Stop_Good(t *T) {
 	// Good: signal.stop registered, Stop emits and returns OK.
 	c := New()
 	called := false
-	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+	c.Action("signal.stop", func(_ Context, _ Options) Result {
 		called = true
 		return Result{OK: true}
 	})
@@ -58,7 +54,7 @@ func TestSignal_Stop_Ugly(t *T) {
 	// Ugly: signal.stop registered but handler returns OK: false (refusal).
 	// Caller observes the refusal verbatim.
 	c := New()
-	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+	c.Action("signal.stop", func(_ Context, _ Options) Result {
 		return Result{OK: false}
 	})
 	r := c.Signal().Stop()
@@ -86,7 +82,7 @@ func TestSignal_Core_Signal_Bad(t *T) {
 
 func TestSignal_Core_Signal_Ugly(t *T) {
 	c := New()
-	c.Action("signal.received", func(_ context.Context, _ Options) Result {
+	c.Action("signal.received", func(_ Context, _ Options) Result {
 		return Result{OK: true}
 	})
 
@@ -97,7 +93,7 @@ func TestSignal_Core_Signal_Ugly(t *T) {
 
 func TestSignal_Signal_Exists_Good(t *T) {
 	c := New()
-	c.Action("signal.received", func(_ context.Context, _ Options) Result {
+	c.Action("signal.received", func(_ Context, _ Options) Result {
 		return Result{OK: true}
 	})
 
@@ -112,7 +108,7 @@ func TestSignal_Signal_Exists_Bad(t *T) {
 
 func TestSignal_Signal_Exists_Ugly(t *T) {
 	c := New()
-	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+	c.Action("signal.stop", func(_ Context, _ Options) Result {
 		return Result{OK: true}
 	})
 
@@ -122,7 +118,7 @@ func TestSignal_Signal_Exists_Ugly(t *T) {
 func TestSignal_Signal_Stop_Good(t *T) {
 	c := New()
 	called := false
-	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+	c.Action("signal.stop", func(_ Context, _ Options) Result {
 		called = true
 		return Result{OK: true}
 	})
@@ -143,7 +139,7 @@ func TestSignal_Signal_Stop_Bad(t *T) {
 
 func TestSignal_Signal_Stop_Ugly(t *T) {
 	c := New()
-	c.Action("signal.stop", func(_ context.Context, _ Options) Result {
+	c.Action("signal.stop", func(_ Context, _ Options) Result {
 		return Result{Value: E("signal.stop", "agent refused shutdown", nil), OK: false}
 	})
 

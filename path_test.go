@@ -2,11 +2,7 @@
 
 package core_test
 
-import (
-	"io/fs"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 func TestPath_Relative(t *T) {
 	home := Env("DIR_HOME")
@@ -338,7 +334,7 @@ func TestPath_PathWalk_Good(t *T) {
 	f := (&Fs{}).New("/")
 	f.Write(Path(dir, "agent.txt"), "ready")
 	visited := 0
-	err := PathWalk(dir, func(path string, _ fs.FileInfo, err error) error {
+	err := PathWalk(dir, func(path string, _ FsFileInfo, err error) error {
 		AssertNoError(t, err)
 		if PathBase(path) == "agent.txt" {
 			visited++
@@ -350,7 +346,7 @@ func TestPath_PathWalk_Good(t *T) {
 }
 
 func TestPath_PathWalk_Bad(t *T) {
-	err := PathWalk(Path(t.TempDir(), "missing"), func(path string, _ fs.FileInfo, err error) error {
+	err := PathWalk(Path(t.TempDir(), "missing"), func(path string, _ FsFileInfo, err error) error {
 		return err
 	})
 	AssertError(t, err)
@@ -362,7 +358,7 @@ func TestPath_PathWalk_Ugly(t *T) {
 	f.EnsureDir(Path(dir, "skip"))
 	f.Write(Path(dir, "skip/hidden.txt"), "hidden")
 	visitedHidden := false
-	err := PathWalk(dir, func(path string, info fs.FileInfo, err error) error {
+	err := PathWalk(dir, func(path string, info FsFileInfo, err error) error {
 		AssertNoError(t, err)
 		if info.IsDir() && PathBase(path) == "skip" {
 			return PathSkipDir

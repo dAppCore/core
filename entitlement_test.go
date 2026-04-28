@@ -1,10 +1,6 @@
 package core_test
 
-import (
-	"context"
-
-	. "dappco.re/go"
-)
+import . "dappco.re/go"
 
 // --- Entitled ---
 
@@ -17,7 +13,7 @@ func TestEntitlement_Entitled_Good_DefaultPermissive(t *T) {
 
 func TestEntitlement_Entitled_Good_BooleanGate(t *T) {
 	c := New()
-	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, ctx Context) Entitlement {
 		if action == "premium.feature" {
 			return Entitlement{Allowed: true}
 		}
@@ -31,7 +27,7 @@ func TestEntitlement_Entitled_Good_BooleanGate(t *T) {
 
 func TestEntitlement_Entitled_Good_QuantityCheck(t *T) {
 	c := New()
-	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, ctx Context) Entitlement {
 		if action == "social.accounts" {
 			limit := 5
 			used := 3
@@ -59,7 +55,7 @@ func TestEntitlement_Entitled_Good_QuantityCheck(t *T) {
 
 func TestEntitlement_Entitled_Bad_Denied(t *T) {
 	c := New()
-	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, ctx Context) Entitlement {
 		return Entitlement{Allowed: false, Reason: "locked by M1"}
 	})
 
@@ -71,7 +67,7 @@ func TestEntitlement_Entitled_Bad_Denied(t *T) {
 func TestEntitlement_Entitled_Ugly_DefaultQuantityIsOne(t *T) {
 	c := New()
 	var receivedQty int
-	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, ctx Context) Entitlement {
 		receivedQty = qty
 		return Entitlement{Allowed: true}
 	})
@@ -84,28 +80,28 @@ func TestEntitlement_Entitled_Ugly_DefaultQuantityIsOne(t *T) {
 
 func TestEntitlement_ActionRun_Good_Permitted(t *T) {
 	c := New()
-	c.Action("work", func(_ context.Context, _ Options) Result {
+	c.Action("work", func(_ Context, _ Options) Result {
 		return Result{Value: "done", OK: true}
 	})
 
-	r := c.Action("work").Run(context.Background(), NewOptions())
+	r := c.Action("work").Run(Background(), NewOptions())
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "done", r.Value)
 }
 
 func TestEntitlement_ActionRun_Bad_Denied(t *T) {
 	c := New()
-	c.Action("restricted", func(_ context.Context, _ Options) Result {
+	c.Action("restricted", func(_ Context, _ Options) Result {
 		return Result{Value: "should not reach", OK: true}
 	})
-	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, ctx Context) Entitlement {
 		if action == "restricted" {
 			return Entitlement{Allowed: false, Reason: "tier too low"}
 		}
 		return Entitlement{Allowed: true, Unlimited: true}
 	})
 
-	r := c.Action("restricted").Run(context.Background(), NewOptions())
+	r := c.Action("restricted").Run(Background(), NewOptions())
 	AssertFalse(t, r.OK, "denied action must not execute")
 	err, ok := r.Value.(error)
 	AssertTrue(t, ok)
@@ -115,21 +111,21 @@ func TestEntitlement_ActionRun_Bad_Denied(t *T) {
 
 func TestEntitlement_ActionRun_Good_OtherActionsStillWork(t *T) {
 	c := New()
-	c.Action("allowed", func(_ context.Context, _ Options) Result {
+	c.Action("allowed", func(_ Context, _ Options) Result {
 		return Result{Value: "ok", OK: true}
 	})
-	c.Action("blocked", func(_ context.Context, _ Options) Result {
+	c.Action("blocked", func(_ Context, _ Options) Result {
 		return Result{Value: "nope", OK: true}
 	})
-	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, ctx Context) Entitlement {
 		if action == "blocked" {
 			return Entitlement{Allowed: false, Reason: "nope"}
 		}
 		return Entitlement{Allowed: true, Unlimited: true}
 	})
 
-	AssertTrue(t, c.Action("allowed").Run(context.Background(), NewOptions()).OK)
-	AssertFalse(t, c.Action("blocked").Run(context.Background(), NewOptions()).OK)
+	AssertTrue(t, c.Action("allowed").Run(Background(), NewOptions()).OK)
+	AssertFalse(t, c.Action("blocked").Run(Background(), NewOptions()).OK)
 }
 
 // --- NearLimit ---
@@ -169,7 +165,7 @@ func TestEntitlement_RecordUsage_Good(t *T) {
 	var recorded string
 	var recordedQty int
 
-	c.SetUsageRecorder(func(action string, qty int, ctx context.Context) {
+	c.SetUsageRecorder(func(action string, qty int, ctx Context) {
 		recorded = action
 		recordedQty = qty
 	})
@@ -204,7 +200,7 @@ func TestEntitlement_Ugly_SaaSGatingPattern(t *T) {
 		"ai.credits":             48,
 	}
 
-	c.SetEntitlementChecker(func(action string, qty int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, qty int, ctx Context) Entitlement {
 		limit, hasFeature := packages[action]
 		if !hasFeature {
 			return Entitlement{Allowed: false, Reason: "feature not in package"}
@@ -273,7 +269,7 @@ func TestEntitlement_Core_Entitled_Good(t *T) {
 
 func TestEntitlement_Core_Entitled_Bad(t *T) {
 	c := New()
-	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, quantity int, ctx Context) Entitlement {
 		return Entitlement{Allowed: false, Reason: "agent quota exhausted"}
 	})
 	e := c.Entitled("agent.dispatch")
@@ -284,7 +280,7 @@ func TestEntitlement_Core_Entitled_Bad(t *T) {
 func TestEntitlement_Core_Entitled_Ugly(t *T) {
 	c := New()
 	seenQuantity := 0
-	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, quantity int, ctx Context) Entitlement {
 		seenQuantity = quantity
 		return Entitlement{Allowed: true}
 	})
@@ -294,7 +290,7 @@ func TestEntitlement_Core_Entitled_Ugly(t *T) {
 
 func TestEntitlement_Core_SetEntitlementChecker_Good(t *T) {
 	c := New()
-	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, quantity int, ctx Context) Entitlement {
 		return Entitlement{Allowed: action == "agent.dispatch"}
 	})
 	AssertTrue(t, c.Entitled("agent.dispatch").Allowed)
@@ -310,10 +306,10 @@ func TestEntitlement_Core_SetEntitlementChecker_Bad(t *T) {
 
 func TestEntitlement_Core_SetEntitlementChecker_Ugly(t *T) {
 	c := New()
-	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, quantity int, ctx Context) Entitlement {
 		return Entitlement{Allowed: false, Reason: "first checker"}
 	})
-	c.SetEntitlementChecker(func(action string, quantity int, ctx context.Context) Entitlement {
+	c.SetEntitlementChecker(func(action string, quantity int, ctx Context) Entitlement {
 		return Entitlement{Allowed: true, Reason: "replacement checker"}
 	})
 	e := c.Entitled("agent.dispatch")
@@ -325,7 +321,7 @@ func TestEntitlement_Core_RecordUsage_Good(t *T) {
 	c := New()
 	recorded := ""
 	recordedQuantity := 0
-	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+	c.SetUsageRecorder(func(action string, quantity int, ctx Context) {
 		recorded = action
 		recordedQuantity = quantity
 	})
@@ -344,7 +340,7 @@ func TestEntitlement_Core_RecordUsage_Bad(t *T) {
 func TestEntitlement_Core_RecordUsage_Ugly(t *T) {
 	c := New()
 	recordedQuantity := 0
-	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+	c.SetUsageRecorder(func(action string, quantity int, ctx Context) {
 		recordedQuantity = quantity
 	})
 	c.RecordUsage("agent.dispatch")
@@ -354,7 +350,7 @@ func TestEntitlement_Core_RecordUsage_Ugly(t *T) {
 func TestEntitlement_Core_SetUsageRecorder_Good(t *T) {
 	c := New()
 	recorded := false
-	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+	c.SetUsageRecorder(func(action string, quantity int, ctx Context) {
 		recorded = true
 	})
 	c.RecordUsage("agent.dispatch")
@@ -372,10 +368,10 @@ func TestEntitlement_Core_SetUsageRecorder_Bad(t *T) {
 func TestEntitlement_Core_SetUsageRecorder_Ugly(t *T) {
 	c := New()
 	recorded := "none"
-	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+	c.SetUsageRecorder(func(action string, quantity int, ctx Context) {
 		recorded = "first"
 	})
-	c.SetUsageRecorder(func(action string, quantity int, ctx context.Context) {
+	c.SetUsageRecorder(func(action string, quantity int, ctx Context) {
 		recorded = "second"
 	})
 	c.RecordUsage("agent.dispatch")
