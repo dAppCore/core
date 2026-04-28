@@ -6,7 +6,7 @@ import (
 	. "dappco.re/go"
 )
 
-//go:embed testdata
+//go:embed all:tests/data
 var testFS embed.FS
 
 // --- Data (Embedded Content Mounts) ---
@@ -17,7 +17,7 @@ func mountTestData(t *T, c *Core, name string) {
 	r := c.Data().New(NewOptions(
 		Option{Key: "name", Value: name},
 		Option{Key: "source", Value: testFS},
-		Option{Key: "path", Value: "testdata"},
+		Option{Key: "path", Value: "tests/data"},
 	))
 	AssertTrue(t, r.OK)
 }
@@ -27,7 +27,7 @@ func TestData_New_Good(t *T) {
 	r := c.Data().New(NewOptions(
 		Option{Key: "name", Value: "test"},
 		Option{Key: "source", Value: testFS},
-		Option{Key: "path", Value: "testdata"},
+		Option{Key: "path", Value: "tests/data"},
 	))
 	AssertTrue(t, r.OK)
 	AssertNotNil(t, r.Value)
