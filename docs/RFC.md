@@ -1,521 +1,766 @@
-# Core API Contract (RFC)
+# CoreGO API Contract — RFC Specification
 
 This file is the canonical API catalog for `dappco.re/go`.
 
-- Exports follow the `core.Result` contract (`{Value any, OK bool}`) for outcomes.
-- Inputs are passed as `core.Options` collections of `core.Option` key-value pairs.
-- All method and function examples below compile against current repository behavior.
+**Status:** Living document
+**Module:** `dappco.re/go/core`
+**Version:** v0.8.0
 
-## 1) Core construction and top-level bootstrap types
+---
 
-### `type CoreOption func(*Core) Result`
+## 1. Core — The Container
 
-```go
-func customOption(*core.Core) core.Result
-```
+Core is the central application container. Everything registers with Core, communicates through Core, and has its lifecycle managed by Core.
 
-### `func New(opts ...CoreOption) *Core`
+### 1.1 Creation
 
 ```go
 c := core.New(
-    core.WithOption("name", "agent"),
-    core.WithService(process.Register),
+    core.WithOption("name", "my-app"),
+    core.WithService(mypackage.Register),
+    core.WithService(anotherpackage.Register),
     core.WithServiceLock(),
 )
-```
-
-### `func WithOptions(opts Options) CoreOption`
-
-```go
-c := core.New(core.WithOptions(core.NewOptions(
-    core.Option{Key: "name", Value: "agent"},
-)))
-```
-
-### `func WithService(factory func(*Core) Result) CoreOption`
-
-```go
-c := core.New(core.WithService(process.Register))
-```
-
-### `func WithName(name string, factory func(*Core) Result) CoreOption`
-
-```go
-c := core.New(core.WithName("process", process.Register))
-```
-
-### `func WithOption(key string, value any) CoreOption`
-
-```go
-c := core.New(
-    core.WithOption("name", "agent"),
-    core.WithOption("debug", true),
-)
-```
-
-### `func WithServiceLock() CoreOption`
-
-```go
-c := core.New(
-    core.WithService(auth.Register),
-    core.WithServiceLock(),
-)
-```
-
-### `type ServiceFactory func() Result`
-
-```go
-type ServiceFactory func() core.Result
-```
-
-### `func NewWithFactories(app any, factories map[string]ServiceFactory) Result`
-
-```go
-r := core.NewWithFactories(nil, map[string]core.ServiceFactory{
-    "audit": func() core.Result {
-        return core.Result{Value: mySvc(core.NewServiceRuntime(core.Core, core.MyOptions{})), OK: true}
-    },
-})
-if !r.OK { panic(r.Value) }
-```
-
-### `func NewRuntime(app any) Result`
-
-```go
-r := core.NewRuntime(nil)
-runtime := r.Value.(*core.Runtime)
-```
-
-### `type Runtime struct`
-
-- `app any`
-- `Core *Core`
-
-#### `func (r *Runtime) ServiceName() string`
-
-```go
-name := rt.ServiceName() // "Core"
-```
-
-#### `func (r *Runtime) ServiceStartup(ctx context.Context, options any) Result`
-
-```go
-r := rt.ServiceStartup(context.Background(), nil)
-```
-
-#### `func (r *Runtime) ServiceShutdown(ctx context.Context) Result`
-
-```go
-r := rt.ServiceShutdown(context.Background())
-```
-
-## 2) Core accessors and lifecycle
-
-### `type Core struct`
-
-#### `func (c *Core) Options() *Options`
-
-```go
-name := c.Options().String("name")
-```
-
-#### `func (c *Core) App() *App`
-
-```go
-appName := c.App().Name
-```
-
-#### `func (c *Core) Data() *Data`
-
-```go
-r := c.Data().ReadString("brain/prompt.md")
-```
-
-#### `func (c *Core) Drive() *Drive`
-
-```go
-r := c.Drive().Get("api")
-```
-
-#### `func (c *Core) Fs() *Fs`
-
-```go
-r := c.Fs().Write("status.json", "ok")
-```
-
-#### `func (c *Core) Config() *Config`
-
-```go
-c.Config().Set("debug", true)
-```
-
-#### `func (c *Core) Error() *ErrorPanic`
-
-```go
-defer c.Error().Recover()
-```
-
-#### `func (c *Core) Log() *ErrorLog`
-
-```go
-_ = c.Log().Info("boot")
-```
-
-#### `func (c *Core) Cli() *Cli`
-
-```go
-c.Cli().SetBanner(func(_ *core.Cli) string { return "agent" })
-```
-
-#### `func (c *Core) IPC() *Ipc`
-
-```go
-c.RegisterAction(func(_ *core.Core, _ core.Message) core.Result { return core.Result{OK: true} })
-```
-
-#### `func (c *Core) I18n() *I18n`
-
-```go
-_ = c.I18n().Language()
-```
-
-#### `func (c *Core) Env(key string) string`
-
-```go
-home := c.Env("DIR_HOME")
-```
-
-#### `func (c *Core) Context() context.Context`
-
-```go
-goCtx := c.Context()
-```
-
-#### `func (c *Core) Core() *Core`
-
-```go
-self := c.Core()
-```
-
-#### `func (c *Core) RunE() error`
-
-```go
-if err := c.RunE(); err != nil { /* handle */ }
-```
-
-#### `func (c *Core) Run()`
-
-```go
 c.Run()
 ```
 
-#### `func (c *Core) ACTION(msg Message) Result`
+`core.New()` returns `*Core` (not Result — Core is the one type that can't wrap its own creation error). Functional options are applied in order. `WithServiceLock()` prevents late service registration.
 
-```go
-c.ACTION(core.ActionServiceStartup{})
+### 1.2 Lifecycle
+
+```
+New() → WithService factories called → LockApply()
+RunE() → defer ServiceShutdown() → ServiceStartup() → Cli.Run() → returns error
+Run()  → RunE() → os.Exit(1) on error
 ```
 
-#### `func (c *Core) QUERY(q Query) Result`
+`RunE()` is the primary lifecycle — returns `error`, always calls `ServiceShutdown` via defer (even on startup failure or panic). `Run()` is sugar that calls `RunE()` and exits on error. `ServiceStartup` calls `OnStartup(ctx)` on all `Startable` services in registration order. `ServiceShutdown` calls `OnShutdown(ctx)` on all `Stoppable` services.
+
+### 1.3 Subsystem Accessors
+
+Every subsystem is accessed via a method on Core:
 
 ```go
-r := c.QUERY(core.NewOptions(core.Option{Key: "name", Value: "agent"}))
+c.Options()      // *Options     — input configuration
+c.App()          // *App         — application metadata (name, version)
+c.Config()       // *Config      — runtime settings, feature flags
+c.Data()         // *Data        — embedded assets (Registry[*Embed])
+c.Drive()        // *Drive       — transport handles (Registry[*DriveHandle])
+c.Fs()           // *Fs          — filesystem I/O (sandboxable)
+c.Cli()          // *Cli         — CLI command framework
+c.IPC()          // *Ipc         — message bus internals
+c.I18n()         // *I18n        — internationalisation
+c.Error()        // *ErrorPanic  — panic recovery
+c.Log()          // *ErrorLog    — structured logging
+c.Process()      // *Process     — managed execution (Action sugar)
+c.API()          // *API         — remote streams (protocol handlers)
+c.Action(name)   // *Action      — named callable (register/invoke)
+c.Task(name)     // *Task        — composed Action sequence
+c.Entitled(name) // Entitlement  — permission check
+c.RegistryOf(n)  // *Registry    — cross-cutting queries
+c.Context()      // context.Context
+c.Env(key)       // string       — environment variable (cached at init)
 ```
 
-#### `func (c *Core) QUERYALL(q Query) Result`
+---
+
+## 2. Primitive Types
+
+### 2.1 Option
+
+The atom. A single key-value pair.
 
 ```go
-r := c.QUERYALL(core.NewOptions())
+core.Option{Key: "name", Value: "brain"}
+core.Option{Key: "port", Value: 8080}
+core.Option{Key: "debug", Value: true}
 ```
 
-#### `func (c *Core) LogError(err error, op, msg string) Result`
+### 2.2 Options
+
+A collection of Option with typed accessors.
 
 ```go
-_ = c.LogError(err, "core.Start", "startup failed")
+opts := core.NewOptions(
+    core.Option{Key: "name", Value: "myapp"},
+    core.Option{Key: "port", Value: 8080},
+    core.Option{Key: "debug", Value: true},
+)
+
+opts.String("name")  // "myapp"
+opts.Int("port")     // 8080
+opts.Bool("debug")   // true
+opts.Has("name")     // true
+opts.Len()           // 3
+
+opts.Set("name", "new-name")
+opts.Get("name")     // Result{Value: "new-name", OK: true}
 ```
 
-#### `func (c *Core) LogWarn(err error, op, msg string) Result`
+### 2.3 Result
+
+Universal return type. Every Core operation returns Result.
 
 ```go
-_ = c.LogWarn(err, "agent.Check", "warning")
-```
-
-#### `func (c *Core) Must(err error, op, msg string)`
-
-```go
-c.Must(err, "core.op", "must hold")
-```
-
-#### `func (c *Core) RegistryOf(name string) *Registry[any]`
-
-```go
-svcNames := c.RegistryOf("services").Names()
-```
-
-## 3) Service and lifecycle discovery APIs
-
-### `type Service struct`
-
-```go
-type Service struct {
-    Name string
-    Instance any
-    Options Options
-    OnStart  func() Result
-    OnStop   func() Result
-    OnReload func() Result
+type Result struct {
+    Value any
+    OK    bool
 }
 ```
 
-### `func (c *Core) Service(name string, service ...Service) Result`
+Usage patterns:
 
 ```go
-_ = c.Service("cache", core.Service{
-    OnStart: func() core.Result { return core.Result{OK: true} },
-    OnStop:  func() core.Result { return core.Result{OK: true} },
+// Check success
+r := c.Config().Get("database.host")
+if r.OK {
+    host := r.Value.(string)
+}
+
+// Service factory returns Result
+func Register(c *core.Core) core.Result {
+    svc := &MyService{}
+    return core.Result{Value: svc, OK: true}
+}
+
+// Error as Result
+return core.Result{Value: err, OK: false}
+```
+
+No generics on Result. Type-assert the Value when needed. This is deliberate — `Result` is universal across all subsystems without carrying type parameters.
+
+### 2.4 Message, Query
+
+IPC type aliases for the broadcast/request system:
+
+```go
+type Message any  // broadcast via ACTION — fire and forget
+type Query any    // request/response via QUERY — returns first handler's result
+```
+
+For tracked work, use named Actions: `c.PerformAsync("action.name", opts)`.
+
+---
+
+## 3. Service System
+
+### 3.1 Registration
+
+Services register via factory functions passed to `WithService`:
+
+```go
+core.New(
+    core.WithService(mypackage.Register),
+)
+```
+
+The factory signature is `func(*Core) Result`. The returned `Result.Value` is the service instance.
+
+### 3.2 Factory Pattern
+
+```go
+func Register(c *core.Core) core.Result {
+    svc := &MyService{
+        runtime: core.NewServiceRuntime(c, MyOptions{}),
+    }
+    return core.Result{Value: svc, OK: true}
+}
+```
+
+`NewServiceRuntime[T]` gives the service access to Core and typed options:
+
+```go
+type MyService struct {
+    *core.ServiceRuntime[MyOptions]
+}
+
+// Access Core from within the service:
+func (s *MyService) doSomething() {
+    c := s.Core()
+    cfg := s.Config().String("my.setting")
+}
+```
+
+### 3.3 Auto-Discovery
+
+`WithService` reflects on the returned instance to discover:
+- **Package name** → service name (from reflect type path)
+- **Startable interface** → `OnStartup(ctx) Result` called during `ServiceStartup`
+- **Stoppable interface** → `OnShutdown(ctx) Result` called during `ServiceShutdown`
+- **HandleIPCEvents method** → auto-registered as IPC handler
+
+### 3.4 Retrieval
+
+```go
+// Type-safe retrieval
+svc, ok := core.ServiceFor[*MyService](c, "mypackage")
+if !ok {
+    // service not registered
+}
+
+// Must variant (panics if not found)
+svc := core.MustServiceFor[*MyService](c, "mypackage")
+
+// List all registered services
+names := c.Services() // []string in registration order
+```
+
+### 3.5 Lifecycle Interfaces
+
+```go
+type Startable interface {
+    OnStartup(ctx context.Context) Result
+}
+
+type Stoppable interface {
+    OnShutdown(ctx context.Context) Result
+}
+```
+
+Services implementing these are called during `RunE()` / `Run()` in registration order.
+
+---
+
+## 4. IPC — Message Passing
+
+### 4.1 ACTION (broadcast)
+
+Fire-and-forget broadcast to all registered handlers:
+
+```go
+// Send
+c.ACTION(messages.AgentCompleted{
+    Agent: "codex", Repo: "go-io", Status: "completed",
+})
+
+// Register handler
+c.RegisterAction(func(c *core.Core, msg core.Message) core.Result {
+    if ev, ok := msg.(messages.AgentCompleted); ok {
+        // handle completion
+    }
+    return core.Result{OK: true}
 })
 ```
 
-### `func (c *Core) RegisterService(name string, instance any) Result`
+All handlers receive all messages. Type-switch to filter. Handler return values are ignored — broadcast calls ALL handlers regardless. Each handler is wrapped in panic recovery.
+
+### 4.2 QUERY (request/response)
+
+First handler to return a non-empty result wins:
 
 ```go
-_ = c.RegisterService("process", processSvc)
+// Send
+result := c.QUERY(MyQuery{Name: "brain"})
+if result.OK {
+    svc := result.Value
+}
+
+// Register handler
+c.RegisterQuery(func(c *core.Core, q core.Query) core.Result {
+    if mq, ok := q.(MyQuery); ok {
+        return core.Result{Value: found, OK: true}
+    }
+    return core.Result{OK: false} // not my query
+})
 ```
 
-### `func (c *Core) Services() []string`
+### 4.3 PerformAsync (background action)
 
 ```go
-names := c.Services()
+// Execute a named action in background with progress tracking
+r := c.PerformAsync("agentic.dispatch", opts)
+taskID := r.Value.(string)
+
+// Report progress
+c.Progress(taskID, 0.5, "halfway done", "agentic.dispatch")
 ```
 
-### `func (c *Core) Lock(name string) *Lock`
+Broadcasts `ActionTaskStarted`, `ActionTaskProgress`, `ActionTaskCompleted` as ACTION messages.
+
+---
+
+## 5. Config
+
+Runtime configuration with typed accessors and feature flags.
 
 ```go
-l := c.Lock("agent")
-l.Mutex.Lock()
-defer l.Mutex.Unlock()
+c.Config().Set("database.host", "localhost")
+c.Config().Set("database.port", 5432)
+
+host := c.Config().String("database.host")  // "localhost"
+port := c.Config().Int("database.port")      // 5432
+
+// Feature flags
+c.Config().Enable("dark-mode")
+c.Config().Enabled("dark-mode")     // true
+c.Config().Disable("dark-mode")
+c.Config().EnabledFeatures()         // []string
+
+// Type-safe generic getter
+val := core.ConfigGet[string](c.Config(), "database.host")
 ```
 
-### `func (c *Core) LockEnable(name ...string)`
+---
+
+## 6. Data — Embedded Assets
+
+Mount embedded filesystems and read from them:
 
 ```go
-c.LockEnable()
+//go:embed prompts/*
+var promptFS embed.FS
+
+// Mount during service registration
+c.Data().New(core.NewOptions(
+    core.Option{Key: "name", Value: "prompts"},
+    core.Option{Key: "source", Value: promptFS},
+    core.Option{Key: "path", Value: "prompts"},
+))
+
+// Read
+r := c.Data().ReadString("prompts/coding.md")
+if r.OK {
+    content := r.Value.(string)
+}
+
+// List
+r := c.Data().List("prompts/")
+r := c.Data().ListNames("prompts/")
+r := c.Data().Mounts() // []string (insertion order)
+
+// Data embeds Registry[*Embed] — all Registry methods available:
+c.Data().Has("prompts")
+c.Data().Each(func(name string, emb *Embed) { ... })
 ```
 
-### `func (c *Core) LockApply(name ...string)`
+---
+
+## 7. Drive — Transport Handles
+
+Registry of named transport handles (API endpoints, MCP servers, etc):
 
 ```go
+c.Drive().New(core.NewOptions(
+    core.Option{Key: "name", Value: "forge"},
+    core.Option{Key: "transport", Value: "https://forge.lthn.ai"},
+))
+
+r := c.Drive().Get("forge")     // Result with *DriveHandle
+c.Drive().Has("forge")          // true
+c.Drive().Names()               // []string (insertion order)
+
+// Drive embeds Registry[*DriveHandle] — all Registry methods available.
+```
+
+---
+
+## 8. Fs — Filesystem
+
+Sandboxable filesystem I/O. All paths are validated against the root.
+
+```go
+fs := c.Fs()
+
+// Read/Write
+r := fs.Read("/path/to/file")           // Result{Value: string}
+r := fs.Write("/path/to/file", content) // Result{OK: bool}
+r := fs.WriteMode(path, content, 0600)  // With permissions
+
+// Directory ops
+r := fs.EnsureDir("/path/to/dir")
+r := fs.List("/path/to/dir")            // Result{Value: []os.DirEntry}
+fs.IsDir(path)                           // bool
+fs.IsFile(path)                          // bool
+fs.Exists(path)                          // bool
+
+// Streams
+r := fs.Open(path)        // Result{Value: *os.File}
+r := fs.Create(path)      // Result{Value: *os.File}
+r := fs.Append(path)      // Result{Value: io.WriteCloser}
+r := fs.ReadStream(path)  // Result{Value: io.ReadCloser}
+r := fs.WriteStream(path) // Result{Value: io.WriteCloser}
+
+// Atomic write (write-to-temp-then-rename, safe for concurrent readers)
+r := fs.WriteAtomic(path, content)
+
+// Delete
+r := fs.Delete(path)      // single file
+r := fs.DeleteAll(path)   // recursive
+r := fs.Rename(old, new)
+r := fs.Stat(path)        // Result{Value: os.FileInfo}
+
+// Sandbox control
+fs.Root()                  // sandbox root path
+fs.NewUnrestricted()       // Fs with root "/" — full access
+```
+
+---
+
+## 9. CLI
+
+Command tree with path-based routing:
+
+```go
+c.Command("issue/get", core.Command{
+    Description: "Get a Forge issue",
+    Action: s.cmdIssueGet,
+})
+
+c.Command("issue/list", core.Command{
+    Description: "List Forge issues",
+    Action: s.cmdIssueList,
+})
+
+// Action signature
+func (s *MyService) cmdIssueGet(opts core.Options) core.Result {
+    repo := opts.String("_arg")  // positional arg
+    num := opts.String("number") // --number=N flag
+    // ...
+    return core.Result{OK: true}
+}
+```
+
+Path = command hierarchy. `issue/get` becomes `myapp issue get` in CLI.
+
+Managed commands have lifecycle provided by go-process:
+
+```go
+c.Command("serve", core.Command{
+    Action:  handler,
+    Managed: "process.daemon",  // go-process provides start/stop/restart
+})
+```
+
+---
+
+## 10. Error Handling
+
+All errors use `core.E()`:
+
+```go
+// Standard error
+return core.E("service.Method", "what failed", underlyingErr)
+
+// With format
+return core.E("service.Method", core.Sprintf("not found: %s", name), nil)
+
+// Error inspection
+core.Operation(err)      // "service.Method"
+core.ErrorMessage(err)   // "what failed"
+core.ErrorCode(err)      // code if set via WrapCode
+core.Root(err)           // unwrap to root cause
+core.Is(err, target)     // errors.Is
+core.As(err, &target)    // errors.As
+```
+
+**NEVER use `fmt.Errorf`, `errors.New`, or `log.*`.** Core handles all error reporting.
+
+---
+
+## 11. Logging
+
+```go
+core.Info("server started", "port", 8080)
+core.Debug("processing", "item", name)
+core.Warn("deprecated", "feature", "old-api")
+core.Error("failed", "err", err)
+core.Security("access denied", "user", username)
+```
+
+Key-value pairs after the message. Structured, not formatted strings.
+
+---
+
+## 12. String Helpers
+
+Core re-exports string operations to avoid `strings` import:
+
+```go
+core.Contains(s, substr)
+core.HasPrefix(s, prefix)
+core.HasSuffix(s, suffix)
+core.TrimPrefix(s, prefix)
+core.TrimSuffix(s, suffix)
+core.Split(s, sep)
+core.SplitN(s, sep, n)
+core.Join(sep, parts...)
+core.Replace(s, old, new)
+core.Lower(s) / core.Upper(s)
+core.Trim(s)
+core.Sprintf(format, args...)
+core.Concat(parts...)
+core.NewBuilder() / core.NewReader(s)
+```
+
+---
+
+## 13. Path Helpers
+
+```go
+core.Path(segments...)      // ~/segments joined
+core.JoinPath(segments...)  // filepath.Join
+core.PathBase(p)            // filepath.Base
+core.PathDir(p)             // filepath.Dir
+core.PathExt(p)             // filepath.Ext
+core.PathIsAbs(p)           // filepath.IsAbs
+core.PathGlob(pattern)      // filepath.Glob
+core.CleanPath(p, sep)      // normalise separators
+```
+
+---
+
+## 14. Utility Functions
+
+```go
+core.Print(writer, format, args...)  // formatted output
+core.Env(key)                         // cached env var (set at init)
+core.EnvKeys()                        // all available env keys
+
+// Arg extraction (positional)
+core.Arg(0, args...)       // Result
+core.ArgString(0, args...) // string
+core.ArgInt(0, args...)    // int
+core.ArgBool(0, args...)   // bool
+
+// Flag parsing
+core.IsFlag("--name")              // true
+core.ParseFlag("--name=value")    // "name", "value", true
+core.FilterArgs(args)              // strip flags, keep positional
+
+// Identifiers and validation
+core.ID()                          // "id-42-a3f2b1" — unique per process
+core.ValidateName("brain")        // Result{OK: true} — rejects "", ".", "..", path seps
+core.SanitisePath("../../x")      // "x" — extracts safe base, "invalid" for dangerous
+
+// JSON (wraps encoding/json — consumers don't import it directly)
+core.JSONMarshal(myStruct)         // Result{Value: []byte, OK: bool}
+core.JSONMarshalString(myStruct)   // string (returns "{}" on error)
+core.JSONUnmarshal(data, &target)  // Result{OK: bool}
+core.JSONUnmarshalString(s, &target)
+```
+
+---
+
+## 15. Lock System
+
+Per-Core mutex registry for coordinating concurrent access:
+
+```go
+c.Lock("drain").Mutex.Lock()
+defer c.Lock("drain").Mutex.Unlock()
+
+// Enable named locks
+c.LockEnable("service-registry")
+
+// Apply lock (prevents further registration)
 c.LockApply()
 ```
 
-### `func (c *Core) Startables() Result`
+---
+
+## 16. ServiceRuntime Generic Helper
+
+Embed in services to get Core access and typed options:
 
 ```go
-r := c.Startables()
+type MyService struct {
+    *core.ServiceRuntime[MyOptions]
+}
+
+type MyOptions struct {
+    BufferSize int
+    Timeout    time.Duration
+}
+
+func NewMyService(c *core.Core) core.Result {
+    svc := &MyService{
+        ServiceRuntime: core.NewServiceRuntime(c, MyOptions{
+            BufferSize: 1024,
+            Timeout:    30 * time.Second,
+        }),
+    }
+    return core.Result{Value: svc, OK: true}
+}
+
+// Within the service:
+func (s *MyService) DoWork() {
+    c := s.Core()           // access Core
+    opts := s.Options()     // MyOptions{BufferSize: 1024, ...}
+    cfg := s.Config()       // shortcut to s.Core().Config()
+}
 ```
 
-### `func (c *Core) Stoppables() Result`
+---
+
+## 17. Process — Managed Execution
+
+`c.Process()` is sugar over named Actions. core/go defines the primitive. go-process provides the implementation via `c.Action("process.run", handler)`.
 
 ```go
-r := c.Stoppables()
+// Synchronous — returns Result
+r := c.Process().Run(ctx, "git", "log", "--oneline")
+r := c.Process().RunIn(ctx, "/repo", "go", "test", "./...")
+r := c.Process().RunWithEnv(ctx, dir, []string{"GOWORK=off"}, "go", "test")
+
+// Async — returns process ID
+r := c.Process().Start(ctx, opts)
+
+// Control
+c.Process().Kill(ctx, core.NewOptions(core.Option{Key: "id", Value: processID}))
+
+// Capability check
+if c.Process().Exists() { /* go-process is registered */ }
 ```
 
-### `func (c *Core) ServiceStartup(ctx context.Context, options any) Result`
+**Permission by registration:** No go-process registered → `c.Process().Run()` returns `Result{OK: false}`. No config, no tokens. The service either exists or it doesn't.
 
 ```go
-r := c.ServiceStartup(context.Background(), nil)
+// Sandboxed Core — no process capability
+c := core.New()
+c.Process().Run(ctx, "rm", "-rf", "/")  // Result{OK: false} — nothing happens
+
+// Full Core — process registered
+c := core.New(core.WithService(process.Register))
+c.Process().Run(ctx, "git", "log")      // executes, returns output
 ```
 
-### `func (c *Core) ServiceShutdown(ctx context.Context) Result`
+> Consumer implementation: see `go-process/docs/RFC.md`
+
+---
+
+## 18. Action and Task — The Execution Primitives
+
+An Action is a named, registered callable. A Task is a composed sequence of Actions.
+
+### 18.1 Action — The Atomic Unit
 
 ```go
-r := c.ServiceShutdown(context.Background())
-```
-
-### `type ServiceRuntime[T any]`
-
-```go
-sr := core.NewServiceRuntime(c, MyServiceOptions{})
-```
-
-#### `func NewServiceRuntime[T any](c *Core, opts T) *ServiceRuntime[T]`
-
-```go
-sr := core.NewServiceRuntime(c, core.MyOpts{})
-```
-
-#### `func (r *ServiceRuntime[T]) Core() *Core`
-
-```go
-c := sr.Core()
-```
-
-#### `func (r *ServiceRuntime[T]) Options() T`
-
-```go
-opts := sr.Options()
-```
-
-#### `func (r *ServiceRuntime[T]) Config() *Config`
-
-```go
-cfg := sr.Config()
-```
-
-### `type ServiceRegistry struct`
-
-`*Registry[*Service]` + `lockEnabled bool`.
-
-### `func ServiceFor[T any](c *Core, name string) (T, bool)`
-
-```go
-svc, ok := core.ServiceFor[*myService](c, "myservice")
-```
-
-### `func MustServiceFor[T any](c *Core, name string) T`
-
-```go
-svc := core.MustServiceFor[*myService](c, "myservice")
-```
-
-### `type Startable interface { OnStartup(context.Context) Result }`
-
-### `type Stoppable interface { OnShutdown(context.Context) Result }`
-
-## 4) Actions, Tasks, and message-driven capability primitives
-
-### `type ActionHandler func(context.Context, Options) Result`
-
-```go
-var h ActionHandler = func(ctx context.Context, opts core.Options) core.Result { return core.Result{OK: true} }
-```
-
-### `type Action struct`
-
-```go
-a := c.Action("process.run")
-```
-
-#### `func (a *Action) Run(ctx context.Context, opts Options) Result`
-
-```go
-r := a.Run(ctx, core.NewOptions(core.Option{Key: "command", Value: "go test"}))
-```
-
-#### `func (a *Action) Exists() bool`
-
-```go
-if c.Action("process.run").Exists() { /* invoke */ }
-```
-
-### `func (c *Core) Action(name string, handler ...ActionHandler) *Action`
-
-```go
-c.Action("agent.echo", func(_ context.Context, opts core.Options) core.Result {
-    return core.Result{Value: opts.String("msg"), OK: true}
+// Register
+c.Action("git.log", func(ctx context.Context, opts core.Options) core.Result {
+    dir := opts.String("dir")
+    return c.Process().RunIn(ctx, dir, "git", "log", "--oneline")
 })
+
+// Invoke
+r := c.Action("git.log").Run(ctx, core.NewOptions(
+    core.Option{Key: "dir", Value: "/repo"},
+))
+
+// Check capability
+c.Action("process.run").Exists()  // true if go-process registered
+
+// List all
+c.Actions()  // []string{"process.run", "agentic.dispatch", ...}
 ```
 
-### `func (c *Core) Actions() []string`
+`c.Action(name)` is dual-purpose: with handler arg → register; without → return for invocation.
+
+### 18.2 Action Type
 
 ```go
-names := c.Actions()
+type ActionHandler func(context.Context, Options) Result
+
+type Action struct {
+    Name        string
+    Handler     ActionHandler
+    Description string
+    Schema      Options       // expected input keys
+}
 ```
 
-### `type Step struct`
+`Action.Run()` has panic recovery and entitlement checking (Section 21) built in.
 
-`Action`, `With`, `Async`, `Input`.
+### 18.3 Where Actions Come From
 
-### `type Task struct`
-
-`Name`, `Description`, `Steps`.
-
-#### `func (t *Task) Run(ctx context.Context, c *Core, opts Options) Result`
+Services register during `OnStartup`:
 
 ```go
-r := c.Task("deploy").Run(ctx, c, core.NewOptions())
+func (s *MyService) OnStartup(ctx context.Context) core.Result {
+    c := s.Core()
+    c.Action("process.run", s.handleRun)
+    c.Action("git.clone", s.handleGitClone)
+    return core.Result{OK: true}
+}
 ```
 
-### `func (c *Core) Task(name string, def ...Task) *Task`
+The action namespace IS the capability map. go-process registers `process.*`, core/agent registers `agentic.*`.
+
+### 18.4 Permission Model
+
+Three states for any action:
+
+| State | `Exists()` | `Entitled()` | `Run()` |
+|-------|-----------|-------------|---------|
+| Not registered | false | — | `Result{OK: false}` not registered |
+| Registered, not entitled | true | false | `Result{OK: false}` not entitled |
+| Registered and entitled | true | true | executes handler |
+
+### 18.5 Task — Composing Actions
 
 ```go
-c.Task("deploy", core.Task{Steps: []core.Step{{Action: "agent.echo", Async: false}}})
+c.Task("deploy", core.Task{
+    Description: "Build, test, deploy",
+    Steps: []core.Step{
+        {Action: "go.build"},
+        {Action: "go.test"},
+        {Action: "docker.push"},
+        {Action: "ansible.deploy", Async: true},  // doesn't block
+    },
+})
+
+r := c.Task("deploy").Run(ctx, c, opts)
 ```
 
-### `func (c *Core) Tasks() []string`
+Sequential steps stop on first failure. `Async: true` steps fire without blocking.
+`Input: "previous"` pipes last step's output to next step.
+
+### 18.6 Background Execution
 
 ```go
-for _, n := range c.Tasks() {}
+r := c.PerformAsync("agentic.dispatch", opts)
+taskID := r.Value.(string)
+
+// Broadcasts ActionTaskStarted, ActionTaskProgress, ActionTaskCompleted
+c.Progress(taskID, 0.5, "halfway", "agentic.dispatch")
 ```
 
-### `type Message any`
+### 18.7 How Process Fits
+
+`c.Process()` is sugar over Actions:
 
 ```go
-c.ACTION(core.ActionTaskStarted{TaskIdentifier: "t1", Action: "agent.echo"})
+c.Process().Run(ctx, "git", "log")
+// equivalent to:
+c.Action("process.run").Run(ctx, core.NewOptions(
+    core.Option{Key: "command", Value: "git"},
+    core.Option{Key: "args", Value: []string{"log"}},
+))
 ```
 
-### `type Query any`
+---
+
+## 19. API — Remote Streams
+
+Drive is the phone book (WHERE). API is the phone (HOW). Consumer packages register protocol handlers.
 
 ```go
-type statusQuery struct{}
-_ = statusQuery{}
+// Configure endpoint in Drive
+c.Drive().New(core.NewOptions(
+    core.Option{Key: "name", Value: "charon"},
+    core.Option{Key: "transport", Value: "http://10.69.69.165:9101/mcp"},
+))
+
+// Open stream — looks up Drive, finds protocol handler
+r := c.API().Stream("charon")
+if r.OK {
+    stream := r.Value.(core.Stream)
+    stream.Send(payload)
+    resp, _ := stream.Receive()
+    stream.Close()
+}
 ```
 
-### `type QueryHandler func(*Core, Query) Result`
-
-### `func (c *Core) Query(q Query) Result`
-
-```go
-r := c.Query(core.Query("ping"))
-```
-
-### `func (c *Core) QueryAll(q Query) Result`
-
-```go
-r := c.QueryAll(core.Query("ping"))
-```
-
-### `func (c *Core) RegisterQuery(handler QueryHandler)`
-
-```go
-c.RegisterQuery(func(_ *core.Core, _ core.Query) core.Result { return core.Result{Value: "pong", OK: true} })
-```
-
-### `func (c *Core) RegisterAction(handler func(*Core, Message) Result)`
-
-```go
-c.RegisterAction(func(_ *core.Core, msg core.Message) core.Result { return core.Result{OK: true} })
-```
-
-### `func (c *Core) RegisterActions(handlers ...func(*Core, Message) Result)`
-
-```go
-c.RegisterActions(h1, h2)
-```
-
-### `func (c *Core) RemoteAction(name string, ctx context.Context, opts Options) Result`
-
-```go
-r := c.RemoteAction("charon:agent.status", ctx, core.NewOptions())
-```
-
-### `type ActionServiceStartup struct{}`
-### `type ActionServiceShutdown struct{}`
-
-### `type ActionTaskStarted struct`
-
-`TaskIdentifier`, `Action`, `Options`.
-
-### `type ActionTaskProgress struct`
-
-`TaskIdentifier`, `Action`, `Progress`, `Message`.
-
-### `type ActionTaskCompleted struct`
-
-`TaskIdentifier`, `Action`, `Result`.
-
-## 5) Remote API and stream transport
-
-### `type Stream interface`
+### 19.1 Stream Interface
 
 ```go
 type Stream interface {
@@ -525,1558 +770,513 @@ type Stream interface {
 }
 ```
 
-### `type StreamFactory func(handle *DriveHandle) (Stream, error)`
+### 19.2 Protocol Handlers
+
+Consumer packages register factories per URL scheme:
 
 ```go
-var f core.StreamFactory = func(h *core.DriveHandle) (core.Stream, error) { return nil, nil }
-```
-
-### `type API struct`
-
-#### `func (c *Core) API() *API`
-
-```go
-_ = c.API()
-```
-
-#### `func (a *API) RegisterProtocol(scheme string, factory StreamFactory)`
-
-```go
+// In a transport package's OnStartup:
+c.API().RegisterProtocol("http", httpStreamFactory)
 c.API().RegisterProtocol("mcp", mcpStreamFactory)
 ```
 
-#### `func (a *API) Stream(name string) Result`
+Resolution: `c.API().Stream("charon")` → Drive lookup → extract scheme → find factory → create Stream.
 
-```go
-r := c.API().Stream("api")
-```
-
-#### `func (a *API) Call(endpoint, action string, opts Options) Result`
-
-```go
-r := c.API().Call("api", "agent.status", core.NewOptions())
-```
-
-#### `func (a *API) Protocols() []string`
-
-```go
-names := c.API().Protocols()
-```
-
-## 6) Command and CLI layer
-
-### `type CliOptions struct{}`
-### `type Cli struct`
-
-#### `func CliRegister(c *Core) Result`
-
-```go
-_ = core.CliRegister(c)
-```
-
-#### `func (cl *Cli) Print(format string, args ...any)`
-
-```go
-cl.Print("starting %s", "agent")
-```
-
-#### `func (cl *Cli) SetOutput(w io.Writer)`
-
-```go
-cl.SetOutput(os.Stderr)
-```
-
-#### `func (cl *Cli) Run(args ...string) Result`
-
-```go
-r := cl.Run("deploy", "to", "homelab")
-```
-
-#### `func (cl *Cli) PrintHelp()`
-
-```go
-cl.PrintHelp()
-```
-
-#### `func (cl *Core) SetBanner(fn func(*Cli) string)`
-
-```go
-cl.SetBanner(func(_ *core.Cli) string { return "agent-cli" })
-```
-
-#### `func (cl *Cli) Banner() string`
-
-```go
-label := cl.Banner()
-```
-
-### `type CommandAction func(Options) Result`
-
-### `type Command struct`
-
-```go
-c.Command("deploy", core.Command{Action: func(opts core.Options) core.Result {
-    return core.Result{Value: "ok", OK: true}
-}})
-```
-
-#### `func (cmd *Command) I18nKey() string`
-
-```go
-key := c.Command("deploy/to/homelab").Value.(*core.Command).I18nKey()
-```
-
-#### `func (cmd *Command) Run(opts Options) Result`
-
-```go
-r := cmd.Run(core.NewOptions(core.Option{Key: "name", Value: "x"}))
-```
-
-#### `func (cmd *Command) IsManaged() bool`
-
-```go
-if cmd.IsManaged() { /* managed lifecycle */ }
-```
-
-### `type CommandRegistry struct`
-
-`*Registry[*Command]`.
-
-#### `func (c *Core) Command(path string, command ...Command) Result`
-
-```go
-c.Command("agent/deploy", core.Command{
-    Action: func(opts core.Options) core.Result { return core.Result{OK: true} },
-})
-```
-
-#### `func (c *Core) Commands() []string`
-
-```go
-paths := c.Commands()
-```
-
-### `type Command` fields
-`Name`, `Description`, `Path`, `Action`, `Managed`, `Flags`, `Hidden`, internal `commands`.
-
-## 7) Subsystems: App, Data, Drive, Fs, I18n, Process
-
-### `type App struct`
-
-#### `func (a App) New(opts Options) App`
-
-```go
-app := (core.App{}).New(core.NewOptions(
-    core.Option{Key: "name", Value: "agent"},
-))
-```
-
-#### `func (a App) Find(filename, name string) Result`
-
-```go
-r := core.App{}.Find("go", "Go")
-```
-
-### `type Data struct`
-
-#### `func (d *Data) New(opts Options) Result`
-
-```go
-r := c.Data().New(core.NewOptions(
-    core.Option{Key: "name", Value: "brain"},
-    core.Option{Key: "source", Value: brainFS},
-    core.Option{Key: "path", Value: "prompts"},
-))
-```
-
-#### `func (d *Data) ReadFile(path string) Result`
-
-```go
-r := c.Data().ReadFile("brain/readme.md")
-```
-
-#### `func (d *Data) ReadString(path string) Result`
-
-```go
-r := c.Data().ReadString("brain/readme.md")
-```
-
-#### `func (d *Data) List(path string) Result`
-
-```go
-r := c.Data().List("brain/templates")
-```
+No protocol handler = no capability.
 
-#### `func (d *Data) ListNames(path string) Result`
-
-```go
-r := c.Data().ListNames("brain/templates")
-```
+### 19.3 Remote Action Dispatch
 
-#### `func (d *Data) Extract(path, targetDir string, templateData any) Result`
+Actions transparently cross machine boundaries via `host:action` syntax:
 
 ```go
-r := c.Data().Extract("brain/template", "/tmp/ws", map[string]string{"Name": "demo"})
-```
+// Local
+r := c.RemoteAction("agentic.status", ctx, opts)
 
-#### `func (d *Data) Mounts() []string`
+// Remote — same API, different host
+r := c.RemoteAction("charon:agentic.status", ctx, opts)
+// → splits on ":" → endpoint="charon", action="agentic.status"
+// → c.API().Call("charon", "agentic.status", opts)
 
-```go
-for _, m := range c.Data().Mounts() {}
+// Web3 — Lethean dVPN routed
+r := c.RemoteAction("snider.lthn:brain.recall", ctx, opts)
 ```
 
-### `type DriveHandle struct`
+### 19.4 Direct Call
 
-`Name`, `Transport`, `Options`.
-
-### `type Drive struct`
-
-#### `func (d *Drive) New(opts Options) Result`
-
 ```go
-r := c.Drive().New(core.NewOptions(
-    core.Option{Key: "name", Value: "mcp"},
-    core.Option{Key: "transport", Value: "mcp://localhost:1234"},
-))
+r := c.API().Call("charon", "agentic.dispatch", opts)
+// Opens stream, sends JSON-RPC, receives response, closes stream
 ```
 
-### `type Fs struct`
+---
 
-#### `func (m *Fs) New(root string) *Fs`
+## 20. Registry — The Universal Collection Primitive
 
-```go
-fs := (&core.Fs{}).New("/tmp")
-```
+Thread-safe named collection. The brick all registries build on.
 
-#### `func (m *Fs) NewUnrestricted() *Fs`
+### 20.1 The Type
 
 ```go
-fs := (&core.Fs{}).NewUnrestricted()
+// Registry is a thread-safe named collection. The universal brick
+// for all named registries in Core.
+type Registry[T any] struct {
+    items  map[string]T
+    mu     sync.RWMutex
+    locked bool
+}
 ```
 
-#### `func (m *Fs) Root() string`
+### 20.3 Operations
 
 ```go
-root := c.Fs().Root()
-```
+r := core.NewRegistry[*Service]()
 
-#### `func (m *Fs) Read(p string) Result`
-
-```go
-r := c.Fs().Read("status.txt")
+r.Set("brain", brainSvc)          // register
+r.Get("brain")                     // Result{brainSvc, true}
+r.Has("brain")                     // true
+r.Names()                          // []string{"brain", "monitor", ...}
+r.List("brain.*")                  // glob/prefix match
+r.Each(func(name string, item T))  // iterate
+r.Len()                            // count
+r.Lock()                           // prevent further Set calls
+r.Locked()                         // bool
+r.Delete("brain")                  // remove (if not locked)
 ```
 
-#### `func (m *Fs) Write(p, content string) Result`
-
-```go
-_ = c.Fs().Write("status.txt", "ok")
-```
+### 20.4 Core Accessor
 
-#### `func (m *Fs) WriteMode(p, content string, mode os.FileMode) Result`
+`c.Registry(name)` accesses named registries. Each subsystem's registry is accessible through it:
 
 ```go
-_ = c.Fs().WriteMode("secret", "x", 0600)
+c.RegistryOf("services")              // the service registry
+c.Registry("commands")              // the command tree
+c.RegistryOf("actions")               // IPC action handlers
+c.RegistryOf("drives")                // transport handles
+c.Registry("data")                  // mounted filesystems
 ```
 
-#### `func (m *Fs) TempDir(prefix string) string`
+Cross-cutting queries become natural:
 
 ```go
-tmp := c.Fs().TempDir("agent-")
+c.RegistryOf("actions").List("process.*")  // all process capabilities
+c.RegistryOf("drives").Names()              // all configured transports
+c.RegistryOf("services").Has("brain")       // is brain service loaded?
+c.RegistryOf("actions").Len()               // how many actions registered?
 ```
 
-#### `func (m *Fs) WriteAtomic(p, content string) Result`
+### 20.5 Typed Accessors Are Sugar
 
-```go
-_ = c.Fs().WriteAtomic("status.json", "{\"ok\":true}")
-```
+The existing subsystem accessors become typed convenience over Registry:
 
-#### `func (m *Fs) EnsureDir(p string) Result`
-
 ```go
-_ = c.Fs().EnsureDir("cache")
-```
+// These are equivalent:
+c.Service("brain")                         // typed sugar
+c.RegistryOf("services").Get("brain")        // universal access
 
-#### `func (m *Fs) IsDir(p string) bool`
+c.Drive().Get("forge")                     // typed sugar
+c.RegistryOf("drives").Get("forge")          // universal access
 
-```go
-ok := c.Fs().IsDir("cache")
+c.Action("process.run")                    // typed sugar
+c.RegistryOf("actions").Get("process.run")   // universal access
 ```
 
-#### `func (m *Fs) IsFile(p string) bool`
+The typed accessors stay — they're ergonomic and type-safe. `c.Registry()` adds the universal query layer on top.
 
-```go
-ok := c.Fs().IsFile("go.mod")
-```
-
-#### `func (m *Fs) Exists(p string) bool`
+### 20.6 What Embeds Registry
 
-```go
-if c.Fs().Exists("go.mod") {}
-```
+All named collections in Core embed `Registry[T]`:
 
-#### `func (m *Fs) List(p string) Result`
+- `ServiceRegistry` → `Registry[*Service]`
+- `CommandRegistry` → `Registry[*Command]`
+- `Drive` → `Registry[*DriveHandle]`
+- `Data` → `Registry[*Embed]`
+- `Lock.locks` → `Registry[*sync.RWMutex]`
+- `IPC.actions` → `Registry[*Action]`
+- `IPC.tasks` → `Registry[*Task]`
 
-```go
-r := c.Fs().List(".")
-```
+---
 
-#### `func (m *Fs) Stat(p string) Result`
+## Design Philosophy
 
-```go
-r := c.Fs().Stat("go.mod")
-```
+### Core Is Lego Bricks
 
-#### `func (m *Fs) Open(p string) Result`
+Core is infrastructure, not an encapsulated library. Downstream packages (core/agent, core/mcp, go-process) compose with Core's primitives. **Exported fields are intentional, not accidental.** Every unexported field that forces a consumer to write a wrapper method adds LOC downstream — the opposite of Core's purpose.
 
 ```go
-r := c.Fs().Open("go.mod")
-```
+// Core reduces downstream code:
+if r.OK { use(r.Value) }
 
-#### `func (m *Fs) Create(p string) Result`
-
-```go
-r := c.Fs().Create("notes.txt")
+// vs Go convention that adds downstream LOC:
+val, err := thing.Get()
+if err != nil {
+    return fmt.Errorf("get: %w", err)
+}
 ```
 
-#### `func (m *Fs) Append(p string) Result`
+This is why `core.Result` exists — it replaces multiple lines of error handling with `if r.OK {}`. That's the design: expose the primitive, reduce consumer code.
 
-```go
-r := c.Fs().Append("notes.txt")
-```
-
-#### `func (m *Fs) Rename(oldPath, newPath string) Result`
+### Export Rules
 
-```go
-_ = c.Fs().Rename("a.txt", "b.txt")
-```
+| Should Export | Why |
+|--------------|-----|
+| Struct fields used by consumers | Removes accessor boilerplate downstream |
+| Registry types (`ServiceRegistry`) | Lets consumers extend service management |
+| IPC internals (`Ipc` handlers) | Lets consumers build custom dispatch |
+| Lifecycle hooks (`OnStart`, `OnStop`) | Composable without interface overhead |
 
-#### `func (m *Fs) Delete(p string) Result`
+| Should NOT Export | Why |
+|------------------|-----|
+| Mutexes and sync primitives | Concurrency must be managed by Core |
+| Context/cancel pairs | Lifecycle is Core's responsibility |
+| Internal counters | Implementation detail, not a brick |
 
-```go
-_ = c.Fs().Delete("tmp.txt")
-```
+### Why core/go Is Minimal
 
-#### `func (m *Fs) DeleteAll(p string) Result`
+core/go deliberately avoids importing anything beyond stdlib + go-io + go-log. This keeps it as a near-pure stdlib implementation. Packages that add external dependencies (CLI frameworks, HTTP routers, MCP SDK) live in separate repos:
 
-```go
-_ = c.Fs().DeleteAll("tmpdir")
 ```
-
-#### `func (m *Fs) ReadStream(path string) Result`
-
-```go
-r := c.Fs().ReadStream("go.mod")
+core/go          — pure primitives (stdlib only)
+core/go-process  — process management (adds os/exec)
+core/mcp         — MCP server (adds go-sdk)
+core/agent       — orchestration (adds forge, yaml, mcp)
 ```
 
-#### `func (m *Fs) WriteStream(path string) Result`
+Each layer imports the one below. core/go imports nothing from the ecosystem — everything imports core/go.
 
-```go
-r := c.Fs().WriteStream("go.mod")
-```
-
-### Package functions in `fs.go`
 
-### `func DirFS(dir string) fs.FS`
 
-```go
-fsys := core.DirFS("/tmp")
-```
+## Consumer RFCs
 
-### `func ReadAll(reader any) Result`
+core/go provides the primitives. These RFCs describe how consumers use them:
 
-```go
-r := core.ReadAll(c.Fs().ReadStream("go.mod").Value)
-```
+| Package | RFC | Scope |
+|---------|-----|-------|
+| go-process | `core/go-process/docs/RFC.md` | Action handlers for process.run/start/kill, ManagedProcess, daemon registry |
+| core/agent | `core/agent/docs/RFC.md` | Named Actions, completion pipeline (P6-1 fix), WriteAtomic migration, Process migration, Entitlement gating |
 
-### `func WriteAll(writer any, content string) Result`
+Each consumer RFC is self-contained — an agent can implement it from the document alone.
 
-```go
-r := core.WriteAll(c.Fs().WriteStream("out.txt").Value, "value")
-```
+---
 
-### `func CloseStream(v any)`
+## Versioning
 
-```go
-core.CloseStream(handle)
-```
+### Release Model
 
-### `type I18n struct`
+The patch count after a release IS the quality metric. v0.8.1 means the spec missed one thing.
 
-#### `func (i *I18n) AddLocales(mounts ...*Embed)`
+### Cadence
 
-```go
-c.I18n().AddLocales(emb)
-```
+1. **RFC spec** — design the version in prose
+2. **Implement** — build to spec with AX-7 tests
+3. **Refine** — review passes catch drift
+4. **Tag** — when all sections pass
+5. **Measure** — patches tell you what was missed
 
-#### `func (i *I18n) Locales() Result`
+## 21. Entitlement — The Permission Primitive
 
-```go
-r := c.I18n().Locales()
-```
+Core provides the primitive. go-entitlements and commerce-matrix provide implementations.
 
-#### `func (i *I18n) SetTranslator(t Translator)`
+### 21.1 The Problem
 
-```go
-c.I18n().SetTranslator(translator)
-```
+`*Core` grants God Mode (P11-1). Every service sees everything. The 14 findings in Root Cause 2 all stem from this. The conclave is trusted — but the SaaS platform (RFC-004), the commerce hierarchy (RFC-005), and the agent sandbox all need boundaries.
 
-#### `func (i *I18n) Translator() Result`
+Three systems ask the same question with different vocabulary:
 
-```go
-r := c.I18n().Translator()
 ```
-
-#### `func (i *I18n) Translate(messageID string, args ...any) Result`
-
-```go
-r := c.I18n().Translate("cmd.deploy.description")
+Can [subject] do [action] with [quantity] in [context]?
 ```
-
-#### `func (i *I18n) SetLanguage(lang string) Result`
 
-```go
-r := c.I18n().SetLanguage("de")
-```
+| System | Subject | Action | Quantity | Context |
+|--------|---------|--------|----------|---------|
+| RFC-004 Entitlements | workspace | feature.code | N | active packages |
+| RFC-005 Commerce Matrix | entity (M1/M2/M3) | permission.key | 1 | hierarchy path |
+| Core Actions | this Core instance | action.name | 1 | registered services |
 
-#### `func (i *I18n) Language() string`
+### 21.2 The Primitive
 
 ```go
-lang := c.I18n().Language()
-```
+// Entitlement is the result of a permission check.
+// Carries context for both boolean gates (Allowed) and usage limits (Limit/Used/Remaining).
+// Maps directly to RFC-004 EntitlementResult and RFC-005 PermissionResult.
+type Entitlement struct {
+    Allowed   bool   // permission granted
+    Unlimited bool   // no cap (agency tier, admin, trusted conclave)
+    Limit     int    // total allowed (0 = boolean gate, no quantity dimension)
+    Used      int    // current consumption
+    Remaining int    // Limit - Used
+    Reason    string // denial reason — for UI feedback and audit logging
+}
 
-#### `func (i *I18n) AvailableLanguages() []string`
-
-```go
-langs := c.I18n().AvailableLanguages()
+// Entitled checks if an action is permitted in the current context.
+// Default: always returns Allowed=true, Unlimited=true (trusted conclave).
+// With go-entitlements: checks workspace packages, features, usage, boosts.
+// With commerce-matrix: checks entity hierarchy, lock cascade.
+//
+//   e := c.Entitled("process.run")           // boolean — can this Core run processes?
+//   e := c.Entitled("social.accounts", 3)    // quantity — can workspace create 3 more accounts?
+//   if e.Allowed { proceed() }
+//   if e.NearLimit(0.8) { showWarning() }
+func (c *Core) Entitled(action string, quantity ...int) Entitlement
 ```
-
-### `type Process struct`
 
-#### `func (c *Core) Process() *Process`
+### 21.3 The Checker — Consumer-Provided
 
-```go
-p := c.Process()
-```
-
-#### `func (p *Process) Run(ctx context.Context, command string, args ...string) Result`
+Core defines the interface. Consumer packages provide the implementation.
 
 ```go
-r := c.Process().Run(ctx, "git", "status")
+// EntitlementChecker answers "can [subject] do [action] with [quantity]?"
+// Subject comes from context (workspace, entity, user — consumer's concern).
+type EntitlementChecker func(action string, quantity int, ctx context.Context) Entitlement
 ```
 
-#### `func (p *Process) RunIn(ctx context.Context, dir, command string, args ...string) Result`
+Registration via Core:
 
 ```go
-r := c.Process().RunIn(ctx, "/tmp", "go", "test", "./...")
+// SetEntitlementChecker replaces the default (permissive) checker.
+// Called by go-entitlements or commerce-matrix during OnStartup.
+//
+//   func (s *EntitlementService) OnStartup(ctx context.Context) core.Result {
+//       s.Core().SetEntitlementChecker(s.check)
+//       return core.Result{OK: true}
+//   }
+func (c *Core) SetEntitlementChecker(checker EntitlementChecker)
 ```
 
-#### `func (p *Process) RunWithEnv(ctx context.Context, dir string, env []string, command string, args ...string) Result`
+Default checker (no entitlements package loaded):
 
 ```go
-r := c.Process().RunWithEnv(ctx, "/", []string{"CI=true"}, "go", "version")
+// defaultChecker — trusted conclave, everything permitted
+func defaultChecker(action string, quantity int, ctx context.Context) Entitlement {
+    return Entitlement{Allowed: true, Unlimited: true}
+}
 ```
 
-#### `func (p *Process) Start(ctx context.Context, opts Options) Result`
-
-```go
-r := c.Process().Start(ctx, core.NewOptions(core.Option{Key: "command", Value: "sleep"}))
-```
+### 21.4 Enforcement Point — Action.Run()
 
-#### `func (p *Process) Kill(ctx context.Context, opts Options) Result`
+The entitlement check lives in `Action.Run()`, before execution. One enforcement point for all capabilities.
 
 ```go
-r := c.Process().Kill(ctx, core.NewOptions(core.Option{Key: "id", Value: "1234"))
-```
+func (a *Action) Run(ctx context.Context, opts Options) (result Result) {
+    if !a.Exists() { return not-registered }
+    if !a.enabled { return disabled }
 
-#### `func (p *Process) Exists() bool`
+    // Entitlement check — permission boundary
+    if e := a.core.Entitled(a.Name); !e.Allowed {
+        return Result{E("action.Run",
+            Concat("not entitled: ", a.Name, " — ", e.Reason), nil), false}
+    }
 
-```go
-if c.Process().Exists() {}
+    defer func() { /* panic recovery */ }()
+    return a.Handler(ctx, opts)
+}
 ```
 
-## 8) Task/background execution and progress
+Three states for any action:
 
-### `func (c *Core) PerformAsync(action string, opts Options) Result`
+| State | Exists() | Entitled() | Run() |
+|-------|----------|------------|-------|
+| Not registered | false | — | Result{OK: false} "not registered" |
+| Registered, not entitled | true | false | Result{OK: false} "not entitled" |
+| Registered and entitled | true | true | executes handler |
 
-```go
-r := c.PerformAsync("agent.dispatch", core.NewOptions(core.Option{Key: "id", Value: 1}))
-```
+### 21.5 How RFC-004 (SaaS Entitlements) Plugs In
 
-### `func (c *Core) Progress(taskID string, progress float64, message string, action string)`
+go-entitlements registers as a service and replaces the checker:
 
 ```go
-c.Progress(taskID, 0.5, "halfway", "agent.dispatch")
-```
+// In go-entitlements:
+func (s *Service) OnStartup(ctx context.Context) core.Result {
+    s.Core().SetEntitlementChecker(func(action string, qty int, ctx context.Context) core.Entitlement {
+        workspace := s.workspaceFromContext(ctx)
+        if workspace == nil {
+            return core.Entitlement{Allowed: true, Unlimited: true} // no workspace = system context
+        }
 
-### `func (c *Core) RegisterAction(handler func(*Core, Message) Result)`
+        result := s.Can(workspace, action, qty)
 
-```go
-c.RegisterAction(func(_ *core.Core, msg core.Message) core.Result {
-    _ = msg
+        return core.Entitlement{
+            Allowed:   result.IsAllowed(),
+            Unlimited: result.IsUnlimited(),
+            Limit:     result.Limit,
+            Used:      result.Used,
+            Remaining: result.Remaining,
+            Reason:    result.Message(),
+        }
+    })
     return core.Result{OK: true}
-})
+}
 ```
 
-## 9) Logging and output
+Maps 1:1 to RFC-004's `EntitlementResult`:
+- `$result->isAllowed()` → `e.Allowed`
+- `$result->isUnlimited()` → `e.Unlimited`
+- `$result->limit` → `e.Limit`
+- `$result->used` → `e.Used`
+- `$result->remaining` → `e.Remaining`
+- `$result->getMessage()` → `e.Reason`
+- `$result->isNearLimit()` → `e.NearLimit(0.8)`
+- `$result->getUsagePercentage()` → `e.UsagePercent()`
 
-### `type Level int`
+### 21.6 How RFC-005 (Commerce Matrix) Plugs In
 
-```go
-const (
-    core.LevelQuiet Level = iota
-    core.LevelError
-    core.LevelWarn
-    core.LevelInfo
-    core.LevelDebug
-)
-```
-
-#### `func (l Level) String() string`
-
-```go
-s := core.LevelInfo.String()
-```
-
-### `type Log struct`
-
-#### `func NewLog(opts LogOptions) *Log`
-
-```go
-logger := core.NewLog(core.LogOptions{Level: core.LevelDebug})
-```
-
-#### `func (l *Log) SetLevel(level Level)`
-
-```go
-logger.SetLevel(core.LevelWarn)
-```
-
-#### `func (l *Log) Level() Level`
-
-```go
-lvl := logger.Level()
-```
-
-#### `func (l *Log) SetOutput(w io.Writer)`
-
-```go
-logger.SetOutput(os.Stderr)
-```
-
-#### `func (l *Log) SetRedactKeys(keys ...string)`
-
-```go
-logger.SetRedactKeys("token", "password")
-```
-
-#### `func (l *Log) Debug(msg string, keyvals ...any)`
-
-```go
-logger.Debug("booted", "pid", 123)
-```
-
-#### `func (l *Log) Info(msg string, keyvals ...any)`
-
-```go
-logger.Info("agent started")
-```
-
-#### `func (l *Log) Warn(msg string, keyvals ...any)`
-
-```go
-logger.Warn("disk nearly full")
-```
-
-#### `func (l *Log) Error(msg string, keyvals ...any)`
-
-```go
-logger.Error("failed to bind", "err", err)
-```
-
-#### `func (l *Log) Security(msg string, keyvals ...any)`
-
-```go
-logger.Security("sandbox escape", "attempt", path)
-```
-
-### `type ErrorLog struct`
-
-#### `func (el *ErrorLog) Error(err error, op, msg string) Result`
-
-```go
-r := c.Log().Error(err, "core.Run", "startup failed")
-```
-
-#### `func (el *ErrorLog) Warn(err error, op, msg string) Result`
-
-```go
-r := c.Log().Warn(err, "warn", "soft error")
-```
-
-#### `func (el *ErrorLog) Must(err error, op, msg string)`
-
-```go
-c.Log().Must(err, "core.maybe", "must hold")
-```
-
-### `type ErrorPanic struct`
-
-#### `func (h *ErrorPanic) Recover()`
-
-```go
-defer c.Error().Recover()
-```
-
-#### `func (h *ErrorPanic) SafeGo(fn func())`
-
-```go
-c.Error().SafeGo(func() { panic("boom") })
-```
-
-#### `func (h *ErrorPanic) Reports(n int) Result`
-
-```go
-r := c.Error().Reports(3)
-```
-
-### `type LogErr struct`
-
-#### `func NewLogErr(log *Log) *LogErr`
-
-```go
-le := core.NewLogErr(core.Default())
-```
-
-#### `func (le *LogErr) Log(err error)`
-
-```go
-le.Log(err)
-```
-
-### `type LogPanic struct`
-
-#### `func NewLogPanic(log *Log) *LogPanic`
-
-```go
-lp := core.NewLogPanic(core.Default())
-```
-
-#### `func (lp *LogPanic) Recover()`
-
-```go
-defer lp.Recover()
-```
-
-### Package-level logger helpers
-
-`Default`, `SetDefault`, `SetLevel`, `SetRedactKeys`, `Debug`, `Info`, `Warn`, `Error`, `Security`.
-
-### `func Default() *Log`
-
-```go
-l := core.Default()
-```
-
-### `func SetDefault(l *Log)`
-
-```go
-core.SetDefault(core.NewLog(core.LogOptions{Level: core.LevelDebug}))
-```
-
-### `func SetLevel(level Level)`
-
-```go
-core.SetLevel(core.LevelInfo)
-```
-
-### `func SetRedactKeys(keys ...string)`
-
-```go
-core.SetRedactKeys("password")
-```
-
-### `func Debug(msg string, keyvals ...any)`
-
-```go
-core.Debug("start")
-```
-
-### `func Info(msg string, keyvals ...any)`
-
-```go
-core.Info("ready")
-```
-
-### `func Warn(msg string, keyvals ...any)`
-
-```go
-core.Warn("high load")
-```
-
-### `func Error(msg string, keyvals ...any)`
-
-```go
-core.Error("failure", "err", err)
-```
-
-### `func Security(msg string, keyvals ...any)`
-
-```go
-core.Security("policy", "event", "denied")
-```
-
-### `type LogOptions struct`
-
-`Level`, `Output`, `Rotation`, `RedactKeys`.
-
-### `type RotationLogOptions struct`
-
-`Filename`, `MaxSize`, `MaxAge`, `MaxBackups`, `Compress`.
-
-### `var RotationWriterFactory func(RotationLogOptions) io.WriteCloser`
-
-```go
-core.RotationWriterFactory = myFactory
-```
-
-### `func Username() string`
-
-```go
-u := core.Username()
-```
-
-## 10) Error model and diagnostics
-
-### `type Err struct`
-
-`Operation`, `Message`, `Cause`, `Code`.
-
-#### `func (e *Err) Error() string`
-
-```go
-_ = err.Error()
-```
-
-#### `func (e *Err) Unwrap() error`
-
-```go
-_ = errors.Unwrap(err)
-```
-
-### `func E(op, msg string, err error) error`
-
-```go
-r := core.E("core.Run", "startup failed", err)
-```
-
-### `func Wrap(err error, op, msg string) error`
-
-```go
-r := core.Wrap(err, "api.Call", "request failed")
-```
-
-### `func WrapCode(err error, code, op, msg string) error`
-
-```go
-r := core.WrapCode(err, "NOT_AUTHORIZED", "api.Call", "forbidden")
-```
-
-### `func NewCode(code, msg string) error`
-
-```go
-_ = core.NewCode("VALIDATION", "invalid input")
-```
-
-### `func NewError(text string) error`
-
-```go
-_ = core.NewError("boom")
-```
-
-### `func ErrorJoin(errs ...error) error`
-
-```go
-err := core.ErrorJoin(e1, e2, e3)
-```
-
-### `func ErrorMessage(err error) string`
-
-```go
-msg := core.ErrorMessage(err)
-```
-
-### `func ErrorCode(err error) string`
-
-```go
-code := core.ErrorCode(err)
-```
-
-### `func Operation(err error) string`
-
-```go
-op := core.Operation(err)
-```
-
-### `func Root(err error) error`
-
-```go
-root := core.Root(err)
-```
-
-### `func AllOperations(err error) iter.Seq[string]`
-
-```go
-for op := range core.AllOperations(err) { fmt.Println(op) }
-```
-
-### `func StackTrace(err error) []string`
-
-```go
-stack := core.StackTrace(err)
-```
-
-### `func FormatStackTrace(err error) string`
-
-```go
-fmt.Println(core.FormatStackTrace(err))
-```
-
-### `func As(err error, target any) bool`
-
-```go
-var ee *core.Err
-_ = core.As(err, &ee)
-```
-
-### `func Is(err, target error) bool`
-
-```go
-_ = core.Is(err, io.EOF)
-```
-
-### `type CrashReport struct`
-
-### `type CrashSystem struct`
-
-## 11) Asset packing and embed helpers
-
-### `type AssetGroup struct`
-### `type AssetRef struct`
-### `type ScannedPackage struct`
-
-### `func AddAsset(group, name, data string)`
-
-```go
-core.AddAsset("g", "n", "payload")
-```
-
-### `func GetAsset(group, name string) Result`
-
-```go
-r := core.GetAsset("g", "n")
-```
-
-### `func GetAssetBytes(group, name string) Result`
-
-```go
-r := core.GetAssetBytes("g", "n")
-```
-
-### `func ScanAssets(filenames []string) Result`
-
-```go
-r := core.ScanAssets([]string{"main.go"})
-```
-
-### `func GeneratePack(pkg ScannedPackage) Result`
-
-```go
-r := core.GeneratePack(scanned)
-```
-
-### `func Mount(fsys fs.FS, basedir string) Result`
-
-```go
-r := core.Mount(appFS, "assets")
-```
-
-### `func MountEmbed(efs embed.FS, basedir string) Result`
-
-```go
-r := core.MountEmbed(efs, "assets")
-```
-
-### `func Extract(fsys fs.FS, targetDir string, data any, opts ...ExtractOptions) Result`
-
-```go
-r := core.Extract(embeds, "/tmp/out", map[string]string{"Name": "demo"})
-```
-
-### `type ExtractOptions struct`
-`TemplateFilters []string`, `IgnoreFiles map[string]struct{}`, `RenameFiles map[string]string`.
-
-### `type Embed struct`
-
-#### `func (s *Embed) Open(name string) Result`
-
-```go
-r := emb.Open("readme.md")
-```
-
-#### `func (s *Embed) ReadDir(name string) Result`
-
-```go
-r := emb.ReadDir("templates")
-```
-
-#### `func (s *Embed) ReadFile(name string) Result`
-
-```go
-r := emb.ReadFile("readme.md")
-```
-
-#### `func (s *Embed) ReadString(name string) Result`
-
-```go
-r := emb.ReadString("readme.md")
-```
-
-#### `func (s *Embed) Sub(subDir string) Result`
-
-```go
-r := emb.Sub("assets")
-```
-
-#### `func (s *Embed) FS() fs.FS`
-
-```go
-fsys := emb.FS()
-```
-
-#### `func (s *Embed) EmbedFS() embed.FS`
-
-```go
-efs := emb.EmbedFS()
-```
-
-#### `func (s *Embed) BaseDirectory() string`
-
-```go
-base := emb.BaseDirectory()
-```
-
-## 12) Configuration and primitives
-
-### `type Option struct`
-
-```go
-opt := core.Option{Key: "name", Value: "agent"}
-```
-
-### `type ConfigVar[T any]`
-
-#### `func NewConfigVar[T any](val T) ConfigVar[T]`
-
-```go
-v := core.NewConfigVar("blue")
-```
-
-#### `func (v *ConfigVar[T]) Get() T`
-
-```go
-val := v.Get()
-```
-
-#### `func (v *ConfigVar[T]) Set(val T)`
-
-```go
-v.Set("red")
-```
-
-#### `func (v *ConfigVar[T]) IsSet() bool`
-
-```go
-if v.IsSet() {}
-```
-
-#### `func (v *ConfigVar[T]) Unset()`
-
-```go
-v.Unset()
-```
-
-### `type ConfigOptions struct`
-`Settings map[string]any`, `Features map[string]bool`.
-
-### `type Config struct`
-
-#### `func (e *Config) New() *Config`
-
-```go
-cfg := (&core.Config{}).New()
-```
-
-#### `func (e *Config) Set(key string, val any)`
-
-```go
-cfg.Set("port", 8080)
-```
-
-#### `func (e *Config) Get(key string) Result`
-
-```go
-r := cfg.Get("port")
-```
-
-#### `func (e *Config) String(key string) string`
-
-```go
-v := cfg.String("port")
-```
-
-#### `func (e *Config) Int(key string) int`
-
-```go
-v := cfg.Int("retries")
-```
-
-#### `func (e *Config) Bool(key string) bool`
-
-```go
-v := cfg.Bool("debug")
-```
-
-#### `func (e *Config) Enable(feature string)`
-
-```go
-e.Enable("tracing")
-```
-
-#### `func (e *Config) Disable(feature string)`
-
-```go
-e.Disable("tracing")
-```
-
-#### `func (e *Config) Enabled(feature string) bool`
-
-```go
-if e.Enabled("tracing") {}
-```
-
-#### `func (e *Config) EnabledFeatures() []string`
-
-```go
-features := e.EnabledFeatures()
-```
-
-### `func ConfigGet[T any](e *Config, key string) T`
-
-```go
-limit := core.ConfigGet[int](cfg, "retries")
-```
-
-### `type Options struct`
-
-#### `func NewOptions(items ...Option) Options`
-
-```go
-opts := core.NewOptions(core.Option{Key: "name", Value: "x"})
-```
-
-#### `func (o *Options) Set(key string, value any)`
-
-```go
-opts.Set("debug", true)
-```
-
-#### `func (o Options) Get(key string) Result`
-
-```go
-r := opts.Get("debug")
-```
-
-#### `func (o Options) Has(key string) bool`
-
-```go
-if opts.Has("debug") {}
-```
+commerce-matrix registers and replaces the checker with hierarchy-aware logic:
 
-#### `func (o Options) String(key string) string`
-
-```go
-v := opts.String("name")
-```
-
-#### `func (o Options) Int(key string) int`
-
-```go
-v := opts.Int("port")
-```
-
-#### `func (o Options) Bool(key string) bool`
-
-```go
-b := opts.Bool("debug")
-```
-
-#### `func (o Options) Len() int`
-
-```go
-n := opts.Len()
-```
-
-#### `func (o Options) Items() []Option`
-
-```go
-all := opts.Items()
-```
-
-### `type Result struct`
-
-#### `func (r Result) Result(args ...any) Result`
-
-```go
-r := core.Result{}.Result(file, err)
-```
-
-#### `func (r Result) New(args ...any) Result`
-
-```go
-r := core.Result{}.New(file, nil)
-```
-
-#### `func (r Result) Get() Result`
-
-```go
-v := r.Get()
-```
-
-### `func JSONMarshal(v any) Result`
-
-```go
-r := core.JSONMarshal(map[string]string{"k": "v"})
-```
-
-### `func JSONMarshalString(v any) string`
-
-```go
-s := core.JSONMarshalString(map[string]any{"k": "v"})
-```
-
-### `func JSONUnmarshal(data []byte, target any) Result`
-
-```go
-r := core.JSONUnmarshal([]byte(`{"x":1}`), &cfg)
-```
-
-### `func JSONUnmarshalString(s string, target any) Result`
-
-```go
-r := core.JSONUnmarshalString(`{"x":1}`, &cfg)
-```
-
-## 13) Registry primitive
-
-### `type Registry[T any] struct`
-
-#### `func NewRegistry[T any]() *Registry[T]`
-
-```go
-r := core.NewRegistry[*core.Service]()
-```
-
-#### `func (r *Registry[T]) Set(name string, item T) Result`
-
-```go
-r.Set("process", svc)
-```
-
-#### `func (r *Registry[T]) Get(name string) Result`
-
-```go
-got := r.Get("process")
-```
-
-#### `func (r *Registry[T]) Has(name string) bool`
-
-```go
-if r.Has("process") {}
-```
-
-#### `func (r *Registry[T]) Names() []string`
-
-```go
-for _, n := range r.Names() {}
-```
-
-#### `func (r *Registry[T]) List(pattern string) []T`
-
-```go
-vals := r.List("process.*")
-```
-
-#### `func (r *Registry[T]) Each(fn func(string, T))`
-
-```go
-r.Each(func(name string, v *core.Service) {})
-```
-
-#### `func (r *Registry[T]) Len() int`
-
-```go
-n := r.Len()
-```
-
-#### `func (r *Registry[T]) Delete(name string) Result`
-
-```go
-_ = r.Delete("legacy")
-```
-
-#### `func (r *Registry[T]) Disable(name string) Result`
-
-```go
-_ = r.Disable("legacy")
-```
-
-#### `func (r *Registry[T]) Enable(name string) Result`
-
-```go
-_ = r.Enable("legacy")
-```
-
-#### `func (r *Registry[T]) Disabled(name string) bool`
-
-```go
-if r.Disabled("legacy") {}
-```
-
-#### `func (r *Registry[T]) Lock()`
-
-```go
-r.Lock()
-```
-
-#### `func (r *Registry[T]) Locked() bool`
-
-```go
-locked := r.Locked()
-```
-
-#### `func (r *Registry[T]) Seal()`
-
-```go
-r.Seal()
-```
-
-#### `func (r *Registry[T]) Sealed() bool`
-
-```go
-if r.Sealed() {}
-```
-
-#### `func (r *Registry[T]) Open()`
-
-```go
-r.Open()
-```
-
-## 14) Entitlement and security policy hooks
-
-### `type Entitlement struct`
-
-`Allowed`, `Unlimited`, `Limit`, `Used`, `Remaining`, `Reason`.
-
-### `func (e Entitlement) NearLimit(threshold float64) bool`
-
-```go
-if e.NearLimit(0.8) {}
-```
-
-### `func (e Entitlement) UsagePercent() float64`
-
-```go
-pct := e.UsagePercent()
-```
-
-### `type EntitlementChecker func(action string, quantity int, ctx context.Context) Entitlement`
-### `type UsageRecorder func(action string, quantity int, ctx context.Context)`
-
-#### `func (c *Core) Entitled(action string, quantity ...int) Entitlement`
-
-```go
-e := c.Entitled("process.run")
-```
-
-#### `func (c *Core) SetEntitlementChecker(checker EntitlementChecker)`
-
-```go
-c.SetEntitlementChecker(myChecker)
-```
-
-#### `func (c *Core) RecordUsage(action string, quantity ...int)`
-
-```go
-c.RecordUsage("process.run")
-```
-
-#### `func (c *Core) SetUsageRecorder(recorder UsageRecorder)`
-
-```go
-c.SetUsageRecorder(myRecorder)
-```
-
-## 15) Generic and helper collections
-
-### `type Array[T comparable]`
-
-#### `func NewArray[T comparable](items ...T) *Array[T]`
-
-```go
-arr := core.NewArray("a", "b")
-```
-
-#### `func (s *Array[T]) Add(values ...T)`
-
-```go
-arr.Add("c")
-```
-
-#### `func (s *Array[T]) AddUnique(values ...T)`
-
-```go
-arr.AddUnique("a")
-```
-
-#### `func (s *Array[T]) Contains(val T) bool`
-
-```go
-_ = arr.Contains("a")
-```
-
-#### `func (s *Array[T]) Filter(fn func(T) bool) Result`
-
-```go
-r := arr.Filter(func(v string) bool { return v != "x" })
-```
-
-#### `func (s *Array[T]) Each(fn func(T))`
-
-```go
-arr.Each(func(v string) {})
-```
-
-#### `func (s *Array[T]) Remove(val T)`
-
-```go
-arr.Remove("b")
-```
-
-#### `func (s *Array[T]) Deduplicate()`
-
-```go
-arr.Deduplicate()
-```
-
-#### `func (s *Array[T]) Len() int`
-
-```go
-n := arr.Len()
-```
-
-#### `func (s *Array[T]) Clear()`
-
-```go
-arr.Clear()
-```
-
-#### `func (s *Array[T]) AsSlice() []T`
-
-```go
-vals := arr.AsSlice()
-```
-
-## 16) String and path utility API
-
-### String helpers
-- `HasPrefix`, `HasSuffix`, `TrimPrefix`, `TrimSuffix`, `Contains`, `Split`, `SplitN`, `Join`, `Replace`, `Lower`, `Upper`, `Trim`, `RuneCount`, `NewBuilder`, `NewReader`, `Sprint`, `Sprintf`, `Concat`.
-
-```go
-core.Join("/", "deploy", "to", "homelab")
-core.Concat("cmd.", "deploy", ".description")
-```
-
-### Path helpers
-- `Path`, `PathBase`, `PathDir`, `PathExt`, `PathIsAbs`, `JoinPath`, `CleanPath`, `PathGlob`.
-
-```go
-core.Path("Code", "agent")
-core.PathIsAbs("/tmp")
-```
-
-#### `func JoinPath(segments ...string) string`
-
-```go
-p := core.JoinPath("workspace", "deploy", "main.go")
-```
-
-### Generic I/O helpers
-- `Arg`, `ArgString`, `ArgInt`, `ArgBool`, `ParseFlag`, `FilterArgs`, `IsFlag`, `ID`, `ValidateName`, `SanitisePath`.
-
-```go
-id := core.ID()
-name := core.ValidateName("agent").Value
-```
-
-### Package-level functions in this section
-
-#### `func Print(w io.Writer, format string, args ...any)`
-
-```go
-core.Print(os.Stderr, "hello %s", "world")
-```
-
-#### `func Println(args ...any)`
-
-```go
-core.Println("ready")
-```
-
-#### `func Arg(index int, args ...any) Result`
-
-```go
-r := core.Arg(0, "x", 1)
-```
-
-#### `func ArgString(index int, args ...any) string`
-
 ```go
-v := core.ArgString(0, "x", 1)
-```
+// In commerce-matrix:
+func (s *MatrixService) OnStartup(ctx context.Context) core.Result {
+    s.Core().SetEntitlementChecker(func(action string, qty int, ctx context.Context) core.Entitlement {
+        entity := s.entityFromContext(ctx)
+        if entity == nil {
+            return core.Entitlement{Allowed: true, Unlimited: true}
+        }
 
-#### `func ArgInt(index int, args ...any) int`
+        result := s.Can(entity, action, "")
 
-```go
-v := core.ArgInt(1, "x", 42)
+        return core.Entitlement{
+            Allowed: result.IsAllowed(),
+            Reason:  result.Reason,
+        }
+    })
+    return core.Result{OK: true}
+}
 ```
 
-#### `func ArgBool(index int, args ...any) bool`
+Maps to RFC-005's cascade model:
+- `M1 says NO → everything below is NO` → checker walks hierarchy, returns `{Allowed: false, Reason: "Locked by M1"}`
+- Training mode → checker returns `{Allowed: false, Reason: "undefined — training required"}`
+- Production strict mode → undefined = denied
 
-```go
-v := core.ArgBool(2, true)
-```
+### 21.7 Composing Both Systems
 
-#### `func IsFlag(arg string) bool`
+When a SaaS platform ALSO has commerce hierarchy (Host UK), the checker composes internally:
 
 ```go
-ok := core.IsFlag("--debug")
-```
-
-#### `func ParseFlag(arg string) (string, string, bool)`
+func (s *CompositeService) check(action string, qty int, ctx context.Context) core.Entitlement {
+    // Check commerce matrix first (hard permissions)
+    matrixResult := s.matrix.Can(entityFromCtx(ctx), action, "")
+    if matrixResult.IsDenied() {
+        return core.Entitlement{Allowed: false, Reason: matrixResult.Reason}
+    }
 
-```go
-key, val, ok := core.ParseFlag("--name=agent")
+    // Then check entitlements (usage limits)
+    entResult := s.entitlements.Can(workspaceFromCtx(ctx), action, qty)
+    return core.Entitlement{
+        Allowed:   entResult.IsAllowed(),
+        Unlimited: entResult.IsUnlimited(),
+        Limit:     entResult.Limit,
+        Used:      entResult.Used,
+        Remaining: entResult.Remaining,
+        Reason:    entResult.Message(),
+    }
+}
 ```
-
-#### `func FilterArgs(args []string) []string`
 
-```go
-clean := core.FilterArgs(os.Args[1:])
-```
+Matrix (hierarchy) gates first. Entitlements (usage) gate second. One checker, composed.
 
-#### `func ID() string`
+### 21.8 Convenience Methods on Entitlement
 
 ```go
-id := core.ID()
-```
+// NearLimit returns true if usage exceeds the threshold percentage.
+// RFC-004: $result->isNearLimit() uses 80% threshold.
+//
+//   if e.NearLimit(0.8) { showUpgradePrompt() }
+func (e Entitlement) NearLimit(threshold float64) bool
 
-#### `func ValidateName(name string) Result`
+// UsagePercent returns current usage as a percentage of the limit.
+// RFC-004: $result->getUsagePercentage()
+//
+//   pct := e.UsagePercent()  // 75.0
+func (e Entitlement) UsagePercent() float64
 
-```go
-r := core.ValidateName("deploy")
+// RecordUsage is called after a gated action succeeds.
+// Delegates to the entitlement service for usage tracking.
+// This is the equivalent of RFC-004's $workspace->recordUsage().
+//
+//   e := c.Entitled("ai.credits", 10)
+//   if e.Allowed {
+//       doWork()
+//       c.RecordUsage("ai.credits", 10)
+//   }
+func (c *Core) RecordUsage(action string, quantity ...int)
 ```
 
-#### `func SanitisePath(path string) string`
+### 21.9 Audit Trail — RFC-004 Section: Audit Logging
 
-```go
-safe := core.SanitisePath("../../etc")
-```
+Every entitlement check can be logged via `core.Security()`:
 
-#### `func DirFS(dir string) fs.FS`
-
 ```go
-root := core.DirFS("/tmp")
-```
+func (c *Core) Entitled(action string, quantity ...int) Entitlement {
+    qty := 1
+    if len(quantity) > 0 {
+        qty = quantity[0]
+    }
 
-## 17) System and environment helpers
+    e := c.entitlementChecker(action, qty, c.Context())
 
-### `func Env(key string) string`
+    // Audit logging for denials (P11-6)
+    if !e.Allowed {
+        Security("entitlement.denied", "action", action, "quantity", qty, "reason", e.Reason)
+    }
 
-```go
-home := core.Env("DIR_HOME")
+    return e
+}
 ```
 
-### `func EnvKeys() []string`
+### 21.10 Core Struct Changes
 
 ```go
-keys := core.EnvKeys()
+type Core struct {
+    // ... existing fields ...
+    entitlementChecker EntitlementChecker  // default: everything permitted
+}
 ```
 
-### `func Username() string`
+Constructor:
 
 ```go
-who := core.Username()
+func New(opts ...CoreOption) *Core {
+    c := &Core{
+        // ... existing ...
+        entitlementChecker: defaultChecker,
+    }
+    // ...
+}
 ```
-
-## 18) Remaining interfaces and types
-
-### `type ErrorSink interface`
-
-`Error(msg string, keyvals ...any)` and `Warn(msg string, keyvals ...any)`.
-
-### `type Stream interface`
-
-`Send`, `Receive`, `Close` as above.
-
-### `type Translator interface`
-
-`Translate`, `SetLanguage`, `Language`, `AvailableLanguages`.
 
-### `type LocaleProvider interface`
+### 21.11 What This Does NOT Do
 
-`Locales() *Embed`.
+- **Does not add database dependencies** — Core is stdlib only. Usage tracking, package management, billing — all in consumer packages.
+- **Does not define features** — The feature catalogue (social.accounts, ai.credits, etc.) is defined by the SaaS platform, not Core.
+- **Does not manage subscriptions** — Commerce (RFC-005) and billing (Blesta/Stripe) are consumer concerns.
+- **Does not replace Action registration** — Registration IS capability. Entitlement IS permission. Both must be true.
+- **Does not enforce at Config/Data/Fs level** — v0.8.0 gates Actions. Config/Data/Fs gating requires per-subsystem entitlement checks (same pattern, more integration points).
 
-### `type Runtime helpers`
+### 21.12 The Subsystem Map (Updated)
 
-- `type Ipc` (named fields, no exported methods)
-- `type Lock struct{ Name string; Mutex *sync.RWMutex }`
-- `type SysInfo struct{ values map[string]string }`
-
-### `type Ipc struct`
-
-```go
-ipc := c.IPC()
 ```
-
-### `type Lock struct`
-
-```go
-guard := c.Lock("core-bootstrap")
-guard.Mutex.Lock()
-defer guard.Mutex.Unlock()
+c.Registry()     — universal named collection
+c.Options()      — input configuration
+c.App()          — identity
+c.Config()       — runtime settings
+c.Data()         — embedded assets
+c.Drive()        — connection config (WHERE)
+c.API()          — remote streams (HOW) [planned]
+c.Fs()           — filesystem
+c.Process()      — managed execution (Action sugar)
+c.Action()       — named callables (register, invoke, inspect)
+c.Task()         — composed Action sequences
+c.IPC()          — local message bus
+c.Cli()          — command tree
+c.Log()          — logging
+c.Error()        — panic recovery
+c.I18n()         — internationalisation
+c.Entitled()     — permission check (NEW)
+c.RecordUsage()  — usage tracking (NEW)
 ```
 
-### `type SysInfo struct`
-
-```go
-// SysInfo values are accessed through Env()/EnvKeys(); direct type construction is not required.
-home := core.Env("DIR_HOME")
-keys := core.EnvKeys()
-```
+---
 
-## 19) Legacy behavior notes
+## Changelog
 
-- `Service` lifecycle callbacks are the DTO fields `OnStart` and `OnStop`.
-- `Startable`/`Stoppable` are the interface contracts and map to `OnStartup(context.Context)` / `OnShutdown(context.Context)`.
-- Registry iteration (`Names`, `List`, `Each`, `Services`, `Startables`, `Stoppables`) is insertion-order based via `Registry.order`.
+- 2026-03-25: v0.8.0 — All 21 sections implemented. 483 tests, 84.7% coverage, 100% AX-7 naming.
+- 2026-03-25: Initial specification created from 500k token discovery session. 108 findings, 5 root causes, 13 review passes. Discovery detail preserved in git history.
