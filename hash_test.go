@@ -86,46 +86,53 @@ func TestHash_SHA256HexString_Ugly(t *T) {
 
 func TestHash_HMAC_Good(t *T) {
 	data := []byte("The quick brown fox jumps over the lazy dog")
+	r := HMAC("sha256", []byte("key"), data)
+	RequireTrue(t, r.OK)
 
-	AssertEqual(t, hmacSHA256Hex, HexEncode(HMAC("sha256", []byte("key"), data)))
+	AssertEqual(t, hmacSHA256Hex, HexEncode(r.Value.([]byte)))
 }
 
 func TestHash_HMAC_Bad(t *T) {
-	AssertPanics(t, func() {
-		_ = HMAC("md5", []byte("key"), []byte("data"))
-	})
+	r := HMAC("md5", []byte("key"), []byte("data"))
+	AssertFalse(t, r.OK)
 }
 
 func TestHash_HMAC_Ugly(t *T) {
 	key := []byte("key")
 	data := []byte("The quick brown fox jumps over the lazy dog")
-	digest := HMAC("sha512", key, data)
+	r := HMAC("sha512", key, data)
+	RequireTrue(t, r.OK)
+	digest := r.Value.([]byte)
 
 	key[0] = 'K'
 	data[0] = 't'
 
 	AssertEqual(t, hmacSHA512Hex, HexEncode(digest))
-	AssertNotEqual(t, digest, HMAC("sha512", key, data))
+	again := HMAC("sha512", key, data)
+	RequireTrue(t, again.OK)
+	AssertNotEqual(t, digest, again.Value)
 }
 
 func TestHash_HKDF_Good(t *T) {
-	key := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("info"), 32)
+	r := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("info"), 32)
+	RequireTrue(t, r.OK)
 
-	AssertEqual(t, hkdfSHA256Hex, HexEncode(key))
+	AssertEqual(t, hkdfSHA256Hex, HexEncode(r.Value.([]byte)))
 }
 
 func TestHash_HKDF_Bad(t *T) {
-	AssertPanics(t, func() {
-		_ = HKDF("md5", []byte("secret"), nil, nil, 16)
-	})
+	r := HKDF("md5", []byte("secret"), nil, nil, 16)
+	AssertFalse(t, r.OK)
 }
 
 func TestHash_HKDF_Ugly(t *T) {
-	key := HKDF("sha512", []byte("secret"), []byte("salt"), []byte("info"), 32)
+	r := HKDF("sha512", []byte("secret"), []byte("salt"), []byte("info"), 32)
+	RequireTrue(t, r.OK)
 	empty := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("info"), 0)
+	RequireTrue(t, empty.OK)
 
-	AssertEqual(t, hkdfSHA512Hex, HexEncode(key))
-	AssertEqual(t, []byte{}, empty)
+	AssertEqual(t, hkdfSHA512Hex, HexEncode(r.Value.([]byte)))
+	AssertEqual(t, []byte{}, empty.Value)
 }
 
 func digestFromHex(t *T, want string) [32]byte {

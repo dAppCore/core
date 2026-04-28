@@ -11,26 +11,6 @@ func ExampleResult_New() {
 	// created
 }
 
-func ExampleResult_Result() {
-	r := Result{}.Result("ready")
-	Println(r.OK)
-	Println(r.Value)
-	// Output:
-	// true
-	// ready
-}
-
-func ExampleResult_Get() {
-	ok := Result{Value: "ready", OK: true}.Get()
-	missing := Result{Value: "failed", OK: false}.Get()
-
-	Println(ok.Value)
-	Println(missing.OK)
-	// Output:
-	// ready
-	// false
-}
-
 func ExampleOption() {
 	opt := Option{Key: "port", Value: 8080}
 	Println(opt.Key)

@@ -261,37 +261,23 @@ func TestUtils_ArgBool_OutOfBounds_Bad(t *T) {
 	AssertEqual(t, false, ArgBool(5, true))
 }
 
-// --- Result.Result() ---
+// --- Result.New() ---
 
-func TestUtils_Result_Result_SingleArg_Good(t *T) {
-	r := Result{}.Result("value")
+func TestUtils_Result_New_SingleArg_Good(t *T) {
+	r := Result{}.New("value")
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "value", r.Value)
 }
 
-func TestUtils_Result_Result_NilError_Good(t *T) {
-	r := Result{}.Result("value", nil)
+func TestUtils_Result_New_NilError_Good(t *T) {
+	r := Result{}.New("value", nil)
 	AssertTrue(t, r.OK)
 	AssertEqual(t, "value", r.Value)
 }
 
-func TestUtils_Result_Result_WithError_Bad(t *T) {
+func TestUtils_Result_New_WithError_Bad(t *T) {
 	err := NewError("fail")
-	r := Result{}.Result("value", err)
+	r := Result{}.New("value", err)
 	AssertFalse(t, r.OK)
 	AssertEqual(t, err, r.Value)
-}
-
-func TestUtils_Result_Result_ZeroArgs_Good(t *T) {
-	r := Result{"hello", true}
-	got := r.Result()
-	AssertEqual(t, "hello", got.Value)
-	AssertTrue(t, got.OK)
-}
-
-func TestUtils_Result_Result_ZeroArgs_Empty_Good(t *T) {
-	r := Result{}
-	got := r.Result()
-	AssertNil(t, got.Value)
-	AssertFalse(t, got.OK)
 }

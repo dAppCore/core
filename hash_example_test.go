@@ -25,18 +25,24 @@ func ExampleSHA256HexString() {
 }
 
 func ExampleHMAC() {
-	digest := HMAC("sha256", []byte("secret"), []byte("payload"))
-	Println(len(digest))
-	Println(HexEncode(digest)[:8])
+	r := HMAC("sha256", []byte("secret"), []byte("payload"))
+	if r.OK {
+		digest := r.Value.([]byte)
+		Println(len(digest))
+		Println(HexEncode(digest)[:8])
+	}
 	// Output:
 	// 32
 	// b82fcb79
 }
 
 func ExampleHKDF() {
-	key := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("session"), 32)
-	Println(len(key))
-	Println(HexEncode(key)[:8])
+	r := HKDF("sha256", []byte("secret"), []byte("salt"), []byte("session"), 32)
+	if r.OK {
+		key := r.Value.([]byte)
+		Println(len(key))
+		Println(HexEncode(key)[:8])
+	}
 	// Output:
 	// 32
 	// 2baf2709

@@ -44,26 +44,39 @@ func SHA256HexString(s string) string {
 	return SHA256Hex([]byte(s))
 }
 
-// HMAC returns the HMAC digest for data using key and algo.
-// Supported algorithms are "sha256" and "sha512"; unknown algorithms panic.
+// HMAC returns the HMAC digest for data using key and algo wrapped in a
+// Result. OK=false with Code "crypto.algo.unsupported" when algo isn't
+// "sha256" or "sha512".
 //
-//	digest := core.HMAC("sha256", []byte("key"), []byte("payload"))
-func HMAC(algo string, key, data []byte) []byte {
-	mac := hmac.New(hashFor(algo), key)
+//	r := core.HMAC("sha256", []byte("key"), []byte("payload"))
+//	if r.OK { digest := r.Value.([]byte) }
+func HMAC(algo string, key, data []byte) Result {
+	factory := hashFor(algo)
+	if factory == nil {
+		return Result{Value: NewCode("crypto.algo.unsupported", Concat("unknown hash algorithm: ", algo)), OK: false}
+	}
+	mac := hmac.New(factory, key)
 	mac.Write(data)
-	return mac.Sum(nil)
+	return Result{Value: mac.Sum(nil), OK: true}
 }
 
-// HKDF derives length bytes from secret using salt, info, and algo.
-// Supported algorithms are "sha256" and "sha512"; unknown algorithms panic.
+// HKDF derives length bytes from secret using salt, info, and algo
+// wrapped in a Result. OK=false with Code "crypto.algo.unsupported"
+// for unsupported algorithms or "crypto.hkdf.failed" on derivation
+// failure.
 //
-//	key := core.HKDF("sha256", secret, salt, []byte("session"), 32)
-func HKDF(algo string, secret, salt, info []byte, length int) []byte {
-	key, err := hkdf.Key(hashFor(algo), secret, salt, string(info), length)
-	if err != nil {
-		panic(err)
+//	r := core.HKDF("sha256", secret, salt, []byte("session"), 32)
+//	if r.OK { sessionKey := r.Value.([]byte) }
+func HKDF(algo string, secret, salt, info []byte, length int) Result {
+	factory := hashFor(algo)
+	if factory == nil {
+		return Result{Value: NewCode("crypto.algo.unsupported", Concat("unknown hash algorithm: ", algo)), OK: false}
 	}
-	return key
+	key, err := hkdf.Key(factory, secret, salt, string(info), length)
+	if err != nil {
+		return Result{Value: WrapCode(err, "crypto.hkdf.failed", "HKDF", "key derivation failed"), OK: false}
+	}
+	return Result{Value: key, OK: true}
 }
 
 func hashFor(algo string) func() hash.Hash {
@@ -73,6 +86,6 @@ func hashFor(algo string) func() hash.Hash {
 	case "sha512":
 		return sha512.New
 	default:
-		panic(Concat("unknown hash algorithm: ", algo))
+		return nil
 	}
 }

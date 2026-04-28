@@ -25,20 +25,8 @@ type Result struct {
 	OK    bool
 }
 
-// Result gets or sets the value. Zero args returns Value. With args, maps
-// Go (value, error) pairs to Result and returns self.
-//
-//	r.Result(file, err)     // OK = err == nil, Value = file
-//	r.Result(value)         // OK = true, Value = value
-//	r.Result()              // after set — returns the value
-func (r Result) Result(args ...any) Result {
-	if len(args) == 0 {
-		return r
-	}
-	return r.New(args...)
-}
-
-// New adapts Go (value, error) pairs into a Result.
+// New adapts Go (value, error) pairs into a Result. The canonical
+// adapter from stdlib-shaped returns into the Core universal output.
 //
 //	r := core.Result{}.New(file, err)
 func (r Result) New(args ...any) Result {
@@ -68,16 +56,6 @@ func (r Result) New(args ...any) Result {
 
 	r.OK = true
 	return r
-}
-
-// Get returns the Result if OK, empty Result otherwise.
-//
-//	r := core.Result{Value: "hello", OK: true}.Get()
-func (r Result) Get() Result {
-	if r.OK {
-		return r
-	}
-	return Result{Value: r.Value, OK: false}
 }
 
 // Option is a single key-value configuration pair.

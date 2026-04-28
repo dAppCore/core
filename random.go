@@ -11,42 +11,56 @@ import (
 	fastrand "math/rand/v2"
 )
 
-// RandomBytes returns n cryptographically secure random bytes.
-// It panics when n is negative.
+// RandomBytes returns n cryptographically secure random bytes wrapped in
+// a Result. Returns OK=false when n is negative or the OS entropy source
+// fails. Code is "random.length.invalid" or "random.entropy.failed".
 //
-//	token := core.RandomBytes(32)
-func RandomBytes(n int) []byte {
+//	r := core.RandomBytes(32)
+//	if !r.OK { return r }
+//	token := r.Value.([]byte)
+func RandomBytes(n int) Result {
 	if n < 0 {
-		panic("core.RandomBytes: negative length")
+		return Result{Value: NewCode("random.length.invalid", "RandomBytes: negative length"), OK: false}
 	}
 	out := make([]byte, n)
-	_, _ = cryptorand.Read(out)
-	return out
+	if _, err := cryptorand.Read(out); err != nil {
+		return Result{Value: WrapCode(err, "random.entropy.failed", "RandomBytes", "OS entropy source failed"), OK: false}
+	}
+	return Result{Value: out, OK: true}
 }
 
-// RandomString returns n cryptographically secure random bytes as lowercase hex.
-// The returned string has length n*2; it panics when n is negative.
+// RandomString returns n cryptographically secure random bytes encoded
+// as lowercase hex. The Value is a string of length n*2. Code mirrors
+// RandomBytes when the underlying source fails.
 //
-//	token := core.RandomString(16)
-func RandomString(n int) string {
-	return HexEncode(RandomBytes(n))
+//	r := core.RandomString(16)
+//	if r.OK { token := r.Value.(string) }
+func RandomString(n int) Result {
+	r := RandomBytes(n)
+	if !r.OK {
+		return r
+	}
+	return Result{Value: HexEncode(r.Value.([]byte)), OK: true}
 }
 
-// RandomInt returns a cryptographically secure integer in the half-open range
-// [min, max). It panics when max is less than or equal to min.
+// RandomInt returns a cryptographically secure integer in the half-open
+// range [min, max). Returns OK=false when max <= min (Code
+// "random.range.empty") or when crypto/rand fails (Code
+// "random.entropy.failed").
 //
-//	delay := core.RandomInt(10, 20)
-func RandomInt(min, max int) int {
+//	r := core.RandomInt(10, 20)
+//	if r.OK { delay := r.Value.(int) }
+func RandomInt(min, max int) Result {
 	span := new(big.Int).Sub(big.NewInt(int64(max)), big.NewInt(int64(min)))
 	if span.Sign() <= 0 {
-		panic("core.RandomInt: empty range")
+		return Result{Value: NewCode("random.range.empty", "RandomInt: empty range"), OK: false}
 	}
 	n, err := cryptorand.Int(cryptorand.Reader, span)
 	if err != nil {
-		panic(err)
+		return Result{Value: WrapCode(err, "random.entropy.failed", "RandomInt", "OS entropy source failed"), OK: false}
 	}
 	n.Add(n, big.NewInt(int64(min)))
-	return int(n.Int64())
+	return Result{Value: int(n.Int64()), OK: true}
 }
 
 // RandPick returns a pseudo-random item from items.

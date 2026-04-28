@@ -5,21 +5,26 @@ import (
 )
 
 func TestRandom_RandomBytes_Good(t *T) {
-	AssertLen(t, RandomBytes(32), 32)
+	r := RandomBytes(32)
+	AssertTrue(t, r.OK)
+	AssertLen(t, r.Value.([]byte), 32)
 }
 
 func TestRandom_RandomBytes_Bad(t *T) {
-	AssertPanics(t, func() {
-		_ = RandomBytes(-1)
-	})
+	r := RandomBytes(-1)
+	AssertFalse(t, r.OK)
 }
 
 func TestRandom_RandomBytes_Ugly(t *T) {
-	AssertEqual(t, []byte{}, RandomBytes(0))
+	r := RandomBytes(0)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, []byte{}, r.Value)
 }
 
 func TestRandom_RandomString_Good(t *T) {
-	token := RandomString(8)
+	r := RandomString(8)
+	AssertTrue(t, r.OK)
+	token := r.Value.(string)
 	decoded := HexDecode(token)
 
 	AssertLen(t, token, 16)
@@ -28,30 +33,32 @@ func TestRandom_RandomString_Good(t *T) {
 }
 
 func TestRandom_RandomString_Bad(t *T) {
-	AssertPanics(t, func() {
-		_ = RandomString(-1)
-	})
+	r := RandomString(-1)
+	AssertFalse(t, r.OK)
 }
 
 func TestRandom_RandomString_Ugly(t *T) {
-	AssertEqual(t, "", RandomString(0))
+	r := RandomString(0)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "", r.Value)
 }
 
 func TestRandom_RandomInt_Good(t *T) {
-	value := RandomInt(5, 6)
-
-	AssertEqual(t, 5, value)
+	r := RandomInt(5, 6)
+	AssertTrue(t, r.OK)
+	AssertEqual(t, 5, r.Value)
 }
 
 func TestRandom_RandomInt_Bad(t *T) {
-	AssertPanics(t, func() {
-		_ = RandomInt(10, 10)
-	})
+	r := RandomInt(10, 10)
+	AssertFalse(t, r.OK)
 }
 
 func TestRandom_RandomInt_Ugly(t *T) {
 	for i := 0; i < 100; i++ {
-		value := RandomInt(-3, 3)
+		r := RandomInt(-3, 3)
+		RequireTrue(t, r.OK)
+		value := r.Value.(int)
 		AssertGreaterOrEqual(t, value, -3)
 		AssertLess(t, value, 3)
 	}

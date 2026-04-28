@@ -142,25 +142,6 @@ func TestOptions_Result_New_Error_Bad(t *T) {
 	AssertEqual(t, err, r.Value)
 }
 
-func TestOptions_Result_Result_Good(t *T) {
-	r := Result{Value: "hello", OK: true}
-	AssertEqual(t, r, r.Result())
-}
-
-func TestOptions_Result_Result_WithArgs_Good(t *T) {
-	r := Result{}.Result("value")
-	AssertEqual(t, "value", r.Value)
-}
-
-func TestOptions_Result_Get_Good(t *T) {
-	r := Result{Value: "hello", OK: true}
-	AssertTrue(t, r.Get().OK)
-}
-
-func TestOptions_Result_Get_Bad(t *T) {
-	r := Result{Value: "err", OK: false}
-	AssertFalse(t, r.Get().OK)
-}
 
 // --- WithOption ---
 
