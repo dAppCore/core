@@ -7,6 +7,7 @@
 package core
 
 import (
+	"html"
 	"strings"
 	"unicode/utf8"
 )
@@ -138,4 +139,18 @@ func Concat(parts ...string) string {
 		b.WriteString(p)
 	}
 	return b.String()
+}
+
+// HTMLEscape returns s with special HTML characters escaped.
+//
+//	escaped := core.HTMLEscape(`<a href="/search?q=go&lang=en">Go</a>`)
+func HTMLEscape(s string) string {
+	return html.EscapeString(s)
+}
+
+// HTMLUnescape returns s with HTML character references unescaped.
+//
+//	unescaped := core.HTMLUnescape("&lt;strong&gt;Go&lt;/strong&gt;")
+func HTMLUnescape(s string) string {
+	return html.UnescapeString(s)
 }

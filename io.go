@@ -18,7 +18,10 @@
 //	if !n.OK { return n }
 package core
 
-import "io"
+import (
+	"bytes"
+	"io"
+)
 
 // Reader is the canonical io.Reader interface, exported as core.Reader.
 //
@@ -147,4 +150,23 @@ func ReadAll(reader any) Result {
 		return Result{err, false}
 	}
 	return Result{string(data), true}
+}
+
+// NewBuffer returns a bytes.Buffer initialised with b.
+// With no input, it returns an empty bytes.Buffer.
+//
+//	buf := core.NewBuffer([]byte("hello"))
+//	empty := core.NewBuffer()
+func NewBuffer(b ...[]byte) *bytes.Buffer {
+	if len(b) == 0 {
+		return &bytes.Buffer{}
+	}
+	return bytes.NewBuffer(b[0])
+}
+
+// NewBufferString returns a bytes.Buffer initialised with s.
+//
+//	buf := core.NewBufferString("hello")
+func NewBufferString(s string) *bytes.Buffer {
+	return bytes.NewBufferString(s)
 }
