@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: EUPL-1.2
+
+// Result ergonomics — methods and free functions that collapse the
+// common Result-handling patterns into one-liners. Result itself is
+// defined in options.go alongside Options as a Core primitive; this
+// file extends it with the call-site helpers.
+//
+//	user := core.As[*User](c.Drive().Get(opts)).Must()
+//	timeout := core.HTTPGet(url).Or(defaultResp)
+package core
+
+// Error returns the error message when the Result represents a failure,
+// or "" when OK. Convenience for logging without unwrapping Value.
+//
+//	if !r.OK { core.Error("dispatch failed", "err", r.Error()) }
+func (r Result) Error() string {
+	if r.OK {
+		return ""
+	}
+	if err, ok := r.Value.(error); ok {
+		return err.Error()
+	}
+	if s, ok := r.Value.(string); ok {
+		return s
+	}
+	return "unknown error"
+}
+
+// Must returns Value when OK; panics with the underlying error when
+// not. Use for fast-fail paths — init, test setup, must-have config.
+// Production request paths should check r.OK and return r.
+//
+//	cfg := core.JSONUnmarshal(data, &Config{}).Must().(*Config)
+//	dir := core.PathAbs(".").Must().(string)
+func (r Result) Must() any {
+	if !r.OK {
+		if err, ok := r.Value.(error); ok {
+			panic(err)
+		}
+		panic(r.Value)
+	}
+	return r.Value
+}
+
+// Or returns Value when OK, fallback otherwise. Convenience for
+// optional reads where a default is acceptable.
+//
+//	port := core.EnvGet("PORT").Or("8080").(string)
+//	timeout := core.ParseDuration(s).Or(5 * core.Second).(Duration)
+func (r Result) Or(fallback any) any {
+	if r.OK {
+		return r.Value
+	}
+	return fallback
+}
+
+// Cast extracts a typed value from a Result. Returns (zero, false) when
+// the Result is not OK or Value isn't assignable to T. Single
+// expression replacing the (Result.OK check + type assertion) pair.
+//
+//	cfg, ok := core.Cast[*Config](core.JSONUnmarshal(data, &Config{}))
+//	if !ok { return r }
+//	if user, ok := core.Cast[*User](svc.Get(id)); ok { use(user) }
+func Cast[T any](r Result) (T, bool) {
+	var zero T
+	if !r.OK {
+		return zero, false
+	}
+	v, ok := r.Value.(T)
+	if !ok {
+		return zero, false
+	}
+	return v, true
+}
+
+// Try runs fn and converts its outcome into a Result. A nil error or
+// a returned value sets OK=true; a returned error or a panic sets
+// OK=false. Bridges legacy code that panics or returns (T, error).
+//
+//	r := core.Try(func() any {
+//	    return riskyParse(input)  // may panic
+//	})
+//	if !r.OK { core.Error("parse failed", "err", r.Error()) }
+func Try(fn func() any) (r Result) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			if err, ok := rec.(error); ok {
+				r = Result{Value: err, OK: false}
+				return
+			}
+			r = Result{Value: E("Try", "panic recovered", nil), OK: false}
+		}
+	}()
+	v := fn()
+	if err, ok := v.(error); ok && err != nil {
+		return Result{Value: err, OK: false}
+	}
+	return Result{Value: v, OK: true}
+}

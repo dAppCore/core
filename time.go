@@ -54,6 +54,32 @@ func ParseDuration(s string) Result {
 	return Result{d, true}
 }
 
+// Duration is a time span — alias of time.Duration so consumers can
+// pass timeouts and intervals without importing the time package.
+//
+//	timeout := 5 * core.Second
+//	ctx, cancel := core.WithTimeout(core.Background(), timeout)
+type Duration = time.Duration
+
+// Time is a moment — alias of time.Time so consumers can take
+// timestamps without importing the time package.
+//
+//	deadline := core.Now().Add(2 * core.Minute)
+type Time = time.Time
+
+// Common Duration units. Multiply by an integer to build a Duration.
+//
+//	timeout := 5 * core.Second
+//	pause   := 250 * core.Millisecond
+const (
+	Nanosecond  = time.Nanosecond
+	Microsecond = time.Microsecond
+	Millisecond = time.Millisecond
+	Second      = time.Second
+	Minute      = time.Minute
+	Hour        = time.Hour
+)
+
 // Common time format constants. Layouts compatible with time.Format.
 //
 //	stamp := core.TimeFormat(core.Now(), core.TimeRFC3339)
