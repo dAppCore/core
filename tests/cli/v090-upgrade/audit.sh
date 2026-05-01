@@ -433,6 +433,47 @@ i18n_standalone=$(grep -rEn $EXCLUDE_DIRS \
     | grep -v '_test\.go' \
     | wc -l | tr -d ' ')
 
+# 5ag. Action name format. SOURCE: docs/messaging.md "Named Actions" section.
+#      Actions use dotted lowercase names like "repo.sync", "process.run",
+#      "git.pull" — domain-typed namespaces. Not CamelCase ("RepoSync"),
+#      not snake_case ("repo_sync"), not just identifiers ("repoSync").
+#      The dotted form is the wire-protocol identifier across IPC + MCP +
+#      core/api transports (per Snider 2026-05-01: "Actions == IPC handlers").
+#
+#      Detection: c.Action("X", ...) registrations where X doesn't match
+#      ^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$ — must contain at least one dot,
+#      lowercase + digits + dots only.
+action_name_format=$(grep -rEn $EXCLUDE_DIRS \
+    'c\.Action\("[^"]*"' \
+    --include="*.go" . 2>/dev/null \
+    | grep -vE 'c\.Action\("[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)+"' \
+    | wc -l | tr -d ' ')
+
+# 5af. Service name shape. SOURCE: docs/services.md "Register a Service" section.
+#      Quote: "Registration succeeds when the name is not empty".
+#      Empty service names fail at runtime; audit catches at code time.
+#
+#      Detection: c.Service("", ...) literal empty-string registration.
+service_name_empty=$(grep -rEn $EXCLUDE_DIRS \
+    'c\.Service\(""' \
+    --include="*.go" . 2>/dev/null | wc -l | tr -d ' ')
+
+# 5ae. Command path shape. SOURCE: docs/commands.md "Command Paths" section.
+#      Quote: "Paths must be clean: no empty path, no leading slash, no
+#      trailing slash, no double slash."
+#      Valid: deploy, deploy/to/homelab, workspace/create
+#      Invalid: /deploy, deploy/, deploy//to, "" (empty)
+#
+#      Detection: find c.Command("X", ...) calls where X violates the rule.
+#      String literal X is checked for: starts with /, ends with /, contains //,
+#      or is empty string. Single-quoted form not used in Go (only ").
+#
+#      Catches mistakes early — invalid paths get rejected at registration
+#      time but the error surfaces at runtime; audit catches at code time.
+command_path_shape=$(grep -rEn $EXCLUDE_DIRS \
+    'c\.Command\("(/[^"]*|[^"]*//+[^"]*|[^"]*/|""|)",' \
+    --include="*.go" . 2>/dev/null | wc -l | tr -d ' ')
+
 # 5ad. Tracked build/scan artifacts in git index. Snider 2026-05-01: build
 #      output dirs (node_modules, dist, target), scan caches (.scannerwork,
 #      .gitleaks, coverage), bytecode (__pycache__, *.pyc), and OS metadata
@@ -531,7 +572,7 @@ missing_example_files="${missing_example_files:-?}"
 result_discards=$(grep -rEn $EXCLUDE_DIRS '^[[:space:]]*_ = .+\(' --include="*.go" . 2>/dev/null | grep -v '_test\.go' | wc -l | tr -d ' ')
 
 # ---------- report ----------
-total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + tracked_artifacts + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
+total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + tracked_artifacts + command_path_shape + service_name_empty + action_name_format + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
 [ "$identical_triplets" != "?" ] && total=$((total + identical_triplets))
 [ "$unreferenced" != "?" ] && total=$((total + unreferenced))
 [ "$example_gaps" != "?" ] && total=$((total + example_gaps))
@@ -575,6 +616,9 @@ cat <<REPORT
   licence-missing        $(verdict "$licence_missing")    (root \`LICENCE\` file — UK English EUPL-1.2; LICENSE/COPYING are non-canonical)
   replace-directives     $(verdict "$replace_directives")    (\`replace dappco.re/go/X => ...\` in go.mod — overrides go.work + submodule resolution; tech debt masking incomplete cascade)
   tracked-artifacts      $(verdict "$tracked_artifacts")    (build dirs / scan caches in git index — node_modules, .scannerwork, dist, target, coverage, __pycache__, .DS_Store, *.pyc; should be .gitignored not committed)
+  command-path-shape     $(verdict "$command_path_shape")    (\`c.Command("X", ...)\` where X has leading/trailing/double slash or empty — see core/go/docs/commands.md)
+  service-name-empty     $(verdict "$service_name_empty")    (\`c.Service("", ...)\` empty-string service name — see core/go/docs/services.md)
+  action-name-format     $(verdict "$action_name_format")    (\`c.Action("X", ...)\` where X isn't dotted-lowercase like "domain.verb" — see core/go/docs/messaging.md)
   test-stubs             $(verdict "$test_stubs")    (Test* with body ≤2 lines — dispatcher gaming)
   test-tautologies       $(verdict "$test_tautologies")    (\`if "literal" == ""\` etc — always-false / always-true gaming)
 
