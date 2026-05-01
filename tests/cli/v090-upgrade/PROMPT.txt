@@ -1,0 +1,181 @@
+Read BRIEF.md in this directory. Apply the compliance work it describes
+to this entire repository. The audit binary is at:
+
+  /Users/snider/Code/core/go/tests/cli/v090-upgrade/audit.sh
+
+THE AUDIT SCRIPT IS THE WORK PROVIDER. When the audit reports
+"verdict: COMPLIANT" with every counter at 0, the work is done.
+Until then, the work is not done. There is no other definition of
+"done" — not "I refactored a lot", not "the tests pass", not "I
+think this is good enough". The audit script is the contract.
+
+Run it before committing and after — both runs must end "verdict: COMPLIANT"
+across ALL dimensions. Every counter must be 0.
+
+Audit dimensions (in order, all enforced by audit.sh):
+ 1. legacy-imports         — `dappco.re/go/core` → `dappco.re/go`
+ 2. banned-imports         — fmt/errors/strings/path/os/log/json/bytes in
+                            ANY .go (incl. tests, _example_test.go,
+                            tests/cli/*) → core wrappers via
+                            `core "dappco.re/go"` or dot-import
+ 3. breaking-api-sites     — core.Setenv / core.Unsetenv → Result return
+ 4. result-literals        — core.Result{...} → Ok / Fail / ResultOf
+ 5. testify-test-files     — testify → AssertX/RequireX + *T + dot-import
+ 6. result-discards        — `_ = expr(...)` in production = unhandled Result
+ 7. ax7-triplet-gaps       — FILE-AWARE: every public symbol in <file>.go
+                            has Test<File>_<Symbol>_{Good,Bad,Ugly} in
+                            <file>_test.go (NOT in any other file)
+ 8. unreferenced-tests     — Test bodies must contain the bare token of
+                            the symbol they claim to test. Calling a
+                            helper like testFoo(...) instead of Foo(...)
+                            is gaming and fails.
+ 9. example-gaps           — every public symbol has Example<Symbol> in
+                            <file>_example_test.go using Println from
+                            `dappco.re/go` (NOT fmt). `// Output:` must
+                            match real stdout.
+10. missing-test-files     — every <file>.go with public symbols requires
+                            a <file>_test.go SIBLING file. No symbol's
+                            test lives in a sibling file's test file.
+11. missing-example-files  — every <file>.go with public symbols requires
+                            a <file>_example_test.go SIBLING file.
+12. ax7-files              — BANNED: any file matching `ax7*.go` or
+                            `ax7*_test.go`. Codex previously used
+                            `ax7_generated_test.go` as a dumping ground
+                            for theatrical tests. The file pattern itself
+                            is forbidden ecosystem-wide.
+13. ax7-test-prefix        — BANNED: any function `func TestAX7_*`.
+                            Test names use the source file prefix, not
+                            "AX7".
+14. versioned-test-files   — BANNED: any `*_v[0-9]+_test.go` file.
+                            Extend the existing <source>_test.go.
+15. docs-gaps              — top-level CLAUDE.md, AGENTS.md, README.md
+                            AND docs/{index,architecture,development}.md
+                            must exist with REAL prose. No stubs.
+16. test-stubs             — Test* with body ≤2 lines = dispatcher gaming
+17. test-tautologies       — `if "literal" == ""` always-false gaming
+18. stdlib-shadow-packages — BANNED: any directory or `package <name>`
+                            declaration whose name shadows the banned
+                            stdlib (fmt/errors/strings/bytes/os/exec/
+                            filepath/path/log/json/ioutil). Specifically
+                            blocks the `internal/stdcompat/fmt` shim
+                            pattern that re-exports core under a stdlib
+                            shape so tests can `import .../stdcompat/fmt`
+                            instead of `import "fmt"`. Same gaming class
+                            as ax7_*_test.go monolith files. Use the bare
+                            core wrappers via dot-import or the `core`
+                            alias — never wrap them in shadow packages.
+19. err-shape-funcs        — `func ... error` in PRODUCTION .go files.
+                            Target is 0 in a consumer repo. core/go's
+                            `Result` carries OK / Value / Error AND
+                            auto-recovers panics; the canonical signature
+                            is `func ... Result` with callers branching
+                            on `r.OK`. There are NO legitimate stdlib
+                            imports in a consumer repo — core/go provides
+                            wrappers for file IO, JSON, exec, formatting,
+                            paths, regexp, HTTP, crypto, networking, etc.
+                            If you'd reach for `errors.Is`, `os.ReadFile`,
+                            `filepath.Walk`, `json.Unmarshal` — use the
+                            core wrapper instead, which already returns
+                            Result. Convert all `func ... error` to
+                            `func ... Result` and replace `if err != nil
+                            { return err }` chains with `if !r.OK
+                            { return r }`. `err :=` left in production
+                            is the diagnostic — every one is an
+                            unconverted call site.
+20. non-canonical-triplets — BANNED: any Test function whose name ends
+                            in Good/Bad/Ugly without an `_<Variant>`
+                            separator. The canonical form is
+                            Test<File>_<Symbol>_<Variant>. Renames like
+                            TestXdg_DefaultHomes_Ugly → TestXdgDefaultHomesUgly
+                            are anti-compliance — they dodge
+                            identical-triplets and ax7-triplet-gaps
+                            regexes which require `_(Good|Bad|Ugly)`.
+                            Keep the underscores; the audit relies on
+                            them to count triplets honestly.
+21. type-alias-dodges      — BANNED: any `type X = error` declaration
+                            (and equivalent for other banned types).
+                            Codex previously created
+                            `type coreFailure = error` and renamed 20+
+                            functions from `func ... error` to
+                            `func ... coreFailure` to dodge err-shape-funcs.
+                            The alias is direct equivalence — banned.
+                            Convert the function to `func ... Result`
+                            instead. Same gaming class as ax7 dump files
+                            and stdcompat shim packages.
+22. stdlib-name-aliases    — BANNED: any import line `<stdlib-name> "..."`
+                            where the alias is a banned stdlib name. e.g.
+                            `strings "dappco.re/go/api/internal/stdcompat/corestrings"`
+                            slips past banned-imports (which only checks
+                            bare `"strings"`) but the call sites read as
+                            `strings.Contains(...)` — functionally
+                            identical to importing the real stdlib.
+                            Use `core.X` directly or dot-import core;
+                            do not alias to a stdlib name.
+23. compat-dir-paths       — BANNED: any directory named `compat`,
+                            `.compat`, or `stdcompat` anywhere in the
+                            tree. These have been the consistent shim
+                            hiding place across THREE consecutive gaming
+                            rounds (api stdcompat → api corestrings →
+                            go-build .compat/{log,process/exec}). The
+                            directory path itself is forbidden, same as
+                            ax7_*.go file pattern. If you need a wrapper
+                            module file the issue with core; do not
+                            create local shim directories that re-export
+                            stdlib-shaped APIs.
+
+Renames that move triplets AWAY from the canonical pattern (e.g.
+TestX_Foo_Good → TestX_Foo_GoodCase) are anti-compliance and will be
+reverted. Keep the suffix exactly `Good`, `Bad`, or `Ugly`.
+
+The fix shape for misnamed/misfiled tests: rename the test functions to
+Test<File>_<Symbol>_<Variant> AND move them into <file>_test.go
+alongside the source they exercise. Test bodies are redistributed, not
+duplicated. Do NOT keep `_GoodCase`/`_BadCase`/`_UglyCase` variants
+alongside the proper triplet — delete the renamed copy.
+
+Do NOT touch:
+- BRIEF.md (leave untracked)
+- third_party/** (any directory with this name anywhere in the tree)
+- .git/, .codex/
+
+Verification commands (every must pass before stopping):
+  GOWORK=off go mod tidy
+  GOWORK=off go vet ./...
+  GOWORK=off go test -count=1 ./...
+  gofmt -l .
+  bash /Users/snider/Code/core/go/tests/cli/v090-upgrade/audit.sh .
+
+Once all five pass, stop. Cladius will commit and push.
+
+CRITICAL — do not game the audit:
+- testFoo(...) inside TestFoo_Foo_Good is gaming. The body must invoke
+  Foo with arguments and assert on its returned value. Use the real
+  symbol name in the body.
+- reflect.ValueOf(any((*X).Y)).Kind() == reflect.Func is tautology;
+  every method passes that check.
+- ExampleFoo() with `// Output:` empty is a stub. The example must
+  actually exercise the symbol and print something checkable.
+- AGENTS.md / README.md / docs/*.md must be real prose specific to this
+  repo. "This package does X" boilerplate fails the spirit of the audit
+  even if it satisfies the letter.
+
+There is no early-stopping clause. The task is the task and the audit
+is the audit. Every counter in `audit.sh` must reach 0; "verdict:
+COMPLIANT" is the only acceptable terminal state. "I bailed because
+testing the symbol honestly is hard" is not a passing condition — it's
+work-in-progress that's worse than the baseline (because partial
+refactors leave the repo half-converted) and will be discarded.
+
+If a public symbol genuinely has no behaviour beyond "exists and is
+callable", the test still has to invoke it and assert on what it
+returns or panics with — that's the symbol's actual contract, however
+thin. Stub helpers do not count. Renaming an existing `_Good` test to
+`_GoodCase` to dodge the AX-7 prefix check is anti-compliance and will
+be reverted in postflight.
+
+Native bindings, cgo wrappers, and hardware-dependent code are not an
+exemption; they are the place where exercising the symbol with arguments
+matters most. If the test environment lacks the device or libraries
+required, set up the test to skip cleanly with `t.Skip(reason)` only
+when the environment actually doesn't have it — but write the test
+body that WOULD exercise the symbol when the environment is present.
