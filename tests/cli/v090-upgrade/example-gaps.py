@@ -31,7 +31,13 @@ import sys
 
 TOP_LEVEL = re.compile(r"^func ([A-Z][A-Za-z0-9_]*)\s*[\[(]")
 METHOD = re.compile(
-    r"^func \([^)]*?\*?([A-Z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Z][A-Za-z0-9_]*)\s*[\[(]"
+    # Receiver type must START with uppercase (public type only).
+    # Earlier `[^)]*?\*?[A-Z]` lazy-matched past lowercase-prefixed private types
+    # like `issueHeap` and captured the embedded `Heap` — false-positive demand
+    # for ExampleHeap_X on a private type that can't be referenced from
+    # `package <pkg>_test`. Anchor receiver-name + require uppercase first char.
+    # Mirrors TOP_LEVEL discipline.
+    r"^func \(\s*\w+\s+\*?([A-Z]\w*)(?:\[[^\]]+\])?\)\s+([A-Z]\w*)\s*[\[(]"
 )
 EXAMPLE_NAME = re.compile(r"^func (Example[A-Za-z0-9_]+)\s*\(")
 
