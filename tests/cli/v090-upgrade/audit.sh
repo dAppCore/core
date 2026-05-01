@@ -433,6 +433,38 @@ i18n_standalone=$(grep -rEn $EXCLUDE_DIRS \
     | grep -v '_test\.go' \
     | wc -l | tr -d ' ')
 
+# 5ad. Tracked build/scan artifacts in git index. Snider 2026-05-01: build
+#      output dirs (node_modules, dist, target), scan caches (.scannerwork,
+#      .gitleaks, coverage), bytecode (__pycache__, *.pyc), and OS metadata
+#      (.DS_Store) should NEVER be committed to git — they're regenerable
+#      from package.json/go.mod/build commands and:
+#       - inflate repo size (clones, CI checkouts, IDE indexing)
+#       - generate massive false-positive Sonar findings
+#       - hide real changes in noise
+#
+#      Mantis #1293/#1333 root cause: `ui/node_modules.bak/` was tracked
+#      in core/gui, generating 8 BLOCKER vulns + contributing to the
+#      697 bugs / 35,846 smells inflation. One-pattern catch.
+#
+#      Detection: `git ls-files` filtered for canonical artifact dir/file
+#      names. Counts TRACKED files (in the index), not just present in
+#      working tree. Run from repo root regardless of audit invocation
+#      cwd so the check sees the whole repo.
+#
+#      Conservative pattern set (always-bad): node_modules(.\w+)?/,
+#      .scannerwork/, __pycache__/, coverage/, htmlcov/, dist/, target/,
+#      .gitleaks/ + .DS_Store, *.pyc, .coverage files. Skips dirs that
+#      have legitimate uses across the ecosystem (build/ — core/go-build
+#      repo; vendor/ — Go vendoring policy varies per project).
+git_root=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
+tracked_artifacts=$(
+    cd "$git_root" 2>/dev/null && \
+    git ls-files 2>/dev/null | \
+    grep -E '(^|/)(node_modules(\.[a-z]+)?|\.scannerwork|__pycache__|coverage|htmlcov|dist|target|\.gitleaks)/|(^|/)(\.DS_Store|\.coverage)$|\.pyc$' | \
+    wc -l | tr -d ' '
+)
+tracked_artifacts="${tracked_artifacts:-0}"
+
 # 5ac. `replace` directives in go.mod files. Snider 2026-05-01: "we have
 #      go.work + submodules setup for all repoes, replace will break things".
 #      Replace overrides go.work resolution — once a repo declares
@@ -499,7 +531,7 @@ missing_example_files="${missing_example_files:-?}"
 result_discards=$(grep -rEn $EXCLUDE_DIRS '^[[:space:]]*_ = .+\(' --include="*.go" . 2>/dev/null | grep -v '_test\.go' | wc -l | tr -d ' ')
 
 # ---------- report ----------
-total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
+total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + tracked_artifacts + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
 [ "$identical_triplets" != "?" ] && total=$((total + identical_triplets))
 [ "$unreferenced" != "?" ] && total=$((total + unreferenced))
 [ "$example_gaps" != "?" ] && total=$((total + example_gaps))
@@ -542,6 +574,7 @@ cat <<REPORT
   docs-gaps              $(verdict "$docs_gaps")    (CLAUDE.md, AGENTS.md, README.md, docs/{index,architecture,development}.md)
   licence-missing        $(verdict "$licence_missing")    (root \`LICENCE\` file — UK English EUPL-1.2; LICENSE/COPYING are non-canonical)
   replace-directives     $(verdict "$replace_directives")    (\`replace dappco.re/go/X => ...\` in go.mod — overrides go.work + submodule resolution; tech debt masking incomplete cascade)
+  tracked-artifacts      $(verdict "$tracked_artifacts")    (build dirs / scan caches in git index — node_modules, .scannerwork, dist, target, coverage, __pycache__, .DS_Store, *.pyc; should be .gitignored not committed)
   test-stubs             $(verdict "$test_stubs")    (Test* with body ≤2 lines — dispatcher gaming)
   test-tautologies       $(verdict "$test_tautologies")    (\`if "literal" == ""\` etc — always-false / always-true gaming)
 
