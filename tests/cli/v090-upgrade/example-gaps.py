@@ -35,7 +35,7 @@ METHOD = re.compile(
 )
 EXAMPLE_NAME = re.compile(r"^func (Example[A-Za-z0-9_]+)\s*\(")
 
-EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache"}
+EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache", "external"}
 
 
 def walk_packages(root: str):

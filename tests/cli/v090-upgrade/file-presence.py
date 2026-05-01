@@ -28,7 +28,7 @@ import os
 import re
 import sys
 
-EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache"}
+EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache", "external"}
 
 TOP_LEVEL = re.compile(r"^func ([A-Z][A-Za-z0-9_]*)\s*[\[(]")
 METHOD = re.compile(r"^func \([^)]*?\*?([A-Z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Z][A-Za-z0-9_]*)\s*[\[(]")

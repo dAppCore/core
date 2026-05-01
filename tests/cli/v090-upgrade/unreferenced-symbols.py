@@ -34,7 +34,7 @@ import os
 import re
 import sys
 
-EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache"}
+EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache", "external"}
 
 TEST_FUNC_HEADER = re.compile(
     r"^func (Test([A-Z][A-Za-z0-9]*)_([A-Za-z][A-Za-z0-9_]*)_(Good|Bad|Ugly))\s*\("

@@ -28,7 +28,7 @@ import os
 import re
 import sys
 
-EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache"}
+EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache", "external"}
 
 # func TestX_Y_Z(t *core.T) {  OR  func TestX_Y_Z(t *T) {
 TEST_FUNC = re.compile(r"^func (Test[A-Za-z0-9_]+)\s*\(.*?\)\s*\{")

@@ -36,7 +36,7 @@ METHOD = re.compile(
 )
 TEST_NAME = re.compile(r"^func (Test[A-Za-z0-9_]+)\s*\(")
 
-EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache"}
+EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache", "external"}
 
 
 def file_prefix(filename: str) -> str:
