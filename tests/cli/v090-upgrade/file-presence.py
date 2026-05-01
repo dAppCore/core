@@ -28,10 +28,15 @@ import os
 import re
 import sys
 
-EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache", "external"}
+EXCLUDED_DIRS = {".git", "node_modules", "vendor", "third_party", ".scannerwork", ".tmp", "gomodcache", "external", ".lintdeps"}
 
 TOP_LEVEL = re.compile(r"^func ([A-Z][A-Za-z0-9_]*)\s*[\[(]")
-METHOD = re.compile(r"^func \([^)]*?\*?([A-Z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Z][A-Za-z0-9_]*)\s*[\[(]")
+# Receiver type must START with uppercase. Earlier `[^)]*?\*?[A-Z]` lazy-
+# matched past lowercase-prefixed private types like `stringBuilder` and
+# captured the embedded `Builder` — false-positive demand for a sibling
+# test file on a private type. Mirrors the fix in example-gaps.py +
+# ax7-gaps.py.
+METHOD = re.compile(r"^func \(\s*\w+\s+\*?([A-Z]\w*)(?:\[[^\]]+\])?\)\s+([A-Z]\w*)\s*[\[(]")
 TYPE_DECL = re.compile(r"^type\s+([A-Z][A-Za-z0-9_]*)\s+(struct|interface|func)")
 CONST_OR_VAR = re.compile(r"^(?:const|var)\s+([A-Z][A-Za-z0-9_]*)\s*=")
 
