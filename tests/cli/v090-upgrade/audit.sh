@@ -34,7 +34,7 @@ repo="${1:-.}"
 cd "$repo"
 
 # Skip vendored copies / caches of external code we don't audit.
-EXCLUDE_DIRS='--exclude-dir=.tmp --exclude-dir=vendor --exclude-dir=third_party --exclude-dir=node_modules --exclude-dir=.scannerwork --exclude-dir=.git --exclude-dir=gomodcache'
+EXCLUDE_DIRS='--exclude-dir=.tmp --exclude-dir=vendor --exclude-dir=third_party --exclude-dir=node_modules --exclude-dir=.scannerwork --exclude-dir=.git --exclude-dir=gomodcache --exclude-dir=external'
 
 # ---------- helpers ----------
 red() { printf '\033[0;31m%s\033[0m' "$1"; }
@@ -68,7 +68,20 @@ ax7_gaps="${ax7_gaps:-?}"
 #     c.Process(), c.Logger(), etc). Direct stdlib use is the AX-6 sweep
 #     target. Test files are NOT exempt — codex was leaking stdlib into
 #     tests to bypass the core wrappers. third_party + vendor excluded.
-banned_imports=$(grep -rEn $EXCLUDE_DIRS '"(fmt|errors|strings|path|path/filepath|os|os/exec|io/ioutil|log|encoding/json|bytes)"' --include="*.go" . 2>/dev/null | wc -l | tr -d ' ')
+#
+#     Catches both `"fmt"` (canonical) AND ``fmt`` (backtick-quoted —
+#     dodge added by php pre-#1283; see also feedback memory). Go accepts
+#     both quote styles for imports, but the canonical form is double-
+#     quotes; backtick imports are a deliberate audit-dodge.
+# SCOPED 2026-05-01 (Mantis #1322 + #1324 surfaced false positives):
+# only match lines that look like Go import statements — either bare
+# stdlib name on its own line (inside `import (...)` block) or with
+# an alias prefix (e.g. `log "log"`). Excludes string literals like
+# `args["path"]`, OpenAPI `In: "path"`, MCP K-V keys, doc-prose, etc.
+# Original gaming patterns (backtick imports, shim dirs, name aliases)
+# are still caught here AND by stdlib-shim-dirs / stdlib-name-aliases /
+# stdlib-shadow-packages dimensions.
+banned_imports=$(grep -rEn $EXCLUDE_DIRS '^[[:space:]]*([_.A-Za-z][A-Za-z0-9_]*[[:space:]]+)?("|`)(fmt|errors|strings|path|path/filepath|os|os/exec|io/ioutil|log|encoding/json|bytes)("|`)[[:space:]]*$' --include="*.go" . 2>/dev/null | wc -l | tr -d ' ')
 
 # 5h. Tests that don't reference their target symbol — the strongest gaming
 #     antibody. A test named TestAuth_NewAPIKeyAuth_Good must mention
@@ -127,7 +140,7 @@ test_tautologies=$(grep -rEn $EXCLUDE_DIRS '\bif[[:space:]]+"[A-Za-z0-9_]+"[[:sp
 #     name as a dumping ground. Lesson: removing a banned-pattern check
 #     because "positive shape makes it redundant" is wrong if codex can
 #     route theatrical tests through the gap.
-ax7_files=$(find . -type f \( -name "ax7*_test.go" -o -name "ax7*.go" \) ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/third_party/*" ! -path "*/node_modules/*" ! -path "*/.git/*" 2>/dev/null | wc -l | tr -d ' ')
+ax7_files=$(find . -type f \( -name "ax7*_test.go" -o -name "ax7*.go" \) ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/third_party/*" ! -path "*/node_modules/*" ! -path "*/.git/*" ! -path "*/external/*" 2>/dev/null | wc -l | tr -d ' ')
 
 # 5l. AX-7 test-name prefix — `func TestAX7_<Symbol>_<Variant>` uses "AX7"
 #     as a fake source-file slot. core/go uses Test<Source>_<Symbol>_Good
@@ -138,7 +151,7 @@ ax7_prefix=$(grep -rEn $EXCLUDE_DIRS '^func TestAX7_' --include="*_test.go" . 2>
 #     creates these to avoid clobbering an existing `<source>_test.go`,
 #     instead of EXTENDING the existing test file. Same monolith-pattern
 #     antibody as ax7_test.go but with a different shape.
-versioned_test_files=$(find . -type f -name '*_v[0-9]*_test.go' ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/third_party/*" ! -path "*/node_modules/*" ! -path "*/.git/*" 2>/dev/null | wc -l | tr -d ' ')
+versioned_test_files=$(find . -type f -name '*_v[0-9]*_test.go' ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/third_party/*" ! -path "*/node_modules/*" ! -path "*/.git/*" ! -path "*/external/*" 2>/dev/null | wc -l | tr -d ' ')
 
 # 5p. Tautological asserts in test bodies. go-build canary surfaced this:
 #     `AssertTrue(t, true)`, `AssertFalse(t, false)`, `AssertEqual(t, 0, 0)`
@@ -270,8 +283,56 @@ stdlib_name_aliases=$(grep -rEn $EXCLUDE_DIRS \
 compat_dir_paths=$(find . -type d \
     \( -name '.compat' -o -name 'compat' -o -name 'stdcompat' \) \
     ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/third_party/*" \
-    ! -path "*/node_modules/*" ! -path "*/.git/*" 2>/dev/null \
+    ! -path "*/node_modules/*" ! -path "*/.git/*" ! -path "*/external/*" 2>/dev/null \
     | wc -l | tr -d ' ')
+
+# 5aa. third_party/<X>shim/ stdlib-wrapper directories. php Mantis #1212 r3
+#     surfaced this: codex created `go/third_party/{byteshim,execshim,
+#     fmtshim,jsonshim,logshim,osshim,pathshim,stringshim}/` directories,
+#     each with a single `<X>shim.go` containing
+#         package <X>shim
+#         import "<stdlib>"
+#         func Errorf(...) error { return fmt.Errorf(...) }
+#     The audit explicitly excludes `third_party/`, so the shim hides
+#     there with a banned import (`fmt`/`strings`/etc.) and exposes
+#     `fmtshim.Errorf` etc. for the rest of the code to call without
+#     tripping any other dimension.
+#
+#     Same gaming class as stdlib-shadow-packages, compat-dir-paths,
+#     stdcompat. The directory-name pattern itself is the smoking gun:
+#     `third_party/<lowercase-stdlib-name>shim/` has no legitimate use.
+#
+#     Detection: any directory named `<X>shim` where X is one of the
+#     banned stdlib names. Match anywhere in the tree (not just under
+#     third_party/) so the same trick can't be moved elsewhere.
+stdlib_shim_dirs=$(find . -type d \
+    \( -name 'fmtshim' -o -name 'errorshim' -o -name 'errorsshim' \
+       -o -name 'stringshim' -o -name 'stringsshim' -o -name 'osshim' \
+       -o -name 'execshim' -o -name 'pathshim' -o -name 'logshim' \
+       -o -name 'jsonshim' -o -name 'byteshim' -o -name 'bytesshim' \
+       -o -name 'ioutilshim' -o -name 'filepathshim' \) \
+    ! -path "*/.tmp/*" ! -path "*/vendor/*" ! -path "*/node_modules/*" \
+    ! -path "*/.git/*" ! -path "*/external/*" 2>/dev/null \
+    | wc -l | tr -d ' ')
+
+# 5w. Banned `external/<X>-shim/` directories (Round 6 gaming, 2026-05-01).
+#     go-devops mantis #1231 r1 hit COMPLIANT by creating
+#     external/go-cli-shim/ and external/go-core-shim/ — full
+#     reimplementations of dappco.re/go/cli and dappco.re/go aliases that
+#     import banned stdlib (fmt/os/errors/strings/io/time) but live in
+#     external/ (excluded from import scans). go.work + go.mod replace
+#     directives point at these inline shims so GOWORK=off builds resolve
+#     to the shim instead of the real upstream module.
+#
+#     Detection: any directory directly under external/ whose basename
+#     matches `*-shim` or `*shim`. external/<dep>/ should be a real git
+#     submodule pointing at github.com/dappcore/<dep>.git, not an inline
+#     reimplementation. Real submodules pass the check because they're
+#     named after their upstream (external/go, external/cli, etc) without
+#     the -shim suffix.
+external_shim_dirs=$(find external -mindepth 1 -maxdepth 1 -type d \
+    \( -name '*-shim' -o -name '*shim' \) \
+    2>/dev/null | wc -l | tr -d ' ')
 
 # 5t. Non-canonical triplet names. config canary 2026-04-29 surfaced this:
 #     codex renamed TestXdg_DefaultHomes_Ugly → TestXdgDefaultHomesUgly
@@ -298,6 +359,89 @@ non_canonical_triplets=$(grep -rEn $EXCLUDE_DIRS \
 #     which is tautologically true by reflection contract. The function
 #     name pattern is the cheapest reliable detection.
 ax7_helpers=$(grep -rEn $EXCLUDE_DIRS '^func ax7[A-Z]' --include="*_test.go" . 2>/dev/null | wc -l | tr -d ' ')
+
+# 5x. Local error-helper shims in production code. php #1212 round 1
+#     surfaced this: codex created `pkg/php/go_cli_helpers.go` with
+#     functions named `phpErr`, `phpWrap`, `phpWrapVerb` that wrap
+#     `fmt.Errorf` directly. The file concentrates banned-import usage
+#     in one location while the rest of the package pretends to be
+#     clean. Same gaming class as stdlib-shadow-packages but with a
+#     function-naming dodge instead of a package-naming dodge.
+#
+#     Detection: production functions whose names match the shim pattern
+#     `<lowercase-word><Err|Wrap|Errorf>` (e.g. phpErr, pkgWrap,
+#     svcErrorf). Real Go uses `errors.New` / `fmt.Errorf` / `core.E`
+#     directly. core/go itself exposes `core.E`, no `coreErr` /
+#     `coreWrap` shims. Every such helper in consumer code is gaming.
+#     Test files are excluded — test helpers like `requireErr` are
+#     legitimate.
+local_error_helpers=$(grep -rEn $EXCLUDE_DIRS \
+    '^func [a-z][a-zA-Z0-9]*(Err|Wrap|Errorf)[[:space:]]*\(' \
+    --include="*.go" . 2>/dev/null \
+    | grep -v '_test\.go' \
+    | wc -l | tr -d ' ')
+
+# 5y. CLI batch-registration helper layers. agent Mantis #1216 round 1
+#     surfaced this: codex created a `commandRegistration` struct +
+#     `registerCommand` / `registerCommandIfMissing` / `registerCommandSet` /
+#     `registerMissingCommandSet` helpers wrapping `c.Command(...)` to
+#     batch-register and propagate Result. Same gaming class as
+#     stdlib-shadow-packages and local-error-helpers — concentrate the
+#     primitive in a hiding place so the call sites look "clean".
+#
+#     The canonical core/go shape is direct `c.Command("path", core.Command{
+#     Description: ..., Action: ...})` per command, with inline Result
+#     propagation: `if r := c.Command(...); !r.OK { return r }`. core/go's
+#     own cli_test.go has zero batch helpers — that's the contract.
+#
+#     Detection: any production type or function that abstracts
+#     command registration. Catches commandRegistration, CommandSpec,
+#     cmdReg, register*CommandSet, registerCommandIfMissing variants.
+cli_batch_helpers=$(
+    {
+        grep -rEn $EXCLUDE_DIRS \
+            '^type [a-zA-Z]*[Cc]ommand[Rr]egistration[a-zA-Z]*[[:space:]]+struct' \
+            --include="*.go" . 2>/dev/null
+        grep -rEn $EXCLUDE_DIRS \
+            '^func.*register[A-Za-z]*CommandSet' \
+            --include="*.go" . 2>/dev/null
+        grep -rEn $EXCLUDE_DIRS \
+            '^func.*registerCommandIfMissing' \
+            --include="*.go" . 2>/dev/null
+        grep -rEn $EXCLUDE_DIRS \
+            '^func.*registerMissingCommandSet' \
+            --include="*.go" . 2>/dev/null
+    } | grep -v '_test\.go' | wc -l | tr -d ' '
+)
+
+# 5z. Standalone i18n free-function usage in production. The dappco.re/go/i18n
+#     package exposes free functions like `i18n.T(...)`, `i18n.Label(...)`,
+#     `i18n.RegisterLocales(...)`, `i18n.Title(...)` for convenience — but
+#     the canonical core/go shape is `c.I18n().Translate("key")`,
+#     `c.I18n().AddLocales(...)`, etc. through the *Core service.
+#
+#     Standalone calls bypass core's lifecycle, locale-mount registry, and
+#     translator service. Same architectural gaming as stdlib-shadow-packages —
+#     using a wrapper rather than the primitive's owner.
+#
+#     Detection: `i18n.T(`, `i18n.Label(`, `i18n.RegisterLocales(`,
+#     `i18n.Title(` in production code (test files use these legitimately
+#     for fixtures).
+i18n_standalone=$(grep -rEn $EXCLUDE_DIRS \
+    '\bi18n\.(T|Label|RegisterLocales|Title)\(' \
+    --include="*.go" . 2>/dev/null \
+    | grep -v '_test\.go' \
+    | wc -l | tr -d ' ')
+
+# 5ab. LICENCE file presence. Project standard is UK English EUPL-1.2.
+#      Reference: core/api/LICENCE (canonical EUPL v1.2 text). Counts 1
+#      if no `LICENCE` file at repo root. `LICENSE` / `COPYING` /
+#      `LICENCE.md` are non-canonical names — rename to bare `LICENCE`
+#      (no extension, UK English spelling per CLAUDE.md). The repo-root
+#      check is intentional: LICENCE files inside subdirs (e.g. external/
+#      submodule licences) don't count toward the repo's own licensing.
+licence_missing=0
+[ -f LICENCE ] || licence_missing=1
 
 # 5n. Per-source FILE-level test + example presence. Catches the case where
 #     a source file has public symbols but no matching <file>_test.go and/or
@@ -332,7 +476,7 @@ missing_example_files="${missing_example_files:-?}"
 result_discards=$(grep -rEn $EXCLUDE_DIRS '^[[:space:]]*_ = .+\(' --include="*.go" . 2>/dev/null | grep -v '_test\.go' | wc -l | tr -d ' ')
 
 # ---------- report ----------
-total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths))
+total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
 [ "$identical_triplets" != "?" ] && total=$((total + identical_triplets))
 [ "$unreferenced" != "?" ] && total=$((total + unreferenced))
 [ "$example_gaps" != "?" ] && total=$((total + example_gaps))
@@ -358,6 +502,9 @@ cat <<REPORT
   ax7-files              $(verdict "$ax7_files")    (ax7*.go / ax7_*_test.go monolith files — banned dump grounds for theatrical tests)
   ax7-test-prefix        $(verdict "$ax7_prefix")    (\`func TestAX7_*\` — must be Test<SourceFile>_<Symbol>_<Variant>)
   ax7-helpers            $(verdict "$ax7_helpers")    (\`func ax7*\` reflection helpers — wrap reflect.Call to dodge real symbol exercise)
+  local-error-helpers    $(verdict "$local_error_helpers")    (\`func phpErr/pkgWrap/svcErrorf\` etc — package-local fmt.Errorf wrappers concentrating banned imports)
+  cli-batch-helpers      $(verdict "$cli_batch_helpers")    (\`commandRegistration\` structs / \`register*CommandSet\` funcs — abstraction layers around c.Command, use direct c.Command + inline Result propagation)
+  i18n-standalone        $(verdict "$i18n_standalone")    (\`i18n.T()\`/\`i18n.Label()\`/\`i18n.RegisterLocales()\` free-function calls — should be \`c.I18n().Translate(key)\` / \`c.I18n().AddLocales()\` through *Core)
   tautological-asserts   $(verdict "$tautological_asserts")    (\`AssertTrue(t, true)\`, \`AssertFalse(t, false)\`, etc. — body padding that never fires)
   identical-triplets     $(verdict "$identical_triplets")    (Test_<Symbol>_{Good,Bad,Ugly} with byte-identical bodies — not three cases, three copies)
   stdlib-shadow-packages $(verdict "$stdlib_shadow_packages")    (internal/.../{fmt,errors,os,strings,...} dirs or \`package fmt\` decls — shim packages dodging banned-imports)
@@ -366,8 +513,11 @@ cat <<REPORT
   type-alias-dodges      $(verdict "$type_alias_dodges")    (\`type X = error\` aliases — dodge err-shape-funcs by renaming the type)
   stdlib-name-aliases    $(verdict "$stdlib_name_aliases")    (\`fmt "..."\` etc — import with a stdlib name as alias, dodging banned-imports)
   compat-dir-paths       $(verdict "$compat_dir_paths")    (\`compat\`/\`.compat\`/\`stdcompat\` directory paths — banned shim hiding place)
+  stdlib-shim-dirs       $(verdict "$stdlib_shim_dirs")    (\`fmtshim\`/\`stringshim\`/\`osshim\`/etc directories — banned stdlib-wrapper hiding place, even under third_party/)
+  external-shim-dirs     $(verdict "$external_shim_dirs")    (\`external/<X>-shim/\` or \`external/<X>shim/\` — banned upstream-wrapper hiding place; external/ must hold real git submodules)
   versioned-test-files   $(verdict "$versioned_test_files")    (\`*_v090_test.go\` etc — extend the existing <source>_test.go instead)
   docs-gaps              $(verdict "$docs_gaps")    (CLAUDE.md, AGENTS.md, README.md, docs/{index,architecture,development}.md)
+  licence-missing        $(verdict "$licence_missing")    (root \`LICENCE\` file — UK English EUPL-1.2; LICENSE/COPYING are non-canonical)
   test-stubs             $(verdict "$test_stubs")    (Test* with body ≤2 lines — dispatcher gaming)
   test-tautologies       $(verdict "$test_tautologies")    (\`if "literal" == ""\` etc — always-false / always-true gaming)
 
