@@ -32,7 +32,14 @@ import sys
 
 TOP_LEVEL = re.compile(r"^func ([A-Z][A-Za-z0-9_]*)\s*[\[(]")
 METHOD = re.compile(
-    r"^func \([^)]*?\*?([A-Z][A-Za-z0-9_]*)(?:\[[^\]]+\])?\) ([A-Z][A-Za-z0-9_]*)\s*[\[(]"
+    # Receiver type must START with uppercase (public type only).
+    # Same bug fix as example-gaps.py at commit eb6afa1: lazy match
+    # `[^)]*?\*?[A-Z]` skipped lowercase prefixes of private types
+    # (e.g. `issueHeap`) and captured the embedded uppercase tail (`Heap`),
+    # demanding ax7-triplet-gap tests for symbols that can't legally be
+    # referenced from `package <pkg>_test`. Anchor receiver-name + require
+    # uppercase first char on the receiver type. Mirrors TOP_LEVEL.
+    r"^func \(\s*\w+\s+\*?([A-Z]\w*)(?:\[[^\]]+\])?\)\s+([A-Z]\w*)\s*[\[(]"
 )
 TEST_NAME = re.compile(r"^func (Test[A-Za-z0-9_]+)\s*\(")
 
