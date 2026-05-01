@@ -152,6 +152,18 @@ func ReadAll(reader any) Result {
 	return Result{string(data), true}
 }
 
+// Buffer is an alias for bytes.Buffer — an in-memory byte sequence with
+// io.Reader/io.Writer methods. Lets consumers declare buffer-typed
+// fields and locals without importing bytes.
+//
+//	type Sink struct {
+//	    out core.Buffer
+//	}
+//
+//	var buf core.Buffer
+//	buf.WriteString("ready")
+type Buffer = bytes.Buffer
+
 // NewBuffer returns a bytes.Buffer initialised with b.
 // With no input, it returns an empty bytes.Buffer.
 //
@@ -169,4 +181,14 @@ func NewBuffer(b ...[]byte) *bytes.Buffer {
 //	buf := core.NewBufferString("hello")
 func NewBufferString(s string) *bytes.Buffer {
 	return bytes.NewBufferString(s)
+}
+
+// NewBufferReader returns a bytes.Reader over b — the bytes flavour of
+// NewReader, which works on strings. Use for HTTP body construction
+// and other Reader-shaped consumers.
+//
+//	body := core.NewBufferReader([]byte(`{"port":8080}`))
+//	req, _ := core.HTTPNewRequest("POST", url, body)
+func NewBufferReader(b []byte) *bytes.Reader {
+	return bytes.NewReader(b)
 }

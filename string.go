@@ -104,6 +104,41 @@ func Trim(s string) string {
 	return strings.TrimSpace(s)
 }
 
+// TrimCutset removes any leading and trailing characters in cutset
+// from s. The character-class form of Trim — TrimSpace handles only
+// whitespace, TrimCutset handles arbitrary character sets.
+//
+//	core.TrimCutset("//path//", "/")     // "path"
+//	core.TrimCutset("[name]", "[]")      // "name"
+func TrimCutset(s, cutset string) string {
+	return strings.Trim(s, cutset)
+}
+
+// TrimLeft removes any leading characters in cutset from s.
+//
+//	core.TrimLeft("///path", "/")        // "path"
+//	core.TrimLeft("---verbose", "-")     // "verbose"
+func TrimLeft(s, cutset string) string {
+	return strings.TrimLeft(s, cutset)
+}
+
+// TrimRight removes any trailing characters in cutset from s.
+//
+//	core.TrimRight("path///", "/")       // "path"
+//	core.TrimRight("hello!!!", "!")      // "hello"
+func TrimRight(s, cutset string) string {
+	return strings.TrimRight(s, cutset)
+}
+
+// Index returns the byte position of the first occurrence of sep in s,
+// or -1 when sep is absent.
+//
+//	core.Index("key=value", "=")         // 3
+//	core.Index("nothing here", "?")      // -1
+func Index(s, sep string) int {
+	return strings.Index(s, sep)
+}
+
 // RuneCount returns the number of runes (unicode characters) in s.
 //
 //	core.RuneCount("hello")  // 5
@@ -111,6 +146,18 @@ func Trim(s string) string {
 func RuneCount(s string) int {
 	return utf8.RuneCountInString(s)
 }
+
+// Builder is an alias for strings.Builder — the byte-by-byte string
+// assembly type. Lets consumers declare builder-typed fields and locals
+// without importing strings.
+//
+//	type Sink struct {
+//	    out core.Builder
+//	}
+//
+//	var b core.Builder
+//	b.WriteString("ready")
+type Builder = strings.Builder
 
 // NewBuilder returns a new strings.Builder.
 //

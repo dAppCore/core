@@ -154,3 +154,46 @@ func ExampleHTMLUnescape() {
 	Println(HTMLUnescape("&lt;strong&gt;Core&lt;/strong&gt;"))
 	// Output: <strong>Core</strong>
 }
+
+// ExampleTrimCutset trims any character class from both ends of a string
+// through `TrimCutset` for command text handling. Text predicates and
+// transforms stay on the core string wrapper surface.
+func ExampleTrimCutset() {
+	Println(TrimCutset("//path//", "/"))
+	// Output: path
+}
+
+// ExampleTrimLeft trims any leading character class through `TrimLeft`
+// for command text handling. Text predicates and transforms stay on the
+// core string wrapper surface.
+func ExampleTrimLeft() {
+	Println(TrimLeft("---verbose", "-"))
+	// Output: verbose
+}
+
+// ExampleTrimRight trims any trailing character class through `TrimRight`
+// for command text handling. Text predicates and transforms stay on the
+// core string wrapper surface.
+func ExampleTrimRight() {
+	Println(TrimRight("hello!!!", "!"))
+	// Output: hello
+}
+
+// ExampleIndex finds a substring position through `Index` for command text
+// handling. Text predicates and transforms stay on the core string
+// wrapper surface.
+func ExampleIndex() {
+	Println(Index("key=value", "="))
+	// Output: 3
+}
+
+// ExampleBuilder declares a Builder-typed local through the `Builder`
+// alias for command text handling. Text predicates and transforms stay
+// on the core string wrapper surface.
+func ExampleBuilder() {
+	var b Builder
+	b.WriteString("hello")
+	b.WriteString(" world")
+	Println(b.String())
+	// Output: hello world
+}

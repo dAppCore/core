@@ -135,3 +135,32 @@ func TestJson_JSONUnmarshalString_Ugly(t *T) {
 	AssertEqual(t, "codex", target.Name)
 	AssertEqual(t, 8080, target.Port)
 }
+
+func TestJson_RawMessage_Good(t *T) {
+	type envelope struct {
+		Type string     `json:"type"`
+		Data RawMessage `json:"data"`
+	}
+	var env envelope
+	r := JSONUnmarshal([]byte(`{"type":"ping","data":{"port":8080}}`), &env)
+
+	AssertTrue(t, r.OK)
+	AssertEqual(t, "ping", env.Type)
+	AssertEqual(t, `{"port":8080}`, string(env.Data))
+}
+
+func TestJson_RawMessage_Bad(t *T) {
+	var raw RawMessage
+	r := JSONUnmarshal([]byte(`{"port":8080}`), &raw)
+
+	AssertTrue(t, r.OK)
+	AssertEqual(t, `{"port":8080}`, string(raw))
+}
+
+func TestJson_RawMessage_Ugly(t *T) {
+	raw := RawMessage(`{"a":1}`)
+	r := JSONMarshal(raw)
+
+	AssertTrue(t, r.OK)
+	AssertEqual(t, `{"a":1}`, string(r.Value.([]byte)))
+}

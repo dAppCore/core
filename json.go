@@ -15,6 +15,18 @@ package core
 
 import "encoding/json"
 
+// RawMessage is an alias for json.RawMessage — a deferred-decode JSON
+// fragment. Lets HTTP / MCP / IPC handlers accept JSON parameters
+// without committing to a concrete struct, then decode when the shape
+// is known.
+//
+//	func HandleBridgeCall(args core.RawMessage) core.Result {
+//	    var req DeployRequest
+//	    if r := core.JSONUnmarshal(args, &req); !r.OK { return r }
+//	    return core.Ok(req)
+//	}
+type RawMessage = json.RawMessage
+
 // JSONMarshal serialises a value to JSON bytes.
 //
 //	r := core.JSONMarshal(myStruct)

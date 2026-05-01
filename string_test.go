@@ -60,6 +60,84 @@ func TestString_Trim_Good(t *T) {
 	AssertEqual(t, "hello", Trim("  hello  "))
 }
 
+func TestString_TrimCutset_Good(t *T) {
+	AssertEqual(t, "path", TrimCutset("//path//", "/"))
+	AssertEqual(t, "name", TrimCutset("[name]", "[]"))
+}
+
+func TestString_TrimCutset_Bad(t *T) {
+	AssertEqual(t, "", TrimCutset("////", "/"))
+	AssertEqual(t, "hello", TrimCutset("hello", ""))
+}
+
+func TestString_TrimCutset_Ugly(t *T) {
+	AssertEqual(t, "abc", TrimCutset("xyzabcxyz", "xyz"))
+}
+
+func TestString_TrimLeft_Good(t *T) {
+	AssertEqual(t, "path", TrimLeft("///path", "/"))
+	AssertEqual(t, "verbose", TrimLeft("---verbose", "-"))
+}
+
+func TestString_TrimLeft_Bad(t *T) {
+	AssertEqual(t, "", TrimLeft("////", "/"))
+	AssertEqual(t, "path/", TrimLeft("path/", "/"))
+}
+
+func TestString_TrimLeft_Ugly(t *T) {
+	AssertEqual(t, "/path", TrimLeft(" \t /path", " \t"))
+}
+
+func TestString_TrimRight_Good(t *T) {
+	AssertEqual(t, "path", TrimRight("path///", "/"))
+	AssertEqual(t, "hello", TrimRight("hello!!!", "!"))
+}
+
+func TestString_TrimRight_Bad(t *T) {
+	AssertEqual(t, "", TrimRight("////", "/"))
+	AssertEqual(t, "/path", TrimRight("/path", "/"))
+}
+
+func TestString_TrimRight_Ugly(t *T) {
+	AssertEqual(t, "path", TrimRight("path \t ", " \t"))
+}
+
+func TestString_Index_Good(t *T) {
+	AssertEqual(t, 3, Index("key=value", "="))
+	AssertEqual(t, 0, Index("hello", "h"))
+}
+
+func TestString_Index_Bad(t *T) {
+	AssertEqual(t, -1, Index("nothing here", "?"))
+	AssertEqual(t, -1, Index("", "x"))
+}
+
+func TestString_Index_Ugly(t *T) {
+	AssertEqual(t, 0, Index("hello", ""))
+}
+
+func TestString_Builder_Good(t *T) {
+	var b Builder
+	b.WriteString("hello")
+	b.WriteString(" ")
+	b.WriteString("world")
+	AssertEqual(t, "hello world", b.String())
+}
+
+func TestString_Builder_Bad(t *T) {
+	var b Builder
+	AssertEqual(t, "", b.String())
+}
+
+func TestString_Builder_Ugly(t *T) {
+	type Sink struct {
+		out Builder
+	}
+	s := Sink{}
+	s.out.WriteString("ok")
+	AssertEqual(t, "ok", s.out.String())
+}
+
 func TestString_RuneCount_Good(t *T) {
 	AssertEqual(t, 5, RuneCount("hello"))
 	AssertEqual(t, 1, RuneCount("🔥"))

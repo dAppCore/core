@@ -53,3 +53,20 @@ func ExampleJSONUnmarshalString_config() {
 	Println(cfg.Host, cfg.Port)
 	// Output: localhost 8080
 }
+
+// ExampleRawMessage defers JSON decoding through the `RawMessage` alias
+// for envelope-then-payload parsing. Serialisation and parsing return
+// core Results for configuration payloads.
+func ExampleRawMessage() {
+	type envelope struct {
+		Type string     `json:"type"`
+		Data RawMessage `json:"data"`
+	}
+	var env envelope
+	JSONUnmarshal([]byte(`{"type":"ping","data":{"port":8080}}`), &env)
+	Println(env.Type)
+	Println(string(env.Data))
+	// Output:
+	// ping
+	// {"port":8080}
+}

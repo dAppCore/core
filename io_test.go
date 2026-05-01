@@ -201,3 +201,51 @@ func TestIo_NewBufferString_Ugly(t *T) {
 	AssertEqual(t, []byte{'a', 0, 'b'}, buf.Bytes())
 	AssertEqual(t, 3, buf.Len())
 }
+
+func TestIo_Buffer_Good(t *T) {
+	var b Buffer
+	b.WriteString("ready")
+
+	AssertEqual(t, "ready", b.String())
+}
+
+func TestIo_Buffer_Bad(t *T) {
+	var b Buffer
+
+	AssertEqual(t, "", b.String())
+	AssertEqual(t, 0, b.Len())
+}
+
+func TestIo_Buffer_Ugly(t *T) {
+	type Sink struct {
+		out Buffer
+	}
+	s := Sink{}
+	s.out.WriteString("ok")
+
+	AssertEqual(t, "ok", s.out.String())
+}
+
+func TestIo_NewBufferReader_Good(t *T) {
+	rd := NewBufferReader([]byte("hello"))
+	out := make([]byte, 5)
+	n, err := rd.Read(out)
+
+	AssertNoError(t, err)
+	AssertEqual(t, 5, n)
+	AssertEqual(t, "hello", string(out))
+}
+
+func TestIo_NewBufferReader_Bad(t *T) {
+	rd := NewBufferReader(nil)
+	out := make([]byte, 5)
+	_, err := rd.Read(out)
+
+	AssertNotNil(t, err)
+}
+
+func TestIo_NewBufferReader_Ugly(t *T) {
+	rd := NewBufferReader([]byte{0, 0xff, 0x7f})
+
+	AssertEqual(t, int64(3), rd.Size())
+}
