@@ -433,6 +433,29 @@ i18n_standalone=$(grep -rEn $EXCLUDE_DIRS \
     | grep -v '_test\.go' \
     | wc -l | tr -d ' ')
 
+# 5ac. `replace` directives in go.mod files. Snider 2026-05-01: "we have
+#      go.work + submodules setup for all repoes, replace will break things".
+#      Replace overrides go.work resolution — once a repo declares
+#      `replace dappco.re/go/X => /local/path` (or github URL pin), the
+#      workspace mechanism is bypassed and dep cascade work is hidden.
+#      The canonical local-build mechanism is go.work + external/<dep>
+#      submodules; replace directives are tech debt masking incomplete
+#      migration.
+#
+#      Detection: count `^replace\b` lines AND `^[[:space:]]+dappco\.re`
+#      lines inside `replace (...)` blocks across every go.mod in the repo.
+#      Catches both single-line `replace X => Y` and multi-line
+#      `replace ( ... )` block forms. Excludes go.work + go.work.sum
+#      themselves (workspace replaces ARE the canonical mechanism).
+replace_directives=$(
+    {
+        # Single-line replace directives
+        grep -rEn $EXCLUDE_DIRS '^replace[[:space:]]+dappco\.re' --include="go.mod" . 2>/dev/null
+        # Multi-line replace block entries (indented dappco.re lines following `replace (`)
+        grep -rEn $EXCLUDE_DIRS '^[[:space:]]+dappco\.re/go.*=>' --include="go.mod" . 2>/dev/null
+    } | wc -l | tr -d ' '
+)
+
 # 5ab. LICENCE file presence. Project standard is UK English EUPL-1.2.
 #      Reference: core/api/LICENCE (canonical EUPL v1.2 text). Counts 1
 #      if no `LICENCE` file at repo root. `LICENSE` / `COPYING` /
@@ -476,7 +499,7 @@ missing_example_files="${missing_example_files:-?}"
 result_discards=$(grep -rEn $EXCLUDE_DIRS '^[[:space:]]*_ = .+\(' --include="*.go" . 2>/dev/null | grep -v '_test\.go' | wc -l | tr -d ' ')
 
 # ---------- report ----------
-total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
+total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
 [ "$identical_triplets" != "?" ] && total=$((total + identical_triplets))
 [ "$unreferenced" != "?" ] && total=$((total + unreferenced))
 [ "$example_gaps" != "?" ] && total=$((total + example_gaps))
@@ -518,6 +541,7 @@ cat <<REPORT
   versioned-test-files   $(verdict "$versioned_test_files")    (\`*_v090_test.go\` etc — extend the existing <source>_test.go instead)
   docs-gaps              $(verdict "$docs_gaps")    (CLAUDE.md, AGENTS.md, README.md, docs/{index,architecture,development}.md)
   licence-missing        $(verdict "$licence_missing")    (root \`LICENCE\` file — UK English EUPL-1.2; LICENSE/COPYING are non-canonical)
+  replace-directives     $(verdict "$replace_directives")    (\`replace dappco.re/go/X => ...\` in go.mod — overrides go.work + submodule resolution; tech debt masking incomplete cascade)
   test-stubs             $(verdict "$test_stubs")    (Test* with body ≤2 lines — dispatcher gaming)
   test-tautologies       $(verdict "$test_tautologies")    (\`if "literal" == ""\` etc — always-false / always-true gaming)
 
