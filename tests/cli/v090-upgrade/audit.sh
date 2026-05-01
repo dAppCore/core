@@ -34,7 +34,7 @@ repo="${1:-.}"
 cd "$repo"
 
 # Skip vendored copies / caches of external code we don't audit.
-EXCLUDE_DIRS='--exclude-dir=.tmp --exclude-dir=vendor --exclude-dir=third_party --exclude-dir=node_modules --exclude-dir=.scannerwork --exclude-dir=.git --exclude-dir=gomodcache --exclude-dir=external'
+EXCLUDE_DIRS='--exclude-dir=.tmp --exclude-dir=vendor --exclude-dir=third_party --exclude-dir=node_modules --exclude-dir=.scannerwork --exclude-dir=.git --exclude-dir=gomodcache --exclude-dir=external --exclude-dir=.lintdeps'
 
 # ---------- helpers ----------
 red() { printf '\033[0;31m%s\033[0m' "$1"; }
