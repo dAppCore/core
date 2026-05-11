@@ -599,8 +599,104 @@ missing_example_files="${missing_example_files:-?}"
 #    Test files are also excluded — stubbing patterns there are legitimate.
 result_discards=$(grep -rEn $EXCLUDE_DIRS '^[[:space:]]*_ = .+\(' --include="*.go" . 2>/dev/null | grep -v '_test\.go' | wc -l | tr -d ' ')
 
+# 5ah. Legacy `dappco.re/go/log` import. Snider 2026-05-12: the v0.9.0
+#      canon unifies error construction under `core.E(scope, msg, cause)`
+#      from `dappco.re/go`. The legacy log package `dappco.re/go/log`
+#      exposed `coreerr.E(...)` and `coreerr.Wrap(...)` helpers used
+#      across older code. Today's go-ml sweep removed 237 such usages
+#      mechanically (`coreerr.E → core.E`) but nothing prevents
+#      regression — a new author can import `coreerr "dappco.re/go/log"`
+#      and slip past the audit because no dimension catches the legacy
+#      package itself.
+#
+#      Detection: any import line referencing `"dappco.re/go/log"`,
+#      with or without alias. Matches `coreerr "dappco.re/go/log"`,
+#      `"dappco.re/go/log"`, and `log "dappco.re/go/log"` (the last
+#      already partly caught by stdlib-name-aliases for the `log` name
+#      itself). Production + tests both flagged.
+legacy_log_package=$(grep -rEn $EXCLUDE_DIRS \
+    '"dappco\.re/go/log"' \
+    --include="*.go" . 2>/dev/null \
+    | wc -l | tr -d ' ')
+
+# 5ai. Service `// Usage example:` marker. Mantis #1383: convention tests
+#      in canonical service-shape files (NewService + RegisterCore per
+#      Mantis #1336) require the literal `// Usage example:` marker in
+#      the file's doc block. This marker anchors AX-2 ("comments are
+#      usage examples, not novels") for the package's primary entry
+#      point — readers find the canonical wiring example by searching
+#      one phrase across the codebase.
+#
+#      Bad commit 56879f4 (go-pool, 2026-05-11) added a 7-line prose
+#      docstring without the marker; the convention test silently failed
+#      because it only ran on specific files. The audit makes the rule
+#      ecosystem-wide.
+#
+#      Detection: every file declaring `^func NewService` must contain
+#      a `Usage example:` line somewhere. Skips test files (test fixtures
+#      occasionally declare NewService for service-init mocks).
+service_usage_example=$(
+    files=$(grep -rln $EXCLUDE_DIRS '^func NewService(' --include="*.go" . 2>/dev/null | grep -v '_test\.go')
+    count=0
+    if [ -n "$files" ]; then
+        while IFS= read -r f; do
+            grep -q 'Usage example:' "$f" || count=$((count + 1))
+        done <<< "$files"
+    fi
+    echo "$count"
+)
+
+# 5aj. Canonical service shape. Mantis #1336 + #1383: a package's
+#      `service.go` (or wherever `NewService` lives) must expose BOTH:
+#        - `NewService(opts Options) *Service`     — typed constructor
+#        - `Register(c *core.Core) core.Result` OR — imperative shorthand
+#          `RegisterCore(c *core.Core) core.Result` (name divergence
+#          allowed when `Register` collides with the package's existing
+#          init-time registration func, e.g. inference.Register(Backend))
+#
+#      Packages with only NewService (no Register*) can't be wired into
+#      Core lifecycle via `core.WithService(...)`. The check counts
+#      packages that declare NewService but lack the Register variant —
+#      same package directory, any .go file.
+#
+#      Detection: per-package check across every directory containing a
+#      file with `^func NewService`. The package passes if any .go file
+#      in that directory declares `^func Register(Core)?\(c \*core\.Core\)`.
+#      Test files excluded (test fixtures don't need the canonical pair).
+service_canonical_shape=$(
+    files=$(grep -rln $EXCLUDE_DIRS '^func NewService(' --include="*.go" . 2>/dev/null | grep -v '_test\.go')
+    count=0
+    if [ -n "$files" ]; then
+        dirs=$(echo "$files" | xargs -n1 dirname | sort -u)
+        while IFS= read -r d; do
+            grep -qE '^func Register(Core)?\(c \*core\.Core\)' "$d"/*.go 2>/dev/null || count=$((count + 1))
+        done <<< "$dirs"
+    fi
+    echo "$count"
+)
+
+# 5ak. Two-stage error wrap antipattern. Spotted 2026-05-11 (BookState
+#      demo work): `core.NewError(result.Error())` or
+#      `core.E("scope", "msg", core.NewError(r.Error()))` constructs a
+#      fresh error from the string form of a Result.Error() — losing the
+#      original wrap chain, the Result's Value side, and any structured
+#      cause data. The canonical pattern is to propagate the Result
+#      directly (`if !r.OK { return r }`) or unwrap once
+#      (`core.E("scope", "msg", r.Value.(error))` when bridging Result
+#      to error-shape consumers).
+#
+#      Detection: any `core.NewError(...Error())` call — captures the
+#      `core.NewError(x.Error())`, `core.NewError(r.Error())`, and
+#      `core.NewError(result.Error())` shapes. Production + tests both
+#      flagged (tests doing this are also wrong; they should propagate
+#      the structured error through the test helpers).
+error_wrap_antipattern=$(grep -rEn $EXCLUDE_DIRS \
+    'core\.NewError\([a-zA-Z_][a-zA-Z0-9_.]*\.Error\(\)\)' \
+    --include="*.go" . 2>/dev/null \
+    | wc -l | tr -d ' ')
+
 # ---------- report ----------
-total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + tracked_artifacts + command_path_shape + service_name_empty + action_name_format + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + tuple_result_shape + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
+total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + tracked_artifacts + command_path_shape + service_name_empty + action_name_format + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + tuple_result_shape + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs + legacy_log_package + service_usage_example + service_canonical_shape + error_wrap_antipattern))
 [ "$identical_triplets" != "?" ] && total=$((total + identical_triplets))
 [ "$unreferenced" != "?" ] && total=$((total + unreferenced))
 [ "$example_gaps" != "?" ] && total=$((total + example_gaps))
@@ -650,6 +746,10 @@ cat <<REPORT
   action-name-format     $(verdict "$action_name_format")    (\`c.Action("X", ...)\` where X isn't dotted-lowercase like "domain.verb" — see core/go/docs/messaging.md)
   test-stubs             $(verdict "$test_stubs")    (Test* with body ≤2 lines — dispatcher gaming)
   test-tautologies       $(verdict "$test_tautologies")    (\`if "literal" == ""\` etc — always-false / always-true gaming)
+  legacy-log-package     $(verdict "$legacy_log_package")    (\`"dappco.re/go/log"\` import — legacy coreerr.E lane; use \`core.E\` from \`dappco.re/go\`)
+  service-usage-example  $(verdict "$service_usage_example")    (files declaring \`NewService\` must include the \`// Usage example:\` marker — Mantis #1383)
+  service-canonical-shape $(verdict "$service_canonical_shape")    (packages with \`NewService\` must also declare \`Register(c *core.Core) core.Result\` or \`RegisterCore\` — Mantis #1336)
+  error-wrap-antipattern $(verdict "$error_wrap_antipattern")    (\`core.NewError(x.Error())\` two-stage wrap — loses Result chain; propagate directly or unwrap once)
 
 REPORT
 
