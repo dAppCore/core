@@ -235,6 +235,34 @@ err_shape_funcs=$(grep -rEn $EXCLUDE_DIRS \
     | grep -v '_test\.go' \
     | wc -l | tr -d ' ')
 
+# 5s2. Two-return tuple constructors. Snider 2026-05-11 mid-Mantis #1393
+#     (go-store migration). go-store had 6 constructors all using the
+#     `(*T, core.Result)` two-return shape — the worst-of-both-worlds:
+#     Result wrapper doing OK-check duty but Value always nil for the
+#     happy path, with the actual constructed value in the first return
+#     slot. Same anti-pattern surface as `(*T, error)` (Mantis #1389):
+#     callers must `_`-discard one slot or write `_, err :=` boilerplate,
+#     and panics inside the constructor crash instead of surfacing as
+#     Fail.
+#
+#     The canonical shape is single-return `core.Result` with the value
+#     carried in `r.Value` — caller does `r := pkg.New(...); if !r.OK
+#     { return r }; v := r.Value.(*T)`. Single fetch, error-visible,
+#     panic-recoverable via defer-recover at constructor entry.
+#
+#     Detection: function signatures ending in `(*T, error)` or
+#     `(*T, core.Result)` (or value-type first slot) followed by `{`.
+#     Test files excluded — TestX functions don't return tuples.
+#     Stdlib-interface impls (e.g. `Read(p []byte) (int, error)`) will
+#     register here as legitimate floor; the err-shape-funcs comment
+#     about core/go's reference count of 14 applies the same way:
+#     anything well above that floor is unconverted code.
+tuple_result_shape=$(grep -rEn $EXCLUDE_DIRS \
+    '^func .* \(\*?[A-Za-z_][^,]*, ?(error|core\.Result)\) \{$' \
+    --include="*.go" . 2>/dev/null \
+    | grep -v '_test\.go' \
+    | wc -l | tr -d ' ')
+
 # 5u. Type-alias dodges. go-devops canary 2026-04-29 round 1 surfaced this:
 #     codex created `type coreFailure = error` in error_alias.go files,
 #     then renamed 20+ functions from `func ... error {` to `func ...
@@ -572,7 +600,7 @@ missing_example_files="${missing_example_files:-?}"
 result_discards=$(grep -rEn $EXCLUDE_DIRS '^[[:space:]]*_ = .+\(' --include="*.go" . 2>/dev/null | grep -v '_test\.go' | wc -l | tr -d ' ')
 
 # ---------- report ----------
-total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + tracked_artifacts + command_path_shape + service_name_empty + action_name_format + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
+total=$((legacy_imports + banned_imports + breaking_api + result_literals + testify_files + result_discards + test_tautologies + docs_gaps + licence_missing + replace_directives + tracked_artifacts + command_path_shape + service_name_empty + action_name_format + ax7_files + ax7_prefix + versioned_test_files + ax7_helpers + local_error_helpers + cli_batch_helpers + i18n_standalone + tautological_asserts + stdlib_shadow_packages + err_shape_funcs + tuple_result_shape + non_canonical_triplets + type_alias_dodges + stdlib_name_aliases + compat_dir_paths + stdlib_shim_dirs + external_shim_dirs))
 [ "$identical_triplets" != "?" ] && total=$((total + identical_triplets))
 [ "$unreferenced" != "?" ] && total=$((total + unreferenced))
 [ "$example_gaps" != "?" ] && total=$((total + example_gaps))
@@ -605,6 +633,7 @@ cat <<REPORT
   identical-triplets     $(verdict "$identical_triplets")    (Test_<Symbol>_{Good,Bad,Ugly} with byte-identical bodies — not three cases, three copies)
   stdlib-shadow-packages $(verdict "$stdlib_shadow_packages")    (internal/.../{fmt,errors,os,strings,...} dirs or \`package fmt\` decls — shim packages dodging banned-imports)
   err-shape-funcs        $(verdict "$err_shape_funcs")    (\`func ... error\` in production — should be \`func ... Result\`; core/go handles logging + panics)
+  tuple-result-shape     $(verdict "$tuple_result_shape")    (\`func ... (*T, error)\` or \`(*T, core.Result)\` two-return — should collapse to single-return \`core.Result\` with value in r.Value)
   non-canonical-triplets $(verdict "$non_canonical_triplets")    (Test fn names ending Good/Bad/Ugly without \`_<Variant>\` separator — dodges identical-triplets regex)
   type-alias-dodges      $(verdict "$type_alias_dodges")    (\`type X = error\` aliases — dodge err-shape-funcs by renaming the type)
   stdlib-name-aliases    $(verdict "$stdlib_name_aliases")    (\`fmt "..."\` etc — import with a stdlib name as alias, dodging banned-imports)
