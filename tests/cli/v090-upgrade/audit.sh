@@ -258,7 +258,7 @@ err_shape_funcs=$(grep -rEn $EXCLUDE_DIRS \
 #     about core/go's reference count of 14 applies the same way:
 #     anything well above that floor is unconverted code.
 tuple_result_shape=$(grep -rEn $EXCLUDE_DIRS \
-    '^func .* \(\*?[A-Za-z_][^,]*, ?(error|core\.Result)\) \{$' \
+    '^func .* \([^)]+, ?(error|core\.Result)\) \{$' \
     --include="*.go" . 2>/dev/null \
     | grep -v '_test\.go' \
     | wc -l | tr -d ' ')
